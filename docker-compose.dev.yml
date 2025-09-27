@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Development database only (for when API is running locally)
+  postgres:
+    image: postgres:15-alpine
+    container_name: snacktrack-postgres-dev
+    environment:
+      POSTGRES_DB: snacktrack
+      POSTGRES_USER: snacktrack
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snacktrack -d snacktrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: snacktrack-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
