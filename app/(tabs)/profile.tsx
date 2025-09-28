@@ -3,9 +3,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { router } from 'expo-router';
+import { analyticsApi } from '../../services/analyticsApi';
+import { UserSummary } from '../../types/api';
+import { useState, useEffect } from 'react';
 
 export default function ProfileScreen() {
   const { state, logout } = useUser();
+  const [analytics, setAnalytics] = useState<UserSummary | null>(null);
 
   const handleLogout = () => {
     Alert.alert(
@@ -36,6 +40,31 @@ export default function ProfileScreen() {
       day: 'numeric',
     });
   };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const loadAnalytics = async () => {
+    if (!state.user) return;
+    
+    try {
+      const summary = await analyticsApi.getUserSummary(state.user.id);
+      setAnalytics(summary);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      // Keep analytics as null to show basic user data
+    }
+  };
+
+  useEffect(() => {
+    if (state.user) {
+      loadAnalytics();
+    }
+  }, [state.user]);
 
   if (!state.user) {
     return (
@@ -68,12 +97,12 @@ export default function ProfileScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                ${state.user.totalSpent.toFixed(2)}
+                {formatCurrency(analytics?.totalSpent || state.user.totalSpent || 0)}
               </Text>
               <Text style={styles.statLabel}>Total Spent</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{state.user.receiptCount}</Text>
+              <Text style={styles.statValue}>{analytics?.totalReceipts || state.user.receiptCount || 0}</Text>
               <Text style={styles.statLabel}>Receipts</Text>
             </View>
           </View>
