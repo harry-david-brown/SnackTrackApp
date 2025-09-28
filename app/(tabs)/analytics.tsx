@@ -20,6 +20,7 @@ import SpendingTrendChart from '../../components/SpendingTrendChart';
 import RestaurantBreakdownChart from '../../components/RestaurantBreakdownChart';
 import CategoryAnalysisChart from '../../components/CategoryAnalysisChart';
 import InsightsPanel from '../../components/InsightsPanel';
+import SocialShareModal from '../../components/SocialShareModal';
 
 
 export default function AnalyticsScreen() {
@@ -28,6 +29,7 @@ export default function AnalyticsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'monthly' | 'yearly'>('monthly');
   const [shareableImage, setShareableImage] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const loadAnalytics = async () => {
     if (!state.user) return;
@@ -71,24 +73,8 @@ export default function AnalyticsScreen() {
     }).format(amount);
   };
 
-  const handleShare = async () => {
-    try {
-      // For now, we'll share text. In the future, we can capture the chart as an image
-      const shareText = `🥡 My Snack Track Analytics:
-      
-💰 Total Spent: ${formatCurrency(analytics?.totalSpent || 0)}
-📊 Total Orders: ${analytics?.totalReceipts || 0}
-🏆 Top Restaurant: ${analytics?.topRestaurants[0]?.name || 'N/A'}
-
-Track your food spending with Snack Track!`;
-
-      await Share.share({
-        message: shareText,
-        title: 'My Snack Track Analytics',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+  const handleShare = () => {
+    setShowShareModal(true);
   };
 
 
@@ -205,6 +191,13 @@ Track your food spending with Snack Track!`;
         {/* Insights Section */}
         <InsightsPanel analytics={analytics} />
       </ScrollView>
+
+      {/* Social Share Modal */}
+      <SocialShareModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        analytics={analytics}
+      />
     </SafeAreaView>
   );
 }
