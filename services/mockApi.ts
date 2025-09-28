@@ -19,13 +19,22 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 let mockUsers: AppUser[] = [];
 let mockReceipts: any[] = [];
 
+// Generate a proper UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const mockUserApi = {
   // Create a new user
   createUser: async (data: CreateUserRequest): Promise<CreateUserResponse> => {
     await delay(MOCK_DELAY);
     
     const newUser: AppUser = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: generateUUID(),
       email: data.email,
       createdAt: new Date().toISOString(),
       totalSpent: 0,
@@ -84,7 +93,7 @@ export const mockCsvApi = {
     // Add mock receipts
     for (let i = 0; i < receiptsImported; i++) {
       mockReceipts.push({
-        id: `receipt_${Date.now()}_${i}`,
+        id: generateUUID(),
         userId,
         restaurantName: `Restaurant ${i + 1}`,
         amountSpent: Math.floor(Math.random() * 50) + 10,
@@ -94,7 +103,7 @@ export const mockCsvApi = {
     
     return {
       success: true,
-      receiptsImported,
+      importedCount: receiptsImported,
       message: `Successfully imported ${receiptsImported} receipts!`,
     };
   },

@@ -51,8 +51,6 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
    # Press 'w' to open in browser
    ```
 
-**That's it!** The app is now running with real data from your API
-
 ## 🗄️ Development Environment
 
 ### **API Dependency**
@@ -77,6 +75,46 @@ If the Snack Track API is not running on `localhost:3000`:
 - **CSV Upload**: Simulates successful upload with mock data
 - **Development**: You can still build and test UI components
 - **Console**: Clear messages indicating fallback to mock data
+
+## 📱 Mobile Development
+
+### **Testing on Physical Device**
+Test the app on your phone using Expo Go:
+
+1. **Install Expo Go** app on your phone
+2. **Start development server**: `npm run mobile`
+3. **Scan QR code** with your phone's camera
+4. **Select "Snack Track"** in Expo Go app
+
+**Note**: For mobile testing with API connectivity, you may need to:
+1. **Find your computer's IP address**: `ip addr show` (Linux) or `ifconfig` (Mac)
+2. **Create `.env.local`** with your IP:
+   ```
+   EXPO_PUBLIC_API_URL=http://YOUR_IP_ADDRESS:3000
+   ```
+3. **Restart Expo** to pick up the new environment variable
+
+### **Mobile Testing (Expo Go)**
+Test the app on any mobile device using Expo Go:
+
+1. **Install Expo Go**: Download from [App Store](https://apps.apple.com/app/expo-go/id982107779) (iOS) or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) (Android)
+2. **Start Expo**: `npx expo start`
+3. **Scan QR code** with your camera or Expo Go app
+4. **Select "Snack Track"** in the Expo Go app
+
+**Simple command:**
+- `npx expo start` - Start Expo development server
+
+**Benefits**: 
+- **No setup required**: Works on any iOS or Android device
+- **Instant testing**: Changes appear immediately on your device
+- **Cross-platform**: Test on both iOS and Android with one command
+
+### **Mobile Features**
+- **Native Sharing**: Test social sharing functionality
+- **Touch Interactions**: Verify gestures and animations
+- **Device APIs**: Test camera, file system, and media library
+- **Cross-Platform**: Works on iOS and Android devices via Expo Go
 
 ## 🎭 Current Features
 
@@ -127,8 +165,7 @@ If the Snack Track API is not running on `localhost:3000`:
 npm start              # Start Expo development server
 npm run start:clean    # Clean start (kills existing processes)
 npm run web           # Open in web browser
-npm run android       # Run on Android emulator
-npm run ios           # Run on iOS simulator
+npx expo start        # Start for mobile testing (Expo Go)
 npm run stop-expo     # Stop all Expo/Metro processes
 ```
 
@@ -199,7 +236,7 @@ npm run clean        # Clean install dependencies
    ```
 
 2. **Set up environment**
-   ```bash
+```bash
    npm run setup
    ```
 

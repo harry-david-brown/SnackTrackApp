@@ -71,31 +71,10 @@ check_requirements() {
         npm install -g @expo/cli
     fi
     
-    # Check Android SDK (optional)
-    check_android_setup
     
     print_success "All requirements satisfied!"
 }
 
-# Check Android setup
-check_android_setup() {
-    print_status "Checking Android development setup..."
-    
-    # Check if Android SDK is installed
-    if [ -z "$ANDROID_HOME" ] && [ ! -d "$HOME/Android/Sdk" ] && [ ! -d "/opt/android-sdk" ]; then
-        print_warning "Android SDK not found. Android development requires:"
-        print_warning "1. Install Android Studio from https://developer.android.com/studio"
-        print_warning "2. Set ANDROID_HOME environment variable"
-        print_warning "3. Add Android SDK tools to PATH"
-        print_warning ""
-        print_warning "For now, you can still develop using:"
-        print_warning "- Web browser (press 'w' in Expo)"
-        print_warning "- iOS simulator (macOS only)"
-        print_warning "- Physical device with Expo Go app"
-    else
-        print_success "Android SDK found!"
-    fi
-}
 
 # Install dependencies
 install_dependencies() {
@@ -210,8 +189,8 @@ main() {
     echo ""
     echo "Next steps:"
     echo "1. For real data: cd ~/Projects/snack-track && docker-compose up -d"
-    echo "2. Start the development server: npm start"
-    echo "3. Open the app on your device/emulator"
+    echo "2. Start the development server: npx expo start"
+    echo "3. Install Expo Go on your phone and scan the QR code"
     echo "4. Check the README.md for detailed instructions"
     echo ""
     echo "Database is running on:"

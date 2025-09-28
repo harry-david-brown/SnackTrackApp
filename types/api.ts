@@ -43,8 +43,8 @@ export interface CSVImportRequest {
 }
 
 export interface CSVImportResponse {
-  success: boolean;
-  receiptsImported: number;
+  success?: boolean;
+  importedCount: number;
   message: string;
 }
 

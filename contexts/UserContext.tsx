@@ -87,6 +87,12 @@ const STORAGE_KEYS = {
   USER_ID: '@snacktrack_user_id',
 };
 
+// UUID validation function
+const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
 // User provider component
 interface UserProviderProps {
   children: ReactNode;
@@ -99,6 +105,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   useEffect(() => {
     loadUserFromStorage();
   }, []);
+
+  // Clear storage if user ID is not a valid UUID
+  useEffect(() => {
+    if (state.user && !isValidUUID(state.user.id)) {
+      console.log('Invalid UUID detected, clearing storage...');
+      clearUserStorage();
+      dispatch({ type: 'SET_USER', payload: null });
+    }
+  }, [state.user]);
 
   const loadUserFromStorage = async () => {
     try {
@@ -179,23 +194,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         console.log('Connected to real API successfully');
       } catch (apiError: any) {
         console.log('Real API error:', apiError.response?.data?.message || apiError.message);
-        // For now, let's use the existing user data from the API
-        // Get the first available user for demo purposes
-        try {
-          const existingUsers = await fetch('http://localhost:3000/database/users').then(res => res.json());
-          if (existingUsers.users && existingUsers.users.length > 0) {
-            const existingUser = existingUsers.users[0];
-            response = { userId: existingUser.id, message: 'Using existing user data' };
-            totalSpent = existingUser.totalSpent || 0;
-            console.log('Using existing user:', existingUser.email);
-          } else {
-            throw new Error('No existing users found');
-          }
-        } catch (fallbackError) {
-          console.log('Fallback failed, using mock API');
-          response = await mockUserApi.createUser({ email });
-          totalSpent = await mockUserApi.getTotalSpent(response.userId);
-        }
+        // If API fails, use mock API as fallback
+        console.log('API failed, using mock API fallback');
+        response = await mockUserApi.createUser({ email });
+        totalSpent = await mockUserApi.getTotalSpent(response.userId);
       }
       
       // Create user object

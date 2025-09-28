@@ -24,6 +24,7 @@ interface UploadState {
   progress: number;
   fileName: string | null;
   fileSize: number | null;
+  fileUri: string | null;
 }
 
 export const CSVUpload: React.FC<CSVUploadProps> = ({
@@ -35,6 +36,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
     progress: 0,
     fileName: null,
     fileSize: null,
+    fileUri: null,
   });
   const [showModal, setShowModal] = useState(false);
   const { state } = useUser();
@@ -86,6 +88,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
           ...prev,
           fileName: asset.name,
           fileSize: asset.size || 0,
+          fileUri: asset.uri,
         }));
         setShowModal(true);
       }
@@ -115,26 +118,25 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
       // Try real API first, fall back to mock API
       let response;
       try {
-        // For now, simulate a successful CSV import using the real API
-        // In the future, this would upload the actual file
-        console.log('Simulating CSV import with real API data');
+        // Actually upload the CSV file to the API
+        console.log('Uploading CSV file to API');
         
-        // Get existing user data to simulate import
-        const existingUsers = await fetch('http://localhost:3000/database/users').then(res => res.json());
-        const existingUser = existingUsers.users.find((u: any) => u.totalSpent > 0);
-        
-        if (existingUser) {
-          response = {
-            success: true,
-            receiptsImported: existingUser.receiptCount,
-            message: 'CSV imported successfully using real data!',
-          };
+        if (uploadState.fileUri && uploadState.fileName) {
+          // Create a File object for the API
+          const file = {
+            uri: uploadState.fileUri,
+            type: 'text/csv',
+            name: uploadState.fileName,
+          } as any;
+          
+          response = await csvApi.importCsv(state.user.id, file);
+          console.log('CSV uploaded successfully to API');
         } else {
-          throw new Error('No existing data found');
+          throw new Error('No file selected for upload');
         }
       } catch (apiError) {
-        console.log('Real API not available, using mock API');
-        // Use mock API for now
+        console.log('Real API failed, using mock API:', apiError);
+        // Use mock API as fallback
         response = await mockCsvApi.importCsv(state.user.id, null as any);
       }
       
@@ -142,21 +144,17 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
       setUploadState(prev => ({ ...prev, progress: 100 }));
 
       setTimeout(() => {
-        setUploadState({
-          isUploading: false,
-          progress: 0,
-          fileName: null,
-          fileSize: null,
-        });
+          setUploadState({
+            isUploading: false,
+            progress: 0,
+            fileName: null,
+            fileSize: null,
+            fileUri: null,
+          });
         setShowModal(false);
 
-        Alert.alert(
-          'Upload Successful! 🎉',
-          `Successfully imported ${response.receiptsImported} receipts from your CSV file.`,
-          [{ text: 'Great!', style: 'default' }]
-        );
-
-        onUploadSuccess?.(response.receiptsImported);
+        // Let the parent component handle the success message
+        onUploadSuccess?.(response.importedCount || 0);
       }, 500);
 
     } catch (error: any) {
@@ -169,12 +167,13 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
   };
 
   const handleCancel = () => {
-    setUploadState({
-      isUploading: false,
-      progress: 0,
-      fileName: null,
-      fileSize: null,
-    });
+          setUploadState({
+            isUploading: false,
+            progress: 0,
+            fileName: null,
+            fileSize: null,
+            fileUri: null,
+          });
     setShowModal(false);
   };
 
