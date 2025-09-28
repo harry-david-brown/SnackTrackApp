@@ -71,13 +71,44 @@ check_requirements() {
         npm install -g @expo/cli
     fi
     
+    # Check Android SDK (optional)
+    check_android_setup
+    
     print_success "All requirements satisfied!"
+}
+
+# Check Android setup
+check_android_setup() {
+    print_status "Checking Android development setup..."
+    
+    # Check if Android SDK is installed
+    if [ -z "$ANDROID_HOME" ] && [ ! -d "$HOME/Android/Sdk" ] && [ ! -d "/opt/android-sdk" ]; then
+        print_warning "Android SDK not found. Android development requires:"
+        print_warning "1. Install Android Studio from https://developer.android.com/studio"
+        print_warning "2. Set ANDROID_HOME environment variable"
+        print_warning "3. Add Android SDK tools to PATH"
+        print_warning ""
+        print_warning "For now, you can still develop using:"
+        print_warning "- Web browser (press 'w' in Expo)"
+        print_warning "- iOS simulator (macOS only)"
+        print_warning "- Physical device with Expo Go app"
+    else
+        print_success "Android SDK found!"
+    fi
 }
 
 # Install dependencies
 install_dependencies() {
     print_status "Installing project dependencies..."
-    npm install
+    
+    # Clean install to avoid conflicts
+    if [ -d "node_modules" ]; then
+        print_status "Cleaning existing node_modules..."
+        rm -rf node_modules package-lock.json
+    fi
+    
+    # Install with legacy peer deps to handle React version conflicts
+    npm install --legacy-peer-deps
     print_success "Dependencies installed!"
 }
 
@@ -86,8 +117,25 @@ setup_environment() {
     print_status "Setting up environment configuration..."
     
     if [ ! -f .env ]; then
-        cp .env.example .env
-        print_success "Created .env file from .env.example"
+        if [ -f .env.example ]; then
+            cp .env.example .env
+            print_success "Created .env file from .env.example"
+        else
+            # Create a basic .env file if .env.example doesn't exist
+            cat > .env << EOF
+# API Configuration
+API_BASE_URL=http://localhost:3000
+
+# App Configuration
+APP_NAME=Snack Track
+APP_VERSION=1.0.0
+
+# Development
+NODE_ENV=development
+DEBUG=true
+EOF
+            print_success "Created basic .env file"
+        fi
     else
         print_warning ".env file already exists, skipping..."
     fi
@@ -116,9 +164,26 @@ start_database() {
     fi
 }
 
+# Stop any existing Expo processes
+stop_expo_processes() {
+    print_status "Stopping any existing Expo processes..."
+    
+    # Kill existing Expo and Metro processes
+    pkill -f 'expo start' 2>/dev/null || true
+    pkill -f 'metro' 2>/dev/null || true
+    
+    # Wait a moment for processes to fully stop
+    sleep 2
+    
+    print_success "Expo processes stopped!"
+}
+
 # Verify setup
 verify_setup() {
     print_status "Verifying setup..."
+    
+    # Stop any existing processes first
+    stop_expo_processes
     
     # Check if app can start
     print_status "Testing Expo setup..."
@@ -131,7 +196,7 @@ verify_setup() {
 
 # Main setup function
 main() {
-    echo "🍕 Welcome to Snack Track App Development Setup!"
+    echo "🥡 Welcome to Snack Track App Development Setup!"
     echo ""
     
     check_requirements
@@ -144,13 +209,16 @@ main() {
     print_success "🎉 Development environment setup complete!"
     echo ""
     echo "Next steps:"
-    echo "1. Start the development server: npm start"
-    echo "2. Open the app on your device/emulator"
-    echo "3. Check the README.md for detailed instructions"
+    echo "1. For real data: cd ~/Projects/snack-track && docker-compose up -d"
+    echo "2. Start the development server: npm start"
+    echo "3. Open the app on your device/emulator"
+    echo "4. Check the README.md for detailed instructions"
     echo ""
     echo "Database is running on:"
     echo "- PostgreSQL: localhost:5432"
     echo "- Redis: localhost:6379"
+    echo ""
+    echo "Note: Without the Snack Track API, the app will use mock data for development."
     echo ""
     echo "Happy coding! 🚀"
 }

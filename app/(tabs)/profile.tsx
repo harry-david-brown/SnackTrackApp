@@ -1,8 +1,52 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useUser } from '../../contexts/UserContext';
+import { router } from 'expo-router';
 
 export default function ProfileScreen() {
+  const { state, logout } = useUser();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+            router.replace('/');
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (!state.user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -11,10 +55,28 @@ export default function ProfileScreen() {
         
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👤</Text>
+            <Text style={styles.avatarText}>
+              {state.user.email.charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <Text style={styles.email}>user@example.com</Text>
-          <Text style={styles.memberSince}>Member since Today</Text>
+          <Text style={styles.email}>{state.user.email}</Text>
+          <Text style={styles.memberSince}>
+            Member since {formatDate(state.user.createdAt)}
+          </Text>
+          
+          {/* Stats */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                ${state.user.totalSpent.toFixed(2)}
+              </Text>
+              <Text style={styles.statLabel}>Total Spent</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{state.user.receiptCount}</Text>
+              <Text style={styles.statLabel}>Receipts</Text>
+            </View>
+          </View>
         </View>
         
         <View style={styles.menuCard}>
@@ -25,8 +87,14 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="settings-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>Settings</Text>
+            <Ionicons name="analytics-outline" size={24} color="#666" />
+            <Text style={styles.menuText}>View Analytics</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="cloud-upload-outline" size={24} color="#666" />
+            <Text style={styles.menuText}>Upload Data</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
@@ -36,10 +104,16 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
             <Text style={[styles.menuText, { color: '#ff3b30' }]}>Sign Out</Text>
           </TouchableOpacity>
+        </View>
+        
+        {/* App Info */}
+        <View style={styles.appInfo}>
+          <Text style={styles.appInfoText}>Snack Track v1.0.0</Text>
+          <Text style={styles.appInfoText}>Made with ❤️ for food lovers</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -86,26 +160,48 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   avatarText: {
     fontSize: 32,
+    color: 'white',
+    fontWeight: 'bold',
   },
   email: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
+    textAlign: 'center',
   },
   memberSince: {
     fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
     color: '#666',
   },
   menuCard: {
     backgroundColor: 'white',
     borderRadius: 12,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -122,9 +218,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  logoutMenuItem: {
+    borderBottomWidth: 0,
+  },
   menuText: {
     flex: 1,
     fontSize: 16,
     marginLeft: 16,
+  },
+  appInfo: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  appInfoText: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 4,
   },
 });

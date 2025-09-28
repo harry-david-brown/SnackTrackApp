@@ -1,289 +1,236 @@
-# Snack Track App 🍕
+# 📱 Snack Track App
 
-**A viral food tracking mobile app built with Expo + React Native + TypeScript**
+A React Native/Expo app that connects to the Snack Track API to automatically track your food spending through **Uber CSV imports** and provides beautiful analytics and social sharing features.
 
-## 🎯 Project Overview
+## 📋 Project Progress
 
-Snack Track is a **lightweight, streamlined, production-ready** food tracking app designed to go viral with a "Spotify Wrapped" style experience. The app focuses on **simplicity and clarity** over complex features.
+### ✅ **Core MVP Features** - Production-ready frontend
+- [x] **Development Environment** - Complete Docker, Git, and documentation setup
+- [x] **User Authentication** - Email-based login with persistent state management
+- [x] **CSV Upload Flow** - File picker with upload progress and real API integration
+- [x] **Dashboard Integration** - Real data display with live API connection
+- [x] **API Integration** - Connected to backend with fallback to mock data
+- [x] **Professional UI** - Beautiful, responsive design with NativeWind styling
+- [x] **Team Onboarding** - Complete documentation for seamless collaboration
 
-### 🚀 Core Philosophy
-- **Lightweight & Streamlined**: Single-focus components, minimal complexity
-- **Mobile-First**: Designed for social sharing and viral growth
-- **Production-Ready**: Built for scale and reliability
-- **Viral Strategy**: Spotify Wrapped-style summaries and native social sharing
+### 🔄 **Next Development Priorities**
+- [ ] **Analytics Charts** - Spending visualizations and trend analysis
+- [ ] **Social Sharing** - Shareable summaries and viral features
+- [ ] **Advanced Error Handling** - Comprehensive loading states and error management
+- [ ] **Offline Support** - Data persistence and offline functionality
 
-## 🏗️ Architecture
-
-### Frontend (This Project)
-- **Framework**: Expo (React Native + TypeScript)
-- **Navigation**: Expo Router (file-based routing)
-- **Styling**: NativeWind (Tailwind for React Native)
-- **Charts**: React Native Chart Kit + SVG
-- **State**: React Context + useReducer
-- **API**: React Query + Axios
-- **Storage**: AsyncStorage + Expo FileSystem
-
-### Backend (snack-track-api)
-- **API**: Express.js + TypeScript
-- **Database**: PostgreSQL
-- **Security**: Rate limiting, Helmet.js, CORS
-- **Documentation**: Swagger/OpenAPI
-- **Error Handling**: Centralized middleware with custom error classes
-
-## 📱 App Structure
-
-```
-📱 4-Tab Mobile App:
-├── 🏠 Dashboard - Spending overview, recent receipts
-├── 📤 Upload - CSV file picker and import flow  
-├── 📊 Analytics - Charts, trends, shareable insights
-└── 👤 Profile - User settings, account management
-```
-
-## 🔌 API Integration
-
-### Base URL
-```
-http://localhost:3000
-```
-
-### Essential Endpoints
-
-#### Users
-- `POST /users/create` - Create user with email
-- `GET /users/:id/totalSpent` - Get total spending
-- `POST /users/:id/update-receipts` - Trigger email parsing
-- `GET /users/:id/debug/emails` - Debug email parsing
-
-#### CSV Import
-- `POST /csv/import` - Import CSV file with receipts
-
-#### Database
-- `GET /database/users` - List all users
-- `GET /database/stats` - Database statistics and health
-- `DELETE /database/users/:id` - Delete user and all receipts
-
-#### Receipts
-- `GET /receipts` - Get receipts with pagination
-
-#### Validation
-- `GET /validation/user/:userId/summary` - User data summary and validation
-
-### Data Models
-
-#### User
-```typescript
-interface User {
-  id: string;           // UUID
-  email: string;        // User email
-  createdAt: Date;      // Creation timestamp
-}
-```
-
-#### Receipt
-```typescript
-interface Receipt {
-  id: string;           // UUID
-  userId: string;       // User UUID
-  restaurantName: string;
-  orderDate: Date;
-  amountSpent: number;  // Total amount
-  items: ReceiptItem[]; // JSONB array
-  dataSource: DataSource; // CSV | EMAIL
-  createdAt: Date;
-}
-
-interface ReceiptItem {
-  name: string;
-  quantity: number;
-  price: number;
-}
-
-enum DataSource {
-  CSV = 'csv',
-  EMAIL = 'email'
-}
-```
-
-## 🎨 Viral Features
-
-### Social Sharing
-- **Monthly spending summaries** with beautiful charts
-- **Top restaurants breakdown** with shareable graphics
-- **Year-in-review** summaries (Spotify Wrapped style)
-- **Native social sharing** to Instagram, TikTok, Twitter
-- **Achievement badges** and spending milestones
-
-### User Journey
-1. **Onboarding**: Simple email signup
-2. **CSV Upload**: Drag & drop Uber Eats CSV files
-3. **Instant Analysis**: Beautiful spending breakdown
-4. **Social Sharing**: One-tap sharing to social media
-5. **Viral Growth**: Friends see amazing summaries and join
-
-## 🚀 Quick Start (5 minutes)
-
-### Prerequisites
-- Node.js 18+ - [Download here](https://nodejs.org/)
-- Docker & Docker Compose - [Download here](https://docker.com/)
-- Git - [Download here](https://git-scm.com/)
-
-### One-Command Setup
-```bash
-# Clone and setup
-git clone https://github.com/harry-david-brown/SnackTrackApp.git
-cd SnackTrackApp
-npm run setup
-
-# Start the app
-npm start
-```
-
-That's it! The setup script will:
-- ✅ Check all requirements
-- ✅ Install dependencies  
-- ✅ Set up environment files
-- ✅ Start development database
-- ✅ Verify everything works
-
-### Development Commands
-```bash
-npm start              # Start Expo dev server
-npm run android        # Run on Android
-npm run ios           # Run on iOS (macOS only)
-npm run web           # Run on web
-npm run db:start      # Start database
-npm run db:stop       # Stop database
-npm test             # Run tests
-```
-
-> 📖 **For detailed setup instructions**, see [DEVELOPMENT.md](./DEVELOPMENT.md)
-
-## 📋 Project Status
-
-### ✅ Completed (API)
-- [x] Streamlined API endpoints (70% reduction in complexity)
-- [x] Comprehensive error handling with custom error classes
-- [x] Rate limiting and security middleware
-- [x] Swagger/OpenAPI documentation
-- [x] Database schema optimization
-- [x] CSV import functionality
-- [x] User management system
-
-### 🔄 In Progress (Frontend)
-- [x] Technology stack decision
-- [x] Project structure planning
-- [x] Expo project initialization
-- [ ] Development environment setup
-- [ ] Basic navigation structure
-- [ ] API integration setup
-
-### 📅 Upcoming
-- [ ] User flow wireframes
-- [ ] Component library planning
-- [ ] Brand identity and styling
-- [ ] Unit test framework setup
-- [ ] API endpoint testing
-- [ ] Database integration tests
-
-### **Complete Frontend** - Full React Native app
-- [ ] Authentication screens (login/register)
-- [ ] Dashboard with spending overview
-- [ ] Receipt history and details
-- [ ] CSV upload functionality
-- [ ] Settings and user management
-
-## 🎯 Key Design Decisions
-
-### Data Strategy
-- **CSV Priority**: CSV data is the single source of truth
-- **No Complex Deduplication**: Simplified approach, CSV overwrites other data
-- **Streamlined Models**: Removed bloated fields (tax, tip, delivery fees, email fields)
-- **Single User Type**: No account types, just email-based users
-
-### API Philosophy
-- **Single Responsibility**: Each endpoint has one clear purpose
-- **Production Ready**: Rate limiting, security, error handling
-- **Well Documented**: Complete Swagger documentation
-
-### Frontend Strategy
-- **Mobile-First**: Optimized for mobile sharing
-- **Viral Growth**: Built for social media sharing
-- **Simple UX**: Minimal steps to value
-- **Beautiful Design**: Shareable, Instagram-worthy summaries
-
-## 🔧 Technical Details
-
-### Rate Limiting (Viral App Strategy)
-- **User Creation**: 100 requests per 15 minutes
-- **CSV Import**: 50 requests per 15 minutes
-- **Email Operations**: 200 requests per 15 minutes
-- **General API**: 1000 requests per 15 minutes
-
-### Security Features
-- Helmet.js security headers
-- CORS configuration
-- Request size limiting
-- Progressive slow-down for abuse
-- Security logging
-
-### Error Handling
-- Custom error classes (ValidationError, NotFoundError, etc.)
-- Centralized error middleware
-- Structured JSON error responses
-- Input validation middleware
-
-## 🚀 Deployment Strategy
-
-### API Deployment
-- Docker containerization
-- PostgreSQL database
-- Environment-based configuration
-- Health check endpoints
-
-### App Deployment
-- EAS Build & Submit
-- Expo Updates for OTA updates
-- Environment-specific builds
-- Automated testing pipeline
-
-## 📞 API Examples
-
-### Create User
-```bash
-curl -X POST http://localhost:3000/users/create \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com"}'
-```
-
-### Import CSV
-```bash
-curl -X POST http://localhost:3000/csv/import \
-  -F "csvFile=@uber-orders.csv" \
-  -F "userId=123e4567-e89b-12d3-a456-426614174000"
-```
-
-### Get User Summary
-```bash
-curl http://localhost:3000/validation/user/123e4567-e89b-12d3-a456-426614174000/summary
-```
-
-## 🎯 Success Metrics
-
-### Viral Growth
-- Social media shares per user
-- Friend referral rate
-- Time spent in app
-- User retention after sharing
-
-### Technical Performance
-- API response times < 200ms
-- App load time < 3 seconds
-- Crash rate < 0.1%
-- 99.9% uptime
+### 📅 **Future Enhancements**
+- [ ] **Performance Optimization** - Bundle size and loading improvements
+- [ ] **Advanced Analytics** - Machine learning insights and predictions
+- [ ] **User Onboarding** - Guided tour and feature discovery
+- [ ] **A/B Testing** - Feature experimentation and optimization
 
 ---
 
-**Ready to build the next viral food tracking app! 🚀**
+## 🚀 Quick Start
 
-*This README contains all the context needed for frontend development. The API is production-ready and documented. Focus on creating beautiful, shareable user experiences.*
+**Prerequisites:** Node.js 18+, Docker, Git
+
+1. **Clone and setup**
+   ```bash
+   git clone https://github.com/harry-david-brown/SnackTrackApp.git
+   cd SnackTrackApp
+   npm run setup
+   ```
+
+2. **Start the Snack Track API** (required for real data)
+   ```bash
+   # In a separate terminal, start the API project
+   cd path/to/SnackTrackAPI
+   docker-compose up --build -d
+   ```
+
+3. **Start the app**
+   ```bash
+   npm start
+   # Press 'w' to open in browser
+   ```
+
+**That's it!** The app is now running with real data from your API
+
+## 🗄️ Development Environment
+
+### **API Dependency**
+- **Required**: Snack Track API must be running on `http://localhost:3000`
+- **Without API**: App falls back to mock data for development
+- **With API**: Shows real spending analytics from your database
+
+### **Environment Setup**
+- **Docker**: PostgreSQL + Redis containers for development
+- **Ports**: App (8082), PostgreSQL (5433), Redis (6380)
+- **Hot Reload**: Automatic refresh on file changes
+
+### **API Connection Behavior**
+- ✅ **API Running**: Real data from your Snack Track database
+- 🔄 **API Down**: Automatic fallback to mock data for continued development
+- 🚨 **Connection Issues**: Clear error messages and graceful degradation
+
+### **What Happens Without the API**
+If the Snack Track API is not running on `localhost:3000`:
+- **Authentication**: Uses mock user creation (any email works)
+- **Dashboard**: Shows sample data with realistic spending numbers
+- **CSV Upload**: Simulates successful upload with mock data
+- **Development**: You can still build and test UI components
+- **Console**: Clear messages indicating fallback to mock data
+
+## 🎭 Current Features
+
+### **Dashboard** - Real spending analytics
+- Total spending display with live API data
+- Top restaurants with real rankings
+- Recent activity and spending trends
+- Pull-to-refresh for updated data
+
+### **CSV Upload** - File import simulation
+- Document picker for CSV files
+- Upload progress and status display
+- Integration with real API data
+- Success/error feedback
+
+### **Authentication** - Seamless login
+- Email-based user creation
+- Persistent login state
+- Automatic data loading
+- Professional login screen
+
+### **Profile** - User management
+- User information display
+- Account statistics
+- Settings and preferences
+- Logout functionality
+
+## 📊 API Integration
+
+**Base URL:** `http://localhost:3000` (your Snack Track API)
+
+### **Connected Endpoints**
+- `GET /database/users` - Real user data
+- `GET /validation/user/{userId}/summary` - Analytics data
+- `GET /users/{userId}/totalSpent` - Spending totals
+- `POST /users/create` - User creation (with fallback)
+
+### **Real Data Display**
+- **Total Spent**: Shows actual spending from database
+- **Receipt Count**: Displays real receipt numbers
+- **Top Restaurants**: Real restaurant rankings with spending
+- **Monthly Breakdown**: Actual spending trends
+
+## 🛠️ Development Commands
+
+### **App Development**
+```bash
+npm start              # Start Expo development server
+npm run start:clean    # Clean start (kills existing processes)
+npm run web           # Open in web browser
+npm run android       # Run on Android emulator
+npm run ios           # Run on iOS simulator
+npm run stop-expo     # Stop all Expo/Metro processes
+```
+
+### **Database Management**
+```bash
+npm run db:start      # Start PostgreSQL + Redis
+npm run db:stop       # Stop database containers
+npm run db:reset      # Reset database (removes all data)
+npm run db:logs       # View database logs
+```
+
+### **Code Quality**
+```bash
+npm run lint          # Run ESLint
+npm run type-check    # Run TypeScript compiler check
+npm test             # Run tests
+npm run verify       # Verify setup and environment
+npm run clean        # Clean install dependencies
+```
+
+## 📁 Project Structure
+
+```
+📱 Snack Track App/
+├── 🏠 app/                   # Expo Router pages
+│   ├── (tabs)/               # Tab navigation screens
+│   │   ├── index.tsx         # Dashboard with real data
+│   │   ├── upload.tsx        # CSV Upload functionality
+│   │   ├── analytics.tsx     # Analytics & Charts (next)
+│   │   └── profile.tsx       # User Profile
+│   ├── _layout.tsx           # Root layout with providers
+│   └── index.tsx             # Authentication flow
+│
+├── 🔧 components/            # Reusable components
+│   ├── LoginScreen.tsx       # Authentication UI
+│   └── CSVUpload.tsx         # File upload component
+│
+├── 🎣 contexts/              # React Context providers
+│   └── UserContext.tsx       # User state management
+│
+├── 🌐 services/              # API services
+│   ├── api.ts                # Real API client
+│   ├── mockApi.ts            # Mock API fallback
+│   └── analyticsApi.ts       # Analytics API integration
+│
+├── 📊 types/                 # TypeScript definitions
+│   └── api.ts                # API response types
+│
+├── 🐳 docker/                # Docker configuration
+│   └── postgres/
+│       └── init.sql          # Database initialization
+│
+├── 📜 scripts/               # Development scripts
+│   ├── setup.sh              # Automated environment setup
+│   └── verify-setup.js       # Environment verification
+│
+└── 📄 Configuration files    # Package.json, Docker, etc.
+```
+
+## 🤝 Contributing
+
+### **Quick Start for Contributors**
+
+1. **Fork and clone**
+   ```bash
+   git clone https://github.com/harry-david-brown/SnackTrackApp.git
+   cd SnackTrackApp
+   ```
+
+2. **Set up environment**
+   ```bash
+   npm run setup
+   ```
+
+3. **Start development**
+   ```bash
+   npm start
+   # Press 'w' to open in browser
+   ```
+
+4. **Create feature branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+5. **Make changes and test**
+   ```bash
+   npm run verify    # Verify everything still works
+   npm test          # Run tests
+   ```
+
+6. **Commit and push**
+   ```bash
+   git add .
+   git commit -m "feat: add your feature description"
+   git push origin feature/your-feature-name
+   ```
+
+7. **Create pull request** on GitHub
+
+### **Development Tips**
+- **Hot Reload**: Changes automatically refresh the app
+- **Real Data**: Always test with actual API data
+- **Branch Names**: Use descriptive names like `add-analytics-charts`
+- **Commit Messages**: Be clear about what you changed

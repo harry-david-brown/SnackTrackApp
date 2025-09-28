@@ -1,16 +1,19 @@
 {
   "name": "snack-track-app",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "start": "expo start --port 8082",
+    "start:clean": "pkill -f 'expo start' || pkill -f 'metro' || true; sleep 2; expo start --port 8082",
+    "android": "expo start --android --port 8082",
+    "ios": "expo start --ios --port 8082",
+    "web": "expo start --web --port 8082",
+    "stop-expo": "pkill -f 'expo start' || pkill -f 'metro' || true",
     "dev": "expo start --dev-client",
     "build:android": "expo build:android",
     "build:ios": "expo build:ios",
     "setup": "chmod +x scripts/setup.sh && ./scripts/setup.sh",
+    "setup:quick": "npm install --legacy-peer-deps && cp .env.development .env && npm run db:start",
     "db:start": "docker-compose -f docker-compose.dev.yml up -d",
     "db:stop": "docker-compose -f docker-compose.dev.yml down",
     "db:reset": "docker-compose -f docker-compose.dev.yml down -v && docker-compose -f docker-compose.dev.yml up -d",
@@ -18,14 +21,16 @@
     "lint": "expo lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "clean": "rm -rf node_modules && npm install",
-    "doctor": "expo doctor"
+    "clean": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",
+    "doctor": "expo doctor",
+    "verify": "node scripts/verify-setup.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.90.2",
     "axios": "^1.12.2",
     "expo": "~54.0.10",
+    "expo-document-picker": "~14.0.7",
     "expo-file-system": "~19.0.15",
     "expo-linear-gradient": "~15.0.7",
     "expo-media-library": "~18.2.0",
@@ -34,20 +39,22 @@
     "expo-status-bar": "~3.0.8",
     "nativewind": "^4.2.1",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-chart-kit": "^6.12.0",
     "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
     "react-native-svg": "15.12.1",
-    "react-native-view-shot": "4.0.3"
+    "react-native-view-shot": "4.0.3",
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.1.10",
     "@types/jest": "^29.5.0",
     "typescript": "~5.9.2",
     "jest": "^29.5.0",
     "@testing-library/react-native": "^12.0.0",
-    "@testing-library/jest-native": "^5.4.0",
-    "jest-expo": "^50.0.0"
+    "jest-expo": "~54.0.12"
   },
   "private": true
 }

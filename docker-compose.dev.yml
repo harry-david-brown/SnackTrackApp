@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Development database only (for when API is running locally)
   postgres:
@@ -10,7 +8,7 @@ services:
       POSTGRES_USER: snacktrack
       POSTGRES_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +22,7 @@ services:
     image: redis:7-alpine
     container_name: snacktrack-redis-dev
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_dev_data:/data
 
