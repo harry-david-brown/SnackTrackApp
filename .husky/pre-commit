@@ -1,3 +1,1 @@
-npm run type-check
-# Note: lint has warnings but no errors, so we allow it to pass
-npm run lint || true
+npm run type-check && npm run lint
