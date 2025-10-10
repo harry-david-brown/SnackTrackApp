@@ -67,7 +67,7 @@ export default function UploadScreen() {
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>3</Text>
-              <Text style={styles.instructionText}>Click "Download Order History"</Text>
+              <Text style={styles.instructionText}>Click &quot;Download Order History&quot;</Text>
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>4</Text>
@@ -77,7 +77,7 @@ export default function UploadScreen() {
 
           {/* Features */}
           <View style={styles.featuresCard}>
-            <Text style={styles.featuresTitle}>✨ What you'll get:</Text>
+            <Text style={styles.featuresTitle}>✨ What you&apos;ll get:</Text>
             <View style={styles.featureItem}>
               <Ionicons name="analytics" size={20} color="#34C759" />
               <Text style={styles.featureText}>Beautiful spending analytics and charts</Text>

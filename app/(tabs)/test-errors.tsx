@@ -237,13 +237,13 @@ function TestErrorsScreen() {
         <View style={styles.instructionsContainer}>
           <Text style={styles.instructionsTitle}>How to Test:</Text>
           <Text style={styles.instructionsText}>
-            • Use the floating "Test Errors" button to access more test scenarios
+            • Use the floating &quot;Test Errors&quot; button to access more test scenarios
           </Text>
           <Text style={styles.instructionsText}>
-            • Try different error types to see how they're categorized
+            • Try different error types to see how they&apos;re categorized
           </Text>
           <Text style={styles.instructionsText}>
-            • Test retry functionality by clicking "Try Again" on errors
+            • Test retry functionality by clicking &quot;Try Again&quot; on errors
           </Text>
           <Text style={styles.instructionsText}>
             • Turn off your internet to test network status indicator
@@ -252,7 +252,7 @@ function TestErrorsScreen() {
             • Check the network status bar at the top of the app
           </Text>
           <Text style={styles.instructionsText}>
-            • Use "Throw React Error" to test the ErrorBoundary
+            • Use &quot;Throw React Error&quot; to test the ErrorBoundary
           </Text>
         </View>
       </ScrollView>

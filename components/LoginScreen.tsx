@@ -120,14 +120,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               {/* Info */}
               <View style={styles.infoContainer}>
                 <Text style={styles.infoText}>
-                  We'll use your email to create your account and save your spending data.
+                  We&apos;ll use your email to create your account and save your spending data.
                 </Text>
               </View>
             </View>
 
             {/* Features Preview */}
             <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>What you'll get:</Text>
+              <Text style={styles.featuresTitle}>What you&apos;ll get:</Text>
               <View style={styles.featureItem}>
                 <Ionicons name="analytics-outline" size={20} color="#007AFF" />
                 <Text style={styles.featureText}>Beautiful spending analytics</Text>
