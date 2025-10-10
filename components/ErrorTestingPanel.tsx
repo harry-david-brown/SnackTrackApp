@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { testErrorScenarios, createFailingApi, runConsecutiveErrors, runRandomErrors } from '../utils/testErrorScenarios';
+import { testErrorScenarios, runConsecutiveErrors, runRandomErrors } from '../utils/testErrorScenarios';
 
 interface ErrorTestingPanelProps {
   onTestError: (errorType: string, testFunction: () => Promise<void>) => void;

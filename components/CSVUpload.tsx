@@ -11,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { csvApi } from '../services/api';
-import { mockCsvApi } from '../services/mockApi';
 import { useUser } from '../contexts/UserContext';
 
 interface CSVUploadProps {

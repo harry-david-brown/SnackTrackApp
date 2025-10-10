@@ -79,7 +79,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       }
       
       // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAssetAsync(uri);
       
       // Share the image
       if (await Sharing.isAvailableAsync()) {
