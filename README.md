@@ -93,9 +93,7 @@ If the Snack Track API is not accessible:
    npx expo start
    ```
 
-3. **Scan QR code** with your camera or Expo Go app
-
-4. **Open in Expo Go** and start testing!
+3. **Open in Expo Go** and start testing!
 
 ### **API Connection for Mobile**
 For mobile devices to connect to your local API:
@@ -360,8 +358,6 @@ npm run ci  # Runs all CI/CD checks before pushing
 - [ ] Auto-scaling configuration
 
 ### 📋 **API Production Blockers**
-
-**Full audit available at:** `~/Projects/snack-track/API_PRODUCTION_AUDIT.md`
 
 **🔴 P0 Blockers (Must Fix Before Launch):**
 1. No authentication system (2 weeks)
