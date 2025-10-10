@@ -45,6 +45,17 @@ export default function TabLayout() {
           ),
         }}
       />
+      {__DEV__ && (
+        <Tabs.Screen
+          name="test-errors"
+          options={{
+            title: 'Test Errors',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'bug' : 'bug-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tabs>
   );
 }

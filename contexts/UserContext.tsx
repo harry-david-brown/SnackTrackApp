@@ -133,8 +133,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           try {
             totalSpent = await userApi.getTotalSpent(storedUserId);
           } catch (apiError) {
-            // Fall back to mock API
-            totalSpent = await mockUserApi.getTotalSpent(storedUserId);
+            // Mock fallback only in development
+            if (__DEV__) {
+              console.warn('⚠️ DEV MODE: Using mock API fallback for stored user');
+              totalSpent = await mockUserApi.getTotalSpent(storedUserId);
+            } else {
+              // In production, clear invalid user and force re-login
+              throw apiError;
+            }
           }
           
           const userWithSpending: AppUser = {
@@ -191,13 +197,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         // Try real API first
         response = await userApi.createUser({ email });
         totalSpent = await userApi.getTotalSpent(response.userId);
-        console.log('Connected to real API successfully');
+        console.log('✅ Connected to real API successfully');
       } catch (apiError: any) {
-        console.log('Real API error:', apiError.response?.data?.message || apiError.message);
-        // If API fails, use mock API as fallback
-        console.log('API failed, using mock API fallback');
-        response = await mockUserApi.createUser({ email });
-        totalSpent = await mockUserApi.getTotalSpent(response.userId);
+        console.log('❌ Real API error:', apiError.response?.data?.message || apiError.message);
+        
+        // Mock fallback is ONLY for development/testing
+        if (__DEV__) {
+          console.warn('⚠️ DEV MODE: Using mock API fallback. This will NOT work in production!');
+          response = await mockUserApi.createUser({ email });
+          totalSpent = await mockUserApi.getTotalSpent(response.userId);
+        } else {
+          // In production, re-throw the error - no silent fallbacks
+          throw new Error('Unable to connect to server. Please check your internet connection and try again.');
+        }
       }
       
       // Create user object

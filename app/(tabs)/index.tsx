@@ -6,21 +6,31 @@ import { router } from 'expo-router';
 import { analyticsApi } from '../../services/analyticsApi';
 import { useState, useEffect } from 'react';
 import { UserSummary } from '../../types/api';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
+import { parseApiError } from '../../utils/errorUtils';
 
 export default function DashboardScreen() {
   const { state, refreshUserData, logout } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
 
   const loadAnalytics = async () => {
     if (!state.user) return;
     
     try {
       setIsLoadingAnalytics(true);
+      setAnalyticsError(null);
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
     } catch (error) {
       console.error('Error loading analytics:', error);
+      const apiError = parseApiError(error);
+      setAnalyticsError({
+        message: apiError.message,
+        type: apiError.type,
+      });
     } finally {
       setIsLoadingAnalytics(false);
     }
@@ -52,9 +62,7 @@ export default function DashboardScreen() {
   if (!state.user) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Loading...</Text>
-        </View>
+        <LoadingSpinner text="Loading your data..." />
       </SafeAreaView>
     );
   }
@@ -68,6 +76,16 @@ export default function DashboardScreen() {
         }
       >
         <View style={styles.content}>
+          {/* Error Message */}
+          {analyticsError && (
+            <ErrorMessage
+              error={analyticsError.message}
+              type={analyticsError.type}
+              onRetry={loadAnalytics}
+              onDismiss={() => setAnalyticsError(null)}
+            />
+          )}
+
           {/* Header */}
           <View style={styles.header}>
             <View>

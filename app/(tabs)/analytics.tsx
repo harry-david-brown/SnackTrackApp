@@ -5,9 +5,7 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  RefreshControl,
-  Alert,
-  Share
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +19,9 @@ import RestaurantBreakdownChart from '../../components/RestaurantBreakdownChart'
 import CategoryAnalysisChart from '../../components/CategoryAnalysisChart';
 import InsightsPanel from '../../components/InsightsPanel';
 import SocialShareModal from '../../components/SocialShareModal';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
+import { parseApiError } from '../../utils/errorUtils';
 
 
 export default function AnalyticsScreen() {
@@ -28,18 +29,25 @@ export default function AnalyticsScreen() {
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'monthly' | 'yearly'>('monthly');
-  const [shareableImage, setShareableImage] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
 
   const loadAnalytics = async () => {
     if (!state.user) return;
     
     try {
       setIsLoading(true);
+      setAnalyticsError(null);
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
     } catch (error) {
       console.error('Error loading analytics:', error);
+      const apiError = parseApiError(error);
+      setAnalyticsError({
+        message: apiError.message,
+        type: apiError.type,
+      });
+      
       // Create a fallback analytics object with empty data
       const fallbackAnalytics: UserSummary = {
         userId: state.user.id,
@@ -78,11 +86,25 @@ export default function AnalyticsScreen() {
   };
 
 
+  if (!analytics && !analyticsError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LoadingSpinner text="Loading analytics..." />
+      </SafeAreaView>
+    );
+  }
+
+  // If no analytics data available, show error state
   if (!analytics) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading analytics...</Text>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+          <ErrorMessage
+            error={analyticsError?.message || "No analytics data available"}
+            type={analyticsError?.type || "validation"}
+            onRetry={loadAnalytics}
+            onDismiss={() => setAnalyticsError(null)}
+          />
         </View>
       </SafeAreaView>
     );
@@ -96,6 +118,18 @@ export default function AnalyticsScreen() {
           <RefreshControl refreshing={isLoading} onRefresh={loadAnalytics} />
         }
       >
+        {/* Error Message */}
+        {analyticsError && (
+          <View style={{ margin: 20 }}>
+            <ErrorMessage
+              error={analyticsError.message}
+              type={analyticsError.type}
+              onRetry={loadAnalytics}
+              onDismiss={() => setAnalyticsError(null)}
+            />
+          </View>
+        )}
+
         {/* Header */}
         <LinearGradient
           colors={['#007AFF', '#5856D6']}

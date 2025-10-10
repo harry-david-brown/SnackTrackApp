@@ -115,30 +115,25 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
         }));
       }, 200);
 
-      // Try real API first, fall back to mock API
+      // Upload CSV file to API - NO FALLBACK for critical operations
       let response;
-      try {
-        // Actually upload the CSV file to the API
-        console.log('Uploading CSV file to API');
-        
-        if (uploadState.fileUri && uploadState.fileName) {
-          // Create a File object for the API
-          const file = {
-            uri: uploadState.fileUri,
-            type: 'text/csv',
-            name: uploadState.fileName,
-          } as any;
-          
-          response = await csvApi.importCsv(state.user.id, file);
-          console.log('CSV uploaded successfully to API');
-        } else {
-          throw new Error('No file selected for upload');
-        }
-      } catch (apiError) {
-        console.log('Real API failed, using mock API:', apiError);
-        // Use mock API as fallback
-        response = await mockCsvApi.importCsv(state.user.id, null as any);
+      
+      if (!uploadState.fileUri || !uploadState.fileName) {
+        throw new Error('No file selected for upload');
       }
+      
+      console.log('Uploading CSV file to API:', uploadState.fileName);
+      
+      // Create a File object for the API
+      const file = {
+        uri: uploadState.fileUri,
+        type: 'text/csv',
+        name: uploadState.fileName,
+      } as any;
+      
+      // Upload to real API - will throw error if API is unavailable
+      response = await csvApi.importCsv(state.user.id, file);
+      console.log('✅ CSV uploaded successfully to API');
       
       clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, progress: 100 }));

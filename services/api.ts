@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { 
   User, 
   Receipt, 
@@ -10,7 +11,34 @@ import {
   PaginationResponse 
 } from '../types/api';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+// Get API URL from environment with proper fallbacks
+const getApiUrl = () => {
+  // 1. Check explicit environment variable (highest priority)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  // 2. Check app.config.js extra config
+  if (Constants.expoConfig?.extra?.apiUrl) {
+    return Constants.expoConfig.extra.apiUrl;
+  }
+  
+  // 3. Development fallback - this should only be used in dev
+  if (__DEV__) {
+    console.warn('⚠️ No API URL configured. Using localhost. For mobile testing, set EXPO_PUBLIC_API_URL in .env');
+    return 'http://localhost:3000';
+  }
+  
+  // 4. Production - this should never happen if properly configured
+  throw new Error('API_URL not configured! Set EXPO_PUBLIC_API_URL environment variable.');
+};
+
+const API_BASE_URL = getApiUrl();
+
+// Log the API URL in development for debugging
+if (__DEV__) {
+  console.log('🌐 API Base URL:', API_BASE_URL);
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
