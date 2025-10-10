@@ -34,7 +34,12 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
       }
 
       // Capture the view
-      const uri = await viewShotRef.current.capture();
+      const uri = await viewShotRef.current?.capture?.();
+      
+      if (!uri) {
+        alert('Failed to capture image');
+        return;
+      }
       
       // Save to media library
       const asset = await MediaLibrary.createAssetAsync(uri);
@@ -192,7 +197,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     alignItems: 'center',
-    backdropFilter: 'blur(10px)',
   },
   statValue: {
     fontSize: 20,
@@ -214,7 +218,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     alignItems: 'center',
-    backdropFilter: 'blur(10px)',
   },
   insightText: {
     fontSize: 16,

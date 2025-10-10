@@ -99,7 +99,7 @@ export default function QuickShareButton({
   return (
     <TouchableOpacity onPress={onPress} style={styles.buttonContainer}>
       <LinearGradient
-        colors={variantStyles.colors}
+        colors={variantStyles.colors as any}
         style={[
           styles.button,
           {

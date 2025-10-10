@@ -43,7 +43,12 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       // Check if we're on web
       if (Platform.OS === 'web') {
         // Web fallback - capture and download
-        const uri = await viewShotRef.current.capture();
+        const uri = await viewShotRef.current?.capture?.();
+        
+        if (!uri) {
+          Alert.alert('Error', 'Failed to capture image');
+          return;
+        }
         
         // Create download link for web
         const link = document.createElement('a');
@@ -66,7 +71,12 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       }
 
       // Capture the view
-      const uri = await viewShotRef.current.capture();
+      const uri = await viewShotRef.current?.capture?.();
+      
+      if (!uri) {
+        Alert.alert('Error', 'Failed to capture image');
+        return;
+      }
       
       // Save to media library
       const asset = await MediaLibrary.createAssetAsync(uri);
@@ -161,7 +171,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
               <View 
                 style={[
                   styles.trendBarFill, 
-                  { height: `${Math.max(10, (month.amount / Math.max(...analytics.monthlyBreakdown.map(m => m.amount))) * 100)}%` }
+                  { height: `${Math.max(10, (month.totalSpent / Math.max(...analytics.monthlyBreakdown.map(m => m.totalSpent))) * 100)}%` }
                 ]} 
               />
               <Text style={styles.trendBarLabel}>{month.month.substring(0, 3)}</Text>
@@ -206,7 +216,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
             </View>
             <View style={styles.restaurantInfo}>
               <Text style={styles.restaurantName}>{restaurant.name}</Text>
-              <Text style={styles.restaurantAmount}>{formatCurrency(restaurant.amount)}</Text>
+              <Text style={styles.restaurantAmount}>{formatCurrency(restaurant.totalSpent)}</Text>
             </View>
           </View>
         ))}

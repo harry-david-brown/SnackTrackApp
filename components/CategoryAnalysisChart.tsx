@@ -142,6 +142,8 @@ export default function CategoryAnalysisChart({ analytics }: CategoryAnalysisCha
             }}
             width={chartWidth}
             height={220}
+            yAxisLabel=""
+            yAxisSuffix=""
             chartConfig={chartConfig}
             style={styles.chart}
             withHorizontalLabels={true}
@@ -149,9 +151,6 @@ export default function CategoryAnalysisChart({ analytics }: CategoryAnalysisCha
             showBarTops={false}
             fromZero={true}
             withInnerLines={false}
-            withOuterLines={false}
-            withHorizontalLines={true}
-            withVerticalLines={false}
           />
         </View>
       </LinearGradient>
