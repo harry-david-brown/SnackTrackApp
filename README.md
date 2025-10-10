@@ -28,59 +28,6 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 
 ---
 
-## 🎯 Production Readiness
-
-### 🟡 **MVP Launch (Target: ~1,000 Users)**
-Ready for small-scale production deployment. See [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) for complete checklist.
-
-**Critical Requirements:**
-- [ ] Authentication & authorization (JWT/OAuth)
-- [ ] Rate limiting (per-user & global)
-- [ ] Error tracking (Sentry integration)
-- [ ] Performance monitoring (APM)
-- [ ] Database indexes and optimization
-- [ ] Async CSV processing with job queue
-- [ ] Security audit and input validation
-- [ ] Privacy policy and app store submission
-- [ ] Staging environment testing
-- [ ] Load testing (100+ concurrent users)
-
-**Timeline:** 2-3 weeks of focused development
-
-### 🔴 **Scale Ready (Target: 10,000+ Users)**
-Production-grade infrastructure for high-traffic launch.
-
-**Infrastructure Requirements:**
-- [ ] Horizontal scaling (load balancer + multiple API instances)
-- [ ] Redis caching layer for performance
-- [ ] CDN for static assets
-- [ ] Database read replicas
-- [ ] Message queue for background processing
-- [ ] Advanced monitoring & alerting
-- [ ] Security hardening (penetration testing)
-- [ ] Disaster recovery plan
-- [ ] 24/7 on-call rotation
-- [ ] Auto-scaling configuration
-
-**Timeline:** 4-6 weeks after MVP launch
-
-
-🔴 **P0 Blockers:**
-1. No authentication system
-2. No authorization/ownership validation
-3. No error tracking - Sentry
-4. No APM/monitoring (2-3 days)
-
-🟡 **P1 Critical:**
-5. Database optimization needed
-6. Redis caching missing
-7. Structured logging incomplete
-8. API key enforcement weak
-9. Input validation gaps
-10. No database backups
-
----
-
 ## 🚀 Quick Start
 
 **Prerequisites:** Node.js 18+, Docker, Git
@@ -134,45 +81,43 @@ If the Snack Track API is not accessible:
 - **Console**: Clear warnings about using mock fallbacks
 - **Production**: ⚠️ Mock fallbacks are **completely disabled**
 
-## 📱 Mobile Development
+## 📱 Mobile Testing
 
-### **Testing on Physical Device**
-Test the app on your phone using Expo Go:
+### **Quick Start**
+1. **Install Expo Go** on your mobile device
+   - iOS: [App Store](https://apps.apple.com/app/expo-go/id982107779)
+   - Android: [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
 
-1. **Install Expo Go** app on your phone
-2. **Start development server**: `npm run mobile`
-3. **Scan QR code** with your phone's camera
-4. **Select "Snack Track"** in Expo Go app
-
-**Note**: For mobile testing with API connectivity, you may need to:
-1. **Find your computer's IP address**: `ip addr show` (Linux) or `ifconfig` (Mac)
-2. **Create `.env.local`** with your IP:
+2. **Start development server**
+   ```bash
+   npx expo start
    ```
+
+3. **Scan QR code** with your camera or Expo Go app
+
+4. **Open in Expo Go** and start testing!
+
+### **API Connection for Mobile**
+For mobile devices to connect to your local API:
+
+1. Find your computer's IP address:
+   ```bash
+   ip addr show  # Linux
+   ifconfig      # Mac
+   ```
+
+2. Create `.env.local`:
+   ```bash
    EXPO_PUBLIC_API_URL=http://YOUR_IP_ADDRESS:3000
    ```
-3. **Restart Expo** to pick up the new environment variable
 
-### **Mobile Testing (Expo Go)**
-Test the app on any mobile device using Expo Go:
+3. Restart Expo to apply changes
 
-1. **Install Expo Go**: Download from [App Store](https://apps.apple.com/app/expo-go/id982107779) (iOS) or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) (Android)
-2. **Start Expo**: `npx expo start`
-3. **Scan QR code** with your camera or Expo Go app
-4. **Select "Snack Track"** in the Expo Go app
-
-**Simple command:**
-- `npx expo start` - Start Expo development server
-
-**Benefits**: 
-- **No setup required**: Works on any iOS or Android device
-- **Instant testing**: Changes appear immediately on your device
-- **Cross-platform**: Test on both iOS and Android with one command
-
-### **Mobile Features**
-- **Native Sharing**: Test social sharing functionality
-- **Touch Interactions**: Verify gestures and animations
-- **Device APIs**: Test camera, file system, and media library
-- **Cross-Platform**: Works on iOS and Android devices via Expo Go
+### **Benefits**
+- ✅ No complex setup required
+- ✅ Works on iOS and Android
+- ✅ Instant hot reload
+- ✅ Test native features (camera, sharing, etc.)
 
 ## 🎭 Current Features
 
@@ -240,8 +185,17 @@ npm run db:logs       # View database logs
 npm run lint          # Run ESLint
 npm run type-check    # Run TypeScript compiler check
 npm test             # Run tests
+npm run ci           # Run all CI checks locally (type-check + lint + test)
 npm run verify       # Verify setup and environment
 npm run clean        # Clean install dependencies
+```
+
+### **Pre-Commit Hooks**
+Pre-commit hooks automatically run `type-check` and `lint` before each commit to catch errors early.
+
+**To skip** (not recommended):
+```bash
+git commit --no-verify
 ```
 
 ## 📁 Project Structure
@@ -329,3 +283,96 @@ npm run clean        # Clean install dependencies
 - **Real Data**: Always test with actual API data
 - **Branch Names**: Use descriptive names like `add-analytics-charts`
 - **Commit Messages**: Be clear about what you changed
+- **Before Pushing**: Run `npm run ci` to catch errors locally
+
+---
+
+## 🔄 CI/CD Pipeline
+
+**Status:** ✅ Automated quality checks on every push
+
+### **Active Checks**
+- ✅ TypeScript type checking (`npm run type-check`)
+- ✅ ESLint linting (`npm run lint`)
+- ✅ Unit tests with coverage (`npm test`)
+- ✅ Security audit (`npm audit`)
+- ✅ Code coverage tracking (Codecov)
+
+### **Quick Wins Implemented**
+- ✅ Concurrency control (cancels outdated runs)
+- ✅ Job timeouts (prevents stuck pipelines)
+- ✅ Pre-commit hooks (Husky - auto-runs type-check & lint)
+- ✅ Local CI script (`npm run ci`)
+
+### **Run Checks Locally**
+```bash
+npm run ci  # Runs all CI/CD checks before pushing
+```
+
+### **Production Enhancements (Before Launch)**
+- [ ] Enable branch protection (require PR reviews)
+- [ ] Add CodeQL security scanning
+- [ ] Set up deployment workflows (staging/production)
+- [ ] Add E2E testing with Detox
+- [ ] Bundle size monitoring
+- [ ] Performance benchmarking
+
+---
+
+## 🚀 Production Readiness
+
+### 🟡 **MVP Launch (Target: ~1,000 Users)**
+
+**Mobile App Status:** ✅ Ready (error handling complete)  
+**API Status:** ⚠️ Needs work (see blockers below)  
+**Timeline:** 6-8 weeks
+
+**Critical API Requirements:**
+- [ ] Authentication & authorization (JWT/OAuth) - 2 weeks
+- [ ] Rate limiting (per-user & global) - ✅ Already implemented
+- [ ] Error tracking (Sentry integration) - 1 day
+- [ ] Performance monitoring (APM) - 2-3 days
+- [ ] Database indexes and optimization - 1 week
+- [ ] Redis caching layer - 1 week
+- [ ] Async CSV processing with job queue - 2 weeks
+- [ ] Security audit and input validation - 1 week
+- [ ] Privacy policy and app store submission - 3 days
+- [ ] Staging environment testing - 2 days
+- [ ] Load testing (100+ concurrent users) - 3 days
+
+**Estimated Cost:** $88/month
+
+### 🔴 **Scale Ready (Target: 10,000+ Users)**
+
+**Timeline:** 4-6 weeks after MVP launch  
+**Estimated Cost:** $379-$1,089/month
+
+**Infrastructure Requirements:**
+- [ ] Horizontal scaling (load balancer + multiple API instances)
+- [ ] Redis caching layer for performance
+- [ ] CDN for static assets
+- [ ] Database read replicas
+- [ ] Message queue for background processing (BullMQ)
+- [ ] Advanced monitoring & alerting
+- [ ] Security hardening (penetration testing)
+- [ ] Disaster recovery plan
+- [ ] 24/7 on-call rotation
+- [ ] Auto-scaling configuration
+
+### 📋 **API Production Blockers**
+
+**Full audit available at:** `~/Projects/snack-track/API_PRODUCTION_AUDIT.md`
+
+**🔴 P0 Blockers (Must Fix Before Launch):**
+1. No authentication system (2 weeks)
+2. No authorization/ownership validation (1 week)
+3. No error tracking - Sentry (1 day)
+4. No APM/monitoring (2-3 days)
+
+**🟡 P1 Critical (Before Scaling):**
+5. Database optimization needed (1 week)
+6. Redis caching missing (1 week)
+7. Structured logging incomplete (2-3 days)
+8. API key enforcement weak (2 days)
+9. Input validation gaps (1 week)
+10. No database backups (2-3 days)
