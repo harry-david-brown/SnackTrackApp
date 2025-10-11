@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
@@ -14,6 +14,24 @@ export default function ProfileScreen() {
   const { resetOnboarding } = useOnboarding();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const handleResetOnboarding = async () => {
+    Alert.alert(
+      'Reset Onboarding',
+      'This will show the onboarding flow again. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reset', 
+          style: 'destructive',
+          onPress: async () => {
+            await resetOnboarding();
+            Alert.alert('Success', 'Onboarding reset! Logout and login again to see it.');
+          }
+        },
+      ]
+    );
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -81,9 +99,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>👤 Profile</Text>
-        <Text style={styles.subtitle}>Account settings</Text>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
+          <Text style={styles.title}>👤 Profile</Text>
+          <Text style={styles.subtitle}>Account settings</Text>
         
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
@@ -141,6 +160,13 @@ export default function ProfileScreen() {
             <Text style={styles.menuText}>Help & Support</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
+
+          {__DEV__ && (
+            <TouchableOpacity style={styles.menuItem} onPress={handleResetOnboarding}>
+              <Ionicons name="refresh-outline" size={24} color="#FF9500" />
+              <Text style={[styles.menuText, { color: '#FF9500' }]}>Reset Onboarding (Dev)</Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
@@ -153,7 +179,8 @@ export default function ProfileScreen() {
           <Text style={styles.appInfoText}>Snack Track v1.0.0</Text>
           <Text style={styles.appInfoText}>Made with ❤️</Text>
         </View>
-      </View>
+        </View>
+      </ScrollView>
 
       {/* Onboarding Modal */}
       {showOnboarding && (
@@ -168,8 +195,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     padding: 20,
   },
   title: {

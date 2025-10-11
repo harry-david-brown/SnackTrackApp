@@ -17,14 +17,18 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **Analytics Charts** - Spending visualizations and trend analysis
 - [x] **Advanced Error Handling** - Comprehensive loading states and error management
 - [x] **Network Monitoring** - Real-time connection status and offline detection
-- [x] **Error Testing** - Stress testing utilities and comprehensive error scenarios
+- [x] **Social Sharing** - Spotify Wrapped-style viral journey with native share sheet
+- [x] **Offline Support** - Analytics caching and offline viewing (15min TTL)
+- [x] **User Onboarding** - 4-slide tutorial with viral messaging
+- [x] **Uber Data Tutorial** - Step-by-step ZIP upload guide
+- [x] **Animations** - Smooth transitions and swipeable content
 
 ### 📅 **Future Enhancements**
-- [ ] **Social Sharing** - Shareable summaries and viral features
-- [ ] **Offline Support** - Data persistence and offline functionality
+- [ ] **ZIP File Processing** - Auto-extract user_orders-0.csv from Uber ZIP
+- [ ] **Multi-Template Sharing** - Additional Wrapped-style slide variations
+- [ ] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
+- [ ] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
-- [ ] **Advanced Analytics** - Machine learning insights and predictions
-- [ ] **User Onboarding** - Guided tour and feature discovery
 
 ---
 

@@ -8,7 +8,6 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -23,27 +22,27 @@ interface OnboardingSlide {
 
 const slides: OnboardingSlide[] = [
   {
-    title: 'Welcome to Snack Track',
-    description: 'The easiest way to track and understand your food delivery spending',
-    icon: 'restaurant',
-    gradient: ['#667eea', '#764ba2'],
+    title: 'Ready to Face the Truth?',
+    description: 'Your Uber Eats spending is about to shock you. Brace yourself.',
+    icon: 'flame',
+    gradient: ['#ff6b6b', '#ee5a6f'],
   },
   {
-    title: 'Upload Your Data',
-    description: 'Import your Uber Eats CSV files to automatically track all your orders and spending',
-    icon: 'cloud-upload',
+    title: 'Upload Your CSV, Get Roasted',
+    description: 'Import your Uber Eats data and watch us turn your shame into beautiful graphics',
+    icon: 'rocket',
     gradient: ['#f093fb', '#f5576c'],
   },
   {
-    title: 'Beautiful Analytics',
-    description: 'See detailed breakdowns, trends, and insights about your food spending habits',
-    icon: 'analytics',
+    title: 'Join Thousands Getting Roasted',
+    description: 'See exactly how much damage you have done. Compare your shame with friends.',
+    icon: 'people',
     gradient: ['#4facfe', '#00f2fe'],
   },
   {
-    title: 'Share Your Stats',
-    description: 'Create beautiful shareable graphics to show off your favorite restaurants',
-    icon: 'share-social',
+    title: 'Let Us See the Damage',
+    description: 'Time to confront your food delivery addiction. Ready?',
+    icon: 'warning',
     gradient: ['#43e97b', '#38f9d7'],
   },
 ];
@@ -114,7 +113,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const isLastSlide = currentIndex === slides.length - 1;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <LinearGradient
         colors={currentSlide.gradient as any}
         style={styles.gradient}
@@ -170,7 +169,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           </TouchableOpacity>
         </Animated.View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -183,10 +182,12 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     position: 'absolute',
-    top: 20,
+    top: 50,
     right: 20,
-    zIndex: 10,
-    padding: 12,
+    zIndex: 100,
+    padding: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
   },
   skipText: {
     color: 'white',

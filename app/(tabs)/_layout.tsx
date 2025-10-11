@@ -56,6 +56,13 @@ export default function TabLayout() {
           }}
         />
       )}
+      <Tabs.Screen
+        name="wrapped-journey"
+        options={{
+          href: null, // Hide from tab bar
+          title: 'Your Wrapped',
+        }}
+      />
     </Tabs>
   );
 }

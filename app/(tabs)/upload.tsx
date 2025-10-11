@@ -1,21 +1,30 @@
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import CSVUpload from '../../components/CSVUpload';
+import UberDataTutorial from '../../components/UberDataTutorial';
+import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 
 export default function UploadScreen() {
   const { state, refreshUserData } = useUser();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
     // Refresh user data to show updated spending
     await refreshUserData();
     
-    Alert.alert(
-      'Upload Complete! 🎉',
-      `Successfully imported ${receiptsCount} receipts. Your spending data has been updated!`,
-      [{ text: 'Awesome!', style: 'default' }]
-    );
+    // Show processing loader
+    setShowLoader(true);
+  };
+
+  const handleLoaderComplete = () => {
+    setShowLoader(false);
+    // Navigate to wrapped journey
+    router.push('/(tabs)/wrapped-journey');
   };
 
   const handleUploadError = (error: string) => {
@@ -37,8 +46,18 @@ export default function UploadScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          <Text style={styles.title}>📤 Upload CSV</Text>
-          <Text style={styles.subtitle}>Import your Uber Eats order history</Text>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>📤 Upload CSV</Text>
+              <Text style={styles.subtitle}>Import your Uber Eats order history</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.helpButton}
+              onPress={() => setShowTutorial(true)}
+            >
+              <Ionicons name="help-circle-outline" size={32} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
           
           {/* Upload Section */}
           <View style={styles.uploadCard}>
@@ -106,6 +125,24 @@ export default function UploadScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Uber Tutorial Modal */}
+      <Modal
+        visible={showTutorial}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowTutorial(false)}
+      >
+        <UberDataTutorial 
+          onComplete={() => setShowTutorial(false)}
+          onSkip={() => setShowTutorial(false)}
+        />
+      </Modal>
+
+      {/* Processing Loader (after upload) */}
+      {showLoader && (
+        <WrappedJourneyLoader onComplete={handleLoaderComplete} />
+      )}
     </SafeAreaView>
   );
 }
@@ -121,10 +158,18 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  helpButton: {
+    padding: 8,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {

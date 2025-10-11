@@ -1,19 +1,20 @@
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { router } from 'expo-router';
 import { analyticsApi } from '../../services/analyticsApi';
-import { useState, useEffect } from 'react';
 import { UserSummary } from '../../types/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 import { parseApiError } from '../../utils/errorUtils';
-import SocialShareModal from '../../components/SocialShareModal';
+import WrappedShareJourney from '../../components/WrappedShareJourney';
 import QuickShareButton from '../../components/QuickShareButton';
 import { cacheAnalytics, getCachedAnalytics } from '../../utils/offlineCache';
 import { FadeInView } from '../../components/FadeInView';
 import { SlideInView } from '../../components/SlideInView';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const { state, refreshUserData, logout } = useUser();
@@ -64,6 +65,14 @@ export default function DashboardScreen() {
       loadAnalytics();
     }
   }, [state.user]);
+
+  // Clear loading state when screen comes into focus (e.g., after wrapped journey)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only clear loading state, don't reload
+      setIsLoadingAnalytics(false);
+    }, [])
+  );
 
   const handleRefresh = async () => {
     try {
@@ -243,12 +252,11 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      {/* Social Share Modal */}
-      {analytics && (
-        <SocialShareModal
-          visible={showShareModal}
-          onClose={() => setShowShareModal(false)}
+      {/* Wrapped Share Journey Modal */}
+      {showShareModal && analytics && (
+        <WrappedShareJourney
           analytics={analytics}
+          onClose={() => setShowShareModal(false)}
         />
       )}
     </SafeAreaView>

@@ -18,7 +18,7 @@ import SpendingTrendChart from '../../components/SpendingTrendChart';
 import RestaurantBreakdownChart from '../../components/RestaurantBreakdownChart';
 import CategoryAnalysisChart from '../../components/CategoryAnalysisChart';
 import InsightsPanel from '../../components/InsightsPanel';
-import SocialShareModal from '../../components/SocialShareModal';
+import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 import { parseApiError } from '../../utils/errorUtils';
@@ -225,12 +225,13 @@ export default function AnalyticsScreen() {
         <InsightsPanel analytics={analytics} />
       </ScrollView>
 
-      {/* Social Share Modal */}
-      <SocialShareModal
-        visible={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        analytics={analytics}
-      />
+      {/* Wrapped Share Journey Modal */}
+      {showShareModal && analytics && (
+        <WrappedShareJourney
+          analytics={analytics}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }

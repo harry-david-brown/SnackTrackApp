@@ -6,11 +6,13 @@ import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import LoginScreen from '../components/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
+import UberDataTutorial from '../components/UberDataTutorial';
 
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, completeOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showUberTutorial, setShowUberTutorial] = useState(false);
 
   useEffect(() => {
     // Check if we should show onboarding
@@ -25,6 +27,12 @@ export default function HomeScreen() {
   const handleOnboardingComplete = async () => {
     await completeOnboarding();
     setShowOnboarding(false);
+    // Show Uber tutorial after onboarding
+    setShowUberTutorial(true);
+  };
+
+  const handleUberTutorialComplete = () => {
+    setShowUberTutorial(false);
   };
 
   // Show loading screen while checking authentication
@@ -41,6 +49,11 @@ export default function HomeScreen() {
   // Show onboarding for first-time users
   if (showOnboarding && !hasCompletedOnboarding) {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
+  // Show Uber tutorial after onboarding
+  if (showUberTutorial) {
+    return <UberDataTutorial onComplete={handleUberTutorialComplete} />;
   }
 
   // Show login screen if not authenticated
