@@ -25,42 +25,34 @@ export default function DashboardScreen() {
   const loadAnalytics = async () => {
     if (!state.user) return;
     
+    setIsLoadingAnalytics(true);
+    setAnalyticsError(null);
+    
     try {
-      setIsLoadingAnalytics(true);
-      setAnalyticsError(null);
-      
-      // Try to load from cache first for instant display
-      const cached = await getCachedAnalytics(state.user.id);
-      if (cached) {
-        setAnalytics(cached);
-      }
-      
-      // Then fetch fresh data from API
+      // Fetch fresh data from API
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
-      
-      // Cache the fresh data
       await cacheAnalytics(state.user.id, summary);
       
     } catch (error) {
-      console.error('Error loading analytics:', error);
-      const apiError = parseApiError(error);
-      setAnalyticsError({
-        message: apiError.message,
-        type: apiError.type,
-      });
-      
-      // If API fails but we have cache, keep showing cached data
-      if (!analytics) {
-        const cached = await getCachedAnalytics(state.user.id);
-        if (cached) {
+      // API failed - try to use cached data
+      const cached = await getCachedAnalytics(state.user.id);
+      if (cached) {
+        // Only set if we don't already have data
+        if (!analytics) {
           setAnalytics(cached);
-          // Update error to show we're using cached data
-          setAnalyticsError({
-            message: 'Showing cached data. Pull to refresh when online.',
-            type: 'network',
-          });
         }
+        setAnalyticsError({
+          message: 'Showing cached data. Pull to refresh when online.',
+          type: 'network',
+        });
+      } else {
+        // No cache available
+        const apiError = parseApiError(error);
+        setAnalyticsError({
+          message: apiError.message,
+          type: apiError.type,
+        });
       }
     } finally {
       setIsLoadingAnalytics(false);
@@ -80,7 +72,7 @@ export default function DashboardScreen() {
         loadAnalytics()
       ]);
     } catch (error) {
-      console.error('Error refreshing:', error);
+      // Errors are handled by individual functions
     }
   };
 
@@ -96,7 +88,6 @@ export default function DashboardScreen() {
       await logout();
       router.replace('/');
     } catch (error) {
-      console.error('Logout error:', error);
       // Force navigation even if logout fails
       router.replace('/');
     }
@@ -114,9 +105,10 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isLoadingAnalytics} onRefresh={handleRefresh} />
         }
@@ -271,8 +263,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
-    flex: 1,
     padding: 20,
   },
   header: {

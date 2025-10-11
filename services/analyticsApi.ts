@@ -68,7 +68,6 @@ export const analyticsApi = {
       
       return userSummary;
     } catch (error) {
-      console.error('Error fetching user summary:', error);
       throw error;
     }
   },
@@ -79,7 +78,6 @@ export const analyticsApi = {
       const response = await api.get('/database/stats');
       return response.data;
     } catch (error) {
-      console.error('Error fetching database stats:', error);
       throw error;
     }
   },
@@ -90,7 +88,6 @@ export const analyticsApi = {
       const response = await api.get('/database/users');
       return response.data;
     } catch (error) {
-      console.error('Error fetching users:', error);
       throw error;
     }
   },
@@ -101,7 +98,6 @@ export const analyticsApi = {
       const response = await api.get(`/receipts?limit=${limit}&offset=${offset}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching receipts:', error);
       throw error;
     }
   },

@@ -19,7 +19,7 @@ export default function UploadScreen() {
   };
 
   const handleUploadError = (error: string) => {
-    console.error('Upload error:', error);
+    // Error is already shown in UI by CSVUpload component
   };
 
   if (!state.user) {

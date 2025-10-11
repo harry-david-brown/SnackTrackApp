@@ -238,7 +238,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       await clearUserStorage();
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
-      console.error('Logout error:', error);
       // Still dispatch logout even if storage clearing fails
       dispatch({ type: 'LOGOUT' });
     }

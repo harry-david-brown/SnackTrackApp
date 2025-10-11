@@ -44,12 +44,7 @@ export default function HomeScreen() {
   }
 
   // Show login screen if not authenticated
-  if (!state.isAuthenticated) {
-    return <LoginScreen />;
-  }
-
-  // This should not be reached, but just in case
-  return null;
+  return <LoginScreen />;
 }
 
 const styles = StyleSheet.create({

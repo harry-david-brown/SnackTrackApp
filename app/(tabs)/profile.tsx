@@ -59,7 +59,6 @@ export default function ProfileScreen() {
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
     } catch (error) {
-      console.error('Error loading analytics:', error);
       // Keep analytics as null to show basic user data
     }
   };
@@ -101,12 +100,12 @@ export default function ProfileScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                {formatCurrency(analytics?.totalSpent || state.user.totalSpent || 0)}
+                {formatCurrency(analytics?.totalSpent || 0)}
               </Text>
               <Text style={styles.statLabel}>Total Spent</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{analytics?.totalReceipts || state.user.receiptCount || 0}</Text>
+              <Text style={styles.statValue}>{analytics?.totalReceipts || 0}</Text>
               <Text style={styles.statLabel}>Receipts</Text>
             </View>
           </View>

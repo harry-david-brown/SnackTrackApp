@@ -41,7 +41,6 @@ export default function AnalyticsScreen() {
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
     } catch (error) {
-      console.error('Error loading analytics:', error);
       const apiError = parseApiError(error);
       setAnalyticsError({
         message: apiError.message,

@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { NetworkStatusIndicator } from '../components/NetworkStatusIndicator';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,7 +20,6 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <OnboardingProvider>
           <UserProvider>
-            <NetworkStatusIndicator />
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="index" options={{ headerShown: false }} />
