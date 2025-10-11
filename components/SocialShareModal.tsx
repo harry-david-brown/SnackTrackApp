@@ -1,11 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ScrollView,
   Alert,
   Dimensions,
   Platform,
@@ -14,7 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
 import { UserSummary } from '../types/api';
 
 interface SocialShareModalProps {
@@ -26,7 +24,6 @@ interface SocialShareModalProps {
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SocialShareModal({ visible, onClose, analytics }: SocialShareModalProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<'summary' | 'trend' | 'restaurant'>('summary');
   const viewShotRef = useRef<ViewShot>(null);
 
   const formatCurrency = (amount: number) => {
@@ -63,13 +60,6 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         return;
       }
 
-      // Request permissions for mobile
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Permission to access media library is required to save and share images.');
-        return;
-      }
-
       // Capture the view
       const uri = await viewShotRef.current?.capture?.();
       
@@ -77,19 +67,18 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         Alert.alert('Error', 'Failed to capture image');
         return;
       }
-      
-      // Save to media library
-      await MediaLibrary.createAssetAsync(uri);
-      
-      // Share the image
+
+      // Open native share sheet (Instagram, Twitter, Messages, etc.)
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Share your Snack Track Analytics',
+          UTI: 'public.png', // For iOS Instagram/Stories compatibility
         });
+        onClose();
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device');
       }
-
-      onClose();
     } catch (error) {
       console.error('Error capturing and sharing:', error);
       Alert.alert('Error', 'Failed to capture image. Please try again.');
@@ -106,11 +95,11 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
     }
     
     if (analytics.averageOrderValue > 25) {
-      return "You love premium dining experiences! 🍽️";
-    } else if (analytics.averageOrderValue > 15) {
-      return "You enjoy quality meals on the go! 🚀";
+      return "You fat fuck :)";
+    } else if (analytics.averageOrderValue < 25) {
+      return "High volume, lots of small orders";
     } else {
-      return "You're a smart spender with great taste! 💡";
+      return "Fuck you";
     }
   };
 
@@ -235,24 +224,11 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
     </LinearGradient>
   );
 
-  const renderSelectedTemplate = () => {
-    switch (selectedTemplate) {
-      case 'summary':
-        return renderSummaryTemplate();
-      case 'trend':
-        return renderTrendTemplate();
-      case 'restaurant':
-        return renderRestaurantTemplate();
-      default:
-        return renderSummaryTemplate();
-    }
-  };
-
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
@@ -264,57 +240,24 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
           </TouchableOpacity>
         </View>
 
-        {/* Template Selector */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateSelector}>
-          <TouchableOpacity
-            style={[styles.templateButton, selectedTemplate === 'summary' && styles.templateButtonActive]}
-            onPress={() => setSelectedTemplate('summary')}
-          >
-            <Ionicons name="stats-chart" size={20} color={selectedTemplate === 'summary' ? 'white' : '#666'} />
-            <Text style={[styles.templateButtonText, selectedTemplate === 'summary' && styles.templateButtonTextActive]}>
-              Summary
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.templateButton, selectedTemplate === 'trend' && styles.templateButtonActive]}
-            onPress={() => setSelectedTemplate('trend')}
-          >
-            <Ionicons name="trending-up" size={20} color={selectedTemplate === 'trend' ? 'white' : '#666'} />
-            <Text style={[styles.templateButtonText, selectedTemplate === 'trend' && styles.templateButtonTextActive]}>
-              Trend
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.templateButton, selectedTemplate === 'restaurant' && styles.templateButtonActive]}
-            onPress={() => setSelectedTemplate('restaurant')}
-          >
-            <Ionicons name="restaurant" size={20} color={selectedTemplate === 'restaurant' ? 'white' : '#666'} />
-            <Text style={[styles.templateButtonText, selectedTemplate === 'restaurant' && styles.templateButtonTextActive]}>
-              Restaurants
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-
         {/* Template Preview */}
         <View style={styles.previewContainer}>
           <ViewShot
             ref={viewShotRef}
             options={{
-              fileName: `snack-track-${selectedTemplate}-${Date.now()}`,
+              fileName: `snack-track-summary-${Date.now()}`,
               format: 'png',
               quality: 1.0,
             }}
           >
-            {renderSelectedTemplate()}
+            {renderSummaryTemplate()}
           </ViewShot>
         </View>
 
         {/* Share Button */}
         <TouchableOpacity
           style={styles.shareButton}
-          onPress={() => captureAndShare(selectedTemplate)}
+          onPress={() => captureAndShare('summary')}
         >
           <LinearGradient
             colors={['#007AFF', '#5856D6']}
@@ -389,7 +332,7 @@ const styles = StyleSheet.create({
   },
   templateContainer: {
     width: screenWidth - 40,
-    minHeight: 500,
+    maxHeight: 550,
     borderRadius: 16,
     padding: 24,
     justifyContent: 'space-between',

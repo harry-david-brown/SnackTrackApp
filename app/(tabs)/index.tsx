@@ -9,12 +9,18 @@ import { UserSummary } from '../../types/api';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 import { parseApiError } from '../../utils/errorUtils';
+import SocialShareModal from '../../components/SocialShareModal';
+import QuickShareButton from '../../components/QuickShareButton';
+import { cacheAnalytics, getCachedAnalytics } from '../../utils/offlineCache';
+import { FadeInView } from '../../components/FadeInView';
+import { SlideInView } from '../../components/SlideInView';
 
 export default function DashboardScreen() {
   const { state, refreshUserData, logout } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const loadAnalytics = async () => {
     if (!state.user) return;
@@ -22,8 +28,20 @@ export default function DashboardScreen() {
     try {
       setIsLoadingAnalytics(true);
       setAnalyticsError(null);
+      
+      // Try to load from cache first for instant display
+      const cached = await getCachedAnalytics(state.user.id);
+      if (cached) {
+        setAnalytics(cached);
+      }
+      
+      // Then fetch fresh data from API
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
+      
+      // Cache the fresh data
+      await cacheAnalytics(state.user.id, summary);
+      
     } catch (error) {
       console.error('Error loading analytics:', error);
       const apiError = parseApiError(error);
@@ -31,6 +49,19 @@ export default function DashboardScreen() {
         message: apiError.message,
         type: apiError.type,
       });
+      
+      // If API fails but we have cache, keep showing cached data
+      if (!analytics) {
+        const cached = await getCachedAnalytics(state.user.id);
+        if (cached) {
+          setAnalytics(cached);
+          // Update error to show we're using cached data
+          setAnalyticsError({
+            message: 'Showing cached data. Pull to refresh when online.',
+            type: 'network',
+          });
+        }
+      }
     } finally {
       setIsLoadingAnalytics(false);
     }
@@ -43,8 +74,14 @@ export default function DashboardScreen() {
   }, [state.user]);
 
   const handleRefresh = async () => {
-    await refreshUserData();
-    await loadAnalytics();
+    try {
+      await Promise.all([
+        refreshUserData(),
+        loadAnalytics()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -54,17 +91,26 @@ export default function DashboardScreen() {
     }).format(amount);
   };
 
-  const handleLogout = () => {
-    logout();
-    router.replace('/');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation even if logout fails
+      router.replace('/');
+    }
   };
 
+  // If user logs out while on this screen, navigate to login
+  useEffect(() => {
+    if (!state.user && !state.isLoading) {
+      router.replace('/');
+    }
+  }, [state.user, state.isLoading]);
+
   if (!state.user) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LoadingSpinner text="Loading your data..." />
-      </SafeAreaView>
-    );
+    return null; // Will navigate in useEffect above
   }
 
   return (
@@ -72,7 +118,7 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={state.isLoading || isLoadingAnalytics} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={isLoadingAnalytics} onRefresh={handleRefresh} />
         }
       >
         <View style={styles.content}>
@@ -99,6 +145,7 @@ export default function DashboardScreen() {
           
           {/* Stats Cards */}
           <View style={styles.statsContainer}>
+            <SlideInView direction="left" delay={100}>
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="wallet-outline" size={24} color="#007AFF" />
@@ -109,7 +156,9 @@ export default function DashboardScreen() {
               </Text>
               <Text style={styles.cardSubtext}>All time</Text>
             </View>
+            </SlideInView>
             
+            <SlideInView direction="right" delay={200}>
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Ionicons name="receipt-outline" size={24} color="#34C759" />
@@ -120,6 +169,7 @@ export default function DashboardScreen() {
               </Text>
               <Text style={styles.cardSubtext}>Orders tracked</Text>
             </View>
+            </SlideInView>
           </View>
 
           {/* Quick Actions */}
@@ -155,6 +205,19 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Share Button - Show if user has data */}
+          {analytics && analytics.totalReceipts > 0 && (
+            <View style={styles.shareContainer}>
+              <QuickShareButton 
+                onPress={() => setShowShareModal(true)}
+                variant="primary"
+                size="medium"
+                icon="share-social"
+                title="Share Your Stats"
+              />
+            </View>
+          )}
+
           {/* Recent Activity */}
           <View style={styles.activityContainer}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -187,6 +250,15 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Social Share Modal */}
+      {analytics && (
+        <SocialShareModal
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          analytics={analytics}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -263,6 +335,10 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     marginBottom: 32,
+  },
+  shareContainer: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 20,

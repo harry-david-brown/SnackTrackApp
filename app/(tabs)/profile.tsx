@@ -2,14 +2,18 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import { router } from 'expo-router';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import { useState, useEffect } from 'react';
+import OnboardingScreen from '../../components/OnboardingScreen';
 
 export default function ProfileScreen() {
   const { state, logout } = useUser();
+  const { resetOnboarding } = useOnboarding();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -127,6 +131,12 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowOnboarding(true)}>
+            <Ionicons name="information-circle-outline" size={24} color="#666" />
+            <Text style={styles.menuText}>View Tutorial</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+          
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="help-circle-outline" size={24} color="#666" />
             <Text style={styles.menuText}>Help & Support</Text>
@@ -142,9 +152,14 @@ export default function ProfileScreen() {
         {/* App Info */}
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>Snack Track v1.0.0</Text>
-          <Text style={styles.appInfoText}>Made with ❤️ for food lovers</Text>
+          <Text style={styles.appInfoText}>Made with ❤️</Text>
         </View>
       </View>
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      )}
     </SafeAreaView>
   );
 }

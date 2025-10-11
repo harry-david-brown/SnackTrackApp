@@ -182,7 +182,7 @@ export default function AnalyticsScreen() {
         <View style={styles.summaryContainer}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(analytics.totalSpent)}</Text>
+            <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(analytics.totalSpent)}</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Orders</Text>
@@ -321,7 +321,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    minWidth: 100,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
   },

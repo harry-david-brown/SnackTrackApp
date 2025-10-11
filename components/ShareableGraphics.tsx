@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
 import { UserSummary } from '../types/api';
 
 interface ShareableGraphicsProps {
@@ -26,13 +25,6 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
     try {
       if (!viewShotRef.current) return;
 
-      // Request permissions
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Permission to access media library is required!');
-        return;
-      }
-
       // Capture the view
       const uri = await viewShotRef.current?.capture?.();
       
@@ -40,19 +32,18 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         alert('Failed to capture image');
         return;
       }
-      
-      // Save to media library
-      await MediaLibrary.createAssetAsync(uri);
-      
-      // Share the image
+
+      // Open native share sheet
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Share your Snack Track Analytics',
+          UTI: 'public.png',
         });
+        onShare?.(uri);
+      } else {
+        alert('Sharing is not available on this device');
       }
-
-      onShare?.(uri);
     } catch (error) {
       console.error('Error capturing and sharing:', error);
       alert('Failed to capture image. Please try again.');
