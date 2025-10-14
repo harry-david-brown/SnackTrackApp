@@ -13,7 +13,7 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **Professional UI** - Beautiful, responsive design with NativeWind styling
 - [x] **Team Onboarding** - Complete documentation for seamless collaboration
 
-### 🔄 **Recent Additions** (October 12, 2025)
+### 🔄 **Recent Additions** (October 14, 2025)
 - [x] **JWT Authentication System** - Secure password-based auth with token management
 - [x] **Automatic Token Refresh** - Seamless 15-minute token refresh in background
 - [x] **ZIP File Upload** - Full support for Uber data export ZIP files
@@ -21,6 +21,8 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **Session Management** - Persistent login with secure token storage
 - [x] **Password Validation** - Real-time validation with user feedback
 - [x] **Error Handling** - 401/403 handling with auto-logout on session expiry
+- [x] **Error Handling Improvements** - Silent error handling, no console spam
+- [x] **Performance Optimization** - Fixed duplicate API calls on refresh and login
 
 ### ✨ **Previous Additions**
 - [x] **Analytics Charts** - Spending visualizations and trend analysis
@@ -62,7 +64,7 @@ This app uses **secure JWT authentication** with the backend API:
 4. **View analytics:** Spending insights and trends
 5. **Share:** Spotify Wrapped-style viral journey
 
-📚 **Full documentation:** See `AUTH_MIGRATION_GUIDE.md` for complete details
+📚 **Full documentation:** See `AUTHENTICATION_IMPLEMENTATION.md` for complete details
 
 ---
 

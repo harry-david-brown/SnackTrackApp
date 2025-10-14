@@ -94,12 +94,20 @@ export default function DashboardScreen() {
 
   const handleRefresh = async () => {
     try {
+      // Temporarily disable the focus effect during manual refresh
+      const wasDone = initialLoadDoneRef.current;
+      initialLoadDoneRef.current = false;
+      
       await Promise.all([
         refreshUserData(),
         loadAnalytics()
       ]);
+      
+      // Re-enable focus effect
+      initialLoadDoneRef.current = wasDone;
     } catch (error) {
       // Errors are handled by individual functions
+      initialLoadDoneRef.current = true;
     }
   };
 
