@@ -27,7 +27,7 @@ export const cacheAnalytics = async (userId: string, data: UserSummary): Promise
     };
     await AsyncStorage.setItem(CACHE_KEYS.ANALYTICS, JSON.stringify(cacheData));
   } catch (error) {
-    console.error('Error caching analytics:', error);
+    // Silently fail - caching is not critical
   }
 };
 
@@ -51,7 +51,6 @@ export const getCachedAnalytics = async (userId: string): Promise<UserSummary | 
 
     return cacheData.data;
   } catch (error) {
-    console.error('Error getting cached analytics:', error);
     return null;
   }
 };
@@ -60,7 +59,7 @@ export const clearAnalyticsCache = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(CACHE_KEYS.ANALYTICS);
   } catch (error) {
-    console.error('Error clearing analytics cache:', error);
+    // Silently fail - not critical
   }
 };
 
@@ -77,7 +76,7 @@ export const queueOperation = async (operation: Omit<PendingOperation, 'id' | 't
     pending.push(newOperation);
     await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(pending));
   } catch (error) {
-    console.error('Error queuing operation:', error);
+    // Silently fail - not critical
   }
 };
 
@@ -86,7 +85,6 @@ export const getPendingOperations = async (): Promise<PendingOperation[]> => {
     const pending = await AsyncStorage.getItem(CACHE_KEYS.PENDING_OPERATIONS);
     return pending ? JSON.parse(pending) : [];
   } catch (error) {
-    console.error('Error getting pending operations:', error);
     return [];
   }
 };
@@ -97,7 +95,7 @@ export const removeOperation = async (operationId: string): Promise<void> => {
     const filtered = pending.filter(op => op.id !== operationId);
     await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(filtered));
   } catch (error) {
-    console.error('Error removing operation:', error);
+    // Silently fail - not critical
   }
 };
 
@@ -109,7 +107,7 @@ export const incrementRetryCount = async (operationId: string): Promise<void> =>
     );
     await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(updated));
   } catch (error) {
-    console.error('Error incrementing retry count:', error);
+    // Silently fail - not critical
   }
 };
 
@@ -118,7 +116,7 @@ export const updateLastSync = async (): Promise<void> => {
   try {
     await AsyncStorage.setItem(CACHE_KEYS.LAST_SYNC, Date.now().toString());
   } catch (error) {
-    console.error('Error updating last sync:', error);
+    // Silently fail - not critical
   }
 };
 
@@ -127,7 +125,6 @@ export const getLastSync = async (): Promise<number | null> => {
     const lastSync = await AsyncStorage.getItem(CACHE_KEYS.LAST_SYNC);
     return lastSync ? parseInt(lastSync, 10) : null;
   } catch (error) {
-    console.error('Error getting last sync:', error);
     return null;
   }
 };
@@ -141,7 +138,7 @@ export const clearAllCache = async (): Promise<void> => {
       CACHE_KEYS.PENDING_OPERATIONS,
     ]);
   } catch (error) {
-    console.error('Error clearing cache:', error);
+    // Silently fail - not critical
   }
 };
 

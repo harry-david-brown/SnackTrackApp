@@ -48,25 +48,26 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const validateCSVFile = (file: DocumentPicker.DocumentPickerResult): boolean => {
+  const validateFile = (file: DocumentPicker.DocumentPickerResult): boolean => {
     if (file.canceled || !file.assets || file.assets.length === 0) {
       return false;
     }
 
     const asset = file.assets[0];
+    const fileName = asset.name.toLowerCase();
     
-    // Check file extension
-    if (!asset.name.toLowerCase().endsWith('.csv')) {
-      Alert.alert('Invalid File', 'Please select a CSV file.');
+    // Check file extension - accept both CSV and ZIP
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.zip')) {
+      Alert.alert('Invalid File', 'Please select a CSV or ZIP file.');
       return false;
     }
 
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Check file size (max 50MB for ZIP, 10MB for CSV)
+    const maxSize = fileName.endsWith('.zip') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (asset.size && asset.size > maxSize) {
       Alert.alert(
         'File Too Large',
-        'Please select a CSV file smaller than 10MB.'
+        `Please select a ${fileName.endsWith('.zip') ? 'ZIP' : 'CSV'} file smaller than ${fileName.endsWith('.zip') ? '50' : '10'}MB.`
       );
       return false;
     }
@@ -77,11 +78,11 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
   const handleFilePicker = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'application/csv'],
+        type: ['text/csv', 'application/csv', 'application/zip', 'application/x-zip-compressed'],
         copyToCacheDirectory: true,
       });
 
-      if (validateCSVFile(result)) {
+      if (validateFile(result)) {
         const asset = result.assets![0];
         setUploadState(prev => ({
           ...prev,
@@ -92,7 +93,6 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
         setShowModal(true);
       }
     } catch (error) {
-      console.error('Error picking document:', error);
       Alert.alert('Error', 'Failed to select file. Please try again.');
     }
   };
@@ -123,10 +123,11 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
       
       console.log('Uploading CSV file to API:', uploadState.fileName);
       
-      // Create a File object for the API
+      // Create a File object for the API with correct MIME type
+      const isZip = uploadState.fileName?.toLowerCase().endsWith('.zip');
       const file = {
         uri: uploadState.fileUri,
-        type: 'text/csv',
+        type: isZip ? 'application/zip' : 'text/csv',
         name: uploadState.fileName,
       } as any;
       
@@ -177,7 +178,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
       <TouchableOpacity style={styles.uploadButton} onPress={handleFilePicker}>
         <View style={styles.uploadButtonContent}>
           <Ionicons name="cloud-upload" size={24} color="white" />
-          <Text style={styles.uploadButtonText}>Choose CSV File</Text>
+          <Text style={styles.uploadButtonText}>Choose CSV or ZIP File</Text>
         </View>
       </TouchableOpacity>
 

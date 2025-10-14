@@ -67,11 +67,12 @@ export default function AnalyticsScreen() {
     }
   };
 
+  // Only load analytics when user logs in/out, not on every user property change
   useEffect(() => {
     if (state.user) {
       loadAnalytics();
     }
-  }, [state.user]);
+  }, [state.user?.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

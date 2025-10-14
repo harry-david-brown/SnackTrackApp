@@ -1,37 +1,5 @@
-import axios from 'axios';
-import Constants from 'expo-constants';
+import api from './api';
 import { UserSummary } from '../types/api';
-
-// Get API URL from environment with proper fallbacks
-const getApiUrl = () => {
-  // 1. Check explicit environment variable (highest priority)
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  
-  // 2. Check app.config.js extra config
-  if (Constants.expoConfig?.extra?.apiUrl) {
-    return Constants.expoConfig.extra.apiUrl;
-  }
-  
-  // 3. Development fallback - this should only be used in dev
-  if (__DEV__) {
-    return 'http://localhost:3000';
-  }
-  
-  // 4. Production - this should never happen if properly configured
-  throw new Error('API_URL not configured! Set EXPO_PUBLIC_API_URL environment variable.');
-};
-
-const API_BASE_URL = getApiUrl();
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 export const analyticsApi = {
   // Get user summary with analytics

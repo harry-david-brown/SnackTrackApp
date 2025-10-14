@@ -39,7 +39,6 @@ export function useOfflineSync() {
       try {
         // Skip if max retries exceeded
         if (operation.retryCount >= MAX_RETRIES) {
-          console.log(`Operation ${operation.id} exceeded max retries, removing`);
           await removeOperation(operation.id);
           continue;
         }
@@ -49,11 +48,9 @@ export function useOfflineSync() {
         
         // Success - remove from queue
         await removeOperation(operation.id);
-        console.log(`✅ Synced operation: ${operation.type}`);
         
       } catch (error) {
-        console.error(`Failed to sync operation ${operation.id}:`, error);
-        // Increment retry count
+        // Increment retry count on failure
         await incrementRetryCount(operation.id);
       }
     }

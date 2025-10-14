@@ -24,7 +24,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const value = await AsyncStorage.getItem(ONBOARDING_KEY);
       setHasCompletedOnboarding(value === 'true');
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      // Default to false on error
     } finally {
       setIsLoading(false);
     }
@@ -35,7 +35,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
       setHasCompletedOnboarding(true);
     } catch (error) {
-      console.error('Error saving onboarding status:', error);
+      // Silently fail - user can try again
     }
   };
 
@@ -44,7 +44,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.removeItem(ONBOARDING_KEY);
       setHasCompletedOnboarding(false);
     } catch (error) {
-      console.error('Error resetting onboarding:', error);
+      // Silently fail - not critical
     }
   };
 

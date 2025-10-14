@@ -80,7 +80,6 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         Alert.alert('Error', 'Sharing is not available on this device');
       }
     } catch (error) {
-      console.error('Error capturing and sharing:', error);
       Alert.alert('Error', 'Failed to capture image. Please try again.');
     }
   };

@@ -48,7 +48,7 @@ export default function UploadScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>📤 Upload CSV</Text>
+              <Text style={styles.title}>📤 Upload Data</Text>
               <Text style={styles.subtitle}>Import your Uber Eats order history</Text>
             </View>
             <TouchableOpacity 
@@ -62,9 +62,9 @@ export default function UploadScreen() {
           {/* Upload Section */}
           <View style={styles.uploadCard}>
             <Ionicons name="cloud-upload-outline" size={64} color="#007AFF" />
-            <Text style={styles.uploadTitle}>Upload Your CSV File</Text>
+            <Text style={styles.uploadTitle}>Upload Your Data</Text>
             <Text style={styles.uploadSubtitle}>
-              Upload your Uber Eats CSV export to analyze your spending patterns
+              Upload your Uber Eats CSV or ZIP file to analyze your spending patterns
             </Text>
             
             <CSVUpload 
@@ -75,22 +75,22 @@ export default function UploadScreen() {
           
           {/* Instructions */}
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>📋 How to get your CSV:</Text>
+            <Text style={styles.infoTitle}>📋 How to get your data:</Text>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>1</Text>
               <Text style={styles.instructionText}>Go to Uber Eats website or app</Text>
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>2</Text>
-              <Text style={styles.instructionText}>Navigate to Account → Order History</Text>
+              <Text style={styles.instructionText}>Navigate to Account → Privacy → Download Your Data</Text>
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>3</Text>
-              <Text style={styles.instructionText}>Click &quot;Download Order History&quot;</Text>
+              <Text style={styles.instructionText}>Download the ZIP file or extract the CSV</Text>
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>4</Text>
-              <Text style={styles.instructionText}>Upload the CSV file using the button above</Text>
+              <Text style={styles.instructionText}>Upload either the ZIP or CSV file above</Text>
             </View>
           </View>
 

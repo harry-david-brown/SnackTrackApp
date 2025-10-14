@@ -32,7 +32,7 @@ export default function ChartContainer({
         title: `Snack Track - ${title}`,
       });
     } catch (error) {
-      console.error('Error sharing chart:', error);
+      // Silently fail - user can try again
     }
   };
 

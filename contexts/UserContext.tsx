@@ -2,7 +2,15 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
+import { authApi } from '../services/authApi';
 import { User, AppUser } from '../types/api';
+import { 
+  getUserData, 
+  getUserId, 
+  isAuthenticated as checkIsAuthenticated,
+  clearAuthTokens,
+  AUTH_STORAGE_KEYS 
+} from '../utils/tokenManager';
 
 // User state interface
 interface UserState {
@@ -23,7 +31,8 @@ type UserAction =
 // User context interface
 interface UserContextType {
   state: UserState;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   clearError: () => void;
@@ -81,8 +90,8 @@ const userReducer = (state: UserState, action: UserAction): UserState => {
 // Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Storage keys
-const STORAGE_KEYS = {
+// Legacy storage keys (for backward compatibility during migration)
+const LEGACY_STORAGE_KEYS = {
   USER_DATA: '@snacktrack_user_data',
   USER_ID: '@snacktrack_user_id',
 };
@@ -119,115 +128,192 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const [storedUserData, storedUserId] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
-        AsyncStorage.getItem(STORAGE_KEYS.USER_ID),
-      ]);
+      // Check if user has JWT tokens (new auth system)
+      const isAuth = await checkIsAuthenticated();
+      
+      if (isAuth) {
+        // Load user from new auth system
+        const [userData, userId] = await Promise.all([
+          getUserData(),
+          getUserId(),
+        ]);
 
-      if (storedUserData && storedUserId) {
-        const userData = JSON.parse(storedUserData) as AppUser;
-        
-        // Verify user still exists by fetching fresh data
-        try {
-          let totalSpent;
-          try {
-            totalSpent = await userApi.getTotalSpent(storedUserId);
-          } catch (apiError) {
-            // Mock fallback only in development
-            if (__DEV__) {
-              console.warn('⚠️ DEV MODE: Using mock API fallback for stored user');
-              totalSpent = await mockUserApi.getTotalSpent(storedUserId);
-            } else {
-              // In production, clear invalid user and force re-login
-              throw apiError;
+        if (userData && userId) {
+          // Validate session
+          const isValid = await authApi.validateSession();
+          
+          if (isValid) {
+            // Fetch fresh spending data
+            try {
+              const totalSpent = await userApi.getTotalSpent(userId);
+              
+              const userWithSpending: AppUser = {
+                ...userData,
+                totalSpent,
+                receiptCount: 0,
+              };
+              
+              dispatch({ type: 'SET_USER', payload: userWithSpending });
+            } catch (error) {
+              // If fetch fails but session is valid, use cached data
+              const userWithSpending: AppUser = {
+                ...userData,
+                totalSpent: 0,
+                receiptCount: 0,
+              };
+              
+              dispatch({ type: 'SET_USER', payload: userWithSpending });
             }
+          } else {
+            // Session invalid, clear and force re-login
+            await clearAuthTokens();
+            dispatch({ type: 'SET_USER', payload: null });
           }
-          
-          const userWithSpending: AppUser = {
-            ...userData,
-            totalSpent,
-          };
-          
-          dispatch({ type: 'SET_USER', payload: userWithSpending });
-        } catch (error) {
-          // User might not exist anymore, clear storage
-          await clearUserStorage();
+        } else {
           dispatch({ type: 'SET_USER', payload: null });
         }
       } else {
-        dispatch({ type: 'SET_USER', payload: null });
+        // Check for legacy user data (old system without passwords)
+        const [legacyUserData, legacyUserId] = await Promise.all([
+          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_DATA),
+          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_ID),
+        ]);
+
+        if (legacyUserData && legacyUserId) {
+          // Legacy user exists - they need to re-register with a password
+          await clearUserStorage();
+          dispatch({ type: 'SET_USER', payload: null });
+          dispatch({ type: 'SET_ERROR', payload: 'Please create a new account with a password' });
+        } else {
+          dispatch({ type: 'SET_USER', payload: null });
+        }
       }
     } catch (error) {
-      console.error('Error loading user from storage:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load user data' });
-    }
-  };
-
-  const saveUserToStorage = async (user: AppUser) => {
-    try {
-      await Promise.all([
-        AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
-        AsyncStorage.setItem(STORAGE_KEYS.USER_ID, user.id),
-      ]);
-    } catch (error) {
-      console.error('Error saving user to storage:', error);
     }
   };
 
   const clearUserStorage = async () => {
     try {
+      // Clear both new auth tokens and legacy storage
       await Promise.all([
-        AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA),
-        AsyncStorage.removeItem(STORAGE_KEYS.USER_ID),
+        clearAuthTokens(),
+        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_DATA),
+        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_ID),
+        AsyncStorage.removeItem('@snacktrack_analytics_cache'),
+        AsyncStorage.removeItem('@snacktrack_last_sync'),
       ]);
     } catch (error) {
-      console.error('Error clearing user storage:', error);
+      // Silently fail - we tried our best to clear storage
     }
   };
 
-  const login = async (email: string) => {
+  const register = async (email: string, password: string) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      let response;
-      let totalSpent;
-
+      // Register with the new auth API
+      const response = await authApi.register({ email, password });
+      
+      // Fetch initial spending data
+      let totalSpent = 0;
       try {
-        // Try real API first
-        response = await userApi.createUser({ email });
         totalSpent = await userApi.getTotalSpent(response.userId);
-        console.log('✅ Connected to real API successfully');
-      } catch (apiError: any) {
-        console.log('❌ Real API error:', apiError.response?.data?.message || apiError.message);
-        
-        // Mock fallback is ONLY for development/testing
-        if (__DEV__) {
-          console.warn('⚠️ DEV MODE: Using mock API fallback. This will NOT work in production!');
-          response = await mockUserApi.createUser({ email });
-          totalSpent = await mockUserApi.getTotalSpent(response.userId);
-        } else {
-          // In production, re-throw the error - no silent fallbacks
-          throw new Error('Unable to connect to server. Please check your internet connection and try again.');
-        }
+      } catch (error) {
+        // It's OK if this fails, user just registered
+        console.log('No spending data yet (new user)');
       }
       
       // Create user object
       const user: AppUser = {
         id: response.userId,
-        email,
-        createdAt: new Date().toISOString(),
+        email: response.email,
+        createdAt: response.user.createdAt,
         totalSpent,
-        receiptCount: 0, // Will be updated when we fetch receipts
+        receiptCount: 0,
       };
 
-      // Save to storage and state
-      await saveUserToStorage(user);
       dispatch({ type: 'SET_USER', payload: user });
       
+      if (__DEV__) {
+        console.log('✅ User registered successfully:', email);
+      }
+      
     } catch (error: any) {
-      console.error('Login error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to create user account';
+      let errorMessage = 'Failed to create account';
+      
+      if (error.response?.data) {
+        // The error might be in different formats
+        const errorData = error.response.data.error || error.response.data.message || error.response.data;
+        const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+        
+        if (apiError.toLowerCase().includes('already exists') || apiError.toLowerCase().includes('duplicate')) {
+          errorMessage = 'An account with this email already exists. Please login instead.';
+        } else if (apiError.toLowerCase().includes('password')) {
+          errorMessage = 'Password must be at least 8 characters with 1 uppercase letter and 1 number.';
+        } else {
+          errorMessage = apiError;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+
+      // Login with the new auth API
+      const response = await authApi.login({ email, password });
+      
+      // Fetch current spending data
+      let totalSpent = 0;
+      try {
+        totalSpent = await userApi.getTotalSpent(response.userId);
+      } catch (error) {
+        console.log('Could not fetch spending data');
+      }
+      
+      // Create user object
+      const user: AppUser = {
+        id: response.userId,
+        email: response.email,
+        createdAt: response.user.createdAt,
+        totalSpent,
+        receiptCount: 0,
+      };
+
+      dispatch({ type: 'SET_USER', payload: user });
+      
+      if (__DEV__) {
+        console.log('✅ User logged in successfully:', email);
+      }
+      
+    } catch (error: any) {
+      let errorMessage = 'Failed to login';
+      
+      if (error.response?.data) {
+        // The error might be in different formats
+        const errorData = error.response.data.error || error.response.data.message || error.response.data;
+        const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+        
+        if (apiError.toLowerCase().includes('invalid') || apiError.toLowerCase().includes('credentials') || apiError.toLowerCase().includes('password')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else {
+          errorMessage = apiError;
+        }
+      } else if (error.message === 'SESSION_EXPIRED') {
+        errorMessage = 'Your session has expired. Please login again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -235,10 +321,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Call backend logout endpoint to invalidate refresh token
+      await authApi.logout();
+      
+      // Clear local storage
       await clearUserStorage();
+      
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
-      // Still dispatch logout even if storage clearing fails
+      // Still dispatch logout even if API call fails
+      await clearUserStorage();
       dispatch({ type: 'LOGOUT' });
     }
   };
@@ -249,22 +341,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      let totalSpent;
-      try {
-        totalSpent = await userApi.getTotalSpent(state.user.id);
-      } catch (apiError) {
-        // Fall back to mock API
-        totalSpent = await mockUserApi.getTotalSpent(state.user.id);
-      }
+      // Fetch updated spending data
+      const totalSpent = await userApi.getTotalSpent(state.user.id);
       
-      const updatedUser = { ...state.user, totalSpent };
-      
-      await saveUserToStorage(updatedUser);
+      // Update user state
       dispatch({ type: 'UPDATE_USER_DATA', payload: { totalSpent } });
       
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to refresh user data' });
+    } catch (error: any) {
+      // Handle session expired
+      if (error.message === 'SESSION_EXPIRED') {
+        await clearUserStorage();
+        dispatch({ type: 'LOGOUT' });
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to refresh user data' });
+      }
     }
   };
 
@@ -274,6 +364,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const value: UserContextType = {
     state,
+    register,
     login,
     logout,
     refreshUserData,

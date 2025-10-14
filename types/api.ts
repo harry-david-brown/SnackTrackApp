@@ -28,6 +28,60 @@ export interface Receipt {
   createdAt: string;
 }
 
+// Authentication Types
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterResponse {
+  userId: string;
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    createdAt: string;
+  };
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  userId: string;
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    createdAt: string;
+  };
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+}
+
+// Legacy types (deprecated, use auth endpoints)
 export interface CreateUserRequest {
   email: string;
 }
@@ -45,6 +99,8 @@ export interface CSVImportRequest {
 export interface CSVImportResponse {
   success?: boolean;
   importedCount: number;
+  totalAmount?: number;
+  fileType?: 'csv' | 'zip';
   message: string;
 }
 

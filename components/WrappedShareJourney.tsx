@@ -286,7 +286,6 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       const uri = await viewShot.capture();
       return uri;
     } catch (error) {
-      console.error('Error capturing slide:', error);
       throw error;
     }
   };
@@ -302,7 +301,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         dialogTitle: 'Share your food delivery spending',
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      // Silently fail - user can try again
     }
   };
 

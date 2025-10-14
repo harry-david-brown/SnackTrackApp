@@ -25,7 +25,6 @@ export default function WrappedJourneyScreen() {
       const summary = await analyticsApi.getUserSummary(state.user.id);
       setAnalytics(summary);
     } catch (error) {
-      console.error('Error loading analytics for wrapped journey:', error);
       // If we can't load analytics, go back to dashboard
       router.replace('/(tabs)');
     } finally {

@@ -81,11 +81,12 @@ export default function ProfileScreen() {
     }
   };
 
+  // Only load analytics when user logs in/out, not on every user property change
   useEffect(() => {
     if (state.user) {
       loadAnalytics();
     }
-  }, [state.user]);
+  }, [state.user?.id]);
 
   if (!state.user) {
     return (

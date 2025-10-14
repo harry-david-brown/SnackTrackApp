@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,15 +20,53 @@ interface LoginScreenProps {
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, state } = useUser();
+  const [isRegistering, setIsRegistering] = useState(true); // Default to registration
+  const { register, login, state, clearError } = useUser();
+
+  // Show error alert when state.error changes
+  useEffect(() => {
+    if (state.error && !state.isLoading) {
+      Alert.alert(
+        isRegistering ? 'Registration Failed' : 'Login Failed',
+        state.error,
+        [
+          {
+            text: 'OK',
+            onPress: () => clearError(),
+          },
+        ]
+      );
+    }
+  }, [state.error, state.isLoading]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleLogin = async () => {
+  const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (password.length < 8) {
+      errors.push('At least 8 characters');
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push('At least 1 uppercase letter');
+    }
+    if (!/[0-9]/.test(password)) {
+      errors.push('At least 1 number');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  };
+
+  const handleSubmit = async () => {
     // Validate email
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
@@ -40,25 +78,56 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       return;
     }
 
+    // Validate password
+    if (!password) {
+      Alert.alert('Error', 'Please enter your password');
+      return;
+    }
+
+    if (isRegistering) {
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        Alert.alert(
+          'Invalid Password',
+          'Password must have:\n' + passwordValidation.errors.map(e => '• ' + e).join('\n')
+        );
+        return;
+      }
+    }
+
     try {
       setIsLoading(true);
-      await login(email.trim().toLowerCase());
       
-      Alert.alert(
-        'Welcome to Snack Track! 🥡',
-        'Your account has been created successfully. Start tracking your food spending!',
-        [
-          {
-            text: 'Get Started',
-            onPress: onLoginSuccess,
-          },
-        ]
-      );
+      if (isRegistering) {
+        await register(email.trim().toLowerCase(), password);
+        
+        Alert.alert(
+          'Welcome to Snack Track! 🥡',
+          'Your account has been created successfully. Start tracking your food spending!',
+          [
+            {
+              text: 'Get Started',
+              onPress: onLoginSuccess,
+            },
+          ]
+        );
+      } else {
+        await login(email.trim().toLowerCase(), password);
+        
+        Alert.alert(
+          'Welcome Back! 🥡',
+          'You\'ve successfully logged in.',
+          [
+            {
+              text: 'Continue',
+              onPress: onLoginSuccess,
+            },
+          ]
+        );
+      }
     } catch (error: any) {
-      Alert.alert(
-        'Login Failed',
-        error.response?.data?.message || 'Something went wrong. Please try again.'
-      );
+      // Error is already set in state by UserContext
+      // state.error will be displayed when the component re-renders
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +149,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </Text>
             </View>
 
+            {/* Login/Register Toggle */}
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity
+                style={[styles.toggleButton, isRegistering && styles.toggleButtonActive]}
+                onPress={() => setIsRegistering(true)}
+              >
+                <Text style={[styles.toggleText, isRegistering && styles.toggleTextActive]}>
+                  Sign Up
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, !isRegistering && styles.toggleButtonActive]}
+                onPress={() => setIsRegistering(false)}
+              >
+                <Text style={[styles.toggleText, !isRegistering && styles.toggleTextActive]}>
+                  Sign In
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Login Form */}
             <View style={styles.form}>
               <View style={styles.inputContainer}>
@@ -97,30 +186,60 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 />
               </View>
 
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="password"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons 
+                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                    size={24} 
+                    color="#666" 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {isRegistering && (
+                <View style={styles.passwordRequirements}>
+                  <Text style={styles.passwordRequirementsTitle}>Password must have:</Text>
+                  <Text style={styles.passwordRequirement}>• At least 8 characters</Text>
+                  <Text style={styles.passwordRequirement}>• At least 1 uppercase letter</Text>
+                  <Text style={styles.passwordRequirement}>• At least 1 number</Text>
+                </View>
+              )}
+
               <TouchableOpacity
                 style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                onPress={handleLogin}
+                onPress={handleSubmit}
                 disabled={isLoading || state.isLoading}
               >
                 {isLoading || state.isLoading ? (
-                  <Text style={styles.loginButtonText}>Creating Account...</Text>
+                  <Text style={styles.loginButtonText}>
+                    {isRegistering ? 'Creating Account...' : 'Signing In...'}
+                  </Text>
                 ) : (
-                  <Text style={styles.loginButtonText}>Get Started</Text>
+                  <Text style={styles.loginButtonText}>
+                    {isRegistering ? 'Create Account' : 'Sign In'}
+                  </Text>
                 )}
               </TouchableOpacity>
-
-              {/* Error Display */}
-              {state.error && (
-                <View style={styles.errorContainer}>
-                  <Ionicons name="warning-outline" size={20} color="#ff3b30" />
-                  <Text style={styles.errorText}>{state.error}</Text>
-                </View>
-              )}
 
               {/* Info */}
               <View style={styles.infoContainer}>
                 <Text style={styles.infoText}>
-                  We&apos;ll use your email to create your account and save your spending data.
+                  {isRegistering 
+                    ? "We'll use your email to create your account and securely save your spending data."
+                    : "Sign in to access your spending insights and analytics."
+                  }
                 </Text>
               </View>
             </View>
@@ -180,6 +299,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  toggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  toggleTextActive: {
+    color: 'white',
+  },
   form: {
     marginBottom: 32,
   },
@@ -199,6 +350,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  passwordRequirements: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  passwordRequirementsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  passwordRequirement: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
   },
   inputIcon: {
     marginRight: 12,
@@ -229,20 +397,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffe6e6',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 14,
-    marginLeft: 8,
-    flex: 1,
   },
   infoContainer: {
     marginTop: 16,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ export default function DashboardScreen() {
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const initialLoadDoneRef = useRef(false);
 
   const loadAnalytics = async () => {
     if (!state.user) return;
@@ -35,7 +36,13 @@ export default function DashboardScreen() {
       setAnalytics(summary);
       await cacheAnalytics(state.user.id, summary);
       
-    } catch (error) {
+    } catch (error: any) {
+      // Ignore SESSION_EXPIRED errors - the interceptor will handle logout
+      if (error.message === 'SESSION_EXPIRED') {
+        // Token refresh failed, user will be redirected to login
+        return;
+      }
+      
       // API failed - try to use cached data
       const cached = await getCachedAnalytics(state.user.id);
       if (cached) {
@@ -60,18 +67,29 @@ export default function DashboardScreen() {
     }
   };
 
+  // Load analytics only when user logs in/out, not on every user property change
   useEffect(() => {
     if (state.user) {
-      loadAnalytics();
+      loadAnalytics().then(() => {
+        // Set flag after load completes to prevent useFocusEffect from triggering too early
+        initialLoadDoneRef.current = true;
+      });
+    } else {
+      // Reset flag when user logs out
+      initialLoadDoneRef.current = false;
     }
-  }, [state.user]);
+  }, [state.user?.id]);
 
-  // Clear loading state when screen comes into focus (e.g., after wrapped journey)
+  // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
+  // Skip if we haven't done the initial load yet (prevents duplicate on login)
   useFocusEffect(
     React.useCallback(() => {
-      // Only clear loading state, don't reload
-      setIsLoadingAnalytics(false);
-    }, [])
+      // Only reload if we've already done the initial load
+      // This prevents duplicate call when user first logs in
+      if (state.user && initialLoadDoneRef.current) {
+        loadAnalytics();
+      }
+    }, [state.user])
   );
 
   const handleRefresh = async () => {

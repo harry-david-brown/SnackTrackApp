@@ -6,14 +6,23 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 
 ### ✅ **Core MVP Features** - Production-ready frontend
 - [x] **Development Environment** - Complete Docker, Git, and documentation setup
-- [x] **User Authentication** - Email-based login with persistent state management
-- [x] **CSV Upload Flow** - File picker with upload progress and real API integration
+- [x] **JWT Authentication** - Password-based login/register with automatic token refresh
+- [x] **CSV & ZIP Upload** - Support for both CSV and ZIP files (auto-extract)
 - [x] **Dashboard Integration** - Real data display with live API connection
-- [x] **API Integration** - Connected to backend with fallback to mock data
+- [x] **API Integration** - Full backend integration with auth headers
 - [x] **Professional UI** - Beautiful, responsive design with NativeWind styling
 - [x] **Team Onboarding** - Complete documentation for seamless collaboration
 
-### 🔄 **Recent Additions**
+### 🔄 **Recent Additions** (October 12, 2025)
+- [x] **JWT Authentication System** - Secure password-based auth with token management
+- [x] **Automatic Token Refresh** - Seamless 15-minute token refresh in background
+- [x] **ZIP File Upload** - Full support for Uber data export ZIP files
+- [x] **Authorization Headers** - Automatic injection for all protected API calls
+- [x] **Session Management** - Persistent login with secure token storage
+- [x] **Password Validation** - Real-time validation with user feedback
+- [x] **Error Handling** - 401/403 handling with auto-logout on session expiry
+
+### ✨ **Previous Additions**
 - [x] **Analytics Charts** - Spending visualizations and trend analysis
 - [x] **Advanced Error Handling** - Comprehensive loading states and error management
 - [x] **Network Monitoring** - Real-time connection status and offline detection
@@ -24,11 +33,36 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **Animations** - Smooth transitions and swipeable content
 
 ### 📅 **Future Enhancements**
-- [ ] **ZIP File Processing** - Auto-extract user_orders-0.csv from Uber ZIP
+- [ ] **Forgot Password** - Password reset flow (backend support pending)
+- [ ] **Email Verification** - Verify user emails on registration
+- [ ] **Social Login** - Google and Apple Sign In
+- [ ] **Biometric Auth** - Face ID / Touch ID support
 - [ ] **Multi-Template Sharing** - Additional Wrapped-style slide variations
 - [ ] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
 - [ ] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
+
+---
+
+## 🔐 Authentication & Security
+
+### JWT-Based Authentication
+This app uses **secure JWT authentication** with the backend API:
+
+- **Registration:** Email + password (8+ chars, 1 uppercase, 1 number)
+- **Login:** Email + password authentication
+- **Token Management:** Automatic refresh every 15 minutes
+- **Session Persistence:** Secure token storage in AsyncStorage
+- **Auto-Logout:** Expired sessions redirect to login
+
+### Quick Auth Flow
+1. **First-time users:** Sign up with email and password
+2. **Returning users:** Sign in (tokens stored securely)
+3. **Upload data:** CSV or ZIP files
+4. **View analytics:** Spending insights and trends
+5. **Share:** Spotify Wrapped-style viral journey
+
+📚 **Full documentation:** See `AUTH_MIGRATION_GUIDE.md` for complete details
 
 ---
 

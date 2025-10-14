@@ -45,7 +45,6 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         alert('Sharing is not available on this device');
       }
     } catch (error) {
-      console.error('Error capturing and sharing:', error);
       alert('Failed to capture image. Please try again.');
     }
   };
