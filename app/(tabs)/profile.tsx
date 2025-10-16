@@ -4,16 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { router } from 'expo-router';
-import { analyticsApi } from '../../services/analyticsApi';
-import { UserSummary } from '../../types/api';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import OnboardingScreen from '../../components/OnboardingScreen';
 
 export default function ProfileScreen() {
   const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
-  const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // Use analytics from context instead of loading separately
+  const analytics = state.analytics;
 
   const handleResetOnboarding = async () => {
     Alert.alert(
@@ -70,23 +70,8 @@ export default function ProfileScreen() {
     }).format(amount);
   };
 
-  const loadAnalytics = async () => {
-    if (!state.user) return;
-    
-    try {
-      const summary = await analyticsApi.getUserSummary(state.user.id);
-      setAnalytics(summary);
-    } catch (error) {
-      // Keep analytics as null to show basic user data
-    }
-  };
-
-  // Only load analytics when user logs in/out, not on every user property change
-  useEffect(() => {
-    if (state.user) {
-      loadAnalytics();
-    }
-  }, [state.user?.id]);
+  // No need to load analytics - Profile uses shared analytics from context
+  // If analytics haven't been loaded yet, the Dashboard will load them when visited
 
   if (!state.user) {
     return (

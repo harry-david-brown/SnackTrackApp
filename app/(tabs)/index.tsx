@@ -4,110 +4,53 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { router } from 'expo-router';
-import { analyticsApi } from '../../services/analyticsApi';
-import { UserSummary } from '../../types/api';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
-import { parseApiError } from '../../utils/errorUtils';
-import WrappedShareJourney from '../../components/WrappedShareJourney';
 import QuickShareButton from '../../components/QuickShareButton';
-import { cacheAnalytics, getCachedAnalytics } from '../../utils/offlineCache';
-import { FadeInView } from '../../components/FadeInView';
+import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { SlideInView } from '../../components/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
-  const { state, refreshUserData, logout } = useUser();
-  const [analytics, setAnalytics] = useState<UserSummary | null>(null);
-  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const { state, logout, loadAnalytics } = useUser();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const initialLoadDoneRef = useRef(false);
-
-  const loadAnalytics = async () => {
-    if (!state.user) return;
-    
-    setIsLoadingAnalytics(true);
-    setAnalyticsError(null);
-    
-    try {
-      // Fetch fresh data from API
-      const summary = await analyticsApi.getUserSummary(state.user.id);
-      setAnalytics(summary);
-      await cacheAnalytics(state.user.id, summary);
-      
-    } catch (error: any) {
-      // Ignore SESSION_EXPIRED errors - the interceptor will handle logout
-      if (error.message === 'SESSION_EXPIRED') {
-        // Token refresh failed, user will be redirected to login
-        return;
-      }
-      
-      // API failed - try to use cached data
-      const cached = await getCachedAnalytics(state.user.id);
-      if (cached) {
-        // Only set if we don't already have data
-        if (!analytics) {
-          setAnalytics(cached);
-        }
-        setAnalyticsError({
-          message: 'Showing cached data. Pull to refresh when online.',
-          type: 'network',
-        });
-      } else {
-        // No cache available
-        const apiError = parseApiError(error);
-        setAnalyticsError({
-          message: apiError.message,
-          type: apiError.type,
-        });
-      }
-    } finally {
-      setIsLoadingAnalytics(false);
-    }
-  };
+  
+  // Use analytics from context instead of local state
+  const analytics = state.analytics;
+  const isLoadingAnalytics = state.analyticsLoading;
 
   // Load analytics only when user logs in/out, not on every user property change
   useEffect(() => {
-    if (state.user) {
+    if (state.user && !state.analytics) {
       loadAnalytics().then(() => {
         // Set flag after load completes to prevent useFocusEffect from triggering too early
         initialLoadDoneRef.current = true;
       });
-    } else {
+    } else if (!state.user) {
       // Reset flag when user logs out
       initialLoadDoneRef.current = false;
     }
-  }, [state.user?.id]);
+  }, [state.user?.id, state.analytics]);
 
   // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
   // Skip if we haven't done the initial load yet (prevents duplicate on login)
   useFocusEffect(
     React.useCallback(() => {
-      // Only reload if we've already done the initial load
-      // This prevents duplicate call when user first logs in
-      if (state.user && initialLoadDoneRef.current) {
+      // Only reload if we've already done the initial load AND we don't have analytics
+      // This prevents unnecessary calls when just switching tabs
+      if (state.user && initialLoadDoneRef.current && !state.analytics) {
         loadAnalytics();
       }
-    }, [state.user])
+    }, [state.user, state.analytics])
   );
 
   const handleRefresh = async () => {
     try {
-      // Temporarily disable the focus effect during manual refresh
-      const wasDone = initialLoadDoneRef.current;
-      initialLoadDoneRef.current = false;
-      
-      await Promise.all([
-        refreshUserData(),
-        loadAnalytics()
-      ]);
-      
-      // Re-enable focus effect
-      initialLoadDoneRef.current = wasDone;
-    } catch (error) {
-      // Errors are handled by individual functions
-      initialLoadDoneRef.current = true;
+      // Force reload analytics (user explicitly requested refresh)
+      await loadAnalytics();
+    } catch {
+      // Errors are handled by loadAnalytics
     }
   };
 
@@ -210,8 +153,8 @@ export default function DashboardScreen() {
               <View style={styles.actionButtonContent}>
                 <Ionicons name="cloud-upload" size={24} color="white" />
                 <View style={styles.actionButtonText}>
-                  <Text style={styles.actionButtonTitle}>Upload CSV</Text>
-                  <Text style={styles.actionButtonSubtitle}>Import your Uber Eats data</Text>
+                  <Text style={styles.actionButtonTitle}>Upload Uber Data</Text>
+                  <Text style={styles.actionButtonSubtitle}>Import your order history</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="white" />

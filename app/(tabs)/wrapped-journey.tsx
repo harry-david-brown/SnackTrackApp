@@ -16,19 +16,20 @@ export default function WrappedJourneyScreen() {
   useFocusEffect(
     React.useCallback(() => {
       setIsLoading(true); // Show loading while fetching fresh data
-      loadAnalytics();
+      loadWrappedAnalytics();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
-  const loadAnalytics = async () => {
+  const loadWrappedAnalytics = async () => {
     if (!state.user) {
       router.replace('/');
       return;
     }
 
     try {
-      // Fetch with wrapped analytics included
+      // Fetch with wrapped analytics included directly (not through context)
+      // This ensures we get the wrappedAnalytics field
       const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setAnalytics(summary);
       setLoadTimestamp(Date.now()); // Update timestamp to trigger reset

@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
 import { authApi } from '../services/authApi';
-import { User, AppUser } from '../types/api';
+import { analyticsApi } from '../services/analyticsApi';
+import { User, AppUser, UserSummary } from '../types/api';
 import { 
   getUserData, 
   getUserId, 
@@ -11,6 +12,7 @@ import {
   clearAuthTokens,
   AUTH_STORAGE_KEYS 
 } from '../utils/tokenManager';
+import { cacheAnalytics, getCachedAnalytics } from '../utils/offlineCache';
 
 // User state interface
 interface UserState {
@@ -18,6 +20,8 @@ interface UserState {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
+  analytics: UserSummary | null;
+  analyticsLoading: boolean;
 }
 
 // User actions
@@ -26,7 +30,9 @@ type UserAction =
   | { type: 'SET_USER'; payload: AppUser | null }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'LOGOUT' }
-  | { type: 'UPDATE_USER_DATA'; payload: Partial<AppUser> };
+  | { type: 'UPDATE_USER_DATA'; payload: Partial<AppUser> }
+  | { type: 'SET_ANALYTICS'; payload: UserSummary | null }
+  | { type: 'SET_ANALYTICS_LOADING'; payload: boolean };
 
 // User context interface
 interface UserContextType {
@@ -35,6 +41,7 @@ interface UserContextType {
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
+  loadAnalytics: (includeWrapped?: boolean) => Promise<void>;
   clearError: () => void;
 }
 
@@ -44,6 +51,8 @@ const initialState: UserState = {
   isLoading: false,
   isAuthenticated: false,
   error: null,
+  analytics: null,
+  analyticsLoading: false,
 };
 
 // User reducer
@@ -76,11 +85,23 @@ const userReducer = (state: UserState, action: UserAction): UserState => {
         isAuthenticated: false,
         error: null,
         isLoading: false,
+        analytics: null,
+        analyticsLoading: false,
       };
     case 'UPDATE_USER_DATA':
       return {
         ...state,
         user: state.user ? { ...state.user, ...action.payload } : null,
+      };
+    case 'SET_ANALYTICS':
+      return {
+        ...state,
+        analytics: action.payload,
+      };
+    case 'SET_ANALYTICS_LOADING':
+      return {
+        ...state,
+        analyticsLoading: action.payload,
       };
     default:
       return state;
@@ -143,27 +164,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           const isValid = await authApi.validateSession();
           
           if (isValid) {
-            // Fetch fresh spending data
-            try {
-              const totalSpent = await userApi.getTotalSpent(userId);
-              
-              const userWithSpending: AppUser = {
-                ...userData,
-                totalSpent,
-                receiptCount: 0,
-              };
-              
-              dispatch({ type: 'SET_USER', payload: userWithSpending });
-            } catch (error) {
-              // If fetch fails but session is valid, use cached data
-              const userWithSpending: AppUser = {
-                ...userData,
-                totalSpent: 0,
-                receiptCount: 0,
-              };
-              
-              dispatch({ type: 'SET_USER', payload: userWithSpending });
-            }
+            // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
+            // the full summary which includes totalSpent. This avoids a redundant API call.
+            const userWithSpending: AppUser = {
+              ...userData,
+              totalSpent: 0, // Will be updated when dashboard loads
+              receiptCount: 0,
+            };
+            
+            dispatch({ type: 'SET_USER', payload: userWithSpending });
           } else {
             // Session invalid, clear and force re-login
             await clearAuthTokens();
@@ -216,21 +225,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Register with the new auth API
       const response = await authApi.register({ email, password });
       
-      // Fetch initial spending data
-      let totalSpent = 0;
-      try {
-        totalSpent = await userApi.getTotalSpent(response.userId);
-      } catch (error) {
-        // It's OK if this fails, user just registered
-        console.log('No spending data yet (new user)');
-      }
+      // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
+      // the full summary which includes totalSpent. This avoids a redundant API call.
       
-      // Create user object
+      // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
         id: response.userId,
         email: response.email,
         createdAt: response.user.createdAt,
-        totalSpent,
+        totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,
       };
 
@@ -272,20 +275,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
       
-      // Fetch current spending data
-      let totalSpent = 0;
-      try {
-        totalSpent = await userApi.getTotalSpent(response.userId);
-      } catch (error) {
-        console.log('Could not fetch spending data');
-      }
+      // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
+      // the full summary which includes totalSpent. This avoids a redundant API call.
       
-      // Create user object
+      // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
         id: response.userId,
         email: response.email,
         createdAt: response.user.createdAt,
-        totalSpent,
+        totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,
       };
 
@@ -362,12 +360,46 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_ERROR', payload: null });
   };
 
+  const loadAnalytics = async (includeWrapped: boolean = false) => {
+    if (!state.user) return;
+
+    try {
+      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+      
+      // Fetch analytics from API
+      const summary = await analyticsApi.getUserSummary(state.user.id, includeWrapped);
+      dispatch({ type: 'SET_ANALYTICS', payload: summary });
+      
+      // Cache for offline use
+      await cacheAnalytics(state.user.id, summary);
+      
+      // Update user's totalSpent in context from the summary data
+      if (summary.totalSpent !== state.user.totalSpent) {
+        dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+          totalSpent: summary.totalSpent,
+          receiptCount: summary.totalReceipts 
+        }});
+      }
+      
+    } catch (error: any) {
+      // Try to use cached data on error
+      const cached = await getCachedAnalytics(state.user.id);
+      if (cached) {
+        dispatch({ type: 'SET_ANALYTICS', payload: cached });
+      }
+      // Don't set error here - let screens handle it individually
+    } finally {
+      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
+    }
+  };
+
   const value: UserContextType = {
     state,
     register,
     login,
     logout,
     refreshUserData,
+    loadAnalytics,
     clearError,
   };
 

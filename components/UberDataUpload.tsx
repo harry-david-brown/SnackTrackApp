@@ -13,7 +13,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { csvApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
 
-interface CSVUploadProps {
+interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;
   onUploadError?: (error: string) => void;
 }
@@ -26,7 +26,7 @@ interface UploadState {
   fileUri: string | null;
 }
 
-export const CSVUpload: React.FC<CSVUploadProps> = ({
+export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   onUploadSuccess,
   onUploadError,
 }) => {
@@ -114,14 +114,16 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
         }));
       }, 200);
 
-      // Upload CSV file to API - NO FALLBACK for critical operations
+      // Upload ZIP or CSV file to API
+      // Note: Backend endpoint is still /csv/import for backward compatibility
+      // but it accepts both .zip and .csv files
       let response;
       
       if (!uploadState.fileUri || !uploadState.fileName) {
         throw new Error('No file selected for upload');
       }
       
-      console.log('Uploading CSV file to API:', uploadState.fileName);
+      console.log('Uploading file to API:', uploadState.fileName);
       
       // Create a File object for the API with correct MIME type
       const isZip = uploadState.fileName?.toLowerCase().endsWith('.zip');
@@ -131,9 +133,9 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
         name: uploadState.fileName,
       } as any;
       
-      // Upload to real API - will throw error if API is unavailable
+      // Upload to API - will throw error if API is unavailable
       response = await csvApi.importCsv(state.user.id, file);
-      console.log('✅ CSV uploaded successfully to API');
+      console.log('✅ File uploaded successfully to API');
       
       clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, progress: 100 }));
@@ -178,7 +180,7 @@ export const CSVUpload: React.FC<CSVUploadProps> = ({
       <TouchableOpacity style={styles.uploadButton} onPress={handleFilePicker}>
         <View style={styles.uploadButtonContent}>
           <Ionicons name="cloud-upload" size={24} color="white" />
-          <Text style={styles.uploadButtonText}>Choose CSV or ZIP File</Text>
+          <Text style={styles.uploadButtonText}>Choose ZIP File</Text>
         </View>
       </TouchableOpacity>
 
@@ -376,4 +378,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CSVUpload;
+export default UberDataUpload;

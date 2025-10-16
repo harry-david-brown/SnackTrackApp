@@ -4,18 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
-import CSVUpload from '../../components/CSVUpload';
+import UberDataUpload from '../../components/UberDataUpload';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 
 export default function UploadScreen() {
-  const { state, refreshUserData } = useUser();
+  const { state } = useUser();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
-    // Refresh user data to show updated spending
-    await refreshUserData();
+    // Note: We don't call refreshUserData() or loadAnalytics() here
+    // The wrapped journey screen will fetch fresh analytics with includeWrapped=true
+    // The dashboard will also reload when we return to it via useFocusEffect
     
     // Show processing loader
     setShowLoader(true);
@@ -64,10 +65,10 @@ export default function UploadScreen() {
             <Ionicons name="cloud-upload-outline" size={64} color="#007AFF" />
             <Text style={styles.uploadTitle}>Upload Your Data</Text>
             <Text style={styles.uploadSubtitle}>
-              Upload your Uber Eats CSV or ZIP file to analyze your spending patterns
+              Upload your Uber Eats ZIP file to analyze your spending patterns
             </Text>
             
-            <CSVUpload 
+            <UberDataUpload 
               onUploadSuccess={handleUploadSuccess}
               onUploadError={handleUploadError}
             />
@@ -86,11 +87,11 @@ export default function UploadScreen() {
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>3</Text>
-              <Text style={styles.instructionText}>Download the ZIP file or extract the CSV</Text>
+              <Text style={styles.instructionText}>Download the ZIP file from Uber</Text>
             </View>
             <View style={styles.instructionItem}>
               <Text style={styles.instructionNumber}>4</Text>
-              <Text style={styles.instructionText}>Upload either the ZIP or CSV file above</Text>
+              <Text style={styles.instructionText}>Upload the ZIP file above</Text>
             </View>
           </View>
 

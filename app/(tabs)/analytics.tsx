@@ -11,8 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '../../contexts/UserContext';
-import { analyticsApi } from '../../services/analyticsApi';
-import { UserSummary } from '../../types/api';
 import ChartContainer from '../../components/ChartContainer';
 import SpendingTrendChart from '../../components/SpendingTrendChart';
 import RestaurantBreakdownChart from '../../components/RestaurantBreakdownChart';
@@ -21,58 +19,24 @@ import InsightsPanel from '../../components/InsightsPanel';
 import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
-import { parseApiError } from '../../utils/errorUtils';
 
 
 export default function AnalyticsScreen() {
-  const { state } = useUser();
-  const [analytics, setAnalytics] = useState<UserSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { state, loadAnalytics } = useUser();
   const [selectedTimeframe, setSelectedTimeframe] = useState<'monthly' | 'yearly'>('monthly');
   const [showShareModal, setShowShareModal] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
+  
+  // Use analytics from context instead of local state
+  const analytics = state.analytics;
+  const isLoading = state.analyticsLoading;
 
-  const loadAnalytics = async () => {
-    if (!state.user) return;
-    
-    try {
-      setIsLoading(true);
-      setAnalyticsError(null);
-      const summary = await analyticsApi.getUserSummary(state.user.id);
-      setAnalytics(summary);
-    } catch (error) {
-      const apiError = parseApiError(error);
-      setAnalyticsError({
-        message: apiError.message,
-        type: apiError.type,
-      });
-      
-      // Create a fallback analytics object with empty data
-      const fallbackAnalytics: UserSummary = {
-        userId: state.user.id,
-        totalSpent: 0,
-        totalReceipts: 0,
-        averageOrderValue: 0,
-        topRestaurants: [],
-        monthlyBreakdown: [],
-        refundedReceipts: 0,
-        dataQuality: {
-          issues: [],
-          recommendations: ['Upload some CSV data to see beautiful analytics!']
-        }
-      };
-      setAnalytics(fallbackAnalytics);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Only load analytics when user logs in/out, not on every user property change
+  // Load analytics only once if not already loaded
   useEffect(() => {
-    if (state.user) {
+    if (state.user && !state.analytics) {
       loadAnalytics();
     }
-  }, [state.user?.id]);
+  }, [state.user?.id, state.analytics]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

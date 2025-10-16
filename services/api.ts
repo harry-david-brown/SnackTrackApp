@@ -196,11 +196,13 @@ export const userApi = {
   },
 };
 
+// Note: Named "csvApi" for historical reasons, but handles both ZIP and CSV files
+// Backend endpoint /csv/import accepts both file types
 export const csvApi = {
-  // Import CSV file
+  // Import ZIP or CSV file (backend auto-detects and processes accordingly)
   importCsv: async (userId: string, csvFile: File): Promise<CSVImportResponse> => {
     const formData = new FormData();
-    formData.append('csvFile', csvFile);
+    formData.append('csvFile', csvFile); // Field name stays 'csvFile' for backend compatibility
     formData.append('userId', userId);
 
     const response = await api.post('/csv/import', formData, {
