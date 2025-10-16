@@ -3,9 +3,10 @@ import { UserSummary } from '../types/api';
 
 export const analyticsApi = {
   // Get user summary with analytics
-  getUserSummary: async (userId: string): Promise<UserSummary> => {
+  getUserSummary: async (userId: string, includeWrapped: boolean = false): Promise<UserSummary> => {
     try {
-      const response = await api.get(`/validation/user/${userId}/summary`);
+      const params = includeWrapped ? '?includeWrapped=true' : '';
+      const response = await api.get(`/validation/user/${userId}/summary${params}`);
       const data = response.data;
       
       // Transform the API response to match our UserSummary interface
@@ -33,6 +34,11 @@ export const analyticsApi = {
           ],
         },
       };
+      
+      // Include wrapped analytics if requested and available
+      if (includeWrapped && data.wrappedAnalytics) {
+        userSummary.wrappedAnalytics = data.wrappedAnalytics;
+      }
       
       return userSummary;
     } catch (error) {

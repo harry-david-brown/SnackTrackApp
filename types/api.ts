@@ -104,6 +104,123 @@ export interface CSVImportResponse {
   message: string;
 }
 
+// Wrapped Analytics Types (Spotify Wrapped-style)
+export interface WrappedAnalytics {
+  shame: {
+    lateNightOrders?: {
+      count: number;
+      totalSpent: number;
+      latestOrder: string;
+      worstOffender: {
+        restaurant: string;
+        time: string;
+        amount: number;
+        items: string[];
+      };
+    };
+    laziestDay?: {
+      date: string;
+      dayOfWeek: string;
+      orderCount: number;
+      totalSpent: number;
+      restaurants: string[];
+      message: string;
+    };
+    longestStreak?: {
+      days: number;
+      startDate: string;
+      endDate: string;
+      totalSpent: number;
+      message: string;
+    };
+    singleItemOrders?: {
+      count: number;
+      totalSpent: number;
+      averageAmount: number;
+      message: string;
+      mostCommon: string;
+    };
+    chainDependency?: {
+      worstOffender: string;
+      orderCount: number;
+      totalSpent: number;
+      percentage: number;
+      message: string;
+      allChains: Array<{
+        name: string;
+        count: number;
+        percentage: number;
+      }>;
+    };
+  };
+  flex: {
+    mostExpensiveOrder?: {
+      amount: number;
+      restaurant: string;
+      date: string;
+      items: string[];
+      message: string;
+    };
+    coffeeAddiction?: {
+      orderCount: number;
+      totalSpent: number;
+      averagePrice: number;
+      mostOrdered: string;
+      message: string;
+    };
+    nightOwl?: {
+      percentage: number;
+      count: number;
+      totalSpent: number;
+      latestOrder: string;
+      message: string;
+    };
+  };
+  comparative: {
+    couldHaveBought?: {
+      totalSpent: number;
+      comparisons: Array<{
+        item: string;
+        quantity: number;
+        message: string;
+      }>;
+    };
+    missedInvestment?: {
+      amountSpent: number;
+      firstOrderDate: string;
+      daysElapsed: number;
+      sp500Return: number;
+      wouldBeWorth: number;
+      missedGains: number;
+      message: string;
+    };
+    costPerMeal?: {
+      deliveryAverage: number;
+      groceryEstimate: number;
+      difference: number;
+      annualWaste: number;
+      message: string;
+    };
+  };
+  patterns: {
+    peakHungerHour?: {
+      hour: number;
+      hourDisplay: string;
+      orderCount: number;
+      percentageOfTotal: number;
+      message: string;
+    };
+    weekendWarrior?: {
+      weekendOrders: number;
+      weekdayOrders: number;
+      weekendSpending: number;
+      weekdaySpending: number;
+      ratio: number;
+      message: string;
+    };
+  };
+}
+
 export interface UserSummary {
   userId: string;
   totalSpent: number;
@@ -124,6 +241,7 @@ export interface UserSummary {
     issues: string[];
     recommendations: string[];
   };
+  wrappedAnalytics?: WrappedAnalytics; // Optional: only included when includeWrapped=true
 }
 
 export interface DatabaseStats {

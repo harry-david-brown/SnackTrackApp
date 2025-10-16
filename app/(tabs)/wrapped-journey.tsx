@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
@@ -10,10 +10,16 @@ export default function WrappedJourneyScreen() {
   const { state } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
 
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
+  // Reload analytics whenever screen comes into focus (new upload)
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsLoading(true); // Show loading while fetching fresh data
+      loadAnalytics();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   const loadAnalytics = async () => {
     if (!state.user) {
@@ -22,9 +28,11 @@ export default function WrappedJourneyScreen() {
     }
 
     try {
-      const summary = await analyticsApi.getUserSummary(state.user.id);
+      // Fetch with wrapped analytics included
+      const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setAnalytics(summary);
-    } catch (error) {
+      setLoadTimestamp(Date.now()); // Update timestamp to trigger reset
+    } catch {
       // If we can't load analytics, go back to dashboard
       router.replace('/(tabs)');
     } finally {
@@ -47,6 +55,7 @@ export default function WrappedJourneyScreen() {
 
   return (
     <WrappedShareJourney
+      key={loadTimestamp} // Force remount on new data
       analytics={analytics}
       onClose={handleClose}
     />

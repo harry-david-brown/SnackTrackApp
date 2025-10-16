@@ -5,8 +5,8 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  Animated,
-  PanResponder,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,362 +21,477 @@ interface WrappedShareJourneyProps {
   onClose: () => void;
 }
 
-interface SlideConfig {
-  gradient: string[];
-  renderContent: (analytics: UserSummary) => React.ReactElement;
+interface Slide {
+  gradient: [string, string];
+  emoji: string;
+  content: React.ReactNode;
 }
 
 export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   const viewShotRefs = useRef<(ViewShot | null)[]>([]);
+  
+  const wrapped = analytics.wrappedAnalytics;
 
-  // Entrance animation
+  // Reset to first slide when component mounts or analytics changes
   React.useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 1000,
-      useNativeDriver: true,
-    }).start(() => {
-      setIsVisible(true);
-    });
-  }, []);
+    setCurrentSlide(0);
+    scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+  }, [analytics.totalSpent, analytics.totalReceipts]); // Reset when data changes (new upload)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
-  // Calculate comparisons
-  const starbucksLattes = Math.floor(analytics.totalSpent / 6);
-  const iPhones = (analytics.totalSpent / 1000).toFixed(1);
-  const mostExpensiveOrder = analytics.topRestaurants.reduce((max, r) => 
-    r.totalSpent > max ? r.totalSpent : max, 0
-  );
-  const topRestaurant = analytics.topRestaurants[0];
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
-  const slides: SlideConfig[] = [
-    // Slide 1: The Damage
-    {
-      gradient: ['#ff6b6b', '#ee5a6f'],
-      renderContent: (data) => (
-        <View style={styles.slideContent}>
-          <Text style={styles.emoji}>😱</Text>
-          <Text style={styles.slideTitle}>The Damage</Text>
-          <View style={styles.bigNumberContainer}>
-            <Text style={styles.bigNumber}>{formatCurrency(data.totalSpent)}</Text>
-            <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
-          </View>
-          <View style={styles.comparisonBox}>
-            <Text style={styles.comparisonText}>That is {starbucksLattes} Starbucks lattes</Text>
-            <Text style={styles.comparisonSubtext}>or {iPhones} iPhone 15s</Text>
-          </View>
-          <Text style={styles.roastText}>Your wallet is filing for divorce</Text>
-        </View>
-      ),
-    },
-    // Slide 2: Most Expensive Order
-    {
-      gradient: ['#f093fb', '#f5576c'],
-      renderContent: (data) => (
-        <View style={styles.slideContent}>
-          <Text style={styles.emoji}>💸</Text>
-          <Text style={styles.slideTitle}>Your Guilty Pleasure</Text>
-          <View style={styles.expensiveOrderBox}>
-            <Text style={styles.expensiveAmount}>{formatCurrency(mostExpensiveOrder)}</Text>
-            <Text style={styles.expensiveLabel}>at {topRestaurant?.name || 'Unknown'}</Text>
-          </View>
-          <Text style={styles.roastText}>Remember that night?</Text>
-          <Text style={styles.roastSubtext}>Neither does your bank account</Text>
-        </View>
-      ),
-    },
-    // Slide 3: Repeat Offender
-    {
-      gradient: ['#4facfe', '#00f2fe'],
-      renderContent: (data) => {
-        const topRest = data.topRestaurants[0];
-        return (
-          <View style={styles.slideContent}>
-            <Text style={styles.emoji}>🔁</Text>
-            <Text style={styles.slideTitle}>Repeat Offender</Text>
-            <View style={styles.repeatBox}>
-              <Text style={styles.repeatRestaurant}>{topRest?.name || 'Unknown'}</Text>
-              <View style={styles.repeatStats}>
-                <Text style={styles.repeatNumber}>{topRest?.count || 0}</Text>
-                <Text style={styles.repeatLabel}>orders</Text>
-              </View>
-              <Text style={styles.repeatSpent}>{formatCurrency(topRest?.totalSpent || 0)} spent</Text>
-            </View>
-            <Text style={styles.roastText}>They should name a menu item after you</Text>
-            <Text style={styles.roastSubtext}>You are single-handedly keeping them in business</Text>
-          </View>
-        );
-      },
-    },
-    // Slide 4: Yearly/Monthly Bloodbath
-    {
+  // Build slides dynamically based on available data
+  const buildSlides = (): Slide[] => {
+    const slides: Slide[] = [];
+
+    // Opening slide - always shown
+    slides.push({
       gradient: ['#667eea', '#764ba2'],
-      renderContent: (data) => {
-        // Group by year and sum spending
-        const yearlyData: { [key: string]: number } = {};
-        data.monthlyBreakdown.forEach((month) => {
-          const monthStr = String(month.month);
-          const year = monthStr.includes('-') ? monthStr.split('-')[0] : new Date().getFullYear().toString();
-          yearlyData[year] = (yearlyData[year] || 0) + month.totalSpent;
-        });
-
-        const years = Object.keys(yearlyData).sort(); // Oldest to newest
-        const useYearly = years.length > 1; // Use yearly if multiple years
-        
-        // Prepare data based on yearly vs monthly
-        let chartData: Array<{ label: string; amount: number }> = [];
-        
-        if (useYearly) {
-          // Show yearly data
-          chartData = years.map(year => ({
-            label: year,
-            amount: yearlyData[year],
-          }));
-        } else {
-          // Show monthly data (reversed to go oldest to newest)
-          chartData = [...data.monthlyBreakdown]
-            .reverse()
-            .slice(0, 6)
-            .map((monthData) => {
-              const monthStr = String(monthData.month);
-              let label = 'N/A';
-              if (monthStr.includes('-')) {
-                const monthNum = parseInt(monthStr.split('-')[1]);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                label = monthNames[monthNum - 1] || monthStr.substring(0, 3);
-              } else {
-                label = monthStr.substring(0, 3);
-              }
-              return { label, amount: monthData.totalSpent };
-            });
-        }
-        
-        const maxSpent = Math.max(...chartData.map(d => d.amount));
-        const title = useYearly ? 'The Yearly Bloodbath' : 'The Monthly Bloodbath';
-        
-        return (
-          <View style={styles.slideContent}>
-            <Text style={styles.emoji}>📊</Text>
-            <Text style={styles.slideTitle}>{title}</Text>
-            <View style={styles.chartContainer}>
-              {chartData.map((item, index) => {
-                const height = Math.max(60, (item.amount / maxSpent) * 180);
-                return (
-                  <View key={index} style={styles.barWrapper}>
-                    <View style={[styles.bar, { height }]} />
-                    <Text style={styles.barAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-                      ${Math.round(item.amount)}
-                    </Text>
-                    <Text style={styles.barLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                      {item.label}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-            <Text style={styles.roastText}>Look at that beautiful disaster</Text>
-            <Text style={styles.roastSubtext}>{data.totalReceipts} receipts of regret</Text>
-          </View>
-        );
-      },
-    },
-    // Slide 5: Share Your Shame
-    {
-      gradient: ['#43e97b', '#38f9d7'],
-      renderContent: () => (
-        <View style={styles.slideContent}>
-          <Text style={styles.emoji}>🔥</Text>
-          <Text style={styles.slideTitle}>Ready to Share Your Shame?</Text>
-          <Text style={styles.shareDescription}>
-            Show your friends how much you have wasted on food delivery
-          </Text>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              style={styles.shareButtonGradient}
-            >
-              <Ionicons name="share-social" size={24} color="white" />
-              <Text style={styles.shareButtonText}>Share to Social Media</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+      emoji: '🎊',
+      content: (
+        <>
+          <Text style={styles.title}>Your Snack Track</Text>
+          <Text style={styles.introText}>Let&apos;s see your entire food delivery history...</Text>
+        </>
       ),
-    },
-  ];
+    });
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -50 && currentSlide < slides.length - 1) {
-          goToNextSlide();
-        } else if (gestureState.dx > 50 && currentSlide > 0) {
-          goToPreviousSlide();
-        }
-      },
-    })
-  ).current;
+    // Total Spent - always shown
+    slides.push({
+      gradient: ['#ff6b6b', '#ee5a6f'],
+      emoji: '😱',
+      content: (
+        <>
+          <Text style={styles.slideTitle}>The Damage</Text>
+          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(analytics.totalSpent)}</Text>
+          <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
+          <Text style={styles.roastText}>Your wallet is filing for divorce</Text>
+        </>
+      ),
+    });
 
-  const goToNextSlide = () => {
-    if (currentSlide < slides.length - 1) {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: currentSlide + 1,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      setCurrentSlide(currentSlide + 1);
+    // Shame Section
+    if (wrapped?.shame.lateNightOrders) {
+      const data = wrapped.shame.lateNightOrders;
+      slides.push({
+        gradient: ['#ff6b6b', '#ffa07a'],
+        emoji: '🌙',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>3am Regret</Text>
+            <Text style={styles.bigNumber}>{data.count}</Text>
+            <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
+              <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
+            </View>
+            <Text style={styles.roastText}>Sleep is free. This wasn&apos;t.</Text>
+          </>
+        ),
+      });
     }
+
+    if (wrapped?.shame.laziestDay) {
+      const data = wrapped.shame.laziestDay;
+      slides.push({
+        gradient: ['#f093fb', '#f5576c'],
+        emoji: '😴',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Laziest Day</Text>
+            <Text style={styles.bigNumber}>{data.orderCount}</Text>
+            <Text style={styles.bigNumberLabel}>orders in one day</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.shame.longestStreak) {
+      const data = wrapped.shame.longestStreak;
+      slides.push({
+        gradient: ['#fa709a', '#fee140'],
+        emoji: '🔥',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Serial Orderer</Text>
+            <Text style={styles.bigNumber}>{data.days}</Text>
+            <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.shame.chainDependency) {
+      const data = wrapped.shame.chainDependency;
+      slides.push({
+        gradient: ['#ff9a56', '#ff6a88'],
+        emoji: '🍔',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Chain Dependency</Text>
+            <Text style={styles.bigNumber}>{data.percentage}%</Text>
+            <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders</Text>
+              <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.shame.singleItemOrders) {
+      const data = wrapped.shame.singleItemOrders;
+      slides.push({
+        gradient: ['#ffecd2', '#fcb69f'],
+        emoji: '🤏',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
+            <Text style={styles.bigNumber}>{data.count}</Text>
+            <Text style={styles.bigNumberLabel}>single-item orders</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    // Flex Section
+    if (wrapped?.flex.mostExpensiveOrder) {
+      const data = wrapped.flex.mostExpensiveOrder;
+      slides.push({
+        gradient: ['#a8edea', '#fed6e3'],
+        emoji: '💰',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Bougie Moment</Text>
+            <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
+            <Text style={styles.bigNumberLabel}>most expensive order</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.restaurant}</Text>
+              <Text style={styles.detailText}>{formatDate(data.date)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.flex.coffeeAddiction) {
+      const data = wrapped.flex.coffeeAddiction;
+      slides.push({
+        gradient: ['#c1dfc4', '#deecdd'],
+        emoji: '☕',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Coffee Addiction</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+            <Text style={styles.bigNumberLabel}>spent on coffee</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders</Text>
+              <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.flex.nightOwl) {
+      const data = wrapped.flex.nightOwl;
+      slides.push({
+        gradient: ['#667eea', '#764ba2'],
+        emoji: '🦉',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Night Owl Badge</Text>
+            <Text style={styles.bigNumber}>{data.percentage}%</Text>
+            <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.count} late-night orders</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    // Comparative Section
+    if (wrapped?.comparative.couldHaveBought) {
+      const data = wrapped.comparative.couldHaveBought;
+      // Find best comparison: Honda Civic if >2, otherwise use next available
+      let selectedComparison = data.comparisons[0];
+      
+      // Check if first comparison is Honda Civic and quantity <= 2
+      if (selectedComparison.item.toLowerCase().includes('honda civic') && selectedComparison.quantity <= 2) {
+        // Use the second comparison (groceries) instead
+        selectedComparison = data.comparisons[1] || selectedComparison;
+      }
+      
+      slides.push({
+        gradient: ['#ffeaa7', '#fdcb6e'],
+        emoji: '📱',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Could Have Bought</Text>
+            <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
+            <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
+              <Text style={styles.detailText}>on food delivery</Text>
+            </View>
+            <Text style={styles.roastText}>Priorities</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.comparative.missedInvestment) {
+      const data = wrapped.comparative.missedInvestment;
+      slides.push({
+        gradient: ['#fa8231', '#f9b15d'],
+        emoji: '📈',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
+            <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
+            </View>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.comparative.costPerMeal) {
+      const data = wrapped.comparative.costPerMeal;
+      slides.push({
+        gradient: ['#ff9966', '#ff5e62'],
+        emoji: '🏪',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>The Delivery Tax</Text>
+            <Text style={styles.bigNumber}>{formatCurrency(data.difference)}</Text>
+            <Text style={styles.bigNumberLabel}>extra per meal</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Delivery: {formatCurrency(data.deliveryAverage)}</Text>
+              <Text style={styles.detailText}>Groceries: ~{formatCurrency(data.groceryEstimate)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    // Patterns Section
+    if (wrapped?.patterns.peakHungerHour) {
+      const data = wrapped.patterns.peakHungerHour;
+      slides.push({
+        gradient: ['#4facfe', '#00f2fe'],
+        emoji: '⏰',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Peak Hunger Hour</Text>
+            <Text style={styles.bigNumber}>{data.hourDisplay}</Text>
+            <Text style={styles.bigNumberLabel}>your hungriest time</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    if (wrapped?.patterns.weekendWarrior) {
+      const data = wrapped.patterns.weekendWarrior;
+      const isWeekendMore = data.weekendSpending > data.weekdaySpending;
+      slides.push({
+        gradient: ['#a18cd1', '#fbc2eb'],
+        emoji: isWeekendMore ? '🎉' : '💼',
+        content: (
+          <>
+            <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
+            <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
+            <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
+              <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
+            </View>
+            <Text style={styles.roastText}>{data.message}</Text>
+          </>
+        ),
+      });
+    }
+
+    // Closing slide
+    slides.push({
+      gradient: ['#667eea', '#764ba2'],
+      emoji: '✨',
+      content: (
+        <>
+          <Text style={styles.title}>That&apos;s Your Year</Text>
+          <Text style={styles.subtitle}>{analytics.totalReceipts} orders</Text>
+          <Text style={styles.subtitle}>{formatCurrency(analytics.totalSpent)} spent</Text>
+          <Text style={styles.introText}>Share your Wrapped Journey with friends!</Text>
+        </>
+      ),
+    });
+
+    return slides;
   };
 
-  const goToPreviousSlide = () => {
-    if (currentSlide > 0) {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: currentSlide - 1,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      setCurrentSlide(currentSlide - 1);
-    }
-  };
+  const slides = buildSlides();
 
-  const captureSlide = async (slideIndex: number): Promise<string> => {
-    const viewShot = viewShotRefs.current[slideIndex];
-    if (!viewShot || !viewShot.capture) {
-      throw new Error('ViewShot ref not found');
-    }
-
-    try {
-      const uri = await viewShot.capture();
-      return uri;
-    } catch (error) {
-      throw error;
-    }
+  const handleScroll = (event: any) => {
+    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
+    setCurrentSlide(slideIndex);
   };
 
   const handleShare = async () => {
     try {
-      // Capture Slide 1 (The Damage) - the main summary slide
-      const uri = await captureSlide(0);
-      
-      // Share using native sheet
-      await Sharing.shareAsync(uri, {
-        mimeType: 'image/png',
-        dialogTitle: 'Share your food delivery spending',
-      });
-    } catch (error) {
-      // Silently fail - user can try again
+      const ref = viewShotRefs.current[currentSlide];
+      if (!ref) return;
+
+      const uri = await ref.capture?.();
+      if (uri && await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share your Snack Track Wrapped',
+        });
+      }
+    } catch {
+      // Silently fail - sharing is optional
     }
   };
 
-  const currentSlideConfig = slides[currentSlide];
+  const goToNext = () => {
+    if (currentSlide < slides.length - 1) {
+      scrollViewRef.current?.scrollTo({
+        x: (currentSlide + 1) * screenWidth,
+        animated: true,
+      });
+    }
+  };
+
+  const goToPrevious = () => {
+    if (currentSlide > 0) {
+      scrollViewRef.current?.scrollTo({
+        x: (currentSlide - 1) * screenWidth,
+        animated: true,
+      });
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={currentSlideConfig.gradient as any} style={styles.gradient}>
-        {/* Close Button */}
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Ionicons name="close" size={28} color="white" />
-        </TouchableOpacity>
+      {/* Close Button */}
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Ionicons name="close" size={32} color="white" />
+      </TouchableOpacity>
 
-        {/* Progress Indicators */}
-        <View style={styles.progressContainer}>
+      {/* Slides */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        bounces={false}
+      >
+        {slides.map((slide, index) => (
+          <ViewShot
+            key={index}
+            ref={(ref) => {
+              viewShotRefs.current[index] = ref;
+            }}
+            options={{ format: 'png', quality: 1.0 }}
+            style={styles.slideContainer}
+          >
+            <LinearGradient
+              colors={slide.gradient}
+              style={styles.gradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.slideContent}>
+                <Text style={styles.emoji}>{slide.emoji}</Text>
+                {slide.content}
+              </View>
+            </LinearGradient>
+          </ViewShot>
+        ))}
+      </ScrollView>
+
+      {/* Navigation Controls */}
+      <View style={styles.controls}>
+        <View style={styles.pagination}>
           {slides.map((_, index) => (
             <View
               key={index}
               style={[
-                styles.progressBar,
-                index === currentSlide && styles.progressBarActive,
+                styles.paginationDot,
+                index === currentSlide && styles.paginationDotActive,
               ]}
             />
           ))}
         </View>
 
-        {/* Pre-render all slides for sharing (hidden) */}
-        <View style={styles.hiddenSlides}>
-          {slides.map((slide, index) => (
-            <ViewShot
-              key={index}
-              ref={(ref) => {
-                if (ref) {
-                  viewShotRefs.current[index] = ref;
-                }
-              }}
-              options={{
-                fileName: `snack-track-wrapped-${index}`,
-                format: 'png',
-                quality: 1.0,
-              }}
-              style={styles.viewShot}
-            >
-              <LinearGradient colors={slide.gradient as any} style={styles.viewShotGradient}>
-                {slide.renderContent(analytics)}
-                <View style={styles.footer}>
-                  <Text style={styles.footerText}>snacktrack.app</Text>
-                </View>
-              </LinearGradient>
-            </ViewShot>
-          ))}
+        <View style={styles.buttonRow}>
+          {currentSlide > 0 ? (
+            <TouchableOpacity style={styles.navButton} onPress={goToPrevious}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.navButton} />
+          )}
+
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Ionicons name="share-social" size={20} color="white" />
+            <Text style={styles.shareText}>Share</Text>
+          </TouchableOpacity>
+
+          {currentSlide < slides.length - 1 ? (
+            <TouchableOpacity style={styles.navButton} onPress={goToNext}>
+              <Ionicons name="arrow-forward" size={24} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.navButton} />
+          )}
         </View>
-
-        {/* Swipeable Content (visible) */}
-        <Animated.View
-          style={[styles.contentContainer, { opacity: fadeAnim }]}
-          {...panResponder.panHandlers}
-        >
-          <LinearGradient colors={currentSlideConfig.gradient as any} style={styles.visibleSlide}>
-            {currentSlideConfig.renderContent(analytics)}
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Navigation Arrows */}
-        {currentSlide > 0 && (
-          <TouchableOpacity style={styles.navLeft} onPress={goToPreviousSlide}>
-            <Ionicons name="chevron-back" size={32} color="white" />
-          </TouchableOpacity>
-        )}
-        {currentSlide < slides.length - 1 && (
-          <TouchableOpacity style={styles.navRight} onPress={goToNextSlide}>
-            <Ionicons name="chevron-forward" size={32} color="white" />
-          </TouchableOpacity>
-        )}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -384,269 +499,145 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: '#000',
   },
   closeButton: {
     position: 'absolute',
-    top: 50,
+    top: Platform.OS === 'ios' ? 50 : 20,
     right: 20,
-    zIndex: 10,
+    zIndex: 100,
     padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 20,
-    gap: 6,
+  slideContainer: {
+    width: screenWidth,
+    height: screenHeight,
   },
-  progressBar: {
-    flex: 1,
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
-  },
-  progressBarActive: {
-    backgroundColor: 'white',
-  },
-  hiddenSlides: {
-    position: 'absolute',
-    top: -10000,
-    left: -10000,
-  },
-  contentContainer: {
+  gradient: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  visibleSlide: {
-    width: screenWidth * 0.9,
-    height: screenHeight * 0.75,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  viewShot: {
-    width: screenWidth * 0.9,
-    height: screenHeight * 0.75,
-  },
-  viewShotGradient: {
-    flex: 1,
-    borderRadius: 20,
-    overflow: 'hidden',
   },
   slideContent: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 30,
-    paddingBottom: 60,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
   },
   emoji: {
-    fontSize: 64,
+    fontSize: 80,
     marginBottom: 20,
   },
-  slideTitle: {
+  title: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subtitle: {
     fontSize: 32,
+    fontWeight: '600',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  introText: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  slideTitle: {
+    fontSize: 36,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
     marginBottom: 30,
   },
-  bigNumberContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
   bigNumber: {
-    fontSize: 56,
+    fontSize: 72,
     fontWeight: 'bold',
     color: 'white',
+    textAlign: 'center',
+    marginBottom: 10,
+    flexShrink: 1,
+    paddingHorizontal: 20,
   },
   bigNumberLabel: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 8,
-  },
-  comparisonBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-    alignItems: 'center',
-  },
-  comparisonText: {
     fontSize: 20,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 8,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginBottom: 30,
   },
-  comparisonSubtext: {
+  detailBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    padding: 20,
+    marginVertical: 20,
+    minWidth: 280,
+  },
+  detailText: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'white',
+    textAlign: 'center',
+    marginVertical: 4,
   },
   roastText: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '600',
     color: 'white',
     textAlign: 'center',
     marginTop: 20,
   },
-  roastSubtext: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  expensiveOrderBox: {
+  controls: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 30,
-    marginBottom: 30,
   },
-  expensiveAmount: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 12,
-  },
-  expensiveLabel: {
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-  },
-  repeatBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 30,
-    marginBottom: 30,
-    minWidth: '80%',
-  },
-  repeatRestaurant: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
+  pagination: {
+    flexDirection: 'row',
     marginBottom: 20,
   },
-  repeatStats: {
-    alignItems: 'center',
-    marginBottom: 16,
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 4,
   },
-  repeatNumber: {
-    fontSize: 56,
-    fontWeight: 'bold',
-    color: 'white',
+  paginationDotActive: {
+    backgroundColor: 'white',
+    width: 24,
   },
-  repeatLabel: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  repeatSpent: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
-  },
-  chartContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    height: 200,
-    width: '100%',
-    marginBottom: 30,
-    paddingHorizontal: 5,
-  },
-  barWrapper: {
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 2,
-  },
-  bar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 8,
-    width: '100%',
-    minHeight: 60,
-  },
-  barAmount: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: 'white',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  barLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'white',
-    marginTop: 6,
-  },
-  shareDescription: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginBottom: 40,
-    paddingHorizontal: 20,
-  },
-  shareButton: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  shareButtonGradient: {
+  buttonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 30,
+    gap: 20,
   },
-  shareButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
+  navButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  secondaryButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 30,
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
   },
-  secondaryButtonText: {
+  shareText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 20,
-    width: '100%',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '600',
-  },
-  navLeft: {
-    position: 'absolute',
-    left: 20,
-    top: '50%',
-    marginTop: -20,
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 20,
-  },
-  navRight: {
-    position: 'absolute',
-    right: 20,
-    top: '50%',
-    marginTop: -20,
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 20,
   },
 });
-
