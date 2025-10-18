@@ -84,7 +84,7 @@ This app uses **secure JWT authentication** with the backend API:
 
 ## 🚀 Quick Start
 
-**Prerequisites:** Node.js 18+ (or 20 LTS recommended), Docker, Git
+**Prerequisites:** Node.js 20+ (LTS recommended), Docker, Git
 
 1. **Clone and setup**
    ```bash

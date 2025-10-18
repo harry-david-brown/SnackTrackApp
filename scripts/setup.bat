@@ -20,12 +20,12 @@ REM Get Node.js version
 for /f "tokens=1 delims=." %%a in ('node --version') do set NODE_MAJOR=%%a
 set NODE_MAJOR=%NODE_MAJOR:v=%
 
-if %NODE_MAJOR% LSS 18 (
+if %NODE_MAJOR% LSS 20 (
     echo [ERROR] Node.js version is too old!
     echo.
     echo Current version: 
     node --version
-    echo Required: v18.0.0 or higher
+    echo Required: v20.0.0 or higher
     echo.
     echo Please install Node.js 20 LTS from https://nodejs.org/
     echo After installation, restart your terminal and run: npm run setup

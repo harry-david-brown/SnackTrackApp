@@ -42,8 +42,9 @@ check_requirements() {
     fi
     
     NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-    if [ "$NODE_VERSION" -lt 18 ]; then
-        print_error "Node.js version 18+ is required. Current version: $(node -v)"
+    if [ "$NODE_VERSION" -lt 20 ]; then
+        print_error "Node.js version 20+ is required. Current version: $(node -v)"
+        print_error "Please install Node.js 20 LTS from https://nodejs.org/"
         exit 1
     fi
     
