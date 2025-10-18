@@ -84,13 +84,18 @@ This app uses **secure JWT authentication** with the backend API:
 
 ## 🚀 Quick Start
 
-**Prerequisites:** Node.js 18+, Docker, Git
+**Prerequisites:** Node.js 18+ (or 20 LTS recommended), Docker, Git
 
 1. **Clone and setup**
    ```bash
    git clone https://github.com/harry-david-brown/SnackTrackApp.git
    cd SnackTrackApp
    npm run setup
+   ```
+   
+   **Windows users:** Open Command Prompt or PowerShell, navigate to the project folder, then run:
+   ```bash
+   scripts\setup.bat
    ```
 
 2. **Start the Snack Track API** (required for real data)
