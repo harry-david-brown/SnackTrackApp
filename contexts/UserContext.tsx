@@ -12,7 +12,7 @@ import {
   clearAuthTokens,
   AUTH_STORAGE_KEYS 
 } from '../utils/tokenManager';
-import { cacheAnalytics, getCachedAnalytics } from '../utils/offlineCache';
+import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
 
 // User state interface
 interface UserState {
@@ -42,6 +42,7 @@ interface UserContextType {
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   loadAnalytics: (includeWrapped?: boolean) => Promise<void>;
+  clearAnalytics: () => void;
   clearError: () => void;
 }
 
@@ -360,6 +361,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_ERROR', payload: null });
   };
 
+  const clearAnalytics = () => {
+    dispatch({ type: 'SET_ANALYTICS', payload: null });
+    clearAnalyticsCache(); // Also clear from AsyncStorage
+  };
+
   const loadAnalytics = async (includeWrapped: boolean = false) => {
     if (!state.user) return;
 
@@ -400,6 +406,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     logout,
     refreshUserData,
     loadAnalytics,
+    clearAnalytics,
     clearError,
   };
 

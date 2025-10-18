@@ -9,14 +9,13 @@ import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 
 export default function UploadScreen() {
-  const { state } = useUser();
+  const { state, clearAnalytics } = useUser();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
-    // Note: We don't call refreshUserData() or loadAnalytics() here
-    // The wrapped journey screen will fetch fresh analytics with includeWrapped=true
-    // The dashboard will also reload when we return to it via useFocusEffect
+    // Clear cached analytics so screens will reload fresh data
+    clearAnalytics();
     
     // Show processing loader
     setShowLoader(true);
