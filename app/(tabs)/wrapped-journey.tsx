@@ -7,7 +7,7 @@ import { UserSummary } from '../../types/api';
 import WrappedShareJourney from '../../components/WrappedShareJourney';
 
 export default function WrappedJourneyScreen() {
-  const { state } = useUser();
+  const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
@@ -28,11 +28,14 @@ export default function WrappedJourneyScreen() {
     }
 
     try {
-      // Fetch with wrapped analytics included directly (not through context)
-      // This ensures we get the wrappedAnalytics field
+      // Fetch with wrapped analytics included - this is the ONLY call we make
       const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setAnalytics(summary);
       setLoadTimestamp(Date.now()); // Update timestamp to trigger reset
+      
+      // Update global analytics so dashboard doesn't need to reload
+      // This contains all the data (totalSpent, receipts, etc.) plus wrapped analytics
+      setGlobalAnalytics(summary);
     } catch {
       // If we can't load analytics, go back to dashboard
       router.replace('/(tabs)');

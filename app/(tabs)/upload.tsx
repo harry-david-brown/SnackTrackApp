@@ -9,15 +9,14 @@ import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 
 export default function UploadScreen() {
-  const { state, clearAnalytics } = useUser();
+  const { state } = useUser();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
-    // Clear cached analytics so screens will reload fresh data
-    clearAnalytics();
-    
     // Show processing loader
+    // Note: We don't clear analytics here because the wrapped journey will
+    // fetch fresh data with includeWrapped=true and update the global context
     setShowLoader(true);
   };
 

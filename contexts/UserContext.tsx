@@ -42,6 +42,7 @@ interface UserContextType {
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   loadAnalytics: (includeWrapped?: boolean) => Promise<void>;
+  setAnalytics: (analytics: UserSummary) => void;
   clearAnalytics: () => void;
   clearError: () => void;
 }
@@ -366,6 +367,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     clearAnalyticsCache(); // Also clear from AsyncStorage
   };
 
+  const setAnalytics = (analytics: UserSummary) => {
+    dispatch({ type: 'SET_ANALYTICS', payload: analytics });
+    // Update user data from analytics
+    if (state.user && (analytics.totalSpent !== state.user.totalSpent || analytics.totalReceipts !== state.user.receiptCount)) {
+      dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+        totalSpent: analytics.totalSpent,
+        receiptCount: analytics.totalReceipts 
+      }});
+    }
+    // Cache it
+    if (state.user) {
+      cacheAnalytics(state.user.id, analytics);
+    }
+  };
+
   const loadAnalytics = async (includeWrapped: boolean = false) => {
     if (!state.user) return;
 
@@ -406,6 +422,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     logout,
     refreshUserData,
     loadAnalytics,
+    setAnalytics,
     clearAnalytics,
     clearError,
   };
