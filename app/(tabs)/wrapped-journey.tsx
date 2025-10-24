@@ -9,13 +9,21 @@ import WrappedShareJourney from '../../components/WrappedShareJourney';
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start with false to avoid loading screen
   const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
+
+  // Use existing analytics data immediately if available
+  React.useEffect(() => {
+    if (state.analytics && !analytics) {
+      setAnalytics(state.analytics);
+      setLoadTimestamp(Date.now()); // Force remount to reset slide position
+      setIsLoading(false);
+    }
+  }, [state.analytics, analytics]);
 
   // Reload analytics whenever screen comes into focus (new upload)
   useFocusEffect(
     React.useCallback(() => {
-      setIsLoading(true); // Show loading while fetching fresh data
       loadWrappedAnalytics();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -27,17 +35,39 @@ export default function WrappedJourneyScreen() {
       return;
     }
 
+    // Always clear current analytics and force remount
+    setAnalytics(null);
+    setLoadTimestamp(Date.now());
+
+    // If we already have analytics data, use it immediately
+    if (state.analytics) {
+      // Check if we need wrapped analytics
+      if (state.analytics.wrappedAnalytics) {
+        // We have everything we need
+        setAnalytics(state.analytics);
+        setIsLoading(false);
+        return;
+      } else {
+        // We have basic analytics but need wrapped analytics
+        try {
+          const summary = await analyticsApi.getUserSummary(state.user.id, true);
+          setAnalytics(summary);
+          setGlobalAnalytics(summary);
+        } catch {
+          router.replace('/(tabs)');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+    }
+
+    // No analytics data, fetch everything
     try {
-      // Fetch with wrapped analytics included - this is the ONLY call we make
       const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setAnalytics(summary);
-      setLoadTimestamp(Date.now()); // Update timestamp to trigger reset
-      
-      // Update global analytics so dashboard doesn't need to reload
-      // This contains all the data (totalSpent, receipts, etc.) plus wrapped analytics
       setGlobalAnalytics(summary);
     } catch {
-      // If we can't load analytics, go back to dashboard
       router.replace('/(tabs)');
     } finally {
       setIsLoading(false);
@@ -49,7 +79,14 @@ export default function WrappedJourneyScreen() {
     router.replace('/(tabs)');
   };
 
-  if (isLoading || !analytics) {
+  // Always show the wrapped journey, even while loading
+  if (!analytics && state.analytics) {
+    // Use existing analytics data if available
+    setAnalytics(state.analytics);
+  }
+
+  // Don't render if we don't have analytics data yet
+  if (!analytics) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
