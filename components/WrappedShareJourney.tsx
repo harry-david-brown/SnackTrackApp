@@ -16,29 +16,97 @@ import { UserSummary } from '../types/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive story safe zones
+const SAFE_TOP = Math.round(screenHeight * 0.09);   // keep clear of IG chrome
+const SAFE_BOTTOM = Math.round(screenHeight * 0.10);
+const SAFE_SIDE = Math.max(24, Math.round(screenWidth * 0.06));
+
+// Responsive type scales (keeps big numbers "hero" without wrapping)
+const EMOJI_SIZE = Math.min(92, Math.max(72, Math.round(screenWidth * 0.22)));
+const BIG_STAT_SIZE = Math.min(84, Math.max(60, Math.round(screenWidth * 0.18)));
+const TITLE_SIZE = Math.min(46, Math.max(38, Math.round(screenWidth * 0.12)));
+const SUBTITLE_SIZE = Math.min(32, Math.max(26, Math.round(screenWidth * 0.085)));
+
+// Story export size (1080x1920)
+const EXPORT_W = 1080;
+const EXPORT_H = 1920;
+
+// Curated gradients tuned for share compression
+export const STORY_GRADIENTS = {
+  amethyst: { 
+    colors: ['#6E61FF', '#B960FF', '#9E3EFF'],
+    locations: [0, 0.52, 1],
+  },
+  flamingo: { 
+    colors: ['#FF6B6B', '#FF7FA0', '#EE5A6F'],
+    locations: [0, 0.52, 1],
+  },
+  sunrise: { 
+    colors: ['#FA709A', '#FF9E6E', '#FEE140'],
+    locations: [0, 0.52, 1],
+  },
+  tangerine: { 
+    colors: ['#FF9966', '#FF7F6A', '#FF5E62'],
+    locations: [0, 0.52, 1],
+  },
+  lagoon: { 
+    colors: ['#4FACFE', '#29D1FE', '#00F2FE'],
+    locations: [0, 0.52, 1],
+  },
+  orchid: { 
+    colors: ['#A18CD1', '#D6A6E3', '#FBC2EB'],
+    locations: [0, 0.52, 1],
+  },
+  mango: { 
+    colors: ['#FFEAA7', '#FFD890', '#FDCB6E'],
+    locations: [0, 0.52, 1],
+  },
+  ember: { 
+    colors: ['#FA8231', '#F99A4A', '#F9B15D'],
+    locations: [0, 0.52, 1],
+  },
+  mint: { 
+    colors: ['#C1DFC4', '#D1E7CF', '#DEECDD'],
+    locations: [0, 0.52, 1],
+  },
+  cotton: { 
+    colors: ['#A8EDEA', '#D7F1EF', '#FED6E3'],
+    locations: [0, 0.52, 1],
+  },
+} as const;
+
 interface WrappedShareJourneyProps {
   analytics: UserSummary;
   onClose: () => void;
 }
 
 interface Slide {
-  gradient: [string, string];
+  gradient: keyof typeof STORY_GRADIENTS;
   emoji: string;
   content: React.ReactNode;
 }
 
 export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isReady, setIsReady] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const viewShotRefs = useRef<(ViewShot | null)[]>([]);
   
   const wrapped = analytics.wrappedAnalytics;
 
-  // Reset to first slide when component mounts or analytics changes
+  // Reset to first slide when component mounts
   React.useEffect(() => {
     setCurrentSlide(0);
-    scrollViewRef.current?.scrollTo({ x: 0, animated: false });
-  }, [analytics.totalSpent, analytics.totalReceipts]); // Reset when data changes (new upload)
+    setIsReady(false);
+    
+    // Force scroll to first slide immediately
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+      setIsReady(true);
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, []); // Only run on mount
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -60,7 +128,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     // Opening slide - always shown
     slides.push({
-      gradient: ['#667eea', '#764ba2'],
+      gradient: 'amethyst',
       emoji: '🎊',
       content: (
         <>
@@ -72,13 +140,14 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     // Total Spent - always shown
     slides.push({
-      gradient: ['#ff6b6b', '#ee5a6f'],
+      gradient: 'flamingo',
       emoji: '😱',
       content: (
         <>
           <Text style={styles.slideTitle}>The Damage</Text>
           <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(analytics.totalSpent)}</Text>
           <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
+          <Spacer h={6} />
           <Text style={styles.roastText}>Your wallet is filing for divorce</Text>
         </>
       ),
@@ -88,19 +157,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.shame.lateNightOrders) {
       const data = wrapped.shame.lateNightOrders;
       slides.push({
-        gradient: ['#ff6b6b', '#ffa07a'],
+        gradient: 'tangerine',
         emoji: '🌙',
         content: (
-          <>
-            <Text style={styles.slideTitle}>3am Regret</Text>
-            <Text style={styles.bigNumber}>{data.count}</Text>
-            <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
-              <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
-            </View>
-            <Text style={styles.roastText}>Sleep is free. This wasn&apos;t.</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>3am Regret</Text>
+          <Text style={styles.bigNumber}>{data.count}</Text>
+          <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
+            <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
+          </View>
+          <Text style={styles.roastText}>Sleep is free. This wasn&apos;t.</Text>
+        </>
         ),
       });
     }
@@ -108,19 +178,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.shame.laziestDay) {
       const data = wrapped.shame.laziestDay;
       slides.push({
-        gradient: ['#f093fb', '#f5576c'],
+        gradient: 'sunrise',
         emoji: '😴',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Laziest Day</Text>
-            <Text style={styles.bigNumber}>{data.orderCount}</Text>
-            <Text style={styles.bigNumberLabel}>orders in one day</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
-              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Laziest Day</Text>
+          <Text style={styles.bigNumber}>{data.orderCount}</Text>
+          <Text style={styles.bigNumberLabel}>orders in one day</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
+            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -128,19 +199,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.shame.longestStreak) {
       const data = wrapped.shame.longestStreak;
       slides.push({
-        gradient: ['#fa709a', '#fee140'],
+        gradient: 'ember',
         emoji: '🔥',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Serial Orderer</Text>
-            <Text style={styles.bigNumber}>{data.days}</Text>
-            <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
-              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Serial Orderer</Text>
+          <Text style={styles.bigNumber}>{data.days}</Text>
+          <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
+            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -148,19 +220,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.shame.chainDependency) {
       const data = wrapped.shame.chainDependency;
       slides.push({
-        gradient: ['#ff9a56', '#ff6a88'],
+        gradient: 'mango',
         emoji: '🍔',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Chain Dependency</Text>
-            <Text style={styles.bigNumber}>{data.percentage}%</Text>
-            <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{data.orderCount} orders</Text>
-              <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Chain Dependency</Text>
+          <Text style={styles.bigNumber}>{data.percentage}%</Text>
+          <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.orderCount} orders</Text>
+            <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -168,19 +241,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.shame.singleItemOrders) {
       const data = wrapped.shame.singleItemOrders;
       slides.push({
-        gradient: ['#ffecd2', '#fcb69f'],
+        gradient: 'cotton',
         emoji: '🤏',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
-            <Text style={styles.bigNumber}>{data.count}</Text>
-            <Text style={styles.bigNumberLabel}>single-item orders</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
-              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
+          <Text style={styles.bigNumber}>{data.count}</Text>
+          <Text style={styles.bigNumberLabel}>single-item orders</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
+            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -189,19 +263,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.flex.mostExpensiveOrder) {
       const data = wrapped.flex.mostExpensiveOrder;
       slides.push({
-        gradient: ['#a8edea', '#fed6e3'],
+        gradient: 'lagoon',
         emoji: '💰',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Bougie Moment</Text>
-            <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
-            <Text style={styles.bigNumberLabel}>most expensive order</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{data.restaurant}</Text>
-              <Text style={styles.detailText}>{formatDate(data.date)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Bougie Moment</Text>
+          <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
+          <Text style={styles.bigNumberLabel}>most expensive order</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.restaurant}</Text>
+            <Text style={styles.detailText}>{formatDate(data.date)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -209,19 +284,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.flex.coffeeAddiction) {
       const data = wrapped.flex.coffeeAddiction;
       slides.push({
-        gradient: ['#c1dfc4', '#deecdd'],
+        gradient: 'mint',
         emoji: '☕',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Coffee Addiction</Text>
-            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
-            <Text style={styles.bigNumberLabel}>spent on coffee</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{data.orderCount} orders</Text>
-              <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Coffee Addiction</Text>
+          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+          <Text style={styles.bigNumberLabel}>spent on coffee</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.orderCount} orders</Text>
+            <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -229,19 +305,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.flex.nightOwl) {
       const data = wrapped.flex.nightOwl;
       slides.push({
-        gradient: ['#667eea', '#764ba2'],
+        gradient: 'orchid',
         emoji: '🦉',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Night Owl Badge</Text>
-            <Text style={styles.bigNumber}>{data.percentage}%</Text>
-            <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{data.count} late-night orders</Text>
-              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Night Owl Badge</Text>
+          <Text style={styles.bigNumber}>{data.percentage}%</Text>
+          <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.count} late-night orders</Text>
+            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -259,19 +336,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       }
       
       slides.push({
-        gradient: ['#ffeaa7', '#fdcb6e'],
+        gradient: 'mango',
         emoji: '📱',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Could Have Bought</Text>
-            <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
-            <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
-              <Text style={styles.detailText}>on food delivery</Text>
-            </View>
-            <Text style={styles.roastText}>Priorities</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Could Have Bought</Text>
+          <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
+          <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
+            <Text style={styles.detailText}>on food delivery</Text>
+          </View>
+          <Text style={styles.roastText}>Priorities</Text>
+        </>
         ),
       });
     }
@@ -279,17 +357,18 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.comparative.missedInvestment) {
       const data = wrapped.comparative.missedInvestment;
       slides.push({
-        gradient: ['#fa8231', '#f9b15d'],
+        gradient: 'ember',
         emoji: '📈',
         content: (
-          <>
-            <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
-            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
-            <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
-            </View>
-          </>
+        <>
+          <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
+          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
+          <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
+          </View>
+        </>
         ),
       });
     }
@@ -297,19 +376,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.comparative.costPerMeal) {
       const data = wrapped.comparative.costPerMeal;
       slides.push({
-        gradient: ['#ff9966', '#ff5e62'],
+        gradient: 'tangerine',
         emoji: '🏪',
         content: (
-          <>
-            <Text style={styles.slideTitle}>The Delivery Tax</Text>
-            <Text style={styles.bigNumber}>{formatCurrency(data.difference)}</Text>
-            <Text style={styles.bigNumberLabel}>extra per meal</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Delivery: {formatCurrency(data.deliveryAverage)}</Text>
-              <Text style={styles.detailText}>Groceries: ~{formatCurrency(data.groceryEstimate)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>The Delivery Tax</Text>
+          <Text style={styles.bigNumber}>{formatCurrency(data.difference)}</Text>
+          <Text style={styles.bigNumberLabel}>extra per meal</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>Delivery: {formatCurrency(data.deliveryAverage)}</Text>
+            <Text style={styles.detailText}>Groceries: ~{formatCurrency(data.groceryEstimate)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -318,18 +398,19 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.patterns.peakHungerHour) {
       const data = wrapped.patterns.peakHungerHour;
       slides.push({
-        gradient: ['#4facfe', '#00f2fe'],
+        gradient: 'lagoon',
         emoji: '⏰',
         content: (
-          <>
-            <Text style={styles.slideTitle}>Peak Hunger Hour</Text>
-            <Text style={styles.bigNumber}>{data.hourDisplay}</Text>
-            <Text style={styles.bigNumberLabel}>your hungriest time</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>Peak Hunger Hour</Text>
+          <Text style={styles.bigNumber}>{data.hourDisplay}</Text>
+          <Text style={styles.bigNumberLabel}>your hungriest time</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
@@ -338,26 +419,27 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       const data = wrapped.patterns.weekendWarrior;
       const isWeekendMore = data.weekendSpending > data.weekdaySpending;
       slides.push({
-        gradient: ['#a18cd1', '#fbc2eb'],
+        gradient: 'orchid',
         emoji: isWeekendMore ? '🎉' : '💼',
         content: (
-          <>
-            <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
-            <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
-            <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
-              <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
-            </View>
-            <Text style={styles.roastText}>{data.message}</Text>
-          </>
+        <>
+          <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
+          <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
+          <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
+            <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
+          </View>
+          <Text style={styles.roastText}>{data.message}</Text>
+        </>
         ),
       });
     }
 
     // Closing slide
     slides.push({
-      gradient: ['#667eea', '#764ba2'],
+      gradient: 'amethyst',
       emoji: '✨',
       content: (
         <>
@@ -373,6 +455,11 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
   };
 
   const slides = buildSlides();
+
+  // Ensure slides are available before rendering
+  if (!slides || slides.length === 0) {
+    return null;
+  }
 
   const handleScroll = (event: any) => {
     const slideIndex = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
@@ -434,29 +521,51 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         {slides.map((slide, index) => (
           <ViewShot
             key={index}
-            ref={(ref) => {
-              viewShotRefs.current[index] = ref;
-            }}
+            ref={(ref) => { viewShotRefs.current[index] = ref; }}
             options={{ format: 'png', quality: 1.0 }}
             style={styles.slideContainer}
           >
             <LinearGradient
-              colors={slide.gradient}
+              colors={STORY_GRADIENTS[slide.gradient].colors}
+              locations={STORY_GRADIENTS[slide.gradient].locations}
               style={styles.gradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <View style={styles.slideContent}>
                 <Text style={styles.emoji}>{slide.emoji}</Text>
-                {slide.content}
+                <View style={styles.frame}>
+                  {slide.content}
+                </View>
+              </View>
+              
+              {/* Watermark Footer - positioned above progress bar */}
+              <View style={{
+                position: 'absolute',
+                bottom: SAFE_BOTTOM + 8,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                pointerEvents: 'none',
+              }}>
+                <Text style={{
+                  color: 'white',
+                  opacity: 1,
+                  fontWeight: '800',
+                  fontSize: 15,
+                  letterSpacing: 0.5,
+                }}>
+                  @snacktrack.app
+                </Text>
               </View>
             </LinearGradient>
           </ViewShot>
         ))}
       </ScrollView>
 
-      {/* Navigation Controls */}
-      <View style={styles.controls}>
+      {/* Navigation Controls - only show when ready */}
+      {isReady && (
+        <View style={styles.controls}>
         <View style={styles.pagination}>
           {slides.map((_, index) => (
             <View
@@ -491,10 +600,22 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <View style={styles.navButton} />
           )}
         </View>
-      </View>
+        </View>
+      )}
     </View>
   );
 }
+
+const Title = ({ children }: { children: React.ReactNode }) => <Text style={styles.title}>{children}</Text>;
+const Subtitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.subtitle}>{children}</Text>;
+const Intro = ({ children }: { children: React.ReactNode }) => <Text style={styles.introText}>{children}</Text>;
+const SlideTitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.slideTitle}>{children}</Text>;
+const Label = ({ children }: { children: React.ReactNode }) => <Text style={styles.bigNumberLabel}>{children}</Text>;
+const BigStat = (props: any) => <Text {...props} style={[styles.bigNumber, props.style]} />;
+const Detail = ({ children }: { children: React.ReactNode }) => <View style={styles.detailBox}>{children}</View>;
+const DetailLine = ({ children }: { children: React.ReactNode }) => <Text style={styles.detailText}>{children}</Text>;
+const Roast = ({ children }: { children: React.ReactNode }) => <Text style={styles.roastText}>{children}</Text>;
+const Spacer = ({ h = 8 }: { h?: number }) => <View style={{ height: h }} />;
 
 const styles = StyleSheet.create({
   container: {
@@ -521,26 +642,42 @@ const styles = StyleSheet.create({
   },
   slideContent: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
+    justifyContent: 'flex-start',
+    paddingTop: SAFE_TOP - Math.round(screenHeight * 0.11), // Further reduce top spacing to move content up
+    paddingBottom: SAFE_BOTTOM,
+    paddingHorizontal: SAFE_SIDE,
+  },
+  frame: {
+    width: '100%',
+    maxWidth: Math.min(560, screenWidth * 0.9), // comfortable reading width
+    alignItems: 'center',
   },
   emoji: {
-    fontSize: 80,
+    fontSize: EMOJI_SIZE,
     marginBottom: 20,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 'bold',
+    fontSize: TITLE_SIZE,
+    fontWeight: '800',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   subtitle: {
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: SUBTITLE_SIZE,
+    lineHeight: SUBTITLE_SIZE + 4,
+    fontWeight: '700',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    letterSpacing: -0.1,
   },
   introText: {
     fontSize: 18,
@@ -549,57 +686,81 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   slideTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 30,
+    fontWeight: '800',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 18,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 16,
+    textShadowColor: 'rgba(0,0,0,0.38)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   bigNumber: {
-    fontSize: 72,
-    fontWeight: 'bold',
+    fontSize: BIG_STAT_SIZE,
+    fontWeight: '900',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 10,
-    flexShrink: 1,
-    paddingHorizontal: 20,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.38)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 10,
   },
   bigNumberLabel: {
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.95)',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
   detailBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    padding: 20,
-    marginVertical: 20,
-    minWidth: 280,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+    minWidth: 260,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   detailText: {
-    fontSize: 16,
+    fontSize: 15,
     color: 'white',
     textAlign: 'center',
-    marginVertical: 4,
+    marginVertical: 3,
+    opacity: 0.95
   },
   roastText: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
     color: 'white',
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    maxWidth: Math.min(520, screenWidth * 0.9),
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
   controls: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 36,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
   pagination: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   paginationDot: {
     width: 8,
@@ -610,7 +771,9 @@ const styles = StyleSheet.create({
   },
   paginationDotActive: {
     backgroundColor: 'white',
-    width: 24,
+    width: 20,
+    height: 8,
+    borderRadius: 4,
   },
   buttonRow: {
     flexDirection: 'row',
