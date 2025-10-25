@@ -34,20 +34,6 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 
 ---
 
-## 🎨 Current Features (Figma Implementation Phase)
-
-### UI/UX Enhancements
-- [ ] **Polished Dashboard Design** - Implement Figma mockups with refined styling
-- [ ] **Enhanced Analytics Screens** - Modern chart designs and layouts
-- [ ] **Improved Upload Flow** - Streamlined ZIP upload experience
-- [ ] **Profile Screen Redesign** - Clean, modern user profile interface
-- [ ] **Animation Refinements** - Smooth micro-interactions throughout
-- [ ] **Typography Updates** - Consistent font hierarchy and spacing
-- [ ] **Color Scheme Refinement** - Cohesive brand colors across all screens
-- [ ] **Iconography** - Custom icons and improved visual consistency
-- [ ] **Responsive Layouts** - Optimize for different screen sizes
-- [ ] **Dark Mode Support** - Light/dark theme toggle
-
 ### 📅 **Future Enhancements**
 - [ ] **Forgot Password** - Password reset flow (backend support pending)
 - [ ] **Email Verification** - Verify user emails on registration
