@@ -9,8 +9,9 @@ import WrappedShareJourney from '../../components/WrappedShareJourney';
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [analytics, setAnalytics] = useState<UserSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Start with false to avoid loading screen
+  const [isLoading, setIsLoading] = useState(true); // Start with true to show loading screen
   const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
+  const [isFullyReady, setIsFullyReady] = useState(false); // Track when component is fully ready
 
   // Use existing analytics data immediately if available
   React.useEffect(() => {
@@ -18,6 +19,8 @@ export default function WrappedJourneyScreen() {
       setAnalytics(state.analytics);
       setLoadTimestamp(Date.now()); // Force remount to reset slide position
       setIsLoading(false);
+      // Add a small delay to ensure component is fully ready
+      setTimeout(() => setIsFullyReady(true), 100);
     }
   }, [state.analytics, analytics]);
 
@@ -46,6 +49,8 @@ export default function WrappedJourneyScreen() {
         // We have everything we need
         setAnalytics(state.analytics);
         setIsLoading(false);
+        // Add a small delay to ensure component is fully ready
+        setTimeout(() => setIsFullyReady(true), 100);
         return;
       } else {
         // We have basic analytics but need wrapped analytics
@@ -53,10 +58,11 @@ export default function WrappedJourneyScreen() {
           const summary = await analyticsApi.getUserSummary(state.user.id, true);
           setAnalytics(summary);
           setGlobalAnalytics(summary);
+          setIsLoading(false);
+          // Add a small delay to ensure component is fully ready
+          setTimeout(() => setIsFullyReady(true), 100);
         } catch {
           router.replace('/(tabs)');
-        } finally {
-          setIsLoading(false);
         }
         return;
       }
@@ -67,10 +73,11 @@ export default function WrappedJourneyScreen() {
       const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setAnalytics(summary);
       setGlobalAnalytics(summary);
+      setIsLoading(false);
+      // Add a small delay to ensure component is fully ready
+      setTimeout(() => setIsFullyReady(true), 100);
     } catch {
       router.replace('/(tabs)');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -85,8 +92,8 @@ export default function WrappedJourneyScreen() {
     setAnalytics(state.analytics);
   }
 
-  // Don't render if we don't have analytics data yet
-  if (!analytics) {
+  // Don't render if we don't have analytics data yet or component isn't fully ready
+  if (!analytics || !isFullyReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />

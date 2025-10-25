@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface WrappedJourneyLoaderProps {
   onComplete: () => void;
@@ -55,8 +57,11 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#6E61FF', '#B960FF', '#9E3EFF']}
+        locations={[0, 0.52, 1]}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <Animated.View style={[styles.spinner, { transform: [{ rotate: spin }] }]}>
           <View style={styles.spinnerInner} />
@@ -97,19 +102,35 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
     borderTopColor: 'white',
     marginBottom: 30,
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   spinnerInner: {
     flex: 1,
   },
   loadingText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: Math.min(28, Math.max(24, Math.round(screenWidth * 0.07))),
+    fontWeight: '800',
     color: 'white',
     marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   subtext: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: Math.min(18, Math.max(16, Math.round(screenWidth * 0.045))),
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   whiteOverlay: {
     position: 'absolute',

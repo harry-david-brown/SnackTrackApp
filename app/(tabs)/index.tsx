@@ -22,7 +22,8 @@ export default function DashboardScreen() {
 
   // Load analytics only when user logs in/out, not on every user property change
   useEffect(() => {
-    if (state.user && !state.analytics) {
+    if (state.user && !state.analytics && !state.analyticsLoading) {
+      // Only load if not already loading (prevents duplicate calls after login)
       loadAnalytics().then(() => {
         // Set flag after load completes to prevent useFocusEffect from triggering too early
         initialLoadDoneRef.current = true;
@@ -31,7 +32,7 @@ export default function DashboardScreen() {
       // Reset flag when user logs out
       initialLoadDoneRef.current = false;
     }
-  }, [state.user?.id, state.analytics]);
+  }, [state.user?.id, state.analytics, state.analyticsLoading]);
 
   // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
   // Skip if we haven't done the initial load yet (prevents duplicate on login)

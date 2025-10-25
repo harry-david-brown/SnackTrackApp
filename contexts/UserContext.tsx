@@ -277,8 +277,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
       
-      // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
-      // the full summary which includes totalSpent. This avoids a redundant API call.
+      // Immediately load analytics to avoid showing $0 total spent
+      // This ensures the dashboard has data as soon as it renders
       
       // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
@@ -290,6 +290,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
 
       dispatch({ type: 'SET_USER', payload: user });
+      
+      // Load analytics immediately after login to populate dashboard data
+      try {
+        await loadAnalytics();
+      } catch (analyticsError) {
+        // Don't fail login if analytics fails - user can still use the app
+        console.warn('Failed to load analytics after login:', analyticsError);
+      }
       
       if (__DEV__) {
         console.log('✅ User logged in successfully:', email);
