@@ -268,56 +268,6 @@ git commit --no-verify
 └── 📄 Configuration files    # Package.json, Docker, etc.
 ```
 
-## 🤝 Contributing
-
-### **Quick Start for Contributors**
-
-1. **Fork and clone**
-   ```bash
-   git clone https://github.com/harry-david-brown/SnackTrackApp.git
-   cd SnackTrackApp
-   ```
-
-2. **Set up environment**
-```bash
-   npm run setup
-   ```
-
-3. **Start development**
-   ```bash
-   npm start
-   # Press 'w' to open in browser
-   ```
-
-4. **Create feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-5. **Make changes and test**
-   ```bash
-   npm run verify    # Verify everything still works
-   npm test          # Run tests
-   ```
-
-6. **Commit and push**
-   ```bash
-   git add .
-   git commit -m "feat: add your feature description"
-   git push origin feature/your-feature-name
-   ```
-
-7. **Create pull request** on GitHub
-
-### **Development Tips**
-- **Hot Reload**: Changes automatically refresh the app
-- **Real Data**: Always test with actual API data
-- **Branch Names**: Use descriptive names like `add-analytics-charts`
-- **Commit Messages**: Be clear about what you changed
-- **Before Pushing**: Run `npm run ci` to catch errors locally
-
----
-
 ## 🔄 CI/CD Pipeline
 
 **Status:** ✅ Automated quality checks on every push
@@ -350,58 +300,6 @@ npm run ci  # Runs all CI/CD checks before pushing
 
 ---
 
-## 🚀 Production Readiness
+## 🤝 Contributing
 
-### 🟡 **MVP Launch (Target: ~1,000 Users)**
-
-**Mobile App Status:** ✅ Ready (error handling complete)  
-**API Status:** ⚠️ Needs work (see blockers below)  
-**Timeline:** 6-8 weeks
-
-**Critical API Requirements:**
-- [ ] Authentication & authorization (JWT/OAuth) - 2 weeks
-- [ ] Rate limiting (per-user & global) - ✅ Already implemented
-- [ ] Error tracking (Sentry integration) - 1 day
-- [ ] Performance monitoring (APM) - 2-3 days
-- [ ] Database indexes and optimization - 1 week
-- [ ] Redis caching layer - 1 week
-- [ ] Async CSV processing with job queue - 2 weeks
-- [ ] Security audit and input validation - 1 week
-- [ ] Privacy policy and app store submission - 3 days
-- [ ] Staging environment testing - 2 days
-- [ ] Load testing (100+ concurrent users) - 3 days
-
-**Estimated Cost:** $88/month
-
-### 🔴 **Scale Ready (Target: 10,000+ Users)**
-
-**Timeline:** 4-6 weeks after MVP launch  
-**Estimated Cost:** $379-$1,089/month
-
-**Infrastructure Requirements:**
-- [ ] Horizontal scaling (load balancer + multiple API instances)
-- [ ] Redis caching layer for performance
-- [ ] CDN for static assets
-- [ ] Database read replicas
-- [ ] Message queue for background processing (BullMQ)
-- [ ] Advanced monitoring & alerting
-- [ ] Security hardening (penetration testing)
-- [ ] Disaster recovery plan
-- [ ] 24/7 on-call rotation
-- [ ] Auto-scaling configuration
-
-### 📋 **API Production Blockers**
-
-**🔴 P0 Blockers (Must Fix Before Launch):**
-1. No authentication system (2 weeks)
-2. No authorization/ownership validation (1 week)
-3. No error tracking - Sentry (1 day)
-4. No APM/monitoring (2-3 days)
-
-**🟡 P1 Critical (Before Scaling):**
-5. Database optimization needed (1 week)
-6. Redis caching missing (1 week)
-7. Structured logging incomplete (2-3 days)
-8. API key enforcement weak (2 days)
-9. Input validation gaps (1 week)
-10. No database backups (2-3 days)
+### **For the contributing guide read CONTRIBUTING.md**
