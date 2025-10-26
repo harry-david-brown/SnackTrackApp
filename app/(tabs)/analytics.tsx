@@ -8,15 +8,12 @@ import {
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '../../contexts/UserContext';
 import ChartContainer from '../../components/ChartContainer';
 import SpendingTrendChart from '../../components/SpendingTrendChart';
 import RestaurantBreakdownChart from '../../components/RestaurantBreakdownChart';
 import CategoryAnalysisChart from '../../components/CategoryAnalysisChart';
-import InsightsPanel from '../../components/InsightsPanel';
-import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 
@@ -24,7 +21,6 @@ import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 export default function AnalyticsScreen() {
   const { state, loadAnalytics } = useUser();
   const [selectedTimeframe, setSelectedTimeframe] = useState<'monthly' | 'yearly'>('monthly');
-  const [showShareModal, setShowShareModal] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   
   // Use analytics from context instead of local state
@@ -43,10 +39,6 @@ export default function AnalyticsScreen() {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
-  };
-
-  const handleShare = () => {
-    setShowShareModal(true);
   };
 
 
@@ -104,9 +96,6 @@ export default function AnalyticsScreen() {
               <Text style={styles.headerTitle}>📊 Analytics</Text>
               <Text style={styles.headerSubtitle}>Your spending insights</Text>
             </View>
-            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-              <Ionicons name="share-outline" size={24} color="white" />
-            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -162,8 +151,16 @@ export default function AnalyticsScreen() {
         <ChartContainer 
           title="📈 Spending Trend" 
           subtitle={`${selectedTimeframe === 'monthly' ? 'Monthly' : 'Yearly'} spending over time`}
+          shareable={false}
         >
-          <SpendingTrendChart analytics={analytics} timeframe={selectedTimeframe} />
+          <View>
+            <View style={{ position: 'absolute', opacity: selectedTimeframe === 'monthly' ? 1 : 0, zIndex: selectedTimeframe === 'monthly' ? 1 : 0 }}>
+              <SpendingTrendChart analytics={analytics} timeframe="monthly" showLabels={false} />
+            </View>
+            <View style={{ opacity: selectedTimeframe === 'yearly' ? 1 : 0, zIndex: selectedTimeframe === 'yearly' ? 1 : 0 }}>
+              <SpendingTrendChart analytics={analytics} timeframe="yearly" showLabels={false} />
+            </View>
+          </View>
         </ChartContainer>
 
         {/* Restaurant Breakdown - Only show if there's restaurant data */}
@@ -171,6 +168,7 @@ export default function AnalyticsScreen() {
           <ChartContainer 
             title="🍽️ Top Restaurants" 
             subtitle="Your favorite places to eat"
+            shareable={false}
           >
             <RestaurantBreakdownChart analytics={analytics} />
           </ChartContainer>
@@ -181,22 +179,12 @@ export default function AnalyticsScreen() {
           <ChartContainer 
             title="🥡 Food Categories" 
             subtitle="What types of food you love most"
+            shareable={false}
           >
             <CategoryAnalysisChart analytics={analytics} />
           </ChartContainer>
         )}
-
-        {/* Insights Section */}
-        <InsightsPanel analytics={analytics} />
       </ScrollView>
-
-      {/* Wrapped Share Journey Modal */}
-      {showShareModal && analytics && (
-        <WrappedShareJourney
-          analytics={analytics}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
     </SafeAreaView>
   );
 }
@@ -236,11 +224,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 4,
-  },
-  shareButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    padding: 12,
   },
   timeframeContainer: {
     flexDirection: 'row',

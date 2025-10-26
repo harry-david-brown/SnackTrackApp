@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { UserSummary } from '../types/api';
 
 const screenWidth = Dimensions.get('window').width;
-const chartWidth = screenWidth - 80;
+const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)
 
 interface CategoryAnalysisChartProps {
   analytics: UserSummary;

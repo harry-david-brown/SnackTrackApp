@@ -6,33 +6,31 @@ import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import LoginScreen from '../components/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
-import UberDataTutorial from '../components/UberDataTutorial';
 
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, completeOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showUberTutorial, setShowUberTutorial] = useState(false);
 
   useEffect(() => {
-    // Check if we should show onboarding
-    if (!hasCompletedOnboarding && !state.isAuthenticated) {
+    // Show onboarding on first launch if not completed yet
+    if (!hasCompletedOnboarding && !state.isAuthenticated && !state.isLoading) {
       setShowOnboarding(true);
-    } else if (state.isAuthenticated && state.user) {
-      // User is authenticated, navigate to main app
+    }
+  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading]);
+
+  // Separate effect to handle navigation after onboarding completion
+  useEffect(() => {
+    // Only navigate if user is authenticated AND onboarding is complete
+    if (state.isAuthenticated && state.user && hasCompletedOnboarding) {
       router.replace('/(tabs)');
     }
   }, [state.isAuthenticated, state.user, hasCompletedOnboarding]);
 
   const handleOnboardingComplete = async () => {
-    await completeOnboarding();
+    // Don't mark onboarding as complete yet - wait until tutorial is done
+    // Just hide the onboarding screen to show the login screen
     setShowOnboarding(false);
-    // Show Uber tutorial after onboarding
-    setShowUberTutorial(true);
-  };
-
-  const handleUberTutorialComplete = () => {
-    setShowUberTutorial(false);
   };
 
   // Show loading screen while checking authentication
@@ -46,14 +44,9 @@ export default function HomeScreen() {
     );
   }
 
-  // Show onboarding for first-time users
-  if (showOnboarding && !hasCompletedOnboarding) {
+  // Show onboarding on first launch
+  if (showOnboarding) {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
-  }
-
-  // Show Uber tutorial after onboarding
-  if (showUberTutorial) {
-    return <UberDataTutorial onComplete={handleUberTutorialComplete} />;
   }
 
   // Show login screen if not authenticated

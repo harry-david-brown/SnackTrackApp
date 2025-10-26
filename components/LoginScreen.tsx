@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
+import UberDataTutorial from './UberDataTutorial';
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -24,7 +26,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(true); // Default to registration
+  const [showTutorial, setShowTutorial] = useState(false);
   const { register, login, state, clearError } = useUser();
+  const { completeOnboarding } = useOnboarding();
 
   // Show error alert when state.error changes
   useEffect(() => {
@@ -101,16 +105,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
         
-        Alert.alert(
-          'Welcome to Snack Track! 🥡',
-          'Your account has been created successfully. Start tracking your food spending!',
-          [
-            {
-              text: 'Get Started',
-              onPress: onLoginSuccess,
-            },
-          ]
-        );
+        // New users see the tutorial after registration
+        setShowTutorial(true);
       } else {
         await login(email.trim().toLowerCase(), password);
         
@@ -132,6 +128,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
+  const handleTutorialComplete = async () => {
+    // Complete onboarding and let app/index.tsx handle navigation
+    await completeOnboarding();
+    setShowTutorial(false);
+  };
+
+  // Show tutorial as full-screen overlay
+  if (showTutorial) {
+    return <UberDataTutorial onComplete={handleTutorialComplete} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>

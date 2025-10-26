@@ -335,9 +335,22 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         selectedComparison = data.comparisons[1] || selectedComparison;
       }
       
+      // Choose emoji based on what we're showing
+      let emoji = '📱'; // default to phone
+      const itemLower = selectedComparison.item.toLowerCase();
+      if (itemLower.includes('trip') || itemLower.includes('europe')) {
+        emoji = '✈️';
+      } else if (itemLower.includes('grocery') || itemLower.includes('food')) {
+        emoji = '🛒';
+      } else if (itemLower.includes('phone') || itemLower.includes('iphone')) {
+        emoji = '📱';
+      } else if (itemLower.includes('civic') || itemLower.includes('car')) {
+        emoji = '🚗';
+      }
+      
       slides.push({
         gradient: 'mango',
-        emoji: '📱',
+        emoji: emoji,
         content: (
         <>
           <Text style={styles.slideTitle}>Could Have Bought</Text>
