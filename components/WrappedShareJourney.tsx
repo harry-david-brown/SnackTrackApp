@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../types/api';
+import { getDeterministicMessage } from '../utils/wrappedMessages';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -139,6 +140,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     });
 
     // Total Spent - always shown
+    const totalDamageMessage = getDeterministicMessage('totalDamage', analytics, undefined, 0);
     slides.push({
       gradient: 'flamingo',
       emoji: '😱',
@@ -148,7 +150,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
           <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(analytics.totalSpent)}</Text>
           <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
           <Spacer h={6} />
-          <Text style={styles.roastText}>Your wallet is filing for divorce</Text>
+          <Text style={styles.roastText}>{totalDamageMessage}</Text>
         </>
       ),
     });
@@ -156,6 +158,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     // Shame Section
     if (wrapped?.shame.lateNightOrders) {
       const data = wrapped.shame.lateNightOrders;
+      const lateNightMessage = getDeterministicMessage('lateNightOrders', analytics, data.count, 1);
       slides.push({
         gradient: 'tangerine',
         emoji: '🌙',
@@ -169,7 +172,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
             <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
           </View>
-          <Text style={styles.roastText}>Sleep is free. This wasn&apos;t.</Text>
+          <Text style={styles.roastText}>{lateNightMessage}</Text>
         </>
         ),
       });
@@ -177,6 +180,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.shame.laziestDay) {
       const data = wrapped.shame.laziestDay;
+      const laziestDayMessage = getDeterministicMessage('laziestDay', analytics, data.orderCount, 2);
       slides.push({
         gradient: 'sunrise',
         emoji: '😴',
@@ -190,7 +194,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
             <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{laziestDayMessage}</Text>
         </>
         ),
       });
@@ -198,6 +202,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.shame.longestStreak) {
       const data = wrapped.shame.longestStreak;
+      const streakMessage = getDeterministicMessage('consecutiveDays', analytics, data.days, 3);
       slides.push({
         gradient: 'ember',
         emoji: '🔥',
@@ -211,7 +216,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
             <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{streakMessage}</Text>
         </>
         ),
       });
@@ -219,6 +224,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.shame.chainDependency) {
       const data = wrapped.shame.chainDependency;
+      const chainMessage = getDeterministicMessage('chainDependency', analytics, data.worstOffender, 4);
       slides.push({
         gradient: 'mango',
         emoji: '🍔',
@@ -232,7 +238,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{data.orderCount} orders</Text>
             <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{chainMessage}</Text>
         </>
         ),
       });
@@ -240,6 +246,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.shame.singleItemOrders) {
       const data = wrapped.shame.singleItemOrders;
+      const singleItemMessage = getDeterministicMessage('singleItemOrders', analytics, data.count, 5);
       slides.push({
         gradient: 'cotton',
         emoji: '🤏',
@@ -253,7 +260,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
             <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{singleItemMessage}</Text>
         </>
         ),
       });
@@ -262,6 +269,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     // Flex Section
     if (wrapped?.flex.mostExpensiveOrder) {
       const data = wrapped.flex.mostExpensiveOrder;
+      const expensiveMessage = getDeterministicMessage('mostExpensiveOrder', analytics, data.amount, 6);
       slides.push({
         gradient: 'lagoon',
         emoji: '💰',
@@ -275,7 +283,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{data.restaurant}</Text>
             <Text style={styles.detailText}>{formatDate(data.date)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{expensiveMessage}</Text>
         </>
         ),
       });
@@ -283,6 +291,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.flex.coffeeAddiction) {
       const data = wrapped.flex.coffeeAddiction;
+      const coffeeMessage = getDeterministicMessage('coffeeSpending', analytics, data.totalSpent, 7);
       slides.push({
         gradient: 'mint',
         emoji: '☕',
@@ -296,7 +305,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{data.orderCount} orders</Text>
             <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{coffeeMessage}</Text>
         </>
         ),
       });
@@ -304,6 +313,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.flex.nightOwl) {
       const data = wrapped.flex.nightOwl;
+      const nightOwlMessage = getDeterministicMessage('nightOwlPercentage', analytics, data.percentage, 8);
       slides.push({
         gradient: 'orchid',
         emoji: '🦉',
@@ -317,7 +327,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>{data.count} late-night orders</Text>
             <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{nightOwlMessage}</Text>
         </>
         ),
       });
@@ -348,6 +358,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         emoji = '🚗';
       }
       
+      const couldHaveBoughtMessage = getDeterministicMessage('couldHaveBought', analytics, undefined, 9);
       slides.push({
         gradient: 'mango',
         emoji: emoji,
@@ -361,7 +372,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
             <Text style={styles.detailText}>on food delivery</Text>
           </View>
-          <Text style={styles.roastText}>Priorities</Text>
+          <Text style={styles.roastText}>{couldHaveBoughtMessage}</Text>
         </>
         ),
       });
@@ -369,6 +380,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.comparative.missedInvestment) {
       const data = wrapped.comparative.missedInvestment;
+      const investmentMessage = getDeterministicMessage('missedInvestment', analytics, data.missedGains, 10);
       slides.push({
         gradient: 'ember',
         emoji: '📈',
@@ -381,6 +393,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
           <View style={styles.detailBox}>
             <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
           </View>
+          <Text style={styles.roastText}>{investmentMessage}</Text>
         </>
         ),
       });
@@ -388,6 +401,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.comparative.costPerMeal) {
       const data = wrapped.comparative.costPerMeal;
+      const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.difference, 11);
       slides.push({
         gradient: 'tangerine',
         emoji: '🏪',
@@ -401,7 +415,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>Delivery: {formatCurrency(data.deliveryAverage)}</Text>
             <Text style={styles.detailText}>Groceries: ~{formatCurrency(data.groceryEstimate)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{costPerMealMessage}</Text>
         </>
         ),
       });
@@ -410,6 +424,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     // Patterns Section
     if (wrapped?.patterns.peakHungerHour) {
       const data = wrapped.patterns.peakHungerHour;
+      const peakHungerMessage = getDeterministicMessage('peakHungerHour', analytics, data.hour, 12);
       slides.push({
         gradient: 'lagoon',
         emoji: '⏰',
@@ -422,7 +437,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
           <View style={styles.detailBox}>
             <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{peakHungerMessage}</Text>
         </>
         ),
       });
@@ -431,6 +446,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     if (wrapped?.patterns.weekendWarrior) {
       const data = wrapped.patterns.weekendWarrior;
       const isWeekendMore = data.weekendSpending > data.weekdaySpending;
+      const weekendWarriorMessage = getDeterministicMessage('weekendWarrior', analytics, undefined, 13);
       slides.push({
         gradient: 'orchid',
         emoji: isWeekendMore ? '🎉' : '💼',
@@ -444,7 +460,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
             <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
           </View>
-          <Text style={styles.roastText}>{data.message}</Text>
+          <Text style={styles.roastText}>{weekendWarriorMessage}</Text>
         </>
         ),
       });

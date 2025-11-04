@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -38,8 +39,7 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
           toValue: 1,
           duration: 600,
           useNativeDriver: true,
-        }),
-        // Hold white for a moment
+        }),        // Hold white for a moment
         Animated.delay(200),
       ]).start(() => {
         onComplete();
