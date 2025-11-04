@@ -7,15 +7,23 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as Linking from 'expo-linking';
 import { UserSummary } from '../types/api';
 import { getDeterministicMessage } from '../utils/wrappedMessages';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// HelloFresh Affiliate Configuration
+const HELLOFRESH_CONFIG = {
+  affiliateUrl: 'https://www.hellofresh.com/pages/plans?c=SNACKTRACK&utm_source=snacktrack&utm_medium=app',
+  mealPricePerServing: 9.99, // Average HelloFresh meal price per serving
+};
 
 // Responsive story safe zones
 const SAFE_TOP = Math.round(screenHeight * 0.09);   // keep clear of IG chrome
@@ -74,6 +82,10 @@ export const STORY_GRADIENTS = {
     colors: ['#A8EDEA', '#D7F1EF', '#FED6E3'],
     locations: [0, 0.52, 1],
   },
+  hellofresh: { 
+    colors: ['#99CC33', '#85C442', '#6FB04F'],
+    locations: [0, 0.52, 1],
+  },
 } as const;
 
 interface WrappedShareJourneyProps {
@@ -84,6 +96,7 @@ interface WrappedShareJourneyProps {
 interface Slide {
   gradient: keyof typeof STORY_GRADIENTS;
   emoji: string;
+  image?: any; // For logo images
   content: React.ReactNode;
 }
 
@@ -121,6 +134,46 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const handleAffiliateClick = async () => {
+    try {
+      // Track affiliate click (you can add analytics here)
+      const canOpen = await Linking.canOpenURL(HELLOFRESH_CONFIG.affiliateUrl);
+      if (canOpen) {
+        await Linking.openURL(HELLOFRESH_CONFIG.affiliateUrl);
+      }
+    } catch (error) {
+      // Silently fail - affiliate link is optional
+    }
+  };
+
+  // Calculate annual savings for HelloFresh slide
+  const calculateAnnualSavings = () => {
+    // Use monthly breakdown if available, otherwise estimate from total
+    if (analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0) {
+      // Calculate average monthly spending
+      const avgMonthlySpent = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length;
+      const avgMonthlyOrders = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length;
+      
+      // Assume 1 meal per order for delivery
+      const avgMonthlyMeals = avgMonthlyOrders;
+      const avgCostPerMeal = avgMonthlyMeals > 0 ? avgMonthlySpent / avgMonthlyMeals : analytics.averageOrderValue;
+      
+      // Calculate savings per meal
+      const savingsPerMeal = Math.max(0, avgCostPerMeal - HELLOFRESH_CONFIG.mealPricePerServing);
+      
+      // Project to annual (12 months)
+      const annualSavings = savingsPerMeal * avgMonthlyMeals * 12;
+      return { annualSavings, savingsPerMeal };
+    } else {
+      // Fallback: use total data
+      const avgCostPerMeal = analytics.averageOrderValue;
+      const savingsPerMeal = Math.max(0, avgCostPerMeal - HELLOFRESH_CONFIG.mealPricePerServing);
+      // Estimate: assume 1 meal per order
+      const annualSavings = savingsPerMeal * analytics.totalReceipts;
+      return { annualSavings, savingsPerMeal };
+    }
   };
 
   // Build slides dynamically based on available data
@@ -480,6 +533,38 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       ),
     });
 
+    // HelloFresh Affiliate Slide - Final slide
+    const savings = calculateAnnualSavings();
+    // Calculate average cost per meal for comparison
+    const avgCostPerMeal = analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0
+      ? (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length) /
+        (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
+      : analytics.averageOrderValue;
+    
+    slides.push({
+      gradient: 'hellofresh',
+      emoji: '🍽️', // Fallback if image fails
+      image: require('../assets/hellofresh-logo.png'),
+      content: (
+        <>
+          <Text style={[styles.slideTitle, { marginBottom: 32, marginTop: -32 }]}>Why not try HelloFresh?</Text>
+          <View style={[styles.savingsHighlight]}>
+            <Text style={styles.savingsLabel}>This year you would have saved</Text>
+            <Text style={styles.savingsAmount} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(savings.annualSavings)}</Text>
+          </View>
+          <View style={[styles.detailBox]}>
+            <Text style={styles.detailText}>Your avg order: {formatCurrency(avgCostPerMeal)}</Text>
+            <Text style={styles.detailText}>HelloFresh meal: {formatCurrency(HELLOFRESH_CONFIG.mealPricePerServing)}</Text>
+            <Text style={styles.detailText}>You would have saved {formatCurrency(savings.savingsPerMeal)} per meal</Text>
+          </View>
+          <TouchableOpacity style={styles.affiliateButton} onPress={handleAffiliateClick}>
+            <Text style={styles.affiliateButtonText}>Try HelloFresh</Text>
+            <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
+          </TouchableOpacity>
+        </>
+      ),
+    });
+
     return slides;
   };
 
@@ -562,7 +647,11 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
               end={{ x: 1, y: 1 }}
             >
               <View style={styles.slideContent}>
-                <Text style={styles.emoji}>{slide.emoji}</Text>
+                {slide.image ? (
+                  <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.emoji}>{slide.emoji}</Text>
+                )}
                 <View style={styles.frame}>
                   {slide.content}
                 </View>
@@ -831,5 +920,68 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  logoImage: {
+    width: EMOJI_SIZE * 1.2,
+    height: EMOJI_SIZE * 1.2,
+    marginBottom: 20,
+  },
+  savingsHighlight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 32,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  savingsAmount: {
+    fontSize: BIG_STAT_SIZE,
+    fontWeight: '900',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 0,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.38)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 10,
+  },
+  savingsLabel: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.95)',
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
+  affiliateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 30,
+    gap: 8,
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  affiliateButtonText: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  affiliateButtonIcon: {
+    color: '#333',
+  },
+  affiliateSubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
