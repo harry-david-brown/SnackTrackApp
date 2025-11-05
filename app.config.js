@@ -16,7 +16,10 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.snacktrack.app"
+      bundleIdentifier: "com.snacktrack.app",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       adaptiveIcon: {
@@ -35,7 +38,7 @@ export default {
                 ? 'https://snacktrackapi-production.up.railway.app'  // Production API URL
                 : 'https://snacktrackapi-production.up.railway.app'),      // Development fallback
       eas: {
-        projectId: "your-project-id-here"
+        projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
       }
     }
   }

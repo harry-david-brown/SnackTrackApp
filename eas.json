@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Debug"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+      }
+    },
+    "production": {
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
