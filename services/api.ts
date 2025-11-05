@@ -25,8 +25,8 @@ const getApiUrl = () => {
   
   // 3. Development fallback - this should only be used in dev
   if (__DEV__) {
-    console.warn('⚠️ No API URL configured. Using localhost. For mobile testing, set EXPO_PUBLIC_API_URL in .env');
-    return 'http://localhost:3000';
+    console.warn('⚠️ No API URL configured. Using Railway production. For custom API, set EXPO_PUBLIC_API_URL in .env');
+    return 'https://snacktrackapi-production.up.railway.app';
   }
   
   // 4. Production - this should never happen if properly configured

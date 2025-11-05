@@ -16,16 +16,19 @@ export default function HomeScreen() {
     // Show onboarding on first launch if not completed yet
     if (!hasCompletedOnboarding && !state.isAuthenticated && !state.isLoading) {
       setShowOnboarding(true);
+    } else if (hasCompletedOnboarding) {
+      // Hide onboarding only if it's been completed
+      setShowOnboarding(false);
     }
   }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading]);
 
   // Separate effect to handle navigation after onboarding completion
   useEffect(() => {
-    // Only navigate if user is authenticated AND onboarding is complete
-    if (state.isAuthenticated && state.user && hasCompletedOnboarding) {
+    // Only navigate if user is authenticated AND onboarding is complete AND onboarding is not showing
+    if (state.isAuthenticated && state.user && hasCompletedOnboarding && !showOnboarding) {
       router.replace('/(tabs)');
     }
-  }, [state.isAuthenticated, state.user, hasCompletedOnboarding]);
+  }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding]);
 
   const handleOnboardingComplete = async () => {
     // Don't mark onboarding as complete yet - wait until tutorial is done

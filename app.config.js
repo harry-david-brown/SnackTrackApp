@@ -32,8 +32,8 @@ export default {
       // Environment-specific API URLs
       apiUrl: process.env.EXPO_PUBLIC_API_URL || 
               (process.env.NODE_ENV === 'production' 
-                ? 'https://api.snacktrack.com'  // Your production API URL
-                : 'http://localhost:3000'),      // Development fallback
+                ? 'https://snacktrackapi-production.up.railway.app'  // Production API URL
+                : 'https://snacktrackapi-production.up.railway.app'),      // Development fallback
       eas: {
         projectId: "your-project-id-here"
       }
