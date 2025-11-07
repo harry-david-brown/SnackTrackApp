@@ -2,6 +2,7 @@ export default {
   expo: {
     name: "Snack Track",
     slug: "snack-track",
+    scheme: "snacktrack",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -14,9 +15,12 @@ export default {
     assetBundlePatterns: [
       "**/*"
     ],
+    plugins: [
+      "expo-router"
+    ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.snacktrack.app",
+      bundleIdentifier: "com.snacktrack.mobile",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }
@@ -39,6 +43,9 @@ export default {
                 : 'https://snacktrackapi-production.up.railway.app'),      // Development fallback
       eas: {
         projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
+      },
+      router: {
+        origin: "snacktrack://"
       }
     }
   }

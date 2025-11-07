@@ -91,13 +91,16 @@ This app uses **secure JWT authentication** with the backend API:
    cd SnackTrackApp
    npm run setup
    ```
+
+   > **Heads up:** Expo now defaults to the production API (`https://snacktrackapi-production.up.railway.app`).
+   > If you're running the backend locally, create a `.env.local` file with `EXPO_PUBLIC_API_URL=http://localhost:3000` (or your LAN IP) before starting Expo.
    
    **Windows users:** Open Command Prompt or PowerShell, navigate to the project folder, then run:
    ```bash
    scripts\setup.bat
    ```
 
-2. **Start the Snack Track API** (required for real data)
+2. **Start the Snack Track API** (required for real data / local testing)
    ```bash
    # In a separate terminal, start the API project
    cd path/to/SnackTrackAPI
