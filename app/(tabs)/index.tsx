@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,226 +11,238 @@ import { SlideInView } from '../../components/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
-  const { state, logout, loadAnalytics } = useUser();
-  const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const initialLoadDoneRef = useRef(false);
-  
-  // Use analytics from context instead of local state
-  const analytics = state.analytics;
-  const isLoadingAnalytics = state.analyticsLoading;
+    const { state, logout, loadAnalytics } = useUser();
+    const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
+    const [showShareModal, setShowShareModal] = useState(false);
 
-  // Load analytics only when user logs in/out, not on every user property change
-  useEffect(() => {
-    if (state.user && !state.analytics && !state.analyticsLoading) {
-      // Only load if not already loading (prevents duplicate calls after login)
-      loadAnalytics().then(() => {
-        // Set flag after load completes to prevent useFocusEffect from triggering too early
-        initialLoadDoneRef.current = true;
-      });
-    } else if (!state.user) {
-      // Reset flag when user logs out
-      initialLoadDoneRef.current = false;
-    }
-  }, [state.user?.id, state.analytics, state.analyticsLoading]);
+    // Use analytics from context instead of local state
+    const analytics = state.analytics;
+    const isLoadingAnalytics = state.analyticsLoading;
 
-  // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
-  // Skip if we haven't done the initial load yet (prevents duplicate on login)
-  useFocusEffect(
-    React.useCallback(() => {
-      // Only reload if we've already done the initial load AND we don't have analytics
-      // This prevents unnecessary calls when just switching tabs
-      if (state.user && initialLoadDoneRef.current && !state.analytics) {
-        loadAnalytics();
-      }
-    }, [state.user, state.analytics])
-  );
+    // Track if we've done initial load - this should NOT trigger re-renders
+    const initialLoadDoneRef = useRef(false);
+    const isLoadingRef = useRef(false);
 
-  const handleRefresh = async () => {
-    try {
-      // Force reload analytics (user explicitly requested refresh)
-      await loadAnalytics();
-    } catch {
-      // Errors are handled by loadAnalytics
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.replace('/');
-    } catch (error) {
-      // Force navigation even if logout fails
-      router.replace('/');
-    }
-  };
-
-  // If user logs out while on this screen, navigate to login
-  useEffect(() => {
-    if (!state.user && !state.isLoading) {
-      router.replace('/');
-    }
-  }, [state.user, state.isLoading]);
-
-  if (!state.user) {
-    return null; // Will navigate in useEffect above
-  }
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={isLoadingAnalytics} onRefresh={handleRefresh} />
+    // ✅ ONLY load analytics when user ID changes (login/logout)
+    // This effect should fire once per user session
+    useEffect(() => {
+        if (!state.user?.id) {
+            initialLoadDoneRef.current = false;
+            isLoadingRef.current = false;
+            return;
         }
-      >
-        <View style={styles.content}>
-          {/* Error Message */}
-          {analyticsError && (
-            <ErrorMessage
-              error={analyticsError.message}
-              type={analyticsError.type}
-              onRetry={loadAnalytics}
-              onDismiss={() => setAnalyticsError(null)}
-            />
-          )}
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>🥡 Snack Track</Text>
-              <Text style={styles.subtitle}>Welcome back, {state.user.email.split('@')[0]}!</Text>
-            </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Stats Cards */}
-          <View style={styles.statsContainer}>
-            <SlideInView direction="left" delay={100}>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="wallet-outline" size={24} color="#007AFF" />
-                <Text style={styles.cardTitle}>Total Spent</Text>
-              </View>
-              <Text style={styles.cardValue}>
-                {analytics ? formatCurrency(analytics.totalSpent) : formatCurrency(state.user.totalSpent)}
-              </Text>
-              <Text style={styles.cardSubtext}>All time</Text>
-            </View>
-            </SlideInView>
-            
-            <SlideInView direction="right" delay={200}>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="receipt-outline" size={24} color="#34C759" />
-                <Text style={styles.cardTitle}>Receipts</Text>
-              </View>
-              <Text style={styles.cardValue}>
-                {analytics ? analytics.totalReceipts : state.user.receiptCount}
-              </Text>
-              <Text style={styles.cardSubtext}>Orders tracked</Text>
-            </View>
-            </SlideInView>
-          </View>
+        // If we haven't loaded yet and don't currently have analytics, load them
+        if (!initialLoadDoneRef.current && !isLoadingRef.current && !state.analytics) {
+            isLoadingRef.current = true;
+            loadAnalytics()
+                .finally(() => {
+                    isLoadingRef.current = false;
+                    initialLoadDoneRef.current = true;
+                });
+        }
+    }, [state.user?.id]); // ONLY depend on user ID, nothing else
 
-          {/* Quick Actions */}
-          <View style={styles.actionsContainer}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(tabs)/upload')}
+    // ✅ Reload analytics when screen comes into focus
+    // BUT only if analytics are missing (e.g., after upload screen returns)
+    useFocusEffect(
+        React.useCallback(() => {
+            // Only check if we need to reload - don't trigger dependencies
+            if (state.user?.id && initialLoadDoneRef.current && !state.analytics && !isLoadingRef.current) {
+                isLoadingRef.current = true;
+                loadAnalytics()
+                    .finally(() => {
+                        isLoadingRef.current = false;
+                    });
+            }
+        }, []) // ❌ NO DEPENDENCIES - this callback never changes
+    );
+
+    const handleRefresh = useCallback(async () => {
+        if (isLoadingRef.current) return;
+        isLoadingRef.current = true;
+        try {
+            await loadAnalytics();
+        } finally {
+            isLoadingRef.current = false;
+        }
+    }, [loadAnalytics]);
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        }).format(amount);
+    };
+
+    const handleLogout = useCallback(async () => {
+        try {
+            await logout();
+        } finally {
+            router.replace('/');
+        }
+    }, [logout]);
+
+    // If user logs out while on this screen, navigate to login
+    useEffect(() => {
+        if (!state.user?.id && state.initialized) {
+            router.replace('/');
+        }
+    }, [state.user?.id, state.initialized]);
+
+    // Don't render anything if no user
+    if (!state.user) {
+        return null;
+    }
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={isLoadingAnalytics} onRefresh={handleRefresh} />
+                }
             >
-              <View style={styles.actionButtonContent}>
-                <Ionicons name="cloud-upload" size={24} color="white" />
-                <View style={styles.actionButtonText}>
-                  <Text style={styles.actionButtonTitle}>Upload Uber Data</Text>
-                  <Text style={styles.actionButtonSubtitle}>Import your order history</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="white" />
-            </TouchableOpacity>
+                <View style={styles.content}>
+                    {/* Error Message */}
+                    {analyticsError && (
+                        <ErrorMessage
+                            error={analyticsError.message}
+                            type={analyticsError.type}
+                            onRetry={loadAnalytics}
+                            onDismiss={() => setAnalyticsError(null)}
+                        />
+                    )}
 
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionButtonSecondary]}
-              onPress={() => router.push('/(tabs)/analytics')}
-            >
-              <View style={styles.actionButtonContent}>
-                <Ionicons name="analytics" size={24} color="#007AFF" />
-                <View style={styles.actionButtonText}>
-                  <Text style={[styles.actionButtonTitle, { color: '#007AFF' }]}>View Analytics</Text>
-                  <Text style={[styles.actionButtonSubtitle, { color: '#666' }]}>See your spending insights</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Share Button - Show if user has data */}
-          {analytics && analytics.totalReceipts > 0 && (
-            <View style={styles.shareContainer}>
-              <QuickShareButton 
-                onPress={() => setShowShareModal(true)}
-                variant="primary"
-                size="medium"
-                icon="share-social"
-                title="Share Your Stats"
-              />
-            </View>
-          )}
-
-          {/* Recent Activity */}
-          <View style={styles.activityContainer}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            {analytics && analytics.topRestaurants.length > 0 ? (
-              <View style={styles.topRestaurantsCard}>
-                <Text style={styles.subsectionTitle}>Top Restaurants</Text>
-                {analytics.topRestaurants.slice(0, 3).map((restaurant, index) => (
-                  <View key={index} style={styles.restaurantItem}>
-                    <View style={styles.restaurantRank}>
-                      <Text style={styles.rankNumber}>{index + 1}</Text>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.title}>🥡 Snack Track</Text>
+                            <Text style={styles.subtitle}>Welcome back, {state.user.email.split('@')[0]}!</Text>
+                        </View>
+                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                            <Ionicons name="log-out-outline" size={24} color="#666" />
+                        </TouchableOpacity>
                     </View>
-                    <View style={styles.restaurantInfo}>
-                      <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                      <Text style={styles.restaurantStats}>
-                        {restaurant.count} orders • {formatCurrency(restaurant.totalSpent)}
-                      </Text>
+
+                    {/* Stats Cards */}
+                    <View style={styles.statsContainer}>
+                        <SlideInView direction="left" delay={100}>
+                            <View style={styles.card}>
+                                <View style={styles.cardHeader}>
+                                    <Ionicons name="wallet-outline" size={24} color="#007AFF" />
+                                    <Text style={styles.cardTitle}>Total Spent</Text>
+                                </View>
+                                <Text style={styles.cardValue}>
+                                    {analytics ? formatCurrency(analytics.totalSpent) : formatCurrency(state.user.totalSpent)}
+                                </Text>
+                                <Text style={styles.cardSubtext}>All time</Text>
+                            </View>
+                        </SlideInView>
+
+                        <SlideInView direction="right" delay={200}>
+                            <View style={styles.card}>
+                                <View style={styles.cardHeader}>
+                                    <Ionicons name="receipt-outline" size={24} color="#34C759" />
+                                    <Text style={styles.cardTitle}>Receipts</Text>
+                                </View>
+                                <Text style={styles.cardValue}>
+                                    {analytics ? analytics.totalReceipts : state.user.receiptCount}
+                                </Text>
+                                <Text style={styles.cardSubtext}>Orders tracked</Text>
+                            </View>
+                        </SlideInView>
                     </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="restaurant-outline" size={48} color="#ccc" />
-                <Text style={styles.emptyStateTitle}>No receipts yet</Text>
-                <Text style={styles.emptyStateSubtitle}>
-                  Upload your CSV file to start tracking your food spending
-                </Text>
-              </View>
+
+                    {/* Quick Actions */}
+                    <View style={styles.actionsContainer}>
+                        <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => router.push('/(tabs)/upload')}
+                        >
+                            <View style={styles.actionButtonContent}>
+                                <Ionicons name="cloud-upload" size={24} color="white" />
+                                <View style={styles.actionButtonText}>
+                                    <Text style={styles.actionButtonTitle}>Upload Uber Data</Text>
+                                    <Text style={styles.actionButtonSubtitle}>Import your order history</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="white" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.actionButtonSecondary]}
+                            onPress={() => router.push('/(tabs)/analytics')}
+                        >
+                            <View style={styles.actionButtonContent}>
+                                <Ionicons name="analytics" size={24} color="#007AFF" />
+                                <View style={styles.actionButtonText}>
+                                    <Text style={[styles.actionButtonTitle, { color: '#007AFF' }]}>View Analytics</Text>
+                                    <Text style={[styles.actionButtonSubtitle, { color: '#666' }]}>See your spending insights</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Share Button - Show if user has data */}
+                    {analytics && analytics.totalReceipts > 0 && (
+                        <View style={styles.shareContainer}>
+                            <QuickShareButton
+                                onPress={() => setShowShareModal(true)}
+                                variant="primary"
+                                size="medium"
+                                icon="share-social"
+                                title="Share Your Stats"
+                            />
+                        </View>
+                    )}
+
+                    {/* Recent Activity */}
+                    <View style={styles.activityContainer}>
+                        <Text style={styles.sectionTitle}>Recent Activity</Text>
+                        {analytics && analytics.topRestaurants.length > 0 ? (
+                            <View style={styles.topRestaurantsCard}>
+                                <Text style={styles.subsectionTitle}>Top Restaurants</Text>
+                                {analytics.topRestaurants.slice(0, 3).map((restaurant, index) => (
+                                    <View key={index} style={styles.restaurantItem}>
+                                        <View style={styles.restaurantRank}>
+                                            <Text style={styles.rankNumber}>{index + 1}</Text>
+                                        </View>
+                                        <View style={styles.restaurantInfo}>
+                                            <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                                            <Text style={styles.restaurantStats}>
+                                                {restaurant.count} orders • {formatCurrency(restaurant.totalSpent)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="restaurant-outline" size={48} color="#ccc" />
+                                <Text style={styles.emptyStateTitle}>No receipts yet</Text>
+                                <Text style={styles.emptyStateSubtitle}>
+                                    Upload your CSV file to start tracking your food spending
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </ScrollView>
+
+            {/* Wrapped Share Journey Modal */}
+            {showShareModal && analytics && (
+                <WrappedShareJourney
+                    analytics={analytics}
+                    onClose={() => setShowShareModal(false)}
+                />
             )}
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Wrapped Share Journey Modal */}
-      {showShareModal && analytics && (
-        <WrappedShareJourney
-          analytics={analytics}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
-    </SafeAreaView>
-  );
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,64 +6,95 @@ import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import LoginScreen from '../components/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
+import UberDataTutorial from '../components/UberDataTutorial';
 
 export default function HomeScreen() {
-  const { state } = useUser();
-  const { hasCompletedOnboarding, completeOnboarding } = useOnboarding();
-  const [showOnboarding, setShowOnboarding] = useState(false);
+    const { state } = useUser();
+    const { hasCompletedOnboarding, completeOnboarding } = useOnboarding();
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showUberTutorial, setShowUberTutorial] = useState(false);
+    const hasNavigatedRef = useRef(false);
 
-  useEffect(() => {
-    // Show onboarding on first launch if not completed yet
-    if (!hasCompletedOnboarding && !state.isAuthenticated && !state.isLoading) {
-      setShowOnboarding(true);
-    } else if (hasCompletedOnboarding) {
-      // Hide onboarding only if it's been completed
-      setShowOnboarding(false);
+    // Memoize the current screen to prevent unnecessary recalculations
+    const currentScreen = useMemo(() => {
+        // While initializing, always show loading
+        if (!state.initialized || state.isLoading) {
+            return 'loading';
+        }
+
+        // If not authenticated and onboarding not completed, show onboarding
+        if (!state.isAuthenticated && !hasCompletedOnboarding) {
+            return 'onboarding';
+        }
+
+        // If showing uber tutorial, keep showing it
+        if (showUberTutorial) {
+            return 'uber-tutorial';
+        }
+
+        // If authenticated, navigate to tabs (but don't re-render)
+        if (state.isAuthenticated && state.user) {
+            return 'authenticated';
+        }
+
+        // Default to login screen
+        return 'login';
+    }, [state.initialized, state.isLoading, state.isAuthenticated, state.user, showUberTutorial, hasCompletedOnboarding]);
+
+    // Handle navigation - separate from render logic
+    useEffect(() => {
+        if (currentScreen === 'authenticated' && !hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            // Navigate on next tick
+            requestAnimationFrame(() => {
+                router.replace('/(tabs)');
+            });
+        } else if (currentScreen !== 'authenticated') {
+            hasNavigatedRef.current = false;
+        }
+    }, [currentScreen]);
+
+    const handleOnboardingComplete = async () => {
+        await completeOnboarding();
+        setShowOnboarding(false);
+        setShowUberTutorial(true);
+    };
+
+    const handleUberTutorialComplete = () => {
+        setShowUberTutorial(false);
+    };
+
+    // Render based on current screen
+    if (currentScreen === 'loading') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#007AFF" />
+                </View>
+            </SafeAreaView>
+        );
     }
-  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading]);
 
-  // Separate effect to handle navigation after onboarding completion
-  useEffect(() => {
-    // Only navigate if user is authenticated AND onboarding is complete AND onboarding is not showing
-    if (state.isAuthenticated && state.user && hasCompletedOnboarding && !showOnboarding) {
-      router.replace('/(tabs)');
+    if (currentScreen === 'onboarding') {
+        return <OnboardingScreen onComplete={handleOnboardingComplete} />;
     }
-  }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding]);
 
-  const handleOnboardingComplete = async () => {
-    // Don't mark onboarding as complete yet - wait until tutorial is done
-    // Just hide the onboarding screen to show the login screen
-    setShowOnboarding(false);
-  };
+    if (currentScreen === 'uber-tutorial') {
+        return <UberDataTutorial onComplete={handleUberTutorialComplete} />;
+    }
 
-  // Show loading screen while checking authentication
-  if (state.isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Show onboarding on first launch
-  if (showOnboarding) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
-  }
-
-  // Show login screen if not authenticated
-  return <LoginScreen />;
+    // Return login screen for default and unauthenticated states
+    return <LoginScreen />;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#f8f9fa',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });

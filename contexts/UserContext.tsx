@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, {createContext, useContext, useReducer, useEffect, ReactNode, useRef} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
@@ -22,6 +22,7 @@ interface UserState {
   error: string | null;
   analytics: UserSummary | null;
   analyticsLoading: boolean;
+  initialized: boolean;
 }
 
 // User actions
@@ -32,7 +33,8 @@ type UserAction =
   | { type: 'LOGOUT' }
   | { type: 'UPDATE_USER_DATA'; payload: Partial<AppUser> }
   | { type: 'SET_ANALYTICS'; payload: UserSummary | null }
-  | { type: 'SET_ANALYTICS_LOADING'; payload: boolean };
+  | { type: 'SET_ANALYTICS_LOADING'; payload: boolean }
+  | { type: 'SET_INITIALIZED'; payload: boolean };
 
 // User context interface
 interface UserContextType {
@@ -55,6 +57,7 @@ const initialState: UserState = {
   error: null,
   analytics: null,
   analyticsLoading: false,
+  initialized: false,
 };
 
 // User reducer
@@ -105,6 +108,11 @@ const userReducer = (state: UserState, action: UserAction): UserState => {
         ...state,
         analyticsLoading: action.payload,
       };
+    case 'SET_INITIALIZED':
+      return {
+        ...state,
+        initialized: action.payload,
+      };
     default:
       return state;
   }
@@ -130,79 +138,90 @@ interface UserProviderProps {
   children: ReactNode;
 }
 
+
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(userReducer, initialState);
+    const [state, dispatch] = useReducer(userReducer, initialState);
+    const hasInitializedRef = useRef(false);
 
-  // Load user data from storage on app start
-  useEffect(() => {
-    loadUserFromStorage();
-  }, []);
+    // Load user data from storage on app start - ONLY ONCE
+    useEffect(() => {
+        if (!hasInitializedRef.current) {
+            hasInitializedRef.current = true;
+            loadUserFromStorage();
+        }
+    }, []); // Empty dependency array - only run once
 
-  // Clear storage if user ID is not a valid UUID
-  useEffect(() => {
-    if (state.user && !isValidUUID(state.user.id)) {
-      console.log('Invalid UUID detected, clearing storage...');
-      clearUserStorage();
-      dispatch({ type: 'SET_USER', payload: null });
-    }
-  }, [state.user]);
-
-  const loadUserFromStorage = async () => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
-      // Check if user has JWT tokens (new auth system)
-      const isAuth = await checkIsAuthenticated();
-      
-      if (isAuth) {
-        // Load user from new auth system
-        const [userData, userId] = await Promise.all([
-          getUserData(),
-          getUserId(),
-        ]);
-
-        if (userData && userId) {
-          // Validate session
-          const isValid = await authApi.validateSession();
-          
-          if (isValid) {
-            // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
-            // the full summary which includes totalSpent. This avoids a redundant API call.
-            const userWithSpending: AppUser = {
-              ...userData,
-              totalSpent: 0, // Will be updated when dashboard loads
-              receiptCount: 0,
-            };
-            
-            dispatch({ type: 'SET_USER', payload: userWithSpending });
-          } else {
-            // Session invalid, clear and force re-login
-            await clearAuthTokens();
+    // Clear storage if user ID is not a valid UUID
+    useEffect(() => {
+        if (state.user && !isValidUUID(state.user.id)) {
+            console.log('Invalid UUID detected, clearing storage...');
+            clearUserStorage();
             dispatch({ type: 'SET_USER', payload: null });
-          }
-        } else {
-          dispatch({ type: 'SET_USER', payload: null });
         }
-      } else {
-        // Check for legacy user data (old system without passwords)
-        const [legacyUserData, legacyUserId] = await Promise.all([
-          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_DATA),
-          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_ID),
-        ]);
+    }, [state.user?.id]); // Only depend on ID, not entire user object
 
-        if (legacyUserData && legacyUserId) {
-          // Legacy user exists - they need to re-register with a password
-          await clearUserStorage();
-          dispatch({ type: 'SET_USER', payload: null });
-          dispatch({ type: 'SET_ERROR', payload: 'Please create a new account with a password' });
-        } else {
-          dispatch({ type: 'SET_USER', payload: null });
+    const loadUserFromStorage = async () => {
+        try {
+            // DON'T dispatch SET_LOADING yet - just set initialized=false first
+            dispatch({ type: 'SET_INITIALIZED', payload: false });
+
+            // Check if user has JWT tokens (new auth system)
+            const isAuth = await checkIsAuthenticated();
+
+            if (isAuth) {
+                // Load user from new auth system
+                const [userData, userId] = await Promise.all([
+                    getUserData(),
+                    getUserId(),
+                ]);
+
+                if (userData && userId) {
+                    // Validate session
+                    const isValid = await authApi.validateSession();
+
+                    if (isValid) {
+                        const userWithSpending: AppUser = {
+                            ...userData,
+                            totalSpent: 0,
+                            receiptCount: 0,
+                        };
+
+                        // Dispatch user and immediately mark as initialized in one batch
+                        dispatch({ type: 'SET_USER', payload: userWithSpending });
+                        dispatch({ type: 'SET_INITIALIZED', payload: true });
+                    } else {
+                        // Session invalid, clear and force re-login
+                        await clearAuthTokens();
+                        dispatch({ type: 'SET_USER', payload: null });
+                        dispatch({ type: 'SET_INITIALIZED', payload: true });
+                    }
+                } else {
+                    dispatch({ type: 'SET_USER', payload: null });
+                    dispatch({ type: 'SET_INITIALIZED', payload: true });
+                }
+            } else {
+                // Check for legacy user data (old system without passwords)
+                const [legacyUserData, legacyUserId] = await Promise.all([
+                    AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_DATA),
+                    AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_ID),
+                ]);
+
+                if (legacyUserData && legacyUserId) {
+                    // Legacy user exists - they need to re-register with a password
+                    await clearUserStorage();
+                    dispatch({ type: 'SET_USER', payload: null });
+                    dispatch({ type: 'SET_ERROR', payload: 'Please create a new account with a password' });
+                    dispatch({ type: 'SET_INITIALIZED', payload: true });
+                } else {
+                    dispatch({ type: 'SET_USER', payload: null });
+                    dispatch({ type: 'SET_INITIALIZED', payload: true });
+                }
+            }
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: 'Failed to load user data' });
+            dispatch({ type: 'SET_INITIALIZED', payload: true });
         }
-      }
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load user data' });
-    }
-  };
+    };
 
   const clearUserStorage = async () => {
     try {
