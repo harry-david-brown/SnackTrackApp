@@ -11,7 +11,8 @@
         "buildConfiguration": "Debug"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
+        "EXPO_PUBLIC_APP_ENV": "development"
       }
     },
     "preview": {
@@ -21,7 +22,8 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
+        "EXPO_PUBLIC_APP_ENV": "preview"
       }
     },
     "production": {
@@ -29,7 +31,8 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
+        "EXPO_PUBLIC_APP_ENV": "production"
       }
     }
   },

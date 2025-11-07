@@ -46,7 +46,8 @@ export default {
       },
       router: {
         origin: "snacktrack://"
-      }
+      },
+      appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'development'
     }
   }
 };

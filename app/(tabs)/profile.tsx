@@ -11,6 +11,8 @@ export default function ProfileScreen() {
   const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+  const showReset = __DEV__ || appEnv !== 'production';
   
   // Use analytics from context instead of loading separately
   const analytics = state.analytics;
@@ -147,7 +149,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
-          {__DEV__ && (
+          {showReset && (
             <TouchableOpacity style={styles.menuItem} onPress={handleResetOnboarding}>
               <Ionicons name="refresh-outline" size={24} color="#FF9500" />
               <Text style={[styles.menuText, { color: '#FF9500' }]}>Reset Onboarding (Dev)</Text>

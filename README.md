@@ -93,7 +93,12 @@ This app uses **secure JWT authentication** with the backend API:
    ```
 
    > **Heads up:** Expo now defaults to the production API (`https://snacktrackapi-production.up.railway.app`).
-   > If you're running the backend locally, create a `.env.local` file with `EXPO_PUBLIC_API_URL=http://localhost:3000` (or your LAN IP) before starting Expo.
+   > If you're running the backend locally, create a `.env.local` file with:
+   > ```
+   > EXPO_PUBLIC_API_URL=http://localhost:3000
+   > EXPO_PUBLIC_APP_ENV=development
+   > ```
+   > (Replace `localhost` with your LAN IP when testing on devices.)
    
    **Windows users:** Open Command Prompt or PowerShell, navigate to the project folder, then run:
    ```bash

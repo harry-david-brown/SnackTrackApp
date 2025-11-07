@@ -2,6 +2,9 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
+  const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+  const showDevTabs = __DEV__ || appEnv === 'development';
+
   return (
     <Tabs
       screenOptions={{
@@ -45,7 +48,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      {__DEV__ && (
+      {showDevTabs && (
         <Tabs.Screen
           name="test-errors"
           options={{
