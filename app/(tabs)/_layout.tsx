@@ -1,8 +1,19 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const resolveAppEnv = () => {
+  const extras =
+    (Constants.expoConfig?.extra as Record<string, any> | undefined) ??
+    ((Constants as any).manifest?.extra as Record<string, any> | undefined) ??
+    ((Constants as any).manifest2?.extra as Record<string, any> | undefined) ??
+    {};
+
+  return extras.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
+};
 
 export default function TabLayout() {
-  const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+  const appEnv = resolveAppEnv();
   const showDevTabs = __DEV__ || appEnv === 'development';
 
   return (
@@ -48,17 +59,16 @@ export default function TabLayout() {
           ),
         }}
       />
-      {showDevTabs && (
-        <Tabs.Screen
-          name="test-errors"
-          options={{
-            title: 'Test Errors',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'bug' : 'bug-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="test-errors"
+        options={{
+          title: 'Test Errors',
+          href: showDevTabs ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'bug' : 'bug-outline'} size={24} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="wrapped-journey"
         options={{

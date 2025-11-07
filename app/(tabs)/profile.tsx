@@ -1,18 +1,29 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import OnboardingScreen from '../../components/OnboardingScreen';
 
+const resolveAppEnv = () => {
+  const extras =
+    (Constants.expoConfig?.extra as Record<string, any> | undefined) ??
+    ((Constants as any).manifest?.extra as Record<string, any> | undefined) ??
+    ((Constants as any).manifest2?.extra as Record<string, any> | undefined) ??
+    {};
+
+  return extras.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
+};
+
 export default function ProfileScreen() {
   const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
-  const showReset = __DEV__ || appEnv !== 'production';
+  const appEnv = resolveAppEnv();
+  const showReset = __DEV__ || appEnv === 'development';
   
   // Use analytics from context instead of loading separately
   const analytics = state.analytics;
