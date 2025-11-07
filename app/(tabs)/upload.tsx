@@ -14,11 +14,9 @@ export default function UploadScreen() {
   const [showLoader, setShowLoader] = useState(false);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
-    // Note: We don't call refreshUserData() or loadAnalytics() here
-    // The wrapped journey screen will fetch fresh analytics with includeWrapped=true
-    // The dashboard will also reload when we return to it via useFocusEffect
-    
     // Show processing loader
+    // Note: We don't clear analytics here because the wrapped journey will
+    // fetch fresh data with includeWrapped=true and update the global context
     setShowLoader(true);
   };
 

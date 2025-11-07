@@ -12,7 +12,7 @@ import {
   clearAuthTokens,
   AUTH_STORAGE_KEYS 
 } from '../utils/tokenManager';
-import { cacheAnalytics, getCachedAnalytics } from '../utils/offlineCache';
+import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
 
 // User state interface
 interface UserState {
@@ -44,6 +44,8 @@ interface UserContextType {
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   loadAnalytics: (includeWrapped?: boolean) => Promise<void>;
+  setAnalytics: (analytics: UserSummary) => void;
+  clearAnalytics: () => void;
   clearError: () => void;
 }
 
@@ -294,8 +296,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
       
-      // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
-      // the full summary which includes totalSpent. This avoids a redundant API call.
+      // Immediately load analytics to avoid showing $0 total spent
+      // This ensures the dashboard has data as soon as it renders
       
       // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
@@ -307,6 +309,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
 
       dispatch({ type: 'SET_USER', payload: user });
+      
+      // Load analytics immediately after login to populate dashboard data
+      try {
+        await loadAnalytics();
+      } catch (analyticsError) {
+        // Don't fail login if analytics fails - user can still use the app
+        console.warn('Failed to load analytics after login:', analyticsError);
+      }
       
       if (__DEV__) {
         console.log('✅ User logged in successfully:', email);
@@ -379,6 +389,26 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_ERROR', payload: null });
   };
 
+  const clearAnalytics = () => {
+    dispatch({ type: 'SET_ANALYTICS', payload: null });
+    clearAnalyticsCache(); // Also clear from AsyncStorage
+  };
+
+  const setAnalytics = (analytics: UserSummary) => {
+    dispatch({ type: 'SET_ANALYTICS', payload: analytics });
+    // Update user data from analytics
+    if (state.user && (analytics.totalSpent !== state.user.totalSpent || analytics.totalReceipts !== state.user.receiptCount)) {
+      dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+        totalSpent: analytics.totalSpent,
+        receiptCount: analytics.totalReceipts 
+      }});
+    }
+    // Cache it
+    if (state.user) {
+      cacheAnalytics(state.user.id, analytics);
+    }
+  };
+
   const loadAnalytics = async (includeWrapped: boolean = false) => {
     if (!state.user) return;
 
@@ -419,6 +449,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     logout,
     refreshUserData,
     loadAnalytics,
+    setAnalytics,
+    clearAnalytics,
     clearError,
   };
 

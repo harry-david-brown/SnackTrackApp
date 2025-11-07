@@ -249,6 +249,10 @@ const styles = StyleSheet.create({
     width: 24,
   },
   button: {
+    position: 'absolute',
+    bottom: 80,
+    left: 40,
+    right: 40,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     paddingHorizontal: 48,
     paddingVertical: 16,

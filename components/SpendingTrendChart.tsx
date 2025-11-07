@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,31 +6,15 @@ import { UserSummary } from '../types/api';
 import SimpleChart from './SimpleChart';
 
 const screenWidth = Dimensions.get('window').width;
-const chartWidth = screenWidth - 80;
+const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)
 
 interface SpendingTrendChartProps {
   analytics: UserSummary;
   timeframe: 'monthly' | 'yearly';
+  showLabels?: boolean;
 }
 
-export default function SpendingTrendChart({ analytics, timeframe }: SpendingTrendChartProps) {
-  const [animatedData, setAnimatedData] = useState<number[]>([]);
-
-  useEffect(() => {
-    // Animate the chart data
-    const data = prepareChartData();
-    if (data && data.length >= 2) {
-      setAnimatedData(new Array(data.length).fill(0));
-      
-      // Animate to actual values
-      const timer = setTimeout(() => {
-        setAnimatedData(data);
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [analytics, timeframe]);
-
+export default function SpendingTrendChart({ analytics, timeframe, showLabels = true }: SpendingTrendChartProps) {
   const prepareChartData = (): number[] | null => {
     if (!analytics?.monthlyBreakdown || analytics.monthlyBreakdown.length === 0) {
       return null;
@@ -71,7 +55,16 @@ export default function SpendingTrendChart({ analytics, timeframe }: SpendingTre
     return data;
   };
 
+  // Get data immediately without animation
+  const animatedData = prepareChartData() || [];
+
   const getLabels = (): string[] => {
+    if (!showLabels) {
+      // Return empty labels to hide x-axis
+      const data = prepareChartData();
+      return data ? new Array(data.length).fill('') : ['', ''];
+    }
+
     if (!analytics?.monthlyBreakdown || analytics.monthlyBreakdown.length === 0) {
       return ['No Data', 'No Data'];
     }

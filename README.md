@@ -13,7 +13,7 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **Professional UI** - Beautiful, responsive design with NativeWind styling
 - [x] **Team Onboarding** - Complete documentation for seamless collaboration
 
-### 🔄 **Recent Additions** (October 14, 2025)
+### 🔄 **Recent Additions** (October 2025)
 - [x] **JWT Authentication System** - Secure password-based auth with token management
 - [x] **Automatic Token Refresh** - Seamless 15-minute token refresh in background
 - [x] **ZIP File Upload** - Full support for Uber data export ZIP files
@@ -31,22 +31,18 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **User Onboarding** - 4-slide tutorial with viral messaging
 - [x] **Uber Data Tutorial** - Step-by-step ZIP upload guide
 - [x] **Animations** - Smooth transitions and swipeable content
+- [x] **Spotify Wrapped-Style Journey** - 13 analytics categories with dynamic slide generation
+- [x] **Wrapped Analytics API** - Backend support for comprehensive analytics insights
+- [x] **Visual Design Enhancements** - Premium gradients, shadows, and responsive typography
+- [x] **Loading State Improvements** - Eliminated $0 flash and progress bar delays
+- [x] **Processing Screen Polish** - Enhanced visual design with professional styling
+- [x] **API Call Optimization** - Reduced redundant calls by 75-80% in typical sessions
+- [x] **Global Analytics State** - Shared analytics across all screens for better performance
+- [x] **ZIP-First UX** - Renamed CSVUpload to UberDataUpload for clarity
+- [x] **Cross-Device Compatibility** - Responsive safe zones and type scales
+- [x] **Instagram Stories Optimization** - Watermark positioning for optimal sharing
 
 ---
-
-## 🎨 Current Features (Figma Implementation Phase)
-
-### UI/UX Enhancements
-- [ ] **Polished Dashboard Design** - Implement Figma mockups with refined styling
-- [ ] **Enhanced Analytics Screens** - Modern chart designs and layouts
-- [ ] **Improved Upload Flow** - Streamlined ZIP upload experience
-- [ ] **Profile Screen Redesign** - Clean, modern user profile interface
-- [ ] **Animation Refinements** - Smooth micro-interactions throughout
-- [ ] **Typography Updates** - Consistent font hierarchy and spacing
-- [ ] **Color Scheme Refinement** - Cohesive brand colors across all screens
-- [ ] **Iconography** - Custom icons and improved visual consistency
-- [ ] **Responsive Layouts** - Optimize for different screen sizes
-- [ ] **Dark Mode Support** - Light/dark theme toggle
 
 ### 📅 **Future Enhancements**
 - [ ] **Forgot Password** - Password reset flow (backend support pending)
@@ -57,6 +53,9 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [ ] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
 - [ ] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
+
+### ⚠️ **Known Issues**
+- [ ] **Redis Cache Stale Data** - After uploading a new CSV file, the Wrapped journey and dashboard may show stale cached data from Redis instead of the newly uploaded data. This appears to be a backend caching issue where Redis cache is not being properly invalidated after CSV uploads. Workaround: User may need to wait a few minutes or manually refresh after uploading new data.
 
 ---
 
@@ -92,13 +91,21 @@ This app uses **secure JWT authentication** with the backend API:
    cd SnackTrackApp
    npm run setup
    ```
+
+   > **Heads up:** Expo now defaults to the production API (`https://snacktrackapi-production.up.railway.app`).
+   > If you're running the backend locally, create a `.env.local` file with:
+   > ```
+   > EXPO_PUBLIC_API_URL=http://localhost:3000
+   > EXPO_PUBLIC_APP_ENV=development
+   > ```
+   > (Replace `localhost` with your LAN IP when testing on devices.)
    
    **Windows users:** Open Command Prompt or PowerShell, navigate to the project folder, then run:
    ```bash
    scripts\setup.bat
    ```
 
-2. **Start the Snack Track API** (required for real data)
+2. **Start the Snack Track API** (required for real data / local testing)
    ```bash
    # In a separate terminal, start the API project
    cd path/to/SnackTrackAPI
@@ -176,31 +183,7 @@ For mobile devices to connect to your local API:
 - ✅ Instant hot reload
 - ✅ Test native features (camera, sharing, etc.)
 
-## 🎭 Current Features
 
-### **Dashboard** - Real spending analytics
-- Total spending display with live API data
-- Top restaurants with real rankings
-- Recent activity and spending trends
-- Pull-to-refresh for updated data
-
-### **CSV Upload** - File import simulation
-- Document picker for CSV files
-- Upload progress and status display
-- Integration with real API data
-- Success/error feedback
-
-### **Authentication** - Seamless login
-- Email-based user creation
-- Persistent login state
-- Automatic data loading
-- Professional login screen
-
-### **Profile** - User management
-- User information display
-- Account statistics
-- Settings and preferences
-- Logout functionality
 
 ## 📊 API Integration
 
@@ -270,7 +253,9 @@ git commit --no-verify
 │
 ├── 🔧 components/            # Reusable components
 │   ├── LoginScreen.tsx       # Authentication UI
-│   └── CSVUpload.tsx         # File upload component
+│   ├── UberDataUpload.tsx    # ZIP file upload component
+│   ├── WrappedShareJourney.tsx # Spotify-style analytics journey
+│   └── WrappedJourneyLoader.tsx # Processing screen with animations
 │
 ├── 🎣 contexts/              # React Context providers
 │   └── UserContext.tsx       # User state management
@@ -293,56 +278,6 @@ git commit --no-verify
 │
 └── 📄 Configuration files    # Package.json, Docker, etc.
 ```
-
-## 🤝 Contributing
-
-### **Quick Start for Contributors**
-
-1. **Fork and clone**
-   ```bash
-   git clone https://github.com/harry-david-brown/SnackTrackApp.git
-   cd SnackTrackApp
-   ```
-
-2. **Set up environment**
-```bash
-   npm run setup
-   ```
-
-3. **Start development**
-   ```bash
-   npm start
-   # Press 'w' to open in browser
-   ```
-
-4. **Create feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-5. **Make changes and test**
-   ```bash
-   npm run verify    # Verify everything still works
-   npm test          # Run tests
-   ```
-
-6. **Commit and push**
-   ```bash
-   git add .
-   git commit -m "feat: add your feature description"
-   git push origin feature/your-feature-name
-   ```
-
-7. **Create pull request** on GitHub
-
-### **Development Tips**
-- **Hot Reload**: Changes automatically refresh the app
-- **Real Data**: Always test with actual API data
-- **Branch Names**: Use descriptive names like `add-analytics-charts`
-- **Commit Messages**: Be clear about what you changed
-- **Before Pushing**: Run `npm run ci` to catch errors locally
-
----
 
 ## 🔄 CI/CD Pipeline
 
@@ -376,58 +311,6 @@ npm run ci  # Runs all CI/CD checks before pushing
 
 ---
 
-## 🚀 Production Readiness
+## 🤝 Contributing
 
-### 🟡 **MVP Launch (Target: ~1,000 Users)**
-
-**Mobile App Status:** ✅ Ready (error handling complete)  
-**API Status:** ⚠️ Needs work (see blockers below)  
-**Timeline:** 6-8 weeks
-
-**Critical API Requirements:**
-- [ ] Authentication & authorization (JWT/OAuth) - 2 weeks
-- [ ] Rate limiting (per-user & global) - ✅ Already implemented
-- [ ] Error tracking (Sentry integration) - 1 day
-- [ ] Performance monitoring (APM) - 2-3 days
-- [ ] Database indexes and optimization - 1 week
-- [ ] Redis caching layer - 1 week
-- [ ] Async CSV processing with job queue - 2 weeks
-- [ ] Security audit and input validation - 1 week
-- [ ] Privacy policy and app store submission - 3 days
-- [ ] Staging environment testing - 2 days
-- [ ] Load testing (100+ concurrent users) - 3 days
-
-**Estimated Cost:** $88/month
-
-### 🔴 **Scale Ready (Target: 10,000+ Users)**
-
-**Timeline:** 4-6 weeks after MVP launch  
-**Estimated Cost:** $379-$1,089/month
-
-**Infrastructure Requirements:**
-- [ ] Horizontal scaling (load balancer + multiple API instances)
-- [ ] Redis caching layer for performance
-- [ ] CDN for static assets
-- [ ] Database read replicas
-- [ ] Message queue for background processing (BullMQ)
-- [ ] Advanced monitoring & alerting
-- [ ] Security hardening (penetration testing)
-- [ ] Disaster recovery plan
-- [ ] 24/7 on-call rotation
-- [ ] Auto-scaling configuration
-
-### 📋 **API Production Blockers**
-
-**🔴 P0 Blockers (Must Fix Before Launch):**
-1. No authentication system (2 weeks)
-2. No authorization/ownership validation (1 week)
-3. No error tracking - Sentry (1 day)
-4. No APM/monitoring (2-3 days)
-
-**🟡 P1 Critical (Before Scaling):**
-5. Database optimization needed (1 week)
-6. Redis caching missing (1 week)
-7. Structured logging incomplete (2-3 days)
-8. API key enforcement weak (2 days)
-9. Input validation gaps (1 week)
-10. No database backups (2-3 days)
+### **For the contributing guide read CONTRIBUTING.md**

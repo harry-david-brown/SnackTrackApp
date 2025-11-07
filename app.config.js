@@ -2,6 +2,7 @@ export default {
   expo: {
     name: "Snack Track",
     slug: "snack-track",
+    scheme: "snacktrack",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -14,9 +15,15 @@ export default {
     assetBundlePatterns: [
       "**/*"
     ],
+    plugins: [
+      "expo-router"
+    ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.snacktrack.app"
+      bundleIdentifier: "com.snacktrack.mobile",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       adaptiveIcon: {
@@ -32,11 +39,15 @@ export default {
       // Environment-specific API URLs
       apiUrl: process.env.EXPO_PUBLIC_API_URL || 
               (process.env.NODE_ENV === 'production' 
-                ? 'https://api.snacktrack.com'  // Your production API URL
-                : 'http://localhost:3000'),      // Development fallback
+                ? 'https://snacktrackapi-production.up.railway.app'  // Production API URL
+                : 'https://snacktrackapi-production.up.railway.app'),      // Development fallback
       eas: {
-        projectId: "your-project-id-here"
-      }
+        projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
+      },
+      router: {
+        origin: "snacktrack://"
+      },
+      appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'production'
     }
   }
 };
