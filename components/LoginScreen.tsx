@@ -109,17 +109,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setShowTutorial(true);
       } else {
         await login(email.trim().toLowerCase(), password);
-        
-        Alert.alert(
-          'Welcome Back! 🥡',
-          'You\'ve successfully logged in.',
-          [
-            {
-              text: 'Continue',
-              onPress: onLoginSuccess,
-            },
-          ]
-        );
+        onLoginSuccess?.();
       }
     } catch (error: any) {
       // Error is already set in state by UserContext
