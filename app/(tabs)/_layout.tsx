@@ -42,11 +42,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="wrapped-journey"
         options={{
-          title: 'Analytics',
+          title: 'Summary',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -67,13 +67,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'bug' : 'bug-outline'} size={24} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="wrapped-journey"
-        options={{
-          href: null, // Hide from tab bar
-          title: 'Your Wrapped',
         }}
       />
     </Tabs>

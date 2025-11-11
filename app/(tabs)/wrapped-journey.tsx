@@ -1,99 +1,119 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import WrappedShareJourney from '../../components/WrappedShareJourney';
 
+const hasWrappedData = (summary: UserSummary | null | undefined): summary is UserSummary =>
+  Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
+
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
-  const [analytics, setAnalytics] = useState<UserSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start with true to show loading screen
-  const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
-  const [isFullyReady, setIsFullyReady] = useState(false); // Track when component is fully ready
 
-  // Use existing analytics data immediately if available
-  React.useEffect(() => {
-    if (state.analytics && !analytics) {
-      setAnalytics(state.analytics);
-      setLoadTimestamp(Date.now()); // Force remount to reset slide position
-      setIsLoading(false);
-      // Add a small delay to ensure component is fully ready
-      setTimeout(() => setIsFullyReady(true), 100);
-    }
-  }, [state.analytics, analytics]);
-
-  // Reload analytics whenever screen comes into focus (new upload)
-  useFocusEffect(
-    React.useCallback(() => {
-      loadWrappedAnalytics();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+  const initialAnalytics = useMemo(
+    () => (hasWrappedData(state.analytics) ? state.analytics : null),
+    [state.analytics]
   );
 
-  const loadWrappedAnalytics = async () => {
-    if (!state.user) {
-      router.replace('/');
+  const [analytics, setAnalytics] = useState<UserSummary | null>(initialAnalytics);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialAnalytics);
+  const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
+  const [isFullyReady, setIsFullyReady] = useState<boolean>(Boolean(initialAnalytics));
+  const fetchingWrappedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const summary = state.analytics;
+
+    if (!summary) {
+      setAnalytics(null);
+      setIsLoading(false);
+      setIsFullyReady(true);
+      fetchingWrappedRef.current = null;
       return;
     }
 
-    // Always clear current analytics and force remount
-    setAnalytics(null);
-    setLoadTimestamp(Date.now());
-
-    // If we already have analytics data, use it immediately
-    if (state.analytics) {
-      // Check if we need wrapped analytics
-      if (state.analytics.wrappedAnalytics) {
-        // We have everything we need
-        setAnalytics(state.analytics);
-        setIsLoading(false);
-        // Add a small delay to ensure component is fully ready
-        setTimeout(() => setIsFullyReady(true), 100);
-        return;
-      } else {
-        // We have basic analytics but need wrapped analytics
-        try {
-          const summary = await analyticsApi.getUserSummary(state.user.id, true);
-          setAnalytics(summary);
-          setGlobalAnalytics(summary);
-          setIsLoading(false);
-          // Add a small delay to ensure component is fully ready
-          setTimeout(() => setIsFullyReady(true), 100);
-        } catch {
-          router.replace('/(tabs)');
-        }
-        return;
-      }
-    }
-
-    // No analytics data, fetch everything
-    try {
-      const summary = await analyticsApi.getUserSummary(state.user.id, true);
+    if (summary.wrappedAnalytics && summary.totalReceipts > 0) {
       setAnalytics(summary);
-      setGlobalAnalytics(summary);
+      setLoadTimestamp(Date.now());
       setIsLoading(false);
-      // Add a small delay to ensure component is fully ready
+      fetchingWrappedRef.current = null;
       setTimeout(() => setIsFullyReady(true), 100);
-    } catch {
-      router.replace('/(tabs)');
+      return;
     }
-  };
 
-  const handleClose = () => {
-    // Return to dashboard after journey
-    router.replace('/(tabs)');
-  };
+    if (summary.totalReceipts === 0) {
+      setAnalytics(null);
+      setIsLoading(false);
+      setIsFullyReady(true);
+      fetchingWrappedRef.current = null;
+      return;
+    }
 
-  // Always show the wrapped journey, even while loading
-  if (!analytics && state.analytics) {
-    // Use existing analytics data if available
-    setAnalytics(state.analytics);
+    if (!state.user) {
+      setIsLoading(false);
+      setIsFullyReady(true);
+      return;
+    }
+
+    // We have receipts but no wrapped analytics yet – fetch with includeWrapped=true once per user session
+    if (fetchingWrappedRef.current === state.user.id) {
+      return;
+    }
+
+    fetchingWrappedRef.current = state.user.id;
+    setIsLoading(true);
+    setIsFullyReady(false);
+
+    analyticsApi
+      .getUserSummary(state.user.id, true)
+      .then((wrappedSummary) => {
+        if (hasWrappedData(wrappedSummary)) {
+          setAnalytics(wrappedSummary);
+          setGlobalAnalytics(wrappedSummary);
+          setLoadTimestamp(Date.now());
+          setTimeout(() => setIsFullyReady(true), 100);
+        } else {
+          setAnalytics(null);
+          setIsFullyReady(true);
+        }
+      })
+      .catch(() => {
+        setAnalytics(null);
+        setIsFullyReady(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [state.analytics, state.user, setGlobalAnalytics]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+      </View>
+    );
   }
 
-  // Don't render if we don't have analytics data yet or component isn't fully ready
-  if (!analytics || !isFullyReady) {
+  if (!hasWrappedData(analytics)) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="images-outline" size={64} color="#667eea" style={styles.emptyIcon} />
+        <Text style={styles.emptyTitle}>Your Wrapped Journey Awaits</Text>
+        <Text style={styles.emptySubtitle}>
+          Upload your Uber Eats order history to unlock a personalized recap of your year in delivery.
+        </Text>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/(tabs)/upload')}>
+          <Ionicons name="cloud-upload-outline" size={20} color="white" />
+          <Text style={styles.emptyButtonText}>Upload Receipts</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!isFullyReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
@@ -103,9 +123,9 @@ export default function WrappedJourneyScreen() {
 
   return (
     <WrappedShareJourney
-      key={loadTimestamp} // Force remount on new data
+      key={loadTimestamp}
       analytics={analytics}
-      onClose={handleClose}
+      onClose={() => router.replace('/(tabs)')}
     />
   );
 }
@@ -116,6 +136,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#667eea',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#f5f6ff',
+  },
+  emptyIcon: {
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#667eea',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 30,
+    shadowColor: 'rgba(102, 126, 234, 0.4)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

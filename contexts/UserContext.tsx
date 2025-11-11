@@ -294,6 +294,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Load analytics immediately after login to populate dashboard data
       try {
         await loadAnalytics();
+
+        // Preload wrapped analytics so Summary screen is ready instantly
+        const wrappedSummary = await analyticsApi.getUserSummary(response.userId, true);
+        if (wrappedSummary.wrappedAnalytics && wrappedSummary.totalReceipts > 0) {
+          dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+          dispatch({
+            type: 'UPDATE_USER_DATA',
+            payload: {
+              totalSpent: wrappedSummary.totalSpent,
+              receiptCount: wrappedSummary.totalReceipts,
+            },
+          });
+          await cacheAnalytics(response.userId, wrappedSummary);
+        }
       } catch (analyticsError) {
         // Don't fail login if analytics fails - user can still use the app
         console.warn('Failed to load analytics after login:', analyticsError);

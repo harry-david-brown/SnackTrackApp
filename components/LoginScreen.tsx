@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import UberDataTutorial from './UberDataTutorial';
+import { useRouter } from 'expo-router';
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -29,6 +30,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [showTutorial, setShowTutorial] = useState(false);
   const { register, login, state, clearError } = useUser();
   const { completeOnboarding } = useOnboarding();
+  const router = useRouter();
 
   // Show error alert when state.error changes
   useEffect(() => {
@@ -109,7 +111,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setShowTutorial(true);
       } else {
         await login(email.trim().toLowerCase(), password);
-        onLoginSuccess?.();
+        if (!showTutorial) {
+          onLoginSuccess?.();
+          router.replace('/(tabs)');
+        }
       }
     } catch (error: any) {
       // Error is already set in state by UserContext
@@ -123,6 +128,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     // Complete onboarding and let app/index.tsx handle navigation
     await completeOnboarding();
     setShowTutorial(false);
+    if (state.isAuthenticated && state.user) {
+      router.replace('/(tabs)');
+    }
   };
 
   // Show tutorial as full-screen overlay

@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
+import { analyticsApi } from '../../services/analyticsApi';
 import UberDataUpload from '../../components/UberDataUpload';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 
 export default function UploadScreen() {
-  const { state } = useUser();
+  const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
 
@@ -20,7 +21,20 @@ export default function UploadScreen() {
     setShowLoader(true);
   };
 
-  const handleLoaderComplete = () => {
+  const handleLoaderComplete = async () => {
+    if (!state.user) {
+      setShowLoader(false);
+      router.push('/(tabs)/wrapped-journey');
+      return;
+    }
+
+    try {
+      const summary = await analyticsApi.getUserSummary(state.user.id, true);
+      setGlobalAnalytics(summary);
+    } catch (error) {
+      console.warn('Failed to refresh analytics after upload:', error);
+    }
+
     setShowLoader(false);
     // Navigate to wrapped journey
     router.push('/(tabs)/wrapped-journey');
