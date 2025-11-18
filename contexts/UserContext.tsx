@@ -4,7 +4,7 @@ import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
 import { authApi } from '../services/authApi';
 import { analyticsApi } from '../services/analyticsApi';
-import { User, AppUser, UserSummary } from '../types/api';
+import { AppUser, UserSummary, RegisterResponse, LoginResponse } from '../types/api';
 import { 
   getUserData, 
   getUserId, 
@@ -37,14 +37,15 @@ type UserAction =
 // User context interface
 interface UserContextType {
   state: UserState;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  register: (email: string, password: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   loadAnalytics: (includeWrapped?: boolean) => Promise<void>;
   setAnalytics: (analytics: UserSummary) => void;
   clearAnalytics: () => void;
   clearError: () => void;
+  markEmailVerified: () => void;
 }
 
 // Initial state
@@ -170,6 +171,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             // the full summary which includes totalSpent. This avoids a redundant API call.
             const userWithSpending: AppUser = {
               ...userData,
+              emailVerified: userData.emailVerified ?? false,
               totalSpent: 0, // Will be updated when dashboard loads
               receiptCount: 0,
             };
@@ -219,7 +221,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string): Promise<RegisterResponse> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -235,6 +237,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         id: response.userId,
         email: response.email,
         createdAt: response.user.createdAt,
+        emailVerified: response.user.emailVerified ?? false,
         totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,
       };
@@ -244,7 +247,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       if (__DEV__) {
         console.log('✅ User registered successfully:', email);
       }
-      
+      return response;
     } catch (error: any) {
       let errorMessage = 'Failed to create account';
       
@@ -269,7 +272,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<LoginResponse> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -285,6 +288,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         id: response.userId,
         email: response.email,
         createdAt: response.user.createdAt,
+        emailVerified: response.user.emailVerified ?? false,
         totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,
       };
@@ -317,6 +321,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         console.log('✅ User logged in successfully:', email);
       }
       
+      return response;
     } catch (error: any) {
       let errorMessage = 'Failed to login';
       
@@ -389,6 +394,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     clearAnalyticsCache(); // Also clear from AsyncStorage
   };
 
+  const markEmailVerified = () => {
+    if (!state.user) return;
+    dispatch({
+      type: 'UPDATE_USER_DATA',
+      payload: { emailVerified: true },
+    });
+  };
+
   const setAnalytics = (analytics: UserSummary) => {
     dispatch({ type: 'SET_ANALYTICS', payload: analytics });
     // Update user data from analytics
@@ -447,6 +460,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     setAnalytics,
     clearAnalytics,
     clearError,
+    markEmailVerified,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

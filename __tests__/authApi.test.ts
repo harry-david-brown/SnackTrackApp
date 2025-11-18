@@ -288,5 +288,83 @@ describe('Auth API', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('password reset + email verification', () => {
+    it('requests password reset code', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, message: 'sent', expiresIn: 60 },
+      });
+
+      const response = await authApi.requestPasswordReset({ email: 'test@example.com' });
+
+      expect(api.post).toHaveBeenCalledWith('/auth/password/reset/request', {
+        email: 'test@example.com',
+      });
+      expect(response).toEqual({ success: true, message: 'sent', expiresIn: 60 });
+    });
+
+    it('verifies password reset code', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, message: 'valid', expiresIn: 300 },
+      });
+
+      const response = await authApi.verifyPasswordResetCode({
+        email: 'test@example.com',
+        code: '123456',
+      });
+
+      expect(api.post).toHaveBeenCalledWith('/auth/password/reset/verify', {
+        email: 'test@example.com',
+        code: '123456',
+      });
+      expect(response).toEqual({ success: true, message: 'valid', expiresIn: 300 });
+    });
+
+    it('completes password reset', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, message: 'updated' },
+      });
+
+      const response = await authApi.completePasswordReset({
+        email: 'test@example.com',
+        code: '123456',
+        newPassword: 'Password123',
+      });
+
+      expect(api.post).toHaveBeenCalledWith('/auth/password/reset/complete', {
+        email: 'test@example.com',
+        code: '123456',
+        newPassword: 'Password123',
+      });
+      expect(response).toEqual({ success: true, message: 'updated' });
+    });
+
+    it('sends verification email', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, expiresIn: 60 },
+      });
+
+      const response = await authApi.sendVerificationEmail({ email: 'test@example.com' });
+
+      expect(api.post).toHaveBeenCalledWith('/auth/email/verify/send', {
+        email: 'test@example.com',
+      });
+      expect(response).toEqual({ success: true, expiresIn: 60 });
+    });
+
+    it('verifies email code', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, message: 'verified' },
+      });
+
+      const response = await authApi.verifyEmailCode({ email: 'test@example.com', code: '654321' });
+
+      expect(api.post).toHaveBeenCalledWith('/auth/email/verify/confirm', {
+        email: 'test@example.com',
+        code: '654321',
+      });
+      expect(response).toEqual({ success: true, message: 'verified' });
+    });
+  });
 });
 

@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   createdAt: string;
+  emailVerified?: boolean;
 }
 
 export interface ReceiptItem {
@@ -43,6 +44,7 @@ export interface RegisterResponse {
     id: string;
     email: string;
     createdAt: string;
+    emailVerified?: boolean;
   };
 }
 
@@ -60,7 +62,61 @@ export interface LoginResponse {
     id: string;
     email: string;
     createdAt: string;
+    emailVerified?: boolean;
   };
+}
+
+export interface RequestPasswordResetRequest {
+  email: string;
+}
+
+export interface RequestPasswordResetResponse {
+  success: boolean;
+  message: string;
+  expiresIn: number;
+  attemptLimit?: number;
+}
+
+export interface VerifyPasswordResetCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface VerifyPasswordResetCodeResponse {
+  success: boolean;
+  message: string;
+  expiresIn: number;
+}
+
+export interface CompletePasswordResetRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface CompletePasswordResetResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface SendVerificationEmailRequest {
+  email: string;
+}
+
+export interface SendVerificationEmailResponse {
+  success: boolean;
+  expiresIn: number;
+  message?: string;
+}
+
+export interface VerifyEmailCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface VerifyEmailCodeResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface RefreshTokenRequest {

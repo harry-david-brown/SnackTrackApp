@@ -41,12 +41,13 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 - [x] **ZIP-First UX** - Renamed CSVUpload to UberDataUpload for clarity
 - [x] **Cross-Device Compatibility** - Responsive safe zones and type scales
 - [x] **Instagram Stories Optimization** - Watermark positioning for optimal sharing
+- [x] **Email Verification & Password Reset** - OTP-based verification flows with secure password recovery UX
 
 ---
 
 ### 📅 **Future Enhancements**
-- [ ] **Forgot Password** - Password reset flow (backend support pending)
-- [ ] **Email Verification** - Verify user emails on registration
+- [x] **Forgot Password** - Password reset flow (shipped with OTP UX)
+- [x] **Email Verification** - Verify user emails on registration
 - [ ] **Social Login** - Google and Apple Sign In
 - [ ] **Biometric Auth** - Face ID / Touch ID support
 - [ ] **Multi-Template Sharing** - Additional Wrapped-style slide variations
@@ -76,8 +77,6 @@ This app uses **secure JWT authentication** with the backend API:
 3. **Upload data:** CSV or ZIP files
 4. **View analytics:** Spending insights and trends
 5. **Share:** Spotify Wrapped-style viral journey
-
-📚 **Full documentation:** See `AUTHENTICATION_IMPLEMENTATION.md` for complete details
 
 ---
 
@@ -245,25 +244,54 @@ git commit --no-verify
 ├── 🏠 app/                   # Expo Router pages
 │   ├── (tabs)/               # Tab navigation screens
 │   │   ├── index.tsx         # Dashboard with real data
-│   │   ├── upload.tsx        # CSV Upload functionality
-│   │   ├── analytics.tsx     # Analytics & Charts (next)
-│   │   └── profile.tsx       # User Profile
+│   │   ├── upload.tsx        # CSV/ZIP Upload functionality
+│   │   ├── wrapped-journey.tsx # Spotify Wrapped-style analytics journey
+│   │   ├── profile.tsx       # User Profile
+│   │   └── test-errors.tsx  # Error testing (dev only)
 │   ├── _layout.tsx           # Root layout with providers
 │   └── index.tsx             # Authentication flow
 │
 ├── 🔧 components/            # Reusable components
 │   ├── LoginScreen.tsx       # Authentication UI
-│   ├── UberDataUpload.tsx    # ZIP file upload component
+│   ├── PasswordResetModal.tsx # Password reset flow (4-step)
+│   ├── EmailVerificationModal.tsx # Email verification OTP
+│   ├── EmailVerificationBanner.tsx # Non-intrusive verification prompt
+│   ├── UberDataUpload.tsx    # ZIP/CSV file upload component
+│   ├── UberDataTutorial.tsx # Step-by-step upload guide
+│   ├── OnboardingScreen.tsx # User onboarding flow
 │   ├── WrappedShareJourney.tsx # Spotify-style analytics journey
-│   └── WrappedJourneyLoader.tsx # Processing screen with animations
+│   ├── WrappedJourneyLoader.tsx # Processing screen with animations
+│   ├── ShareableGraphics.tsx # Social sharing graphics
+│   ├── SocialShareModal.tsx  # Native share sheet integration
+│   ├── InsightsPanel.tsx     # Analytics insights display
+│   ├── CategoryAnalysisChart.tsx # Spending category charts
+│   ├── RestaurantBreakdownChart.tsx # Restaurant analytics
+│   ├── SpendingTrendChart.tsx # Trend visualization
+│   ├── NetworkStatusIndicator.tsx # Offline/online status
+│   ├── ErrorBoundary.tsx     # Error boundary component
+│   └── [Other UI components] # Loading, animations, etc.
 │
 ├── 🎣 contexts/              # React Context providers
-│   └── UserContext.tsx       # User state management
+│   ├── UserContext.tsx       # User state & authentication
+│   └── OnboardingContext.tsx # Onboarding flow state
 │
 ├── 🌐 services/              # API services
-│   ├── api.ts                # Real API client
-│   ├── mockApi.ts            # Mock API fallback
-│   └── analyticsApi.ts       # Analytics API integration
+│   ├── api.ts                # Real API client with interceptors
+│   ├── authApi.ts            # Authentication endpoints (login, register, reset)
+│   ├── analyticsApi.ts       # Analytics & wrapped data API
+│   └── mockApi.ts            # Mock API fallback (dev only)
+│
+├── 🪝 hooks/                 # Custom React hooks
+│   ├── useNetworkStatus.ts   # Network connectivity monitoring
+│   ├── useOfflineSync.ts     # Offline data synchronization
+│   └── useRetry.ts           # Retry logic for failed requests
+│
+├── 🛠️ utils/                 # Utility functions
+│   ├── tokenManager.ts       # JWT token storage & management
+│   ├── offlineCache.ts       # Analytics caching & offline support
+│   ├── errorUtils.ts         # Error handling utilities
+│   ├── wrappedMessages.ts    # Dynamic wrapped journey messages
+│   └── testErrorScenarios.ts # Error testing utilities
 │
 ├── 📊 types/                 # TypeScript definitions
 │   └── api.ts                # API response types
@@ -274,9 +302,11 @@ git commit --no-verify
 │
 ├── 📜 scripts/               # Development scripts
 │   ├── setup.sh              # Automated environment setup
-│   └── verify-setup.js       # Environment verification
+│   ├── setup.bat             # Windows setup script
+│   ├── verify-setup.js       # Environment verification
+│   └── [Test scripts]        # API & integration tests
 │
-└── 📄 Configuration files    # Package.json, Docker, etc.
+└── 📄 Configuration files    # Package.json, Docker, EAS, etc.
 ```
 
 ## 🔄 CI/CD Pipeline

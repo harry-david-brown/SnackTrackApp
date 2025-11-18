@@ -5,10 +5,18 @@ import {
   RegisterResponse,
   LoginRequest,
   LoginResponse,
-  RefreshTokenRequest,
   RefreshTokenResponse,
-  LogoutRequest,
   LogoutResponse,
+  RequestPasswordResetRequest,
+  RequestPasswordResetResponse,
+  VerifyPasswordResetCodeRequest,
+  VerifyPasswordResetCodeResponse,
+  CompletePasswordResetRequest,
+  CompletePasswordResetResponse,
+  SendVerificationEmailRequest,
+  SendVerificationEmailResponse,
+  VerifyEmailCodeRequest,
+  VerifyEmailCodeResponse,
 } from '../types/api';
 import {
   storeAuthTokens,
@@ -164,6 +172,56 @@ export const authApi = {
     } catch (error) {
       return false;
     }
+  },
+
+  /**
+   * Request password reset code
+   */
+  requestPasswordReset: async (
+    data: RequestPasswordResetRequest
+  ): Promise<RequestPasswordResetResponse> => {
+    const response = await api.post<RequestPasswordResetResponse>('/auth/password/reset/request', data);
+    return response.data;
+  },
+
+  /**
+   * Verify password reset code (OTP)
+   */
+  verifyPasswordResetCode: async (
+    data: VerifyPasswordResetCodeRequest
+  ): Promise<VerifyPasswordResetCodeResponse> => {
+    const response = await api.post<VerifyPasswordResetCodeResponse>('/auth/password/reset/verify', data);
+    return response.data;
+  },
+
+  /**
+   * Complete password reset with new password
+   */
+  completePasswordReset: async (
+    data: CompletePasswordResetRequest
+  ): Promise<CompletePasswordResetResponse> => {
+    const response = await api.post<CompletePasswordResetResponse>('/auth/password/reset/complete', data);
+    return response.data;
+  },
+
+  /**
+   * Trigger verification email
+   */
+  sendVerificationEmail: async (
+    data: SendVerificationEmailRequest
+  ): Promise<SendVerificationEmailResponse> => {
+    const response = await api.post<SendVerificationEmailResponse>('/auth/email/verify/send', data);
+    return response.data;
+  },
+
+  /**
+   * Verify email with OTP
+   */
+  verifyEmailCode: async (
+    data: VerifyEmailCodeRequest
+  ): Promise<VerifyEmailCodeResponse> => {
+    const response = await api.post<VerifyEmailCodeResponse>('/auth/email/verify/confirm', data);
+    return response.data;
   },
 };
 

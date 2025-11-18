@@ -7,6 +7,7 @@ import { useOnboarding } from '../../contexts/OnboardingContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import OnboardingScreen from '../../components/OnboardingScreen';
+import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 
 const resolveAppEnv = () => {
   const extras =
@@ -102,6 +103,8 @@ export default function ProfileScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>👤 Profile</Text>
           <Text style={styles.subtitle}>Account settings</Text>
+        
+        <EmailVerificationBanner />
         
         <View style={styles.profileCard}>
           <View style={styles.avatar}>

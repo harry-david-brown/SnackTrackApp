@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import UberDataTutorial from './UberDataTutorial';
+import PasswordResetModal from './PasswordResetModal';
 import { useRouter } from 'expo-router';
 
 interface LoginScreenProps {
@@ -28,6 +29,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(true); // Default to registration
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const { register, login, state, clearError } = useUser();
   const { completeOnboarding } = useOnboarding();
   const router = useRouter();
@@ -106,11 +108,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
-        
-        // New users see the tutorial after registration
+        // Email verification is optional - proceed to tutorial regardless
         setShowTutorial(true);
       } else {
         await login(email.trim().toLowerCase(), password);
+        // Email verification is optional - proceed to app regardless
         if (!showTutorial) {
           onLoginSuccess?.();
           router.replace('/(tabs)');
@@ -131,6 +133,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     if (state.isAuthenticated && state.user) {
       router.replace('/(tabs)');
     }
+  };
+
+
+  const openPasswordReset = () => {
+    setShowPasswordReset(true);
+  };
+
+  const closePasswordReset = () => {
+    setShowPasswordReset(false);
   };
 
   // Show tutorial as full-screen overlay
@@ -222,6 +233,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 </View>
               )}
 
+              {!isRegistering && (
+                <TouchableOpacity onPress={openPasswordReset}>
+                  <Text style={styles.forgotPassword}>Forgot password?</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
                 onPress={handleSubmit}
@@ -268,6 +285,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PasswordResetModal
+        visible={showPasswordReset}
+        defaultEmail={email}
+        onClose={closePasswordReset}
+      />
     </SafeAreaView>
   );
 };
@@ -373,6 +396,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -443,5 +472,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 });
+
+// Modals live outside component tree return? need to ensure we include them before closing
 
 export default LoginScreen;
