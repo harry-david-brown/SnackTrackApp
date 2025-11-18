@@ -38,17 +38,24 @@ export function initSentry(): void {
         // Filter out development-only errors
         if (__DEV__ && event.exception) {
           const error = hint.originalException;
-          // Skip known development errors
+          // Skip known development errors (warnings)
           if (error instanceof Error && error.message.includes('Warning:')) {
             return null;
           }
+          // Don't filter out actual errors - we want to see them even in dev
         }
         return event;
       },
       
-      // Native crash reporting
+      // Native crash reporting - automatically enabled
       enableNativeCrashHandling: true,
       enableNativeNagger: false,
+      
+      // Automatic error catching is enabled by default
+      // Sentry will automatically catch:
+      // - Unhandled JavaScript errors
+      // - Unhandled promise rejections  
+      // - Native crashes (iOS/Android)
       
       // Additional context
       initialScope: {
@@ -158,5 +165,30 @@ export function captureException(error: Error, context?: Record<string, any>): v
  */
 export function captureMessage(message: string, level: Sentry.SeverityLevel = 'info'): void {
   Sentry.captureMessage(message, level);
+}
+
+/**
+ * Start a performance span/transaction
+ * Use this to track custom operations (API calls, screen loads, etc.)
+ * Note: Uses Sentry.startSpan for React Native compatibility
+ */
+export function startTransaction<T>(name: string, op: string, callback: (span: any) => T): T {
+  return Sentry.startSpan(
+    {
+      name,
+      op,
+    },
+    callback
+  );
+}
+
+/**
+ * Track screen navigation performance
+ * Call this when a screen loads
+ */
+export function trackScreenLoad(screenName: string): void {
+  startTransaction(`Screen: ${screenName}`, 'navigation', () => {
+    // Screen load is tracked automatically when the callback completes
+  });
 }
 

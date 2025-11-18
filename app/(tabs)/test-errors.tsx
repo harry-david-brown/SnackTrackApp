@@ -11,6 +11,7 @@ import { ErrorThrower } from '../../components/ErrorThrower';
 import { parseApiError } from '../../utils/errorUtils';
 import { testErrorScenarios, createFailingApi } from '../../utils/testErrorScenarios';
 import { captureException } from '../../utils/sentry';
+import * as Sentry from '@sentry/react-native';
 
 function TestErrorsScreen() {
   const [isLoading, setIsLoading] = useState(false);
@@ -156,6 +157,80 @@ function TestErrorsScreen() {
     }
   };
 
+  const testAutomaticErrorCatching = () => {
+    // This will throw an unhandled error that Sentry should catch automatically
+    // We're NOT calling captureException - this tests if Sentry catches it on its own
+    setData({
+      success: true,
+      message: '⚠️ About to throw unhandled error - check Sentry in a few seconds!',
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Throw error in next tick so UI updates first
+    setTimeout(() => {
+      // This error is NOT manually sent to Sentry
+      // If Sentry is working, it should catch this automatically
+      throw new Error('🧪 AUTOMATIC ERROR TEST - This error was NOT manually sent to Sentry. If you see this in Sentry, automatic error catching is working!');
+    }, 1000);
+  };
+
+  const testSentryPerformance = async () => {
+    try {
+      // Use Sentry.startSpan directly (React Native compatible API)
+      await Sentry.startSpan(
+        {
+          name: 'Test Performance Transaction',
+          op: 'test',
+        },
+        async (span) => {
+          // Simulate some work with a child span
+          await Sentry.startSpan(
+            {
+              name: 'Simulated API call',
+              op: 'http',
+            },
+            async () => {
+              // Simulate API call delay
+              await new Promise<void>((resolve) => {
+                setTimeout(() => {
+                  resolve();
+                }, 500);
+              });
+            }
+          );
+          
+          // Simulate main transaction work
+          await new Promise<void>((resolve) => {
+            setTimeout(() => {
+              resolve();
+            }, 100);
+          });
+        }
+      );
+      
+      setData({
+        success: true,
+        message: '✅ Test performance transaction sent! Check Performance/Discover in Sentry.',
+        timestamp: new Date().toISOString(),
+      });
+      
+      console.log('✅ Sentry performance transaction sent');
+    } catch (err) {
+      // Report the error to Sentry
+      const error = err instanceof Error ? err : new Error(String(err));
+      captureException(error, {
+        source: 'test-sentry-performance',
+        test: true,
+      });
+      
+      console.error('Failed to send Sentry performance transaction:', err);
+      setError({
+        message: `Failed to send performance transaction: ${error.message}`,
+        type: 'server',
+      });
+    }
+  };
+
   const simulateSuccess = async () => {
     setIsLoading(true);
     setError(null);
@@ -266,7 +341,25 @@ function TestErrorsScreen() {
             disabled={isLoading}
           >
             <Ionicons name="bug" size={20} color="white" />
-            <Text style={styles.testButtonText}>Test Sentry</Text>
+            <Text style={styles.testButtonText}>Test Sentry Error</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { backgroundColor: '#FF9800' }]}
+            onPress={testSentryPerformance}
+            disabled={isLoading}
+          >
+            <Ionicons name="speedometer" size={20} color="white" />
+            <Text style={styles.testButtonText}>Test Sentry Performance</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { backgroundColor: '#E91E63' }]}
+            onPress={testAutomaticErrorCatching}
+            disabled={isLoading}
+          >
+            <Ionicons name="flash" size={20} color="white" />
+            <Text style={styles.testButtonText}>Test Automatic Error Catch</Text>
           </TouchableOpacity>
         </View>
 
