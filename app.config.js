@@ -36,18 +36,15 @@ export default {
       favicon: "./assets/favicon.png"
     },
     extra: {
-      // Environment-specific API URLs
-      apiUrl: process.env.EXPO_PUBLIC_API_URL || 
-              (process.env.NODE_ENV === 'production' 
-                ? 'https://snacktrackapi-production.up.railway.app'  // Production API URL
-                : 'https://snacktrackapi-production.up.railway.app'),      // Development fallback
+      // Default to Railway production API
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://snacktrackapi-production.up.railway.app',
       eas: {
         projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
       },
       router: {
         origin: "snacktrack://"
       },
-      appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'production'
+      appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'development'
     }
   }
 };

@@ -1,6 +1,6 @@
 # 📱 Snack Track App
 
-A React Native/Expo app that connects to the Snack Track API to automatically track your food spending through **Uber CSV imports** and provides beautiful analytics and social sharing features.
+A React Native/Expo app that automatically tracks your food spending through **Uber CSV imports** and provides beautiful analytics and social sharing features.
 
 ## 📋 Project Progress
 
@@ -60,29 +60,14 @@ A React Native/Expo app that connects to the Snack Track API to automatically tr
 
 ---
 
-## 🔐 Authentication & Security
+## 🚀 Getting Started (New Developers)
 
-### JWT-Based Authentication
-This app uses **secure JWT authentication** with the backend API:
+### Prerequisites
+- **Node.js** 20+ (LTS recommended)
+- **Docker** Desktop
+- **Git**
 
-- **Registration:** Email + password (8+ chars, 1 uppercase, 1 number)
-- **Login:** Email + password authentication
-- **Token Management:** Automatic refresh every 15 minutes
-- **Session Persistence:** Tokens stored in encrypted Keychain/Keystore via Expo SecureStore
-- **Auto-Logout:** Expired sessions redirect to login
-
-### Quick Auth Flow
-1. **First-time users:** Sign up with email and password
-2. **Returning users:** Sign in (tokens stored securely)
-3. **Upload data:** CSV or ZIP files
-4. **View analytics:** Spending insights and trends
-5. **Share:** Spotify Wrapped-style viral journey
-
----
-
-## 🚀 Quick Start
-
-**Prerequisites:** Node.js 20+ (LTS recommended), Docker, Git
+### Quick Setup (5 minutes)
 
 1. **Clone and setup**
    ```bash
@@ -90,152 +75,111 @@ This app uses **secure JWT authentication** with the backend API:
    cd SnackTrackApp
    npm run setup
    ```
-
-   > **Heads up:** Expo now defaults to the production API (`https://snacktrackapi-production.up.railway.app`).
-   > If you're running the backend locally, create a `.env.local` file with:
-   > ```
-   > EXPO_PUBLIC_API_URL=http://localhost:3000
-   > EXPO_PUBLIC_APP_ENV=development
-   > ```
-   > (Replace `localhost` with your LAN IP when testing on devices.)
    
-   **Windows users:** Open Command Prompt or PowerShell, navigate to the project folder, then run:
-   ```bash
-   scripts\setup.bat
-   ```
+   The setup script will:
+   - ✅ Check system requirements
+   - ✅ Install dependencies
+   - ✅ Create `.env` file with default configuration
+   - ✅ Start development databases
+   
+   **Windows users:** Run `scripts\setup.bat` instead
 
-2. **Start the Snack Track API** (required for real data / local testing)
+2. **Configure API URL** (optional)
+   
+   The setup script creates a `.env` file with Railway production API as default. You can update it if needed:
    ```bash
-   # In a separate terminal, start the API project
+   # .env (defaults to Railway production)
+   EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app
+   EXPO_PUBLIC_APP_ENV=development
+   ```
+   
+   **Default:** `EXPO_PUBLIC_API_URL` defaults to Railway production API
+   - **Default**: `https://snacktrackapi-production.up.railway.app` (Railway production)
+   - **Local dev**: `http://localhost:3000` (if running backend locally)
+   - **Mobile testing**: `http://YOUR_IP:3000` (use your computer's IP for local backend)
+   
+   > ℹ️ **The app defaults to Railway production API. Set `EXPO_PUBLIC_API_URL` only if you need a different API.**
+
+3. **Start the backend API** (in a separate terminal)
+   ```bash
    cd path/to/SnackTrackAPI
    docker-compose up --build -d
    ```
 
-3. **Start the app**
+4. **Start the app**
    ```bash
    npm start
    # Press 'w' to open in browser
    ```
 
-## 🗄️ Development Environment
+5. **Verify setup**
+   ```bash
+   npm run verify
+   ```
 
-### **API Dependency**
-- **Required**: Snack Track API must be running and accessible
-- **Development**: Configure API URL in `.env` file (see below)
-- **Production**: Set `EXPO_PUBLIC_API_URL` environment variable
-- **Critical**: CSV uploads and write operations require real API (no mock fallbacks)
-- 📖 **See [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) for complete configuration guide**
+### Troubleshooting
 
-### **Environment Setup**
-- **Docker**: PostgreSQL + Redis containers for development
-- **Ports**: App (8082), PostgreSQL (5433), Redis (6380)
-- **Hot Reload**: Automatic refresh on file changes
+**App won't start?**
+- Check that `EXPO_PUBLIC_API_URL` is set in `.env`
+- Run `npm run verify` to check all requirements
 
-### **API Connection Behavior**
-- ✅ **API Running**: Real data from your Snack Track database
-- ⚠️ **API Down (Development)**: Limited mock data for UI testing only
-- 🚨 **API Down (Production)**: Shows error messages, no silent fallbacks
-- 🔒 **Critical Operations**: CSV uploads always require real API connection
+**Can't connect to API?**
+- Ensure the backend API is running (`docker-compose up -d`)
+- For mobile testing, use your computer's IP address instead of `localhost`
 
-### **Development Without API** *(Development Mode Only)*
-If the Snack Track API is not accessible:
-- **Authentication**: Mock login allowed for UI testing
-- **Dashboard**: May show sample data with realistic numbers
-- **CSV Upload**: ❌ **REQUIRES REAL API** - Will show error if API unavailable
-- **Development**: Can test UI components with mock data
-- **Console**: Clear warnings about using mock fallbacks
-- **Production**: ⚠️ Mock fallbacks are **completely disabled**
+**Need help?**
+- Check the [Development Guide](#-development-guide) below
+- Run `npm run verify` for setup diagnostics
 
-## 📱 Mobile Testing
+---
 
-### **Quick Start**
-1. **Install Expo Go** on your mobile device
+## 🛠️ Development Guide
+
+### Environment Variables
+
+**Optional (with defaults):**
+- `EXPO_PUBLIC_API_URL` - API base URL, defaults to `https://snacktrackapi-production.up.railway.app` (Railway production)
+- `EXPO_PUBLIC_APP_ENV` - Environment type (`development`, `staging`, `production`), defaults to `development`
+
+The `npm run setup` script creates a `.env` file automatically with Railway production API as default. Edit it to customize your configuration (e.g., for local development).
+
+### Development Commands
+
+```bash
+# App Development
+npm start              # Start Expo dev server
+npm run start:clean    # Clean start (kills existing processes)
+npm run stop-expo     # Stop all Expo/Metro processes
+
+# Code Quality
+npm run lint          # Run ESLint
+npm run type-check    # TypeScript type checking
+npm test             # Run tests
+npm run ci           # Run all CI checks (type-check + lint + test)
+npm run verify       # Verify setup and environment
+```
+
+### Mobile Testing
+
+1. **Install Expo Go** on your device
    - iOS: [App Store](https://apps.apple.com/app/expo-go/id982107779)
    - Android: [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
 
-2. **Start development server**
+2. **Start the dev server**
    ```bash
    npx expo start
    ```
 
-3. **Open in Expo Go** and start testing!
+3. **Open Expo Go** the development server should show up automatically. Or scan the QR code in your terminal
 
-### **API Connection for Mobile**
-For mobile devices to connect to your local API:
-
-1. Find your computer's IP address:
-   ```bash
-   ip addr show  # Linux
-   ifconfig      # Mac
-   ```
-
-2. Create `.env.local`:
-   ```bash
-   EXPO_PUBLIC_API_URL=http://YOUR_IP_ADDRESS:3000
-   ```
-
-3. Restart Expo to apply changes
-
-### **Benefits**
-- ✅ No complex setup required
-- ✅ Works on iOS and Android
-- ✅ Instant hot reload
-- ✅ Test native features (camera, sharing, etc.)
+**For mobile to connect to local API:**
+- Find your computer's IP: `ip addr show` (Linux) or `ifconfig` (Mac)
+- Update `.env`: `EXPO_PUBLIC_API_URL=http://YOUR_IP:3000` (overrides Railway default)
+- Restart Expo
 
 
 
-## 📊 API Integration
-
-**Base URL:** `http://localhost:3000` (your Snack Track API)
-
-### **Connected Endpoints**
-- `GET /database/users` - Real user data
-- `GET /validation/user/{userId}/summary` - Analytics data
-- `GET /users/{userId}/totalSpent` - Spending totals
-- `POST /users/create` - User creation (with fallback)
-
-### **Real Data Display**
-- **Total Spent**: Shows actual spending from database
-- **Receipt Count**: Displays real receipt numbers
-- **Top Restaurants**: Real restaurant rankings with spending
-- **Monthly Breakdown**: Actual spending trends
-
-## 🛠️ Development Commands
-
-### **App Development**
-```bash
-npm start              # Start Expo development server
-npm run start:clean    # Clean start (kills existing processes)
-npm run web           # Open in web browser
-npx expo start        # Start for mobile testing (Expo Go)
-npm run stop-expo     # Stop all Expo/Metro processes
-```
-
-### **Database Management**
-```bash
-npm run db:start      # Start PostgreSQL + Redis
-npm run db:stop       # Stop database containers
-npm run db:reset      # Reset database (removes all data)
-npm run db:logs       # View database logs
-```
-
-### **Code Quality**
-```bash
-npm run lint          # Run ESLint
-npm run type-check    # Run TypeScript compiler check
-npm test             # Run tests
-npm run ci           # Run all CI checks locally (type-check + lint + test)
-npm run verify       # Verify setup and environment
-npm run clean        # Clean install dependencies
-```
-
-### **Pre-Commit Hooks**
-Pre-commit hooks automatically run `type-check` and `lint` before each commit to catch errors early.
-
-**To skip** (not recommended):
-```bash
-git commit --no-verify
-```
+---
 
 ## 📁 Project Structure
 
@@ -243,104 +187,97 @@ git commit --no-verify
 📱 Snack Track App/
 ├── 🏠 app/                   # Expo Router pages
 │   ├── (tabs)/               # Tab navigation screens
-│   │   ├── index.tsx         # Dashboard with real data
-│   │   ├── upload.tsx        # CSV/ZIP Upload functionality
-│   │   ├── wrapped-journey.tsx # Spotify Wrapped-style analytics journey
-│   │   ├── profile.tsx       # User Profile
-│   │   └── test-errors.tsx  # Error testing (dev only)
-│   ├── _layout.tsx           # Root layout with providers
-│   └── index.tsx             # Authentication flow
+│   │   ├── index.tsx         # Dashboard
+│   │   ├── upload.tsx        # CSV/ZIP Upload
+│   │   ├── wrapped-journey.tsx # Analytics journey
+│   │   └── profile.tsx        # User Profile
+│   ├── _layout.tsx           # Root layout
+│   └── index.tsx             # Authentication
 │
 ├── 🔧 components/            # Reusable components
 │   ├── LoginScreen.tsx       # Authentication UI
-│   ├── PasswordResetModal.tsx # Password reset flow (4-step)
-│   ├── EmailVerificationModal.tsx # Email verification OTP
-│   ├── EmailVerificationBanner.tsx # Non-intrusive verification prompt
-│   ├── UberDataUpload.tsx    # ZIP/CSV file upload component
-│   ├── UberDataTutorial.tsx # Step-by-step upload guide
-│   ├── OnboardingScreen.tsx # User onboarding flow
-│   ├── WrappedShareJourney.tsx # Spotify-style analytics journey
-│   ├── WrappedJourneyLoader.tsx # Processing screen with animations
-│   ├── ShareableGraphics.tsx # Social sharing graphics
-│   ├── SocialShareModal.tsx  # Native share sheet integration
-│   ├── InsightsPanel.tsx     # Analytics insights display
-│   ├── CategoryAnalysisChart.tsx # Spending category charts
-│   ├── RestaurantBreakdownChart.tsx # Restaurant analytics
-│   ├── SpendingTrendChart.tsx # Trend visualization
-│   ├── NetworkStatusIndicator.tsx # Offline/online status
-│   ├── ErrorBoundary.tsx     # Error boundary component
-│   └── [Other UI components] # Loading, animations, etc.
+│   ├── PasswordResetModal.tsx # Password reset flow
+│   ├── EmailVerificationModal.tsx # Email verification
+│   ├── UberDataUpload.tsx    # File upload
+│   ├── WrappedShareJourney.tsx # Analytics journey
+│   └── [Other components]   # Charts, sharing, etc.
 │
-├── 🎣 contexts/              # React Context providers
-│   ├── UserContext.tsx       # User state & authentication
-│   └── OnboardingContext.tsx # Onboarding flow state
+├── 🎣 contexts/              # React Context
+│   ├── UserContext.tsx       # User state & auth
+│   └── OnboardingContext.tsx # Onboarding state
 │
 ├── 🌐 services/              # API services
-│   ├── api.ts                # Real API client with interceptors
-│   ├── authApi.ts            # Authentication endpoints (login, register, reset)
-│   ├── analyticsApi.ts       # Analytics & wrapped data API
-│   └── mockApi.ts            # Mock API fallback (dev only)
+│   ├── api.ts                # API client
+│   ├── authApi.ts            # Authentication
+│   └── analyticsApi.ts       # Analytics
 │
-├── 🪝 hooks/                 # Custom React hooks
-│   ├── useNetworkStatus.ts   # Network connectivity monitoring
-│   ├── useOfflineSync.ts     # Offline data synchronization
-│   └── useRetry.ts           # Retry logic for failed requests
+├── 🪝 hooks/                 # Custom hooks
+│   ├── useNetworkStatus.ts   # Network monitoring
+│   └── useOfflineSync.ts     # Offline sync
 │
-├── 🛠️ utils/                 # Utility functions
-│   ├── tokenManager.ts       # JWT token storage & management
-│   ├── offlineCache.ts       # Analytics caching & offline support
-│   ├── errorUtils.ts         # Error handling utilities
-│   ├── wrappedMessages.ts    # Dynamic wrapped journey messages
-│   └── testErrorScenarios.ts # Error testing utilities
+├── 🛠️ utils/                 # Utilities
+│   ├── tokenManager.ts       # Token storage (SecureStore)
+│   └── offlineCache.ts       # Analytics caching
 │
-├── 📊 types/                 # TypeScript definitions
-│   └── api.ts                # API response types
-│
-├── 🐳 docker/                # Docker configuration
-│   └── postgres/
-│       └── init.sql          # Database initialization
+├── 📊 types/                 # TypeScript types
+│   └── api.ts                # API types
 │
 ├── 📜 scripts/               # Development scripts
-│   ├── setup.sh              # Automated environment setup
-│   ├── setup.bat             # Windows setup script
-│   ├── verify-setup.js       # Environment verification
-│   └── [Test scripts]        # API & integration tests
+│   ├── setup.sh              # Automated setup
+│   └── verify-setup.js       # Environment verification
 │
-└── 📄 Configuration files    # Package.json, Docker, EAS, etc.
+└── 📄 Configuration          # Package.json, Docker, etc.
 ```
+
+---
+
+## 🔐 Authentication & Security
+
+### JWT Authentication
+- **Registration/Login**: Email + password (8+ chars, 1 uppercase, 1 number)
+- **Token Management**: Automatic refresh every 15 minutes
+- **Secure Storage**: Tokens stored in encrypted Keychain/Keystore (Expo SecureStore)
+- **Session Management**: Persistent login with auto-logout on expiry
+
+### Password Reset & Email Verification
+- **Password Reset**: 4-step OTP flow (request → verify → reset → success)
+- **Email Verification**: Optional OTP-based verification (non-blocking)
+- **Rate Limiting**: Built-in protection against abuse
+
+---
 
 ## 🔄 CI/CD Pipeline
 
 **Status:** ✅ Automated quality checks on every push
 
-### **Active Checks**
-- ✅ TypeScript type checking (`npm run type-check`)
-- ✅ ESLint linting (`npm run lint`)
-- ✅ Unit tests with coverage (`npm test`)
-- ✅ Security audit (`npm audit`)
-- ✅ Code coverage tracking (Codecov)
+### Active Checks
+- ✅ TypeScript type checking
+- ✅ ESLint linting
+- ✅ Unit tests
+- ✅ Security audit
 
-### **Quick Wins Implemented**
-- ✅ Concurrency control (cancels outdated runs)
-- ✅ Job timeouts (prevents stuck pipelines)
-- ✅ Pre-commit hooks (Husky - auto-runs type-check & lint)
-- ✅ Local CI script (`npm run ci`)
+### Pre-Commit Hooks
+Automatically runs `type-check` and `lint` before each commit.
 
-### **Run Checks Locally**
+**Run checks locally:**
 ```bash
-npm run ci  # Runs all CI/CD checks before pushing
+npm run ci  # Runs all CI checks
 ```
-
-### **Production Enhancements (Before Launch)**
-- [ ] Enable branch protection (require PR reviews)
-- [ ] Add CodeQL security scanning
-- [ ] Set up deployment workflows (staging/production)
-- [ ] Add E2E testing with Detox
-- [ ] Bundle size monitoring
-- [ ] Performance benchmarking
 
 ---
 
 ## 🤝 Contributing
 
-### **For the contributing guide read CONTRIBUTING.md**
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+
+---
+
+## 📚 Additional Resources
+
+- **Launch Checklist**: [LAUNCH_TODO.md](./LAUNCH_TODO.md)
+- **Backend Integration**: See backend project documentation
+- **Production Guide**: [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) (coming soon)
+
+---
+
+**Questions?** Run `npm run verify` to diagnose setup issues, or check the troubleshooting section above.

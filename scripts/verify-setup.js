@@ -65,6 +65,83 @@ const checks = [
     }
   },
   {
+    name: 'Environment Variables',
+    check: () => {
+      try {
+        // Load .env file if it exists
+        if (fs.existsSync('.env')) {
+          const envContent = fs.readFileSync('.env', 'utf8');
+          const envLines = envContent.split('\n');
+          const envVars = {};
+          
+          envLines.forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#')) {
+              const [key, ...valueParts] = trimmed.split('=');
+              if (key && valueParts.length > 0) {
+                envVars[key.trim()] = valueParts.join('=').trim();
+              }
+            }
+          });
+          
+          // Check for empty variables (API URL has default, so only check if explicitly set but empty)
+          const empty = [];
+          
+          // Check if EXPO_PUBLIC_API_URL is explicitly set but empty
+          const apiUrlValue = envVars['EXPO_PUBLIC_API_URL'] || process.env['EXPO_PUBLIC_API_URL'];
+          if (apiUrlValue && apiUrlValue.trim() === '') {
+            empty.push('EXPO_PUBLIC_API_URL');
+          }
+          
+          if (empty.length > 0) {
+            console.log(`❌ Empty environment variables: ${empty.join(', ')}`);
+            console.log('   These variables are set but have no value.');
+            console.log('   Remove them from .env to use the default (Railway production), or provide a valid value.');
+            return false;
+          }
+          
+          // Validate API URL format (if set, otherwise will use Railway default)
+          const apiUrl = envVars['EXPO_PUBLIC_API_URL'] || process.env['EXPO_PUBLIC_API_URL'];
+          if (apiUrl) {
+            try {
+              new URL(apiUrl);
+              console.log(`✅ EXPO_PUBLIC_API_URL is set: ${apiUrl}`);
+            } catch (error) {
+              console.log(`❌ EXPO_PUBLIC_API_URL is not a valid URL: ${apiUrl}`);
+              return false;
+            }
+          } else {
+            console.log('ℹ️  EXPO_PUBLIC_API_URL not set (will use Railway production default: https://snacktrackapi-production.up.railway.app)');
+          }
+          
+          // Check optional APP_ENV
+          const appEnv = envVars['EXPO_PUBLIC_APP_ENV'] || process.env['EXPO_PUBLIC_APP_ENV'];
+          if (appEnv) {
+            const validEnvs = ['development', 'staging', 'production'];
+            if (validEnvs.includes(appEnv)) {
+              console.log(`✅ EXPO_PUBLIC_APP_ENV is set: ${appEnv}`);
+            } else {
+              console.log(`⚠️  EXPO_PUBLIC_APP_ENV has invalid value: ${appEnv}`);
+              console.log(`   Valid values: ${validEnvs.join(', ')}`);
+            }
+          } else {
+            console.log('ℹ️  EXPO_PUBLIC_APP_ENV not set (will default to "development")');
+          }
+          
+          return true;
+        } else {
+          console.log('⚠️  .env file not found, cannot validate environment variables');
+          console.log('   Create a .env file with: EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app');
+          console.log('   (Or leave unset to use Railway production as default)');
+          return false;
+        }
+      } catch (error) {
+        console.log(`❌ Error validating environment variables: ${error.message}`);
+        return false;
+      }
+    }
+  },
+  {
     name: 'Dependencies',
     check: () => {
       if (fs.existsSync('node_modules')) {

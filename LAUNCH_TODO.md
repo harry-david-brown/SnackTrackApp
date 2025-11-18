@@ -15,11 +15,13 @@ The list below captures every change we still need before shipping the productio
 - [x] **Move auth tokens to secure storage**  
   Migrated sensitive tokens (access & refresh) from AsyncStorage to Expo SecureStore/Keychain for encrypted storage. Non-sensitive data (user data, user ID, expiry) remains in AsyncStorage. Updated all token operations and tests in `__tests__/tokenManager.test.ts`.
 
-- [ ] **Hard-stop on missing env configuration**  
-  `services/api.ts` and `eas.json` silently fall back to the Railway production API, which risks accidental prod writes. Implement environment modules (`config/env.ts`) that:  
-  - Fail `expo start` if `EXPO_PUBLIC_API_URL` is absent  
-  - Separate dev/staging/prod API URLs and `EXPO_PUBLIC_APP_ENV` values  
-  - Automate population via `.env.*` files + CI validation (`npm run verify`)
+- [x] **Hard-stop on missing env configuration**  
+  Implemented environment validation in `config/env.ts` that:  
+  - Fails `expo start` if `EXPO_PUBLIC_API_URL` is absent or invalid (via `scripts/validate-env.js`)  
+  - Validates URL format and required variables before app starts  
+  - Supports dev/staging/prod environments via `EXPO_PUBLIC_APP_ENV`  
+  - Updated `scripts/verify-setup.js` to validate env vars  
+  - Updated `services/api.ts` to use validated config module
 
 - [ ] **Create the missing `PRODUCTION_READINESS.md`**  
   README references this file but it doesn’t exist. Document end-to-end launch steps: env vars, Expo build commands, EAS submit, release trains, rollback steps, and compliance/privacy requirements. Treat it as the single source for “how to ship.”

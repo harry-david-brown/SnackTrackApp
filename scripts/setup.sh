@@ -103,18 +103,15 @@ setup_environment() {
         else
             # Create a basic .env file if .env.example doesn't exist
             cat > .env << EOF
-# API Configuration
-API_BASE_URL=http://localhost:3000
+# Snack Track App - Environment Configuration
+# API Base URL (defaults to Railway production)
+EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app
 
-# App Configuration
-APP_NAME=Snack Track
-APP_VERSION=1.0.0
-
-# Development
-NODE_ENV=development
-DEBUG=true
+# Optional: App Environment (development, staging, production)
+EXPO_PUBLIC_APP_ENV=development
 EOF
-            print_success "Created basic .env file"
+            print_success "Created .env file with Railway production API as default"
+            print_warning "Update EXPO_PUBLIC_API_URL if you need to use a different API (e.g., local development)"
         fi
     else
         print_warning ".env file already exists, skipping..."

@@ -63,20 +63,16 @@ if not exist .env (
     ) else (
         echo [INFO] Creating basic .env file...
         (
-            echo # API Configuration
-            echo EXPO_PUBLIC_API_URL=http://localhost:3000
+            echo # Snack Track App - Environment Configuration
+            echo # API Base URL (defaults to Railway production)
+            echo EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app
             echo.
-            echo # App Configuration
-            echo APP_NAME=Snack Track
-            echo APP_VERSION=1.0.0
-            echo.
-            echo # Development
-            echo NODE_ENV=development
-            echo DEBUG=true
+            echo # Optional: App Environment (development, staging, production)
+            echo EXPO_PUBLIC_APP_ENV=development
         ) > .env
-        echo [SUCCESS] Created .env file
+        echo [SUCCESS] Created .env file with Railway production API as default
         echo.
-        echo IMPORTANT: Edit .env and set EXPO_PUBLIC_API_URL to your backend API
+        echo NOTE: Update EXPO_PUBLIC_API_URL if you need to use a different API (e.g., local development)
     )
     echo.
 ) else (

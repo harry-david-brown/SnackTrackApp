@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start --port 8082",
-    "start:clean": "pkill -f 'expo start' || pkill -f 'metro' || true; sleep 2; expo start --port 8082",
+    "start": "node scripts/validate-env.js && expo start --port 8082",
+    "start:clean": "pkill -f 'expo start' || pkill -f 'metro' || true; sleep 2; node scripts/validate-env.js && expo start --port 8082",
     "web": "expo start --web --port 8082",
     "stop-expo": "pkill -f 'expo start' || pkill -f 'metro' || true",
     "dev": "expo start --dev-client",

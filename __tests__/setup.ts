@@ -1,5 +1,9 @@
 // Jest setup file
 
+// Set up test environment variables before any imports
+process.env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://test-api.example.com';
+process.env.EXPO_PUBLIC_APP_ENV = process.env.EXPO_PUBLIC_APP_ENV || 'development';
+
 // Mock Expo modules
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -43,4 +47,16 @@ jest.mock('@tanstack/react-query', () => ({
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => children,
   useQuery: jest.fn(),
   useMutation: jest.fn(),
+}));
+
+// Mock Expo Constants for environment config
+jest.mock('expo-constants', () => ({
+  default: {
+    expoConfig: {
+      extra: {
+        apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://test-api.example.com',
+        appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'development',
+      },
+    },
+  },
 }));

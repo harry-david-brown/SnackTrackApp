@@ -1,5 +1,5 @@
 import axios from 'axios';
-import Constants from 'expo-constants';
+import { getConfig } from '../config/env';
 import { 
   User, 
   Receipt, 
@@ -11,33 +11,15 @@ import {
   PaginationResponse 
 } from '../types/api';
 
-// Get API URL from environment with proper fallbacks
-const getApiUrl = () => {
-  // 1. Check explicit environment variable (highest priority)
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  
-  // 2. Check app.config.js extra config
-  if (Constants.expoConfig?.extra?.apiUrl) {
-    return Constants.expoConfig.extra.apiUrl;
-  }
-  
-  // 3. Development fallback - this should only be used in dev
-  if (__DEV__) {
-    console.warn('⚠️ No API URL configured. Using Railway production. For custom API, set EXPO_PUBLIC_API_URL in .env');
-    return 'https://snacktrackapi-production.up.railway.app';
-  }
-  
-  // 4. Production - this should never happen if properly configured
-  throw new Error('API_URL not configured! Set EXPO_PUBLIC_API_URL environment variable.');
-};
+// Get validated API URL from environment configuration
+// This will throw an error if EXPO_PUBLIC_API_URL is not set
+const config = getConfig();
+const API_BASE_URL = config.apiUrl;
 
-const API_BASE_URL = getApiUrl();
-
-// Log the API URL in development for debugging
+// Log the API URL and environment in development for debugging
 if (__DEV__) {
   console.log('🌐 API Base URL:', API_BASE_URL);
+  console.log('🔧 App Environment:', config.appEnv);
 }
 
 const api = axios.create({
