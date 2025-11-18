@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
@@ -38,7 +37,6 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
     markEmailVerified();
     setShowModal(false);
     setIsDismissed(true);
-    Alert.alert('Email Verified', 'Your email has been verified successfully!');
   };
 
   return (

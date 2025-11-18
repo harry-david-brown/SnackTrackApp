@@ -95,7 +95,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     try {
       setIsVerifying(true);
       await authApi.verifyEmailCode({ email, code });
-      Alert.alert('Email Verified', 'Thanks! Your email is now confirmed.');
+      Alert.alert('Email Verified', 'Your email has been verified successfully!');
       onVerified();
     } catch (err: any) {
       // Handle backend error format: error.error?.message
