@@ -148,6 +148,18 @@ api.interceptors.response.use(
       console.log(`❌ API Error ${status} on ${url}: ${errorMsg}`);
     }
 
+    // Report server errors (5xx) to Sentry - these indicate backend issues
+    if (error.response && error.response.status >= 500) {
+      const { captureException } = await import('../utils/sentry');
+      const apiError = new Error(`API Server Error: ${error.response.status} ${originalRequest?.url || 'unknown'}`);
+      captureException(apiError, {
+        statusCode: error.response.status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+        responseData: error.response.data,
+      });
+    }
+
     // Handle other errors (400, 403, 409, 500, etc.) - just pass them through
     return Promise.reject(error);
   }

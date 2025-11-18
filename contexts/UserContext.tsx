@@ -13,6 +13,7 @@ import {
   AUTH_STORAGE_KEYS 
 } from '../utils/tokenManager';
 import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
+import { setSentryUser, clearSentryUser } from '../utils/sentry';
 
 // User state interface
 interface UserState {
@@ -244,6 +245,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       dispatch({ type: 'SET_USER', payload: user });
       
+      // Set Sentry user context for error tracking
+      setSentryUser(response.userId, response.email);
+      
       if (__DEV__) {
         console.log('✅ User registered successfully:', email);
       }
@@ -294,6 +298,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
 
       dispatch({ type: 'SET_USER', payload: user });
+      
+      // Set Sentry user context for error tracking
+      setSentryUser(response.userId, response.email);
       
       // Load analytics immediately after login to populate dashboard data
       try {
@@ -354,10 +361,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Clear local storage
       await clearUserStorage();
       
+      // Clear Sentry user context
+      clearSentryUser();
+      
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       // Still dispatch logout even if API call fails
       await clearUserStorage();
+      
+      // Clear Sentry user context
+      clearSentryUser();
+      
       dispatch({ type: 'LOGOUT' });
     }
   };

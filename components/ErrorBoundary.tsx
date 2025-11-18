@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { captureException } from '../utils/sentry';
 
 interface Props {
   children: ReactNode;
@@ -27,8 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ error, errorInfo });
     
-    // TODO: Send error to crash reporting service
-    // Example: crashlytics().recordError(error);
+    // Send error to Sentry with component stack
+    captureException(error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: true,
+    });
   }
 
   handleRetry = () => {

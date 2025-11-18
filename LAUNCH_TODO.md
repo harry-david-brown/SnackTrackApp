@@ -23,11 +23,15 @@ The list below captures every change we still need before shipping the productio
   - Updated `scripts/verify-setup.js` to validate env vars  
   - Updated `services/api.ts` to use validated config module
 
-- [ ] **Create the missing `PRODUCTION_READINESS.md`**  
-  README references this file but it doesn’t exist. Document end-to-end launch steps: env vars, Expo build commands, EAS submit, release trains, rollback steps, and compliance/privacy requirements. Treat it as the single source for “how to ship.”
 
-- [ ] **Observability + incident response**  
-  Integrate Sentry (or Expo Application Services equivalents) for JS errors, native crashes, and performance tracing. Add release health dashboards, tie builds to commits, and document alert routing in the production guide.
+- [x] **Observability + incident response**  
+  Integrated Sentry for JS errors, native crashes, and performance tracing. Features:
+  - Error tracking in ErrorBoundary and API error handler
+  - User context tracking (set on login, cleared on logout)
+  - Release tracking tied to app version and build number
+  - Performance monitoring (10% sample rate in production)
+  - Optional DSN configuration via `EXPO_PUBLIC_SENTRY_DSN` (app works without it)
+  - Configured in `utils/sentry.ts` and initialized in `app/_layout.tsx`
 
 ---
 

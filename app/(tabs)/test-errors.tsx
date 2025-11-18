@@ -10,6 +10,7 @@ import { ErrorTestingPanel } from '../../components/ErrorTestingPanel';
 import { ErrorThrower } from '../../components/ErrorThrower';
 import { parseApiError } from '../../utils/errorUtils';
 import { testErrorScenarios, createFailingApi } from '../../utils/testErrorScenarios';
+import { captureException } from '../../utils/sentry';
 
 function TestErrorsScreen() {
   const [isLoading, setIsLoading] = useState(false);
@@ -125,6 +126,36 @@ function TestErrorsScreen() {
     setData(null);
   };
 
+  const testSentry = () => {
+    try {
+      // Create a test error with context
+      const testError = new Error('🧪 Test Sentry Integration - This is a test error to verify Sentry is working correctly');
+      testError.name = 'SentryTestError';
+      
+      // Capture it with Sentry
+      captureException(testError, {
+        test: true,
+        source: 'test-errors-screen',
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Also show success message in UI
+      setData({
+        success: true,
+        message: '✅ Test error sent to Sentry! Check your Sentry dashboard.',
+        timestamp: new Date().toISOString(),
+      });
+      
+      console.log('✅ Sentry test error sent - check your Sentry dashboard');
+    } catch (err) {
+      console.error('Failed to send Sentry test error:', err);
+      setError({
+        message: 'Failed to send test error to Sentry',
+        type: 'server',
+      });
+    }
+  };
+
   const simulateSuccess = async () => {
     setIsLoading(true);
     setError(null);
@@ -227,6 +258,15 @@ function TestErrorsScreen() {
           >
             <Ionicons name="server-outline" size={20} color="white" />
             <Text style={styles.testButtonText}>Server Error</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { backgroundColor: '#9C27B0' }]}
+            onPress={testSentry}
+            disabled={isLoading}
+          >
+            <Ionicons name="bug" size={20} color="white" />
+            <Text style={styles.testButtonText}>Test Sentry</Text>
           </TouchableOpacity>
         </View>
 

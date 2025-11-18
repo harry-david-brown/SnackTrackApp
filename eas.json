@@ -32,7 +32,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
-        "EXPO_PUBLIC_APP_ENV": "production"
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://3b314c536bc51fd53041e7080136638c@o4510388064419840.ingest.us.sentry.io/4510388283113472"
       }
     }
   },

@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { initSentry } from '../utils/sentry';
+
+// Initialize Sentry as early as possible
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {

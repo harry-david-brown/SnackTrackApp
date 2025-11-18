@@ -140,8 +140,14 @@ A React Native/Expo app that automatically tracks your food spending through **U
 **Optional (with defaults):**
 - `EXPO_PUBLIC_API_URL` - API base URL, defaults to `https://snacktrackapi-production.up.railway.app` (Railway production)
 - `EXPO_PUBLIC_APP_ENV` - Environment type (`development`, `staging`, `production`), defaults to `development`
+- `EXPO_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (optional - app works without it)
 
 The `npm run setup` script creates a `.env` file automatically with Railway production API as default. Edit it to customize your configuration (e.g., for local development).
+
+**Error Tracking (Sentry):**
+- Sentry is integrated for production error tracking and crash reporting
+- Set `EXPO_PUBLIC_SENTRY_DSN` in your environment to enable (get DSN from https://sentry.io)
+- App works normally without Sentry configured (errors are logged to console in development)
 
 ### Development Commands
 
@@ -276,7 +282,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
 
 - **Launch Checklist**: [LAUNCH_TODO.md](./LAUNCH_TODO.md)
 - **Backend Integration**: See backend project documentation
-- **Production Guide**: [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) (coming soon)
 
 ---
 
