@@ -68,7 +68,7 @@ This app uses **secure JWT authentication** with the backend API:
 - **Registration:** Email + password (8+ chars, 1 uppercase, 1 number)
 - **Login:** Email + password authentication
 - **Token Management:** Automatic refresh every 15 minutes
-- **Session Persistence:** Secure token storage in AsyncStorage
+- **Session Persistence:** Tokens stored in encrypted Keychain/Keystore via Expo SecureStore
 - **Auto-Logout:** Expired sessions redirect to login
 
 ### Quick Auth Flow

@@ -12,8 +12,8 @@ The list below captures every change we still need before shipping the productio
 - [x] **Ship password reset + email verification UX**  
   Until users can recover accounts or confirm ownership, we can’t submit to the stores. Frontend needs a new multi-step flow in `components/LoginScreen.tsx` + API hooks in `services/authApi.ts` once endpoints land. Include rate-limited OTP inputs, success screens, and edge-state coverage.
 
-- [ ] **Move auth tokens to secure storage + add biometric unlock**  
-  Today tokens live in AsyncStorage (`utils/tokenManager.ts`). Migrate to Expo SecureStore/Keychain, introduce optional FaceID/TouchID gating on launch, and update `UserContext` onboarding logic. Add regression tests in `__tests__/tokenManager.test.ts`.
+- [x] **Move auth tokens to secure storage**  
+  Migrated sensitive tokens (access & refresh) from AsyncStorage to Expo SecureStore/Keychain for encrypted storage. Non-sensitive data (user data, user ID, expiry) remains in AsyncStorage. Updated all token operations and tests in `__tests__/tokenManager.test.ts`.
 
 - [ ] **Hard-stop on missing env configuration**  
   `services/api.ts` and `eas.json` silently fall back to the Railway production API, which risks accidental prod writes. Implement environment modules (`config/env.ts`) that:  

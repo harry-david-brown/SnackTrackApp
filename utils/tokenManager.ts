@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-// AsyncStorage keys for authentication
+// Storage keys for authentication
+// Sensitive tokens use SecureStore, non-sensitive data uses AsyncStorage
 export const AUTH_STORAGE_KEYS = {
-  ACCESS_TOKEN: '@snacktrack_auth_token',
-  REFRESH_TOKEN: '@snacktrack_refresh_token',
-  USER_DATA: '@snacktrack_user_data',
-  USER_ID: '@snacktrack_user_id',
-  TOKEN_EXPIRES_AT: '@snacktrack_token_expires',
+  ACCESS_TOKEN: 'snacktrack_auth_token', // SecureStore (sensitive)
+  REFRESH_TOKEN: 'snacktrack_refresh_token', // SecureStore (sensitive)
+  USER_DATA: '@snacktrack_user_data', // AsyncStorage (non-sensitive)
+  USER_ID: '@snacktrack_user_id', // AsyncStorage (non-sensitive)
+  TOKEN_EXPIRES_AT: '@snacktrack_token_expires', // AsyncStorage (non-sensitive)
 } as const;
 
 // Token expiry times (in milliseconds)
@@ -34,6 +36,8 @@ const decodeJWTExpiry = (token: string): number => {
 
 /**
  * Store authentication tokens and user data
+ * Sensitive tokens (access, refresh) are stored in SecureStore
+ * Non-sensitive data (user data, user ID, expiry) are stored in AsyncStorage
  */
 export const storeAuthTokens = async (
   accessToken: string,
@@ -45,16 +49,21 @@ export const storeAuthTokens = async (
     // Get expiry time from the JWT token itself
     const expiresAt = decodeJWTExpiry(accessToken);
     
+    // Store sensitive tokens in SecureStore
     await Promise.all([
-      AsyncStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
-      AsyncStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+    ]);
+    
+    // Store non-sensitive data in AsyncStorage
+    await Promise.all([
       AsyncStorage.setItem(AUTH_STORAGE_KEYS.USER_ID, userId),
       AsyncStorage.setItem(AUTH_STORAGE_KEYS.USER_DATA, JSON.stringify(userData)),
       AsyncStorage.setItem(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT, expiresAt.toString()),
     ]);
     
     if (__DEV__) {
-      console.log('✅ Auth tokens stored successfully');
+      console.log('✅ Auth tokens stored successfully (SecureStore)');
       console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -64,11 +73,11 @@ export const storeAuthTokens = async (
 };
 
 /**
- * Get the stored access token
+ * Get the stored access token from SecureStore
  */
 export const getAccessToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+    return await SecureStore.getItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
   } catch (error) {
     console.error('Error getting access token:', error);
     return null;
@@ -76,11 +85,11 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 /**
- * Get the stored refresh token
+ * Get the stored refresh token from SecureStore
  */
 export const getRefreshToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+    return await SecureStore.getItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
   } catch (error) {
     console.error('Error getting refresh token:', error);
     return null;
@@ -142,19 +151,24 @@ export const updateAccessToken = async (
     // Get expiry time from the JWT token itself
     const expiresAt = decodeJWTExpiry(accessToken);
     
-    const updates = [
-      AsyncStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
-      AsyncStorage.setItem(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT, expiresAt.toString()),
+    // Update sensitive token in SecureStore
+    const secureUpdates = [
+      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
     ];
     
     if (refreshToken) {
-      updates.push(AsyncStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken));
+      secureUpdates.push(SecureStore.setItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken));
     }
     
-    await Promise.all(updates);
+    // Update non-sensitive expiry in AsyncStorage
+    const asyncUpdates = [
+      AsyncStorage.setItem(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT, expiresAt.toString()),
+    ];
+    
+    await Promise.all([...secureUpdates, ...asyncUpdates]);
     
     if (__DEV__) {
-      console.log('✅ Access token updated successfully');
+      console.log('✅ Access token updated successfully (SecureStore)');
       console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -168,9 +182,14 @@ export const updateAccessToken = async (
  */
 export const clearAuthTokens = async (): Promise<void> => {
   try {
+    // Clear sensitive tokens from SecureStore
     await Promise.all([
-      AsyncStorage.removeItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN),
-      AsyncStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN),
+      SecureStore.deleteItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN).catch(() => {}),
+      SecureStore.deleteItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
+    ]);
+    
+    // Clear non-sensitive data from AsyncStorage
+    await Promise.all([
       AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_ID),
       AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_DATA),
       AsyncStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT),

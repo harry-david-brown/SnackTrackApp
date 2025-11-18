@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import {
   storeAuthTokens,
   getAccessToken,
@@ -28,6 +29,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   multiRemove: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock SecureStore
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn(() => Promise.resolve()),
+  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  deleteItemAsync: jest.fn(() => Promise.resolve()),
+}));
+
 describe('Token Manager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,7 +49,7 @@ describe('Token Manager', () => {
   });
 
   describe('storeAuthTokens', () => {
-    it('should store all auth tokens and user data', async () => {
+    it('should store sensitive tokens in SecureStore and non-sensitive data in AsyncStorage', async () => {
       const accessToken = 'test-access-token';
       const refreshToken = 'test-refresh-token';
       const userId = 'test-user-id';
@@ -49,15 +57,18 @@ describe('Token Manager', () => {
 
       await storeAuthTokens(accessToken, refreshToken, userId, userData);
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledTimes(5);
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      // Sensitive tokens should be stored in SecureStore
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         AUTH_STORAGE_KEYS.ACCESS_TOKEN,
         accessToken
       );
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         AUTH_STORAGE_KEYS.REFRESH_TOKEN,
         refreshToken
       );
+      expect(SecureStore.setItemAsync).toHaveBeenCalledTimes(2);
+
+      // Non-sensitive data should be stored in AsyncStorage
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         AUTH_STORAGE_KEYS.USER_ID,
         userId
@@ -70,6 +81,7 @@ describe('Token Manager', () => {
         AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT,
         expect.any(String)
       );
+      expect(AsyncStorage.setItem).toHaveBeenCalledTimes(3);
     });
 
     it('should throw error if storage fails', async () => {
@@ -82,18 +94,18 @@ describe('Token Manager', () => {
   });
 
   describe('getAccessToken', () => {
-    it('should retrieve access token from storage', async () => {
+    it('should retrieve access token from SecureStore', async () => {
       const token = 'test-access-token';
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(token);
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(token);
 
       const result = await getAccessToken();
 
       expect(result).toBe(token);
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+      expect(SecureStore.getItemAsync).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
     });
 
     it('should return null if no token exists', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(null);
 
       const result = await getAccessToken();
 
@@ -101,7 +113,7 @@ describe('Token Manager', () => {
     });
 
     it('should return null and log error if storage fails', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
+      (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
 
       const result = await getAccessToken();
 
@@ -111,18 +123,18 @@ describe('Token Manager', () => {
   });
 
   describe('getRefreshToken', () => {
-    it('should retrieve refresh token from storage', async () => {
+    it('should retrieve refresh token from SecureStore', async () => {
       const token = 'test-refresh-token';
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(token);
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(token);
 
       const result = await getRefreshToken();
 
       expect(result).toBe(token);
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+      expect(SecureStore.getItemAsync).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
     });
 
     it('should return null and log error if storage fails', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
+      (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
 
       const result = await getRefreshToken();
 
@@ -219,12 +231,12 @@ describe('Token Manager', () => {
   });
 
   describe('updateAccessToken', () => {
-    it('should update access token and expiry', async () => {
+    it('should update access token in SecureStore and expiry in AsyncStorage', async () => {
       const newToken = 'new-access-token';
 
       await updateAccessToken(newToken);
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         AUTH_STORAGE_KEYS.ACCESS_TOKEN,
         newToken
       );
@@ -234,13 +246,13 @@ describe('Token Manager', () => {
       );
     });
 
-    it('should also update refresh token if provided', async () => {
+    it('should also update refresh token in SecureStore if provided', async () => {
       const newAccessToken = 'new-access-token';
       const newRefreshToken = 'new-refresh-token';
 
       await updateAccessToken(newAccessToken, newRefreshToken);
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
         AUTH_STORAGE_KEYS.REFRESH_TOKEN,
         newRefreshToken
       );
@@ -248,27 +260,31 @@ describe('Token Manager', () => {
   });
 
   describe('clearAuthTokens', () => {
-    it('should remove all auth-related data from storage', async () => {
+    it('should remove sensitive tokens from SecureStore and non-sensitive data from AsyncStorage', async () => {
       await clearAuthTokens();
 
-      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(5);
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+      // Sensitive tokens should be removed from SecureStore
+      expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+      expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+      expect(SecureStore.deleteItemAsync).toHaveBeenCalledTimes(2);
+
+      // Non-sensitive data should be removed from AsyncStorage
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.USER_ID);
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.USER_DATA);
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT);
+      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(3);
     });
 
     it('should not throw error if clearing fails', async () => {
-      (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(new Error('Remove error'));
+      (SecureStore.deleteItemAsync as jest.Mock).mockRejectedValueOnce(new Error('Remove error'));
 
       await expect(clearAuthTokens()).resolves.not.toThrow();
     });
   });
 
   describe('isAuthenticated', () => {
-    it('should return true if both tokens exist', async () => {
-      (AsyncStorage.getItem as jest.Mock)
+    it('should return true if both tokens exist in SecureStore', async () => {
+      (SecureStore.getItemAsync as jest.Mock)
         .mockResolvedValueOnce('access-token')
         .mockResolvedValueOnce('refresh-token');
 
@@ -278,7 +294,7 @@ describe('Token Manager', () => {
     });
 
     it('should return false if access token is missing', async () => {
-      (AsyncStorage.getItem as jest.Mock)
+      (SecureStore.getItemAsync as jest.Mock)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce('refresh-token');
 
@@ -288,7 +304,7 @@ describe('Token Manager', () => {
     });
 
     it('should return false if refresh token is missing', async () => {
-      (AsyncStorage.getItem as jest.Mock)
+      (SecureStore.getItemAsync as jest.Mock)
         .mockResolvedValueOnce('access-token')
         .mockResolvedValueOnce(null);
 
@@ -298,7 +314,7 @@ describe('Token Manager', () => {
     });
 
     it('should return false if both tokens are missing', async () => {
-      (AsyncStorage.getItem as jest.Mock)
+      (SecureStore.getItemAsync as jest.Mock)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
 
@@ -308,7 +324,7 @@ describe('Token Manager', () => {
     });
 
     it('should return false and log error if checking fails', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
+      (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
 
       const result = await isAuthenticated();
 
@@ -320,8 +336,8 @@ describe('Token Manager', () => {
 
   describe('Constants', () => {
     it('should export correct storage keys', () => {
-      expect(AUTH_STORAGE_KEYS.ACCESS_TOKEN).toBe('@snacktrack_auth_token');
-      expect(AUTH_STORAGE_KEYS.REFRESH_TOKEN).toBe('@snacktrack_refresh_token');
+      expect(AUTH_STORAGE_KEYS.ACCESS_TOKEN).toBe('snacktrack_auth_token');
+      expect(AUTH_STORAGE_KEYS.REFRESH_TOKEN).toBe('snacktrack_refresh_token');
       expect(AUTH_STORAGE_KEYS.USER_DATA).toBe('@snacktrack_user_data');
       expect(AUTH_STORAGE_KEYS.USER_ID).toBe('@snacktrack_user_id');
       expect(AUTH_STORAGE_KEYS.TOKEN_EXPIRES_AT).toBe('@snacktrack_token_expires');
