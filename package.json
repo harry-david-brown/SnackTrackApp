@@ -19,6 +19,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "ci": "npm run type-check && npm run lint && npm test -- --watchAll=false",
+    "audit": "npm audit --audit-level=moderate",
     "clean": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",
     "doctor": "expo doctor",
     "verify": "node scripts/verify-setup.js",

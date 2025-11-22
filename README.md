@@ -55,9 +55,6 @@ A React Native/Expo app that automatically tracks your food spending through **U
 - [ ] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
 
-### ⚠️ **Known Issues**
-- [ ] **Redis Cache Stale Data** - After uploading a new CSV file, the Wrapped journey and dashboard may show stale cached data from Redis instead of the newly uploaded data. This appears to be a backend caching issue where Redis cache is not being properly invalidated after CSV uploads. Workaround: User may need to wait a few minutes or manually refresh after uploading new data.
-
 ---
 
 ## 🚀 Getting Started (New Developers)

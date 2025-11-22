@@ -6,8 +6,8 @@ The list below captures every change we still need before shipping the productio
 
 ## 🔴 Critical Blockers
 
-- [ ] **Fix Redis analytics invalidation (backend)**  
-  Frontend context + instrumentation requirements are documented in `/home/harry/Projects/snack-track/docs/frontend-cache-invalidation.md`. Backend team owns the API changes; frontend will only update once fresh summaries are returned immediately after upload.
+- [x] **Fix Redis analytics invalidation (backend)**  
+  Backend team fixed cache invalidation. After uploading a new CSV file, the Wrapped journey and dashboard now properly show updated data immediately. Tested and verified working.
 
 - [x] **Ship password reset + email verification UX**  
   Until users can recover accounts or confirm ownership, we can’t submit to the stores. Frontend needs a new multi-step flow in `components/LoginScreen.tsx` + API hooks in `services/authApi.ts` once endpoints land. Include rate-limited OTP inputs, success screens, and edge-state coverage.
@@ -37,20 +37,31 @@ The list below captures every change we still need before shipping the productio
 
 ## 🟠 High Priority
 
-- [ ] **Deterministic staging environment**  
-  Stand up a staging API + Redis cluster, create a matching Expo “preview” profile in `eas.json`, and ensure preview builds use staging secrets. Add smoke tests that upload a ZIP to staging before each release.
+- [x] ~~**Deterministic staging environment**~~ **SKIPPED**  
+  Not needed for short-term viral product. Manual testing + Sentry monitoring is sufficient.
 
-- [ ] **Detox/maestro E2E suite**  
-  Cover login, CSV/ZIP upload, analytics refresh, wrapped journey, and native sharing. Gate PRs with headless runs in CI and add `npm run e2e` to the release checklist.
+- [x] ~~**Detox/maestro E2E suite**~~ **SKIPPED**  
+  High maintenance overhead for short-term project. Manual smoke testing (~10 min) is sufficient.
 
-- [ ] **CI/CD hardening**  
-  Enable GitHub branch protection (require passing CI + review), add CodeQL + dependency audit jobs, and create staged deployment workflows (dev → preview → prod) with automatic changelog generation.
+- [x] **CI/CD essentials**  
+  - [x] ~~Enable GitHub branch protection~~ **Not available on free accounts for private repos**
+    - Branch protection requires GitHub Team/Enterprise plan
+    - CI workflow still runs and provides feedback (`.github/workflows/ci.yml`)
+    - **Workaround:** Manually check CI status before merging PRs
+    - Documentation updated in `.github/BRANCH_PROTECTION_SETUP.md`
+  - [x] Add dependency audit job to CI workflow - catches security vulnerabilities automatically
+    - Created `.github/workflows/ci.yml` with dependency audit job
+    - Added `npm run audit` script to `package.json`
+    - Audit runs on every PR and push, reports vulnerabilities (doesn't block merges on free accounts)
+  - [x] ~~CodeQL~~ - Overkill for short-term project
+  - [x] ~~Staged deployment workflows~~ - No staging environment needed
+  - [x] ~~Automatic changelog generation~~ - Manual is fine
 
 - [ ] **Performance + bundle budget**  
-  Capture baseline bundle size (`expo export --platform ios,android`), enforce a budget via CI, and profile slow renders (`components/WrappedJourneyLoader.tsx`, `components/InsightsPanel.tsx`). Document remediation plan (code splitting, memoization, image optimization).
+  Capture baseline bundle size (`expo export --platform ios,android`), enforce a budget via CI, and profile slow renders (`components/WrappedJourneyLoader.tsx`, `components/InsightsPanel.tsx`). Document remediation plan (code splitting, memoization, image optimization). **Critical for viral success** - prevents crashes and slow performance during traffic spikes.
 
 - [ ] **Network/offline UX polish**  
-  Leverage existing `useNetworkStatus` + `useOfflineSync` hooks to show deterministic banners/spinners during uploads, disable duplicate submits, and queue offline uploads for retries once API supports it.
+  Leverage existing `useNetworkStatus` + `useOfflineSync` hooks to show deterministic banners/spinners during uploads, disable duplicate submits, and queue offline uploads for retries once API supports it. **Critical for viral success** - prevents user frustration and wasted backend resources during traffic spikes.
 
 ---
 
