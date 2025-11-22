@@ -79,7 +79,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       } else {
         Alert.alert('Error', 'Sharing is not available on this device');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to capture image. Please try again.');
     }
   };
@@ -142,6 +142,8 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
     </LinearGradient>
   );
 
+  // Reserved for future template selection feature
+  /*
   const renderTrendTemplate = () => (
     <LinearGradient
       colors={['#f093fb', '#f5576c']}
@@ -222,6 +224,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       </View>
     </LinearGradient>
   );
+  */
 
   return (
     <Modal

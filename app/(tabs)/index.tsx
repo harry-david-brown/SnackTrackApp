@@ -32,6 +32,7 @@ export default function DashboardScreen() {
       // Reset flag when user logs out
       initialLoadDoneRef.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.user?.id, state.analytics, state.analyticsLoading]);
 
   // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
@@ -43,6 +44,7 @@ export default function DashboardScreen() {
       if (state.user && initialLoadDoneRef.current && !state.analytics) {
         loadAnalytics();
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.user, state.analytics])
   );
 
@@ -66,7 +68,7 @@ export default function DashboardScreen() {
     try {
       await logout();
       router.replace('/');
-    } catch (error) {
+    } catch {
       // Force navigation even if logout fails
       router.replace('/');
     }

@@ -36,9 +36,9 @@ const BIG_STAT_SIZE = Math.min(84, Math.max(60, Math.round(screenWidth * 0.18)))
 const TITLE_SIZE = Math.min(46, Math.max(38, Math.round(screenWidth * 0.12)));
 const SUBTITLE_SIZE = Math.min(32, Math.max(26, Math.round(screenWidth * 0.085)));
 
-// Story export size (1080x1920)
-const EXPORT_W = 1080;
-const EXPORT_H = 1920;
+// Story export size (1080x1920) - reserved for future export functionality
+// const EXPORT_W = 1080;
+// const EXPORT_H = 1920;
 
 // Curated gradients tuned for share compression
 export const STORY_GRADIENTS = {
@@ -143,7 +143,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       if (canOpen) {
         await Linking.openURL(HELLOFRESH_CONFIG.affiliateUrl);
       }
-    } catch (error) {
+    } catch {
       // Silently fail - affiliate link is optional
     }
   };
@@ -724,15 +724,16 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
   );
 }
 
-const Title = ({ children }: { children: React.ReactNode }) => <Text style={styles.title}>{children}</Text>;
-const Subtitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.subtitle}>{children}</Text>;
-const Intro = ({ children }: { children: React.ReactNode }) => <Text style={styles.introText}>{children}</Text>;
-const SlideTitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.slideTitle}>{children}</Text>;
-const Label = ({ children }: { children: React.ReactNode }) => <Text style={styles.bigNumberLabel}>{children}</Text>;
-const BigStat = (props: any) => <Text {...props} style={[styles.bigNumber, props.style]} />;
-const Detail = ({ children }: { children: React.ReactNode }) => <View style={styles.detailBox}>{children}</View>;
-const DetailLine = ({ children }: { children: React.ReactNode }) => <Text style={styles.detailText}>{children}</Text>;
-const Roast = ({ children }: { children: React.ReactNode }) => <Text style={styles.roastText}>{children}</Text>;
+// Component helpers - currently unused but reserved for future template system
+// const Title = ({ children }: { children: React.ReactNode }) => <Text style={styles.title}>{children}</Text>;
+// const Subtitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.subtitle}>{children}</Text>;
+// const Intro = ({ children }: { children: React.ReactNode }) => <Text style={styles.introText}>{children}</Text>;
+// const SlideTitle = ({ children }: { children: React.ReactNode }) => <Text style={styles.slideTitle}>{children}</Text>;
+// const Label = ({ children }: { children: React.ReactNode }) => <Text style={styles.bigNumberLabel}>{children}</Text>;
+// const BigStat = (props: any) => <Text {...props} style={[styles.bigNumber, props.style]} />;
+// const Detail = ({ children }: { children: React.ReactNode }) => <View style={styles.detailBox}>{children}</View>;
+// const DetailLine = ({ children }: { children: React.ReactNode }) => <Text style={styles.detailText}>{children}</Text>;
+// const Roast = ({ children }: { children: React.ReactNode }) => <Text style={styles.roastText}>{children}</Text>;
 const Spacer = ({ h = 8 }: { h?: number }) => <View style={{ height: h }} />;
 
 const styles = StyleSheet.create({

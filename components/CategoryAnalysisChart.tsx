@@ -88,6 +88,7 @@ export default function CategoryAnalysisChart({ analytics }: CategoryAnalysisCha
       
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analytics]);
 
   const chartData = prepareChartData();

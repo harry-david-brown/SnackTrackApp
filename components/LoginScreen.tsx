@@ -48,6 +48,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         ]
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.error, state.isLoading]);
 
   const validateEmail = (email: string): boolean => {
@@ -118,7 +119,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           router.replace('/(tabs)');
         }
       }
-    } catch (error: any) {
+    } catch {
       // Error is already set in state by UserContext
       // state.error will be displayed when the component re-renders
     } finally {

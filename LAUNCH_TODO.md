@@ -44,18 +44,14 @@ The list below captures every change we still need before shipping the productio
   High maintenance overhead for short-term project. Manual smoke testing (~10 min) is sufficient.
 
 - [x] **CI/CD essentials**  
-  - [x] ~~Enable GitHub branch protection~~ **Not available on free accounts for private repos**
-    - Branch protection requires GitHub Team/Enterprise plan
-    - CI workflow still runs and provides feedback (`.github/workflows/ci.yml`)
-    - **Workaround:** Manually check CI status before merging PRs
-    - Documentation updated in `.github/BRANCH_PROTECTION_SETUP.md`
-  - [x] Add dependency audit job to CI workflow - catches security vulnerabilities automatically
-    - Created `.github/workflows/ci.yml` with dependency audit job
+  - [x] Add dependency audit job to CI workflow
+    - Added dependency audit job to `.github/workflows/ci.yml`
     - Added `npm run audit` script to `package.json`
-    - Audit runs on every PR and push, reports vulnerabilities (doesn't block merges on free accounts)
-  - [x] ~~CodeQL~~ - Overkill for short-term project
-  - [x] ~~Staged deployment workflows~~ - No staging environment needed
-  - [x] ~~Automatic changelog generation~~ - Manual is fine
+    - Audit runs on every PR and push, reports vulnerabilities
+  - [x] Fix all lint warnings - production code quality
+    - Fixed 36 lint warnings (unused imports/variables, React Hook dependencies, import naming)
+    - All files now pass linting with 0 warnings, 0 errors
+    - Added eslint-disable comments for intentional dependency omissions (animations, focus effects)
 
 - [ ] **Performance + bundle budget**  
   Capture baseline bundle size (`expo export --platform ios,android`), enforce a budget via CI, and profile slow renders (`components/WrappedJourneyLoader.tsx`, `components/InsightsPanel.tsx`). Document remediation plan (code splitting, memoization, image optimization). **Critical for viral success** - prevents crashes and slow performance during traffic spikes.

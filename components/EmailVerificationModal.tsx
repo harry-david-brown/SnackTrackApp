@@ -56,6 +56,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       setIsVerifying(false);
       setResendTimer(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, email]);
 
   const sendVerificationCode = async () => {

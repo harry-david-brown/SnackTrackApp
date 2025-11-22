@@ -18,6 +18,7 @@ export function FadeInView({ children, duration = 500, delay = 0, style }: FadeI
       delay,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

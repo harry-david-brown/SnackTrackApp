@@ -92,7 +92,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         }));
         setShowModal(true);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to select file. Please try again.');
     }
   };

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
-import UberDataUpload from '../../components/UberDataUpload';
+import { UberDataUpload } from '../../components/UberDataUpload';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 

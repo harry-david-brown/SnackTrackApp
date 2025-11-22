@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
 import EmailVerificationModal from './EmailVerificationModal';
-import { authApi } from '../services/authApi';
 
 interface EmailVerificationBannerProps {
   onDismiss?: () => void;

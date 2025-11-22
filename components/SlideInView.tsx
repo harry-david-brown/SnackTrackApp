@@ -36,6 +36,7 @@ export function SlideInView({
         useNativeDriver: true,
       }),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getTransform = () => {

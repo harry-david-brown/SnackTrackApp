@@ -31,7 +31,7 @@ export default function ChartContainer({
         message: shareText,
         title: `Snack Track - ${title}`,
       });
-    } catch (error) {
+    } catch {
       // Silently fail - user can try again
     }
   };

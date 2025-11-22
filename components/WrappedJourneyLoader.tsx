@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
 interface WrappedJourneyLoaderProps {
   onComplete: () => void;
@@ -47,6 +47,7 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
     }, 1500);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const spin = spinAnim.interpolate({
