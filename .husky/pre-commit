@@ -1,1 +1,5 @@
-npm run type-check && npm run lint
+# Run type-check (fast, catches type errors early)
+npm run type-check
+
+# Run lint-staged (only lints staged files - much faster)
+npx lint-staged

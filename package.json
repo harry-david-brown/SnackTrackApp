@@ -68,5 +68,10 @@
     "lint-staged": "^16.2.3",
     "typescript": "~5.9.2"
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ]
+  },
   "private": true
 }
