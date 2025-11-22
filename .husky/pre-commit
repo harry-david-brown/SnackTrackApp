@@ -1,5 +1,8 @@
 # Run type-check (fast, catches type errors early)
 npm run type-check
 
-# Run lint-staged (only lints staged files - much faster)
+# Run lint on entire codebase (catches all issues)
+npm run lint
+
+# Run lint-staged to auto-fix staged files (complements full lint)
 npx lint-staged
