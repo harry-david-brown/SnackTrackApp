@@ -7,14 +7,12 @@ import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { getCachedAnalytics } from '../../utils/offlineCache';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 const hasWrappedData = (summary: UserSummary | null | undefined): summary is UserSummary =>
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
 
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
-  const { isConnected } = useNetworkStatus();
 
   const initialAnalytics = useMemo(
     () => (hasWrappedData(state.analytics) ? state.analytics : null),
