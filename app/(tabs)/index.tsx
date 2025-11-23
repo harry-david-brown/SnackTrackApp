@@ -20,7 +20,6 @@ export default function DashboardScreen() {
   
   // Use analytics from context instead of local state
   const analytics = state.analytics;
-  const isLoadingAnalytics = state.analyticsLoading;
 
   // Load analytics only when user logs in/out, not on every user property change
   useEffect(() => {
@@ -50,14 +49,6 @@ export default function DashboardScreen() {
     }, [state.user, state.analytics])
   );
 
-  const handleRefresh = async () => {
-    try {
-      // Force reload analytics with wrapped data (user explicitly requested refresh)
-      await loadAnalytics(true); // Include wrapped analytics
-    } catch {
-      // Errors are handled by loadAnalytics
-    }
-  };
 
 
   const handleLogout = async () => {
