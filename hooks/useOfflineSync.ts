@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
 import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation } from '../utils/offlineCache';
+import { csvApi } from '../services/api';
+import { captureException } from '../utils/sentry';
 
 const MAX_RETRIES = 3;
 
@@ -50,6 +52,15 @@ export function useOfflineSync() {
         await removeOperation(operation.id);
         
       } catch (error) {
+        // Report sync failures to Sentry
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        captureException(errorObj, {
+          context: 'useOfflineSync',
+          operationType: operation.type,
+          operationId: operation.id,
+          retryCount: operation.retryCount,
+        });
+        
         // Increment retry count on failure
         await incrementRetryCount(operation.id);
       }
@@ -62,9 +73,12 @@ export function useOfflineSync() {
   const processOperation = async (operation: PendingOperation): Promise<void> => {
     switch (operation.type) {
       case 'csv_upload':
-        // Would implement CSV upload retry here
-        // await csvApi.importCsv(operation.data.userId, operation.data.file);
-        throw new Error('CSV upload retry not implemented yet');
+        // Retry CSV/ZIP upload
+        if (!operation.data?.userId || !operation.data?.file) {
+          throw new Error('Invalid upload operation data');
+        }
+        await csvApi.importCsv(operation.data.userId, operation.data.file);
+        break;
         
       case 'user_update':
         // Would implement user update retry here

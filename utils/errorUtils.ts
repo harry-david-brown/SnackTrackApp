@@ -34,8 +34,16 @@ export const parseApiError = (error: any): ApiError => {
 
     switch (statusCode) {
       case 400:
+        // Check if it's a file-related error
+        const errorMessage = responseData?.message || '';
+        const isFileError = errorMessage.toLowerCase().includes('file') || 
+                           errorMessage.toLowerCase().includes('format') ||
+                           errorMessage.toLowerCase().includes('invalid');
+        
         return {
-          message: responseData?.message || 'Invalid request. Please check your input.',
+          message: isFileError 
+            ? 'Wrong file! Please select your Uber user data.'
+            : (errorMessage || 'Invalid request. Please check your input.'),
           type: 'validation',
           statusCode,
           isRetryable: false,
@@ -75,7 +83,7 @@ export const parseApiError = (error: any): ApiError => {
       
       case 429:
         return {
-          message: 'Too many requests. Please wait a moment and try again.',
+          message: 'Server is busy. Please wait a moment and try again.',
           type: 'server',
           statusCode,
           isRetryable: true,
@@ -86,7 +94,7 @@ export const parseApiError = (error: any): ApiError => {
       case 503:
       case 504:
         return {
-          message: 'Server error. Our team has been notified.',
+          message: 'Service temporarily unavailable. Please try again in a few minutes.',
           type: 'server',
           statusCode,
           isRetryable: true,

@@ -50,8 +50,8 @@ export default function DashboardScreen() {
 
   const handleRefresh = async () => {
     try {
-      // Force reload analytics (user explicitly requested refresh)
-      await loadAnalytics();
+      // Force reload analytics with wrapped data (user explicitly requested refresh)
+      await loadAnalytics(true); // Include wrapped analytics
     } catch {
       // Errors are handled by loadAnalytics
     }

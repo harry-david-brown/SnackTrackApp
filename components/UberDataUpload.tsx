@@ -12,6 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { csvApi } from '../services/api';
 import { useUser } from '../contexts/UserContext';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { parseApiError } from '../utils/errorUtils';
+import { captureException } from '../utils/sentry';
 
 interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;
@@ -39,6 +42,16 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   });
   const [showModal, setShowModal] = useState(false);
   const { state } = useUser();
+  const networkHookStatus = useNetworkStatus();
+  
+  // Use hook status directly - it updates immediately via event listener
+  // Also check connection type for immediate offline detection (type: 'none' means offline)
+  const isOffline = networkHookStatus.type === 'none' || 
+                    networkHookStatus.isConnected === false || 
+                    networkHookStatus.isInternetReachable === false;
+  
+  const isConnected = !isOffline;
+  const isInternetReachable = networkHookStatus.isInternetReachable ?? true;
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -58,7 +71,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     
     // Check file extension - accept both CSV and ZIP
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.zip')) {
-      Alert.alert('Invalid File', 'Please select a CSV or ZIP file.');
+      Alert.alert('Wrong file!', 'Please select your Uber user data.');
       return false;
     }
 
@@ -90,6 +103,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
           fileSize: asset.size || 0,
           fileUri: asset.uri,
         }));
+        
         setShowModal(true);
       }
     } catch {
@@ -103,11 +117,23 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       return;
     }
 
+    // Check network connection before attempting upload (use hook status - updates immediately)
+    if (!isConnected || isInternetReachable === false) {
+      Alert.alert(
+        'No Internet Connection',
+        'Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    let progressInterval: NodeJS.Timeout | null = null;
+    
     try {
       setUploadState(prev => ({ ...prev, isUploading: true, progress: 0 }));
 
       // Simulate progress updates
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setUploadState(prev => ({
           ...prev,
           progress: Math.min(prev.progress + 10, 90),
@@ -137,7 +163,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       response = await csvApi.importCsv(state.user.id, file);
       console.log('✅ File uploaded successfully to API');
       
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, progress: 100 }));
 
       setTimeout(() => {
@@ -155,10 +181,34 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       }, 500);
 
     } catch (error: any) {
+      if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, isUploading: false, progress: 0 }));
       
-      const errorMessage = error.response?.data?.message || 'Failed to upload CSV file.';
+      // Report errors to Sentry (except user-facing validation errors)
+      const parsedError = parseApiError(error);
+      if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
+        captureException(error, {
+          context: 'UberDataUpload',
+          fileName: uploadState.fileName,
+          fileSize: uploadState.fileSize,
+          errorType: parsedError.type,
+          statusCode: parsedError.statusCode,
+        });
+      }
+      
+      // Check if this is a file validation error (400 status with file-related message)
+      let errorMessage = parsedError.message;
+      if (parsedError.statusCode === 400 && uploadState.fileName) {
+        // Check if error is related to file validation
+        const errorLower = errorMessage.toLowerCase();
+        if (errorLower.includes('file') || errorLower.includes('invalid') || errorLower.includes('format')) {
+          errorMessage = 'Wrong file! Please select your Uber user data.';
+        }
+      }
+      
+      // Show error message - user can retry manually
       Alert.alert('Upload Failed', errorMessage);
+      
       onUploadError?.(errorMessage);
     }
   };
@@ -177,10 +227,16 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   return (
     <>
       {/* Upload Button */}
-      <TouchableOpacity style={styles.uploadButton} onPress={handleFilePicker}>
+      <TouchableOpacity 
+        style={[styles.uploadButton, uploadState.isUploading && styles.disabledButton]} 
+        onPress={handleFilePicker}
+        disabled={uploadState.isUploading}
+      >
         <View style={styles.uploadButtonContent}>
           <Ionicons name="cloud-upload" size={24} color="white" />
-          <Text style={styles.uploadButtonText}>Choose ZIP File</Text>
+          <Text style={styles.uploadButtonText}>
+            {uploadState.isUploading ? 'Uploading...' : 'Choose ZIP File'}
+          </Text>
         </View>
       </TouchableOpacity>
 
@@ -189,7 +245,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         visible={showModal}
         transparent
         animationType="slide"
-        onRequestClose={handleCancel}
+        onRequestClose={uploadState.isUploading ? undefined : handleCancel}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -228,10 +284,17 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.confirmButton, styles.uploadConfirmButton]} 
+                  style={[
+                    styles.confirmButton, 
+                    styles.uploadConfirmButton,
+                    (!isConnected || isInternetReachable === false) && styles.disabledButton
+                  ]} 
                   onPress={handleUpload}
+                  disabled={!isConnected || isInternetReachable === false}
                 >
-                  <Text style={styles.uploadConfirmButtonText}>Upload</Text>
+                  <Text style={styles.uploadConfirmButtonText}>
+                    {(!isConnected || isInternetReachable === false) ? 'No Connection' : 'Upload'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -365,6 +428,10 @@ const styles = StyleSheet.create({
   },
   uploadConfirmButton: {
     backgroundColor: '#007AFF',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
   },
   cancelButtonText: {
     fontSize: 16,

@@ -37,27 +37,24 @@ The list below captures every change we still need before shipping the productio
 
 ## 🟠 High Priority
 
-- [x] ~~**Deterministic staging environment**~~ **SKIPPED**  
-  Not needed for short-term viral product. Manual testing + Sentry monitoring is sufficient.
-
-- [x] ~~**Detox/maestro E2E suite**~~ **SKIPPED**  
-  High maintenance overhead for short-term project. Manual smoke testing (~10 min) is sufficient.
-
 - [x] **CI/CD essentials**  
   - [x] Add dependency audit job to CI workflow
-    - Added dependency audit job to `.github/workflows/ci.yml`
-    - Added `npm run audit` script to `package.json`
-    - Audit runs on every PR and push, reports vulnerabilities
   - [x] Fix all lint warnings - production code quality
-    - Fixed 36 lint warnings (unused imports/variables, React Hook dependencies, import naming)
-    - All files now pass linting with 0 warnings, 0 errors
-    - Added eslint-disable comments for intentional dependency omissions (animations, focus effects)
 
 - [ ] **Performance + bundle budget**  
   Capture baseline bundle size (`expo export --platform ios,android`), enforce a budget via CI, and profile slow renders (`components/WrappedJourneyLoader.tsx`, `components/InsightsPanel.tsx`). Document remediation plan (code splitting, memoization, image optimization). **Critical for viral success** - prevents crashes and slow performance during traffic spikes.
 
-- [ ] **Network/offline UX polish**  
-  Leverage existing `useNetworkStatus` + `useOfflineSync` hooks to show deterministic banners/spinners during uploads, disable duplicate submits, and queue offline uploads for retries once API supports it. **Critical for viral success** - prevents user frustration and wasted backend resources during traffic spikes.
+- [x] **Network/offline UX polish**  
+  Implemented comprehensive network/offline handling:
+  - Real-time network status detection with immediate UI updates (~1s delay acceptable)
+  - Check network status before upload attempts (prevents wasted API calls)
+  - Better error messages (network errors, rate limits, server errors, file validation)
+  - Disable upload button during upload and when offline
+  - Offline analytics viewing with cache fallback
+  - Dashboard refresh includes wrapped analytics
+  - Modal cannot be dismissed during active upload
+  - Comprehensive test suite (57 tests) covering all network/offline scenarios
+  **Critical for viral success** - prevents user frustration and wasted backend resources during traffic spikes.
 
 ---
 

@@ -180,7 +180,10 @@ npm run verify       # Verify setup and environment
 - Update `.env`: `EXPO_PUBLIC_API_URL=http://YOUR_IP:3000` (overrides Railway default)
 - Restart Expo
 
+### Manual Testing
 
+For comprehensive manual testing of network/offline features, error handling, and file uploads:
+- **[Manual Testing Guide](./docs/MANUAL_TESTING.md)** - Complete testing scenarios, checklists, and tools
 
 ---
 

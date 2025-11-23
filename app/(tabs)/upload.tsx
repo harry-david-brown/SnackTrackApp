@@ -8,11 +8,13 @@ import { analyticsApi } from '../../services/analyticsApi';
 import { UberDataUpload } from '../../components/UberDataUpload';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
+  const { pendingCount, isSyncing } = useOfflineSync();
 
   const handleUploadSuccess = async (receiptsCount: number) => {
     // Show processing loader
@@ -59,6 +61,18 @@ export default function UploadScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
+          {/* Pending Uploads Banner */}
+          {pendingCount > 0 && (
+            <View style={styles.pendingBanner}>
+              <Ionicons name="cloud-upload" size={20} color="#FF9800" />
+              <Text style={styles.pendingText}>
+                {isSyncing 
+                  ? `Syncing ${pendingCount} pending upload${pendingCount > 1 ? 's' : ''}...`
+                  : `${pendingCount} upload${pendingCount > 1 ? 's' : ''} queued for retry`}
+              </Text>
+            </View>
+          )}
+          
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>📤 Upload Data</Text>
@@ -314,5 +328,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginLeft: 12,
     flex: 1,
+  },
+  pendingBanner: {
+    backgroundColor: '#FFF3E0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pendingText: {
+    fontSize: 14,
+    color: '#E65100',
+    marginLeft: 8,
+    flex: 1,
+    fontWeight: '500',
   },
 });

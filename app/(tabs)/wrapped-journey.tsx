@@ -6,12 +6,15 @@ import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import WrappedShareJourney from '../../components/WrappedShareJourney';
+import { getCachedAnalytics } from '../../utils/offlineCache';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 const hasWrappedData = (summary: UserSummary | null | undefined): summary is UserSummary =>
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
 
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
+  const { isConnected } = useNetworkStatus();
 
   const initialAnalytics = useMemo(
     () => (hasWrappedData(state.analytics) ? state.analytics : null),
@@ -26,6 +29,19 @@ export default function WrappedJourneyScreen() {
 
   useEffect(() => {
     const summary = state.analytics;
+
+    // If no analytics in state, try to load from cache (for offline viewing)
+    if (!summary && state.user) {
+      getCachedAnalytics(state.user.id).then((cached) => {
+        if (cached && hasWrappedData(cached)) {
+          setAnalytics(cached);
+          setIsLoading(false);
+          setIsFullyReady(true);
+          setLoadTimestamp(Date.now());
+          return;
+        }
+      });
+    }
 
     if (!summary) {
       setAnalytics(null);
@@ -80,9 +96,22 @@ export default function WrappedJourneyScreen() {
           setIsFullyReady(true);
         }
       })
-      .catch(() => {
-        setAnalytics(null);
-        setIsFullyReady(true);
+      .catch(async () => {
+        // On error, try to use cached data
+        if (state.user) {
+          const cached = await getCachedAnalytics(state.user.id);
+          if (cached && hasWrappedData(cached)) {
+            setAnalytics(cached);
+            setIsFullyReady(true);
+            setLoadTimestamp(Date.now());
+          } else {
+            setAnalytics(null);
+            setIsFullyReady(true);
+          }
+        } else {
+          setAnalytics(null);
+          setIsFullyReady(true);
+        }
       })
       .finally(() => {
         setIsLoading(false);
