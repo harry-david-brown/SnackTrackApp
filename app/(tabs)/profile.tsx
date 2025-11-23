@@ -1,13 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import OnboardingScreen from '../../components/OnboardingScreen';
+import UberDataTutorial from '../../components/UberDataTutorial';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
+import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 
 const resolveAppEnv = () => {
   const extras =
@@ -22,7 +24,10 @@ const resolveAppEnv = () => {
 export default function ProfileScreen() {
   const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const { currency, setCurrency, formatCurrency } = useCurrency();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showHelpSupport, setShowHelpSupport] = useState(false);
+  const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const appEnv = resolveAppEnv();
   const showReset = __DEV__ || appEnv === 'development';
   
@@ -77,11 +82,9 @@ export default function ProfileScreen() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const handleCurrencySelect = async (selectedCurrency: CurrencyCode) => {
+    await setCurrency(selectedCurrency);
+    setShowCurrencySelector(false);
   };
 
   // No need to load analytics - Profile uses shared analytics from context
@@ -133,31 +136,38 @@ export default function ProfileScreen() {
         </View>
         
         <View style={styles.menuCard}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="person-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>Edit Profile</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="analytics-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>View Analytics</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => router.push('/(tabs)/upload')}
+          >
             <Ionicons name="cloud-upload-outline" size={24} color="#666" />
             <Text style={styles.menuText}>Upload Data</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem} onPress={() => setShowOnboarding(true)}>
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => setShowTutorial(true)}
+          >
             <Ionicons name="information-circle-outline" size={24} color="#666" />
             <Text style={styles.menuText}>View Tutorial</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowCurrencySelector(true)}
+          >
+            <Ionicons name="cash-outline" size={24} color="#666" />
+            <Text style={styles.menuText}>Currency</Text>
+            <Text style={styles.menuSubtext}>{SUPPORTED_CURRENCIES[currency].symbol} {currency}</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowHelpSupport(true)}
+          >
             <Ionicons name="help-circle-outline" size={24} color="#666" />
             <Text style={styles.menuText}>Help & Support</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -184,10 +194,118 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Onboarding Modal */}
-      {showOnboarding && (
-        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
-      )}
+      {/* Tutorial Modal - Full Screen */}
+      <Modal
+        visible={showTutorial}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowTutorial(false)}
+      >
+        <UberDataTutorial onComplete={() => setShowTutorial(false)} />
+      </Modal>
+
+      {/* Help & Support Modal */}
+      <Modal
+        visible={showHelpSupport}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowHelpSupport(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.helpModalContent}>
+            <View style={styles.helpModalHeader}>
+              <Text style={styles.helpModalTitle}>Help & Support</Text>
+              <TouchableOpacity
+                onPress={() => setShowHelpSupport(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.helpModalBody}>
+              <View style={styles.helpSection}>
+                <Text style={styles.helpSectionTitle}>📋 How to Upload Your Data</Text>
+                <Text style={styles.helpSectionText}>
+                  1. Open the Uber Eats app or website{'\n'}
+                  2. Go to Account → Privacy → Download Your Data{'\n'}
+                  3. Request your data download{'\n'}
+                  4. Wait for the email (usually 2-3 hours){'\n'}
+                  5. Download the ZIP file and upload it here
+                </Text>
+              </View>
+
+              <View style={styles.helpSection}>
+                <Text style={styles.helpSectionTitle}>❓ Frequently Asked Questions</Text>
+                <Text style={styles.helpSectionText}>
+                  <Text style={styles.helpQuestion}>Q: How long does it take to process my data?</Text>{'\n'}
+                  A: Usually just a few seconds after upload.{'\n\n'}
+                  
+                  <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
+                  A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
+                  
+                  <Text style={styles.helpQuestion}>Q: Can I delete my account?</Text>{'\n'}
+                  A: Yes, contact us at hello@getsnacktrack.com to request account deletion.
+                </Text>
+              </View>
+
+              <View style={styles.helpSection}>
+                <Text style={styles.helpSectionTitle}>📧 Contact Us</Text>
+                <Text style={styles.helpSectionText}>
+                  Need help? Reach out to us:{'\n'}
+                  Email: hello@getsnacktrack.com
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Currency Selector Modal */}
+      <Modal
+        visible={showCurrencySelector}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCurrencySelector(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.helpModalContent}>
+            <View style={styles.helpModalHeader}>
+              <Text style={styles.helpModalTitle}>Select Currency</Text>
+              <TouchableOpacity
+                onPress={() => setShowCurrencySelector(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.helpModalBody}>
+              {Object.values(SUPPORTED_CURRENCIES).map((curr) => (
+                <TouchableOpacity
+                  key={curr.code}
+                  style={[
+                    styles.currencyItem,
+                    currency === curr.code && styles.currencyItemSelected,
+                  ]}
+                  onPress={() => handleCurrencySelect(curr.code)}
+                >
+                  <View style={styles.currencyItemContent}>
+                    <Text style={styles.currencySymbol}>{curr.symbol}</Text>
+                    <View style={styles.currencyInfo}>
+                      <Text style={styles.currencyCode}>{curr.code}</Text>
+                      <Text style={styles.currencyName}>{curr.name}</Text>
+                    </View>
+                  </View>
+                  {currency === curr.code && (
+                    <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -300,6 +418,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 16,
   },
+  menuSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginRight: 8,
+  },
+  currencyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  currencyItemSelected: {
+    backgroundColor: '#f0f7ff',
+  },
+  currencyItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  currencySymbol: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginRight: 16,
+    width: 40,
+  },
+  currencyInfo: {
+    flex: 1,
+  },
+  currencyCode: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  currencyName: {
+    fontSize: 14,
+    color: '#666',
+  },
   appInfo: {
     alignItems: 'center',
     padding: 20,
@@ -308,5 +467,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginBottom: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  helpModalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    paddingBottom: 20,
+  },
+  helpModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  helpModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  helpModalBody: {
+    padding: 20,
+  },
+  helpSection: {
+    marginBottom: 24,
+  },
+  helpSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  helpSectionText: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 22,
+  },
+  helpQuestion: {
+    fontWeight: '600',
+    color: '#333',
   },
 });

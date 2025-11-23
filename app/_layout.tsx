@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
+import { CurrencyProvider } from '../contexts/CurrencyContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry } from '../utils/sentry';
 
@@ -23,13 +24,15 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <OnboardingProvider>
-          <UserProvider>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </UserProvider>
+          <CurrencyProvider>
+            <UserProvider>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+              </Stack>
+              <StatusBar style="auto" />
+            </UserProvider>
+          </CurrencyProvider>
         </OnboardingProvider>
       </QueryClientProvider>
     </ErrorBoundary>

@@ -16,6 +16,7 @@ import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
 import { UserSummary } from '../types/api';
 import { getDeterministicMessage } from '../utils/wrappedMessages';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -101,6 +102,7 @@ interface Slide {
 }
 
 export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
+  const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -123,13 +125,8 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
   }, []); // Only run on mount
 
   const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  }, []);
+    return formatCurrencyFromContext(amount);
+  }, [formatCurrencyFromContext]);
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UserSummary } from '../types/api';
+import { useCurrency } from '../contexts/CurrencyContext';
 import SimpleChart from './SimpleChart';
 
 const screenWidth = Dimensions.get('window').width;
@@ -15,6 +16,8 @@ interface SpendingTrendChartProps {
 }
 
 export default function SpendingTrendChart({ analytics, timeframe, showLabels = true }: SpendingTrendChartProps) {
+  const { formatCurrency } = useCurrency();
+  
   const prepareChartData = (): number[] | null => {
     if (!analytics?.monthlyBreakdown || analytics.monthlyBreakdown.length === 0) {
       return null;
@@ -195,19 +198,13 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Peak Month</Text>
             <Text style={styles.statValue}>
-              {new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-              }).format(Math.max(...data))}
+              {formatCurrency(Math.max(...data))}
             </Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Average</Text>
             <Text style={styles.statValue}>
-              {new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-              }).format(data.reduce((a, b) => a + b, 0) / data.length)}
+              {formatCurrency(data.reduce((a, b) => a + b, 0) / data.length)}
             </Text>
           </View>
         </View>

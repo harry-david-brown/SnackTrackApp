@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UserSummary } from '../types/api';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const screenWidth = Dimensions.get('window').width;
 const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)
@@ -12,6 +13,7 @@ interface CategoryAnalysisChartProps {
 }
 
 export default function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
+  const { formatCurrency } = useCurrency();
   const [animatedData, setAnimatedData] = useState<number[]>([]);
 
   const categorizeRestaurant = (restaurantName: string): string => {
@@ -118,12 +120,6 @@ export default function CategoryAnalysisChart({ analytics }: CategoryAnalysisCha
     },
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const totalSpent = chartData.data.reduce((sum, amount) => sum + amount, 0);
 

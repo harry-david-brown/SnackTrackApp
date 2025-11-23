@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../types/api';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface SocialShareModalProps {
   visible: boolean;
@@ -24,14 +25,8 @@ interface SocialShareModalProps {
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SocialShareModal({ visible, onClose, analytics }: SocialShareModalProps) {
+  const { formatCurrency } = useCurrency();
   const viewShotRef = useRef<ViewShot>(null);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const captureAndShare = async (template: string) => {
     try {

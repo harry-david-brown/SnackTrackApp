@@ -4,6 +4,7 @@ import { PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { UserSummary } from '../types/api';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 const screenWidth = Dimensions.get('window').width;
 const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)
@@ -17,6 +18,7 @@ export default function RestaurantBreakdownChart({
   analytics, 
   maxRestaurants = 5 
 }: RestaurantBreakdownChartProps) {
+  const { formatCurrency } = useCurrency();
   const [selectedSegment, setSelectedSegment] = useState<number | null>(null);
 
   const prepareChartData = () => {
@@ -76,12 +78,6 @@ export default function RestaurantBreakdownChart({
     },
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const totalSpent = chartData.data.reduce((sum, item) => sum + item.population, 0);
 

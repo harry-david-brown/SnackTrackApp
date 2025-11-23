@@ -3,18 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UserSummary } from '../types/api';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 interface InsightsPanelProps {
   analytics: UserSummary;
 }
 
 export default function InsightsPanel({ analytics }: InsightsPanelProps) {
-  const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  }, []);
+  const { formatCurrency } = useCurrency();
 
   const generateInsights = useCallback(() => {
     const insights = [];

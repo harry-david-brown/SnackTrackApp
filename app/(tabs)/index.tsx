@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 import QuickShareButton from '../../components/QuickShareButton';
@@ -12,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
+  const { formatCurrency } = useCurrency();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const initialLoadDoneRef = useRef(false);
@@ -57,12 +59,6 @@ export default function DashboardScreen() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const handleLogout = async () => {
     try {
