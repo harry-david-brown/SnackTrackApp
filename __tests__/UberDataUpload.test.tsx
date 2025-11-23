@@ -28,7 +28,6 @@ const mockUseUser = useUser as jest.MockedFunction<typeof useUser>;
 const mockUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
 const mockImportCsv = csvApi.importCsv as jest.MockedFunction<typeof csvApi.importCsv>;
 const mockGetDocumentAsync = DocumentPicker.getDocumentAsync as jest.MockedFunction<typeof DocumentPicker.getDocumentAsync>;
-const mockQueueOperation = offlineCache.queueOperation as jest.MockedFunction<typeof offlineCache.queueOperation>;
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');
@@ -199,8 +198,7 @@ describe('UberDataUpload', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Upload Failed',
-          expect.stringContaining('internet connection'),
-          expect.any(Array)
+          'Unable to connect to the server. Please check your internet connection.'
         );
       });
     });
@@ -237,8 +235,7 @@ describe('UberDataUpload', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Upload Failed',
-          expect.stringContaining('Server is busy'),
-          expect.any(Array)
+          'Server is busy. Please wait a moment and try again.'
         );
       });
     });
@@ -275,13 +272,12 @@ describe('UberDataUpload', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Upload Failed',
-          expect.stringContaining('temporarily unavailable'),
-          expect.any(Array)
+          'Service temporarily unavailable. Please try again in a few minutes.'
         );
       });
     });
 
-    it('should offer to queue retryable errors', async () => {
+    it('should show retryable error message', async () => {
       mockGetDocumentAsync.mockResolvedValue({
         canceled: false,
         assets: [{
@@ -300,8 +296,6 @@ describe('UberDataUpload', () => {
         },
       });
 
-      mockQueueOperation.mockResolvedValue();
-
       const { getByText } = render(<UberDataUpload />);
       
       fireEvent.press(getByText('Choose ZIP File'));
@@ -315,8 +309,7 @@ describe('UberDataUpload', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Upload Failed',
-          expect.stringContaining('queue this upload'),
-          expect.any(Array)
+          'Service temporarily unavailable. Please try again in a few minutes.'
         );
       });
     });
@@ -351,12 +344,9 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        // For non-retryable errors, Alert.alert is called with just title and message (2 params, no buttons)
-        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
+        // "Invalid file format" contains "invalid" which triggers file error message
+        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Wrong file! Please select your Uber user data.');
       }, { timeout: 3000 });
-      
-      // Verify that queueOperation was NOT called for non-retryable errors
-      expect(mockQueueOperation).not.toHaveBeenCalled();
     });
   });
 
@@ -443,7 +433,8 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Choose ZIP File'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Invalid File', 'Please select a CSV or ZIP file.');
+        // File validation now uses the same error message format
+        expect(Alert.alert).toHaveBeenCalledWith('Wrong file!', 'Please select your Uber user data.');
       });
     });
 

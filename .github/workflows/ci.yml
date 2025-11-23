@@ -69,3 +69,36 @@ jobs:
           echo "Security audit completed. Review the output above for any vulnerabilities." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note:** Audit warnings do not block merges, but should be reviewed and addressed." >> $GITHUB_STEP_SUMMARY
+
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Install Expo CLI
+        run: npm install -g expo-cli@latest
+      - name: Analyze bundle size
+        run: npm run analyze:bundle
+        continue-on-error: true
+      - name: Upload bundle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-size-report
+          path: bundle-size-report.json
+          retention-days: 30
+      - name: Generate bundle summary
+        if: always()
+        run: |
+          if [ -f bundle-size-report.json ]; then
+            echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Bundle size analysis completed. See bundle-size-report.json artifact for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note:** Bundle size warnings do not block merges, but should be reviewed before production." >> $GITHUB_STEP_SUMMARY
+          fi

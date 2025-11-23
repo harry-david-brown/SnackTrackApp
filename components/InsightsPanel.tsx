@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,14 +9,14 @@ interface InsightsPanelProps {
 }
 
 export default function InsightsPanel({ analytics }: InsightsPanelProps) {
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
-  };
+  }, []);
 
-  const generateInsights = () => {
+  const generateInsights = useCallback(() => {
     const insights = [];
 
     // Top restaurant insight
@@ -113,9 +113,9 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     }
 
     return insights.slice(0, 4); // Show top 4 insights
-  };
+  }, [analytics, formatCurrency]);
 
-  const insights = generateInsights();
+  const insights = useMemo(() => generateInsights(), [generateInsights]);
 
   if (insights.length === 0) {
     return (

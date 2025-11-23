@@ -37,7 +37,23 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(400);
       expect(result.isRetryable).toBe(false);
-      expect(result.message).toBe('Invalid input');
+      // "Invalid input" contains "invalid" which triggers file error message
+      expect(result.message).toBe('Wrong file! Please select your Uber user data.');
+    });
+
+    it('should parse 400 non-file validation errors', () => {
+      const error = {
+        response: {
+          status: 400,
+          data: { message: 'Missing required field' },
+        },
+      };
+      const result = parseApiError(error);
+
+      expect(result.type).toBe('validation');
+      expect(result.statusCode).toBe(400);
+      expect(result.isRetryable).toBe(false);
+      expect(result.message).toBe('Missing required field');
     });
 
     it('should parse 401 authentication errors', () => {

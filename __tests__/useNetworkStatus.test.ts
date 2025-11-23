@@ -11,6 +11,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 jest.mock('@react-native-community/netinfo', () => ({
   configure: jest.fn(),
   addEventListener: jest.fn(),
+  fetch: jest.fn(),
 }));
 
 describe('useNetworkStatus', () => {
@@ -20,6 +21,13 @@ describe('useNetworkStatus', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUnsubscribe = jest.fn();
+    
+    // Mock fetch to return connected state by default
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({
+      isConnected: true,
+      isInternetReachable: true,
+      type: 'wifi',
+    });
     
     (NetInfo.addEventListener as jest.Mock).mockImplementation((callback) => {
       mockListener = callback;
@@ -37,6 +45,11 @@ describe('useNetworkStatus', () => {
   it('should update when network disconnects', async () => {
     const { result } = renderHook(() => useNetworkStatus());
     
+    // Wait for initial fetch to complete
+    await waitFor(() => {
+      expect(NetInfo.fetch).toHaveBeenCalled();
+    });
+    
     // Simulate network disconnection
     mockListener({
       isConnected: false,
@@ -52,6 +65,11 @@ describe('useNetworkStatus', () => {
 
   it('should update when network reconnects', async () => {
     const { result } = renderHook(() => useNetworkStatus());
+    
+    // Wait for initial fetch to complete
+    await waitFor(() => {
+      expect(NetInfo.fetch).toHaveBeenCalled();
+    });
     
     // Disconnect
     mockListener({
@@ -80,6 +98,11 @@ describe('useNetworkStatus', () => {
 
   it('should handle null isInternetReachable', async () => {
     const { result } = renderHook(() => useNetworkStatus());
+    
+    // Wait for initial fetch to complete
+    await waitFor(() => {
+      expect(NetInfo.fetch).toHaveBeenCalled();
+    });
     
     mockListener({
       isConnected: true,

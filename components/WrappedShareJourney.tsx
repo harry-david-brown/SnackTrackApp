@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -122,21 +122,21 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     return () => clearTimeout(timer);
   }, []); // Only run on mount
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }, []);
 
-  const handleAffiliateClick = async () => {
+  const handleAffiliateClick = useCallback(async () => {
     try {
       // Track affiliate click (you can add analytics here)
       const canOpen = await Linking.canOpenURL(HELLOFRESH_CONFIG.affiliateUrl);
@@ -146,10 +146,10 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     } catch {
       // Silently fail - affiliate link is optional
     }
-  };
+  }, []);
 
   // Calculate annual savings for HelloFresh slide
-  const calculateAnnualSavings = () => {
+  const calculateAnnualSavings = useCallback(() => {
     // Use monthly breakdown if available, otherwise estimate from total
     if (analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0) {
       // Calculate average monthly spending
@@ -174,10 +174,11 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       const annualSavings = savingsPerMeal * analytics.totalReceipts;
       return { annualSavings, savingsPerMeal };
     }
-  };
+  }, [analytics]);
 
   // Build slides dynamically based on available data
-  const buildSlides = (): Slide[] => {
+  // Memoized to prevent recalculation on every render
+  const buildSlides = useCallback((): Slide[] => {
     const slides: Slide[] = [];
 
     // Opening slide - always shown
@@ -566,9 +567,9 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     });
 
     return slides;
-  };
+  }, [analytics, wrapped, formatCurrency, formatDate, calculateAnnualSavings, handleAffiliateClick]);
 
-  const slides = buildSlides();
+  const slides = useMemo(() => buildSlides(), [buildSlides]);
 
   // Ensure slides are available before rendering
   if (!slides || slides.length === 0) {
