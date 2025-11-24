@@ -121,9 +121,11 @@ export default function DashboardScreen() {
               <Text style={styles.title}>🥡 Snack Track</Text>
               <Text style={styles.subtitle}>Welcome back, {state.user.email.split('@')[0]}!</Text>
             </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={24} color="#666" />
-            </TouchableOpacity>
+            {__DEV__ && (
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={24} color="#666" />
+              </TouchableOpacity>
+            )}
           </View>
           
           {/* Stats Cards */}

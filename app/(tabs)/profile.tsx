@@ -180,10 +180,12 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
           
-          <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
-            <Text style={[styles.menuText, { color: '#ff3b30' }]}>Sign Out</Text>
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
+              <Text style={[styles.menuText, { color: '#ff3b30' }]}>Sign Out</Text>
+            </TouchableOpacity>
+          )}
         </View>
         
         {/* App Info */}
