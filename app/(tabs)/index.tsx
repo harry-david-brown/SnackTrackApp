@@ -6,8 +6,6 @@ import { useUser } from '../../contexts/UserContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
-import QuickShareButton from '../../components/QuickShareButton';
-import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { SlideInView } from '../../components/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -15,7 +13,6 @@ export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
   const { formatCurrency } = useCurrency();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
   const initialLoadDoneRef = useRef(false);
   
   // Use analytics from context instead of local state
@@ -191,19 +188,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Share Button - Show if user has data */}
-          {analytics && analytics.totalReceipts > 0 && (
-            <View style={styles.shareContainer}>
-              <QuickShareButton 
-                onPress={() => setShowShareModal(true)}
-                variant="primary"
-                size="medium"
-                icon="share-social"
-                title="Share Your Stats"
-              />
-            </View>
-          )}
-
           {/* Recent Activity */}
           <View style={styles.activityContainer}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -236,14 +220,6 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Wrapped Share Journey Modal */}
-      {showShareModal && analytics && (
-        <WrappedShareJourney
-          analytics={analytics}
-          onClose={() => setShowShareModal(false)}
-        />
-      )}
     </SafeAreaView>
   );
 }
@@ -322,10 +298,6 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     marginBottom: 32,
-  },
-  shareContainer: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 20,
