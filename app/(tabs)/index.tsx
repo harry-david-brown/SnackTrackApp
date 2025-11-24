@@ -69,7 +69,7 @@ export default function DashboardScreen() {
       const interactionHandle = InteractionManager.runAfterInteractions(() => {
         try {
           router.replace('/');
-        } catch (error) {
+        } catch {
           // If navigation fails, router isn't ready yet - try again after a short delay
           setTimeout(() => {
             try {
