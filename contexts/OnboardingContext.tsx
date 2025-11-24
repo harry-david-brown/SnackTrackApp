@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;
+  isLoading: boolean;
   completeOnboarding: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
 }
@@ -49,11 +50,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   };
 
   // Always return provider to prevent unmounting children
-  // Default to false while loading (safe default - will show onboarding if needed)
   return (
     <OnboardingContext.Provider
       value={{
-        hasCompletedOnboarding: isLoading ? false : hasCompletedOnboarding,
+        hasCompletedOnboarding,
+        isLoading,
         completeOnboarding,
         resetOnboarding,
       }}

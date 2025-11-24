@@ -9,13 +9,13 @@ import OnboardingScreen from '../components/OnboardingScreen';
 
 export default function HomeScreen() {
   const { state } = useUser();
-  const { hasCompletedOnboarding } = useOnboarding();
+  const { hasCompletedOnboarding, isLoading: onboardingLoading } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasCheckedOnboardingRef = useRef(false);
 
   useEffect(() => {
-    // Wait for user context to finish loading before checking onboarding
-    if (state.isLoading) {
+    // Wait for both contexts to finish loading before checking onboarding
+    if (state.isLoading || onboardingLoading) {
       return;
     }
 
@@ -42,7 +42,7 @@ export default function HomeScreen() {
     if (state.isAuthenticated && showOnboarding) {
       setShowOnboarding(false);
     }
-  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading, showOnboarding]);
+  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading, onboardingLoading, showOnboarding]);
 
   // Separate effect to handle navigation after onboarding completion
   useEffect(() => {
@@ -58,8 +58,8 @@ export default function HomeScreen() {
     setShowOnboarding(false);
   };
 
-  // Show loading screen while checking authentication
-  if (state.isLoading) {
+  // Show loading screen while checking authentication or onboarding status
+  if (state.isLoading || onboardingLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
