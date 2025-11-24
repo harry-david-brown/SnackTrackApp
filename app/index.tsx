@@ -47,10 +47,17 @@ export default function HomeScreen() {
   // Separate effect to handle navigation after onboarding completion
   useEffect(() => {
     // Only navigate if user is authenticated AND onboarding is complete AND onboarding is not showing
-    if (state.isAuthenticated && state.user && hasCompletedOnboarding && !showOnboarding) {
+    // AND analytics are loaded (or at least finished loading) to prevent dashboard pop-in
+    if (
+      state.isAuthenticated && 
+      state.user && 
+      hasCompletedOnboarding && 
+      !showOnboarding &&
+      !state.analyticsLoading // Wait for analytics to finish loading
+    ) {
       router.replace('/(tabs)');
     }
-  }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding]);
+  }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding, state.analyticsLoading]);
 
   const handleOnboardingComplete = async () => {
     // Don't mark onboarding as complete yet - wait until tutorial is done
@@ -58,8 +65,8 @@ export default function HomeScreen() {
     setShowOnboarding(false);
   };
 
-  // Show loading screen while checking authentication or onboarding status
-  if (state.isLoading || onboardingLoading) {
+  // Show loading screen while checking authentication, onboarding status, or loading analytics
+  if (state.isLoading || onboardingLoading || (state.isAuthenticated && state.user && state.analyticsLoading)) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>

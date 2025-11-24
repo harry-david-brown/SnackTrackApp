@@ -173,11 +173,66 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             const userWithSpending: AppUser = {
               ...userData,
               emailVerified: userData.emailVerified ?? false,
-              totalSpent: 0, // Will be updated when dashboard loads
+              totalSpent: 0, // Will be updated when analytics loads
               receiptCount: 0,
             };
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
+            
+            // Start loading analytics immediately so dashboard has data ready
+            // This is non-blocking - navigation will wait for it to complete
+            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+            analyticsApi.getUserSummary(userId, false)
+              .then((summary) => {
+                dispatch({ type: 'SET_ANALYTICS', payload: summary });
+                cacheAnalytics(userId, summary).catch(() => {
+                  // Silently fail caching - not critical
+                });
+                
+                // Update user's totalSpent from the summary data
+                if (summary.totalSpent !== userWithSpending.totalSpent) {
+                  dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+                    totalSpent: summary.totalSpent,
+                    receiptCount: summary.totalReceipts 
+                  }});
+                }
+                
+                // After /summary completes, if user has data, immediately preload wrapped data
+                if (summary.totalReceipts > 0) {
+                  // Preload wrapped analytics in background
+                  analyticsApi.getUserSummary(userId, true)
+                    .then((wrappedSummary) => {
+                      dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                      dispatch({
+                        type: 'UPDATE_USER_DATA',
+                        payload: {
+                          totalSpent: wrappedSummary.totalSpent,
+                          receiptCount: wrappedSummary.totalReceipts,
+                        },
+                      });
+                      cacheAnalytics(userId, wrappedSummary).catch(() => {
+                        // Silently fail caching - not critical
+                      });
+                    })
+                    .catch(() => {
+                      // Silently fail wrapped preload - not critical
+                    });
+                }
+              })
+              .catch((analyticsError) => {
+                // Try to use cached data on error
+                getCachedAnalytics(userId).then((cached) => {
+                  if (cached) {
+                    dispatch({ type: 'SET_ANALYTICS', payload: cached });
+                  }
+                }).catch(() => {
+                  // Silently fail cache retrieval
+                });
+                console.warn('Failed to load analytics on app start:', analyticsError);
+              })
+              .finally(() => {
+                dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
+              });
           } else {
             // Session invalid, clear and force re-login
             await clearAuthTokens();
