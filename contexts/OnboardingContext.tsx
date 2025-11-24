@@ -48,14 +48,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  if (isLoading) {
-    return null; // Or a loading screen
-  }
-
+  // Always return provider to prevent unmounting children
+  // Default to false while loading (safe default - will show onboarding if needed)
   return (
     <OnboardingContext.Provider
       value={{
-        hasCompletedOnboarding,
+        hasCompletedOnboarding: isLoading ? false : hasCompletedOnboarding,
         completeOnboarding,
         resetOnboarding,
       }}

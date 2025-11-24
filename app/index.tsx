@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -11,16 +11,38 @@ export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const hasCheckedOnboardingRef = useRef(false);
 
   useEffect(() => {
-    // Show onboarding on first launch if not completed yet
-    if (!hasCompletedOnboarding && !state.isAuthenticated && !state.isLoading) {
-      setShowOnboarding(true);
-    } else if (hasCompletedOnboarding) {
-      // Hide onboarding only if it's been completed
+    // Wait for user context to finish loading before checking onboarding
+    if (state.isLoading) {
+      return;
+    }
+
+    // Initial check: decide whether to show onboarding
+    if (!hasCheckedOnboardingRef.current) {
+      hasCheckedOnboardingRef.current = true;
+      
+      // Show onboarding on first launch if not completed yet
+      if (!hasCompletedOnboarding && !state.isAuthenticated) {
+        setShowOnboarding(true);
+      } else {
+        setShowOnboarding(false);
+      }
+      return;
+    }
+
+    // After initial check, handle state changes:
+    // 1. Hide onboarding if it gets completed
+    if (hasCompletedOnboarding && showOnboarding) {
       setShowOnboarding(false);
     }
-  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading]);
+    
+    // 2. Hide onboarding if user becomes authenticated
+    if (state.isAuthenticated && showOnboarding) {
+      setShowOnboarding(false);
+    }
+  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading, showOnboarding]);
 
   // Separate effect to handle navigation after onboarding completion
   useEffect(() => {

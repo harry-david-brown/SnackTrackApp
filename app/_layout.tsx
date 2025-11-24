@@ -26,9 +26,20 @@ export default function RootLayout() {
         <OnboardingProvider>
           <CurrencyProvider>
             <UserProvider>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack
+                screenOptions={{
+                  contentStyle: { backgroundColor: 'transparent' },
+                }}
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
+                <Stack.Screen 
+                  name="index" 
+                  options={{ 
+                    headerShown: false, 
+                    contentStyle: { backgroundColor: 'transparent' },
+                    animation: 'fade',
+                  }} 
+                />
               </Stack>
               <StatusBar style="auto" />
             </UserProvider>

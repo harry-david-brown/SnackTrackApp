@@ -156,7 +156,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
+          bounces={true}
+        >
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>

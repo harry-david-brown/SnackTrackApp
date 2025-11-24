@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, InteractionManager, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
@@ -64,12 +64,39 @@ export default function DashboardScreen() {
   // If user logs out while on this screen, navigate to login
   useEffect(() => {
     if (!state.user && !state.isLoading) {
-      router.replace('/');
+      // Defer navigation until after all interactions are complete
+      // This ensures the router is fully mounted before attempting navigation
+      const interactionHandle = InteractionManager.runAfterInteractions(() => {
+        try {
+          router.replace('/');
+        } catch (error) {
+          // If navigation fails, router isn't ready yet - try again after a short delay
+          setTimeout(() => {
+            try {
+              router.replace('/');
+            } catch (retryError) {
+              // If it still fails, ignore - user might be navigating away anyway
+              console.warn('Navigation to login screen failed:', retryError);
+            }
+          }, 200);
+        }
+      });
+      
+      return () => {
+        interactionHandle.cancel();
+      };
     }
   }, [state.user, state.isLoading]);
 
   if (!state.user) {
-    return null; // Will navigate in useEffect above
+    // Return loading state instead of null to prevent navigation errors
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -77,6 +104,8 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
+        bounces={true}
       >
         <View style={styles.content}>
           {/* Error Message */}

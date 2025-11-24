@@ -9,6 +9,8 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
@@ -102,6 +104,7 @@ interface Slide {
 }
 
 export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
+  const insets = useSafeAreaInsets();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isReady, setIsReady] = useState(false);
@@ -615,6 +618,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
   return (
     <View style={styles.container}>
+      <StatusBar hidden />
       {/* Close Button */}
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
         <Ionicons name="close" size={32} color="white" />
@@ -629,6 +633,8 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         onScroll={handleScroll}
         scrollEventThrottle={16}
         bounces={false}
+        style={{ backgroundColor: 'transparent', flex: 1 }}
+        contentContainerStyle={{ backgroundColor: 'transparent' }}
       >
         {slides.map((slide, index) => (
           <ViewShot
@@ -681,7 +687,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
       {/* Navigation Controls - only show when ready */}
       {isReady && (
-        <View style={styles.controls}>
+        <View style={[styles.controls, { paddingBottom: Math.max(36, insets.bottom) }]}>
         <View style={styles.pagination}>
           {slides.map((_, index) => (
             <View
@@ -738,6 +744,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+    overflow: 'hidden',
   },
   closeButton: {
     position: 'absolute',
@@ -751,9 +758,12 @@ const styles = StyleSheet.create({
   slideContainer: {
     width: screenWidth,
     height: screenHeight,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   gradient: {
-    flex: 1,
+    width: screenWidth,
+    height: screenHeight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -761,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: SAFE_TOP - Math.round(screenHeight * 0.11), // Further reduce top spacing to move content up
-    paddingBottom: SAFE_BOTTOM,
+    paddingBottom: SAFE_BOTTOM + 100, // Extra padding to account for controls
     paddingHorizontal: SAFE_SIDE,
   },
   frame: {
@@ -870,10 +880,11 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    bottom: 36,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   pagination: {
     flexDirection: 'row',

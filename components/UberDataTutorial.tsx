@@ -7,9 +7,12 @@ import {
   Dimensions,
   ScrollView,
   Animated,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
 
@@ -68,6 +71,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const insets = useSafeAreaInsets();
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
@@ -110,18 +114,20 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
   const isLastSlide = currentIndex === slides.length - 1;
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={currentSlide.gradient as any} style={styles.gradient}>
-        {/* Skip Button */}
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
+    <LinearGradient colors={currentSlide.gradient as any} style={StyleSheet.absoluteFillObject}>
+      <StatusBar hidden />
+      {/* Skip Button */}
+      <TouchableOpacity style={[styles.skipButton, { top: insets.top + 10 }]} onPress={handleSkip}>
+        <Text style={styles.skipText}>Skip</Text>
+      </TouchableOpacity>
 
-        <Animated.View style={[styles.mainContent, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.mainContent, { opacity: fadeAnim, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            bounces={true}
+            overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
           >
             <View style={styles.slideContent}>
               <View style={styles.iconContainer}>
@@ -175,19 +181,11 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
             <Ionicons name="arrow-forward" size={24} color="white" />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
   skipButton: {
     position: 'absolute',
     top: 50,
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
   footer: {
     width: '100%',
     paddingHorizontal: 30,
-    paddingBottom: 30,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   pagination: {
