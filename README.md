@@ -51,7 +51,7 @@ A React Native/Expo app that automatically tracks your food spending through **U
 - [ ] **Social Login** - Google and Apple Sign In
 - [ ] **Biometric Auth** - Face ID / Touch ID support
 - [ ] **Multi-Template Sharing** - Additional Wrapped-style slide variations
-- [ ] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
+- [X] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
 - [ ] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
 
