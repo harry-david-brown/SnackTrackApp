@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -85,6 +86,16 @@ export default function ProfileScreen() {
   const handleCurrencySelect = async (selectedCurrency: CurrencyCode) => {
     await setCurrency(selectedCurrency);
     setShowCurrencySelector(false);
+  };
+
+  const handlePrivacyPolicy = async () => {
+    const url = 'https://getsnacktrack.com/privacy-policy';
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Error', 'Unable to open the privacy policy link.');
+    }
   };
 
   // No need to load analytics - Profile uses shared analytics from context
@@ -257,6 +268,14 @@ export default function ProfileScreen() {
                   Need help? Reach out to us:{'\n'}
                   Email: hello@getsnacktrack.com
                 </Text>
+              </View>
+
+              <View style={styles.helpSection}>
+                <Text style={styles.helpSectionTitle}>🔒 Privacy Policy</Text>
+                <TouchableOpacity onPress={handlePrivacyPolicy} style={styles.privacyLink}>
+                  <Text style={styles.privacyLinkText}>View Privacy Policy</Text>
+                  <Ionicons name="open-outline" size={20} color="#007AFF" />
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -518,5 +537,19 @@ const styles = StyleSheet.create({
   helpQuestion: {
     fontWeight: '600',
     color: '#333',
+  },
+  privacyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  privacyLinkText: {
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
