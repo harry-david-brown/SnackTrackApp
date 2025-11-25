@@ -88,12 +88,6 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
     });
   };
   
-  // Check if all images for a slide are actually loaded
-  const areAllImagesLoaded = (slideIndex: number, totalImages: number) => {
-    const loaded = imagesActuallyLoaded[slideIndex];
-    return loaded && loaded.size === totalImages;
-  };
-  
   // Helper function to load images for a specific slide index
   const loadSlideImages = (slideIndex: number) => {
     // Prevent duplicate loads
