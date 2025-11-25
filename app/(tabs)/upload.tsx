@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UberDataUpload } from '../../components/UberDataUpload';
-import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
-  const [showTutorial, setShowTutorial] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
 
@@ -58,9 +56,10 @@ export default function UploadScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView 
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
         bounces={true}
       >
@@ -82,12 +81,6 @@ export default function UploadScreen() {
               <Text style={styles.title}>📤 Upload Data</Text>
               <Text style={styles.subtitle}>Import your Uber Eats order history</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.helpButton}
-              onPress={() => setShowTutorial(true)}
-            >
-              <Ionicons name="help-circle-outline" size={32} color="#007AFF" />
-            </TouchableOpacity>
           </View>
           
           {/* Upload Section */}
@@ -149,26 +142,15 @@ export default function UploadScreen() {
           {/* Privacy Note */}
           <View style={styles.privacyCard}>
             <Ionicons name="shield-checkmark" size={24} color="#007AFF" />
-            <Text style={styles.privacyTitle}>🔒 Your Privacy Matters</Text>
-            <Text style={styles.privacyText}>
-              Your data is processed securely and never shared. We only use it to generate your personal spending insights.
-            </Text>
+            <View style={styles.privacyContent}>
+              <Text style={styles.privacyTitle}>🔒 Your Privacy Matters</Text>
+              <Text style={styles.privacyText}>
+                Your data is processed securely and never shared. We only use it to generate your personal spending insights.
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
-
-      {/* Uber Tutorial Modal */}
-      <Modal
-        visible={showTutorial}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowTutorial(false)}
-      >
-        <UberDataTutorial 
-          onComplete={() => setShowTutorial(false)}
-          onSkip={() => setShowTutorial(false)}
-        />
-      </Modal>
 
       {/* Processing Loader (after upload) */}
       {showLoader && (
@@ -186,17 +168,14 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
     marginBottom: 16,
-  },
-  helpButton: {
-    padding: 8,
   },
   title: {
     fontSize: 32,
@@ -206,7 +185,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
-    textAlign: 'center',
     marginBottom: 30,
   },
   uploadCard: {
@@ -319,19 +297,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
+  privacyContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
   privacyTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#1976d2',
-    marginLeft: 12,
   },
   privacyText: {
     fontSize: 14,
     color: '#1976d2',
     lineHeight: 20,
-    marginLeft: 12,
-    flex: 1,
   },
   pendingBanner: {
     backgroundColor: '#FFF3E0',
