@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 16,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',

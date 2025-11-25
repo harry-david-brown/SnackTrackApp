@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UberDataUpload } from '../../components/UberDataUpload';
+import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [showLoader, setShowLoader] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
 
   const handleUploadSuccess = async (receiptsCount: number) => {
@@ -97,6 +99,18 @@ export default function UploadScreen() {
             />
           </View>
           
+          {/* Tutorial Button */}
+          <View style={styles.featuresCard}>
+            <TouchableOpacity 
+              style={styles.tutorialButton}
+              onPress={() => setShowTutorial(true)}
+            >
+              <Ionicons name="information-circle-outline" size={24} color="#666" />
+              <Text style={styles.tutorialButtonText}>View Tutorial</Text>
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            </TouchableOpacity>
+          </View>
+
           {/* Instructions */}
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>📋 How to get your data:</Text>
@@ -118,27 +132,6 @@ export default function UploadScreen() {
             </View>
           </View>
 
-          {/* Features */}
-          <View style={styles.featuresCard}>
-            <Text style={styles.featuresTitle}>✨ What you&apos;ll get:</Text>
-            <View style={styles.featureItem}>
-              <Ionicons name="analytics" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Beautiful spending analytics and charts</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="restaurant" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Top restaurants and spending breakdown</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="calendar" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Monthly and yearly spending trends</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="share-social" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Shareable spending summaries</Text>
-            </View>
-          </View>
-
           {/* Privacy Note */}
           <View style={styles.privacyCard}>
             <Ionicons name="shield-checkmark" size={24} color="#007AFF" />
@@ -151,6 +144,16 @@ export default function UploadScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Tutorial Modal - Full Screen */}
+      <Modal
+        visible={showTutorial}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowTutorial(false)}
+      >
+        <UberDataTutorial onComplete={() => setShowTutorial(false)} />
+      </Modal>
 
       {/* Processing Loader (after upload) */}
       {showLoader && (
@@ -178,9 +181,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 8,
+    color: '#333',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
@@ -272,18 +276,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  featuresTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
-  },
-  featureItem: {
+  tutorialButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingVertical: 4,
   },
-  featureText: {
+  tutorialButtonText: {
     flex: 1,
     fontSize: 16,
     color: '#333',
