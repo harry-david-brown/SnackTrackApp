@@ -70,28 +70,37 @@ export function detectCurrency(currencyString: string | null | undefined): Curre
 /**
  * Detect currency from device locale
  * Maps locale/region codes to currency codes
+ * Handles various formats: "en-CA", "en_CA", "CA", "en", etc.
  */
 export function detectCurrencyFromLocale(locale: string | null | undefined): CurrencyCode {
   if (!locale) return DEFAULT_CURRENCY;
   
-  const localeLower = locale.toLowerCase();
+  // Normalize locale: convert underscores to hyphens and lowercase
+  const localeNormalized = locale.toLowerCase().replace(/_/g, '-');
+  
+  // Extract region code if present (e.g., "en-CA" -> "ca", "CA" -> "ca")
+  const parts = localeNormalized.split('-');
+  const regionCode = parts.length > 1 ? parts[parts.length - 1] : (parts[0].length === 2 ? parts[0] : null);
+  const fullLocale = localeNormalized;
   
   // Map locale/region codes to currencies
   // Check for country codes first (more specific)
-  if (localeLower.includes('us') || localeLower === 'en-us') return 'USD';
-  if (localeLower.includes('ca') || localeLower === 'en-ca') return 'CAD';
-  if (localeLower.includes('mx') || localeLower === 'es-mx') return 'MXN';
-  if (localeLower.includes('gb') || localeLower === 'en-gb') return 'GBP';
-  if (localeLower.includes('au') || localeLower === 'en-au') return 'AUD';
-  if (localeLower.includes('nz') || localeLower === 'en-nz') return 'NZD';
-  if (localeLower.includes('jp') || localeLower === 'ja-jp' || localeLower === 'ja') return 'JPY';
+  // Check full locale strings (e.g., "en-ca", "en_ca")
+  if (fullLocale === 'en-us' || fullLocale === 'en_us' || regionCode === 'us') return 'USD';
+  if (fullLocale === 'en-ca' || fullLocale === 'en_ca' || regionCode === 'ca') return 'CAD';
+  if (fullLocale === 'es-mx' || fullLocale === 'es_mx' || regionCode === 'mx') return 'MXN';
+  if (fullLocale === 'en-gb' || fullLocale === 'en_gb' || regionCode === 'gb') return 'GBP';
+  if (fullLocale === 'en-au' || fullLocale === 'en_au' || regionCode === 'au') return 'AUD';
+  if (fullLocale === 'en-nz' || fullLocale === 'en_nz' || regionCode === 'nz') return 'NZD';
+  if (fullLocale === 'ja-jp' || fullLocale === 'ja_jp' || fullLocale === 'ja' || regionCode === 'jp') return 'JPY';
   
   // Check for EUR countries (common European locales)
   const eurCountries = ['de', 'fr', 'it', 'es', 'nl', 'be', 'at', 'pt', 'fi', 'ie', 'gr', 'lu', 'dk', 'se', 'pl', 'cz', 'hu', 'sk', 'si', 'ee', 'lv', 'lt', 'mt', 'cy'];
-  if (eurCountries.some(country => localeLower.includes(country))) return 'EUR';
+  if (regionCode && eurCountries.includes(regionCode)) return 'EUR';
+  if (eurCountries.some(country => fullLocale.includes(`-${country}`) || fullLocale.includes(`_${country}`))) return 'EUR';
   
   // Check if locale explicitly mentions EUR
-  if (localeLower.includes('eur') || localeLower.includes('euro')) return 'EUR';
+  if (fullLocale.includes('eur') || fullLocale.includes('euro')) return 'EUR';
   
   return DEFAULT_CURRENCY;
 }
