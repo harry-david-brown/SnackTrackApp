@@ -33,7 +33,7 @@ export default {
       package: "com.snacktrack.app"
     },
     web: {
-      favicon: "./assets/favicon.png"
+      favicon: "./assets/icon.png"
     },
     extra: {
       // Default to Railway production API
