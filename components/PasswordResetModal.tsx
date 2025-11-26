@@ -231,6 +231,9 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
                 keyboardType="number-pad"
                 maxLength={6}
                 returnKeyType="done"
+                editable={true}
+                autoFocus={step === 'verify'}
+                autoCorrect={false}
               />
             </View>
             {attemptLimit && (
@@ -332,8 +335,9 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
       >
         <View style={styles.card}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
