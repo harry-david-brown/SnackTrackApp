@@ -202,11 +202,11 @@ export interface WrappedAnalytics {
       totalSpent: number;
       percentage: number;
       message: string;
-      allChains: Array<{
+      allChains: {
         name: string;
         count: number;
         percentage: number;
-      }>;
+      }[];
     };
   };
   flex: {
@@ -233,13 +233,20 @@ export interface WrappedAnalytics {
     };
   };
   comparative: {
+    spentThisYear?: {
+      totalSpent: number;
+      year: number;
+      orderCount: number;
+      averagePerOrder: number;
+      message: string;
+    };
     couldHaveBought?: {
       totalSpent: number;
-      comparisons: Array<{
+      comparisons: {
         item: string;
         quantity: number;
         message: string;
-      }>;
+      }[];
     };
     missedInvestment?: {
       amountSpent: number;
@@ -282,16 +289,16 @@ export interface UserSummary {
   totalSpent: number;
   totalReceipts: number;
   averageOrderValue: number;
-  topRestaurants: Array<{
+  topRestaurants: {
     name: string;
     count: number;
     totalSpent: number;
-  }>;
-  monthlyBreakdown: Array<{
+  }[];
+  monthlyBreakdown: {
     month: string;
     totalSpent: number;
     receiptCount: number;
-  }>;
+  }[];
   refundedReceipts: number;
   dataQuality: {
     issues: string[];
@@ -307,14 +314,14 @@ export interface DatabaseStats {
     totalSpent: number;
     averageOrderValue: number;
   };
-  tableSizes: Array<{
+  tableSizes: {
     table: string;
     size: string;
-  }>;
-  recentActivity: Array<{
+  }[];
+  recentActivity: {
     table: string;
     recentCount: number;
-  }>;
+  }[];
   health: {
     status: 'HEALTHY' | 'WARNING' | 'ERROR';
     timestamp: string;

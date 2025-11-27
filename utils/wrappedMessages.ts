@@ -736,6 +736,120 @@ export const WRAPPED_MESSAGES = {
       "Monday through Sunday, all terrible choices",
     ],
   },
+
+  spentThisYear: {
+    '<100': [
+      "Is it January or something?",
+      "Wow, you actually cooked this year. Character development.",
+      "Either you're broke or you have self-control. Both are respectable honestly.",
+      "You're not even worth roasting. Next.",
+      "You ordered delivery like 4 times. Why are you even here?",
+      "You either just downloaded this app or you're lying about your other accounts",
+      "Poverty is keeping you humble and we love that for you",
+      "Finally, someone with a functioning kitchen",
+      "You ordered once on your birthday",
+    ],
+    '100-500': [
+      "Congrats on being poor AND lazy",
+      "Just mid mid",
+      "This is the energy of someone who still thinks $8 delivery fees are too much",
+      "You're basically financially responsible. Get out of here, this app isn't for you.",
+      "This is the spending of someone who still asks their parents for money",
+      "You discovered the 'pickup' option and it changed your life",
+      "This is what people spent in 2019. Are you a time traveler?",
+      "You saw the delivery fee and said 'absolutely not' like a responsible adult",
+      "Are you okay? Do you have friends?",
+      "You really looked at a $4.99 delivery fee and chose violence (walking to the restaurant)",
+      "The only thing smaller than this number is your social life apparently",
+      "This screams 'I have roommates who judge me'",
+    ],
+    '500-1000': [
+      "This is 'I'll start cooking tomorrow' energy for 365 days straight",
+      "A thousand bucks and you probably still complained about paying for extra sauce",
+      "You spent a nice TV on mediocre Chinese food and regret",
+      "Your New Year's resolution was clearly not 'learn to cook'",
+      "You're the type to order a $30 meal and then eat ramen for a week to compensate",
+      "The shame-to-spending ratio here is actually pretty balanced",
+      "Rent in a small town",
+      "This is a decent mattress. Maybe you would've been able to sleep at night",
+      "That's like 200 frozen pizzas",
+      "Your kitchen is just a really expensive storage room at this point",
+      "You bought a gym membership to offset this and never went. I can sense it.",
+      "This is the budget of someone who thinks they're being responsible",
+      "You're one life crisis away from the $5000 bracket and we both know it",
+      "A decent used car payment. Except you got cold fries instead.",
+      "You spent rent money on soggy burritos. Respect the commitment to poor decisions.",
+      "Your bank account is crying but at least you didn't have to do dishes",
+      "A gym membership you'd actually use costs less than this",
+      "You spent this much and still complained about the tip suggestions",
+    ],
+    '1000-2000': [
+      "That's a plane ticket. You could've gone somewhere. Instead you got Chipotle 80 times.",
+      "A thousand dollars in delivery fees alone. The drivers are eating better than you.",
+      "You paid someone's salary just to bring you McDonalds. Hope it was worth it king.",
+      "This is what therapy costs. Except therapy might've helped.",
+      "Your credit score dropped just from me looking at this",
+      "A thousand dollars and you definitely still ordered from the same 3 restaurants",
+      "This could've been a nice vacation. Instead it was 50 burritos",
+      "The driver has seen your house more than your own family has",
+      "You're telling me you spent a mortgage payment on McDonalds?",
+    ],
+    '2000-3500': [
+      "This is a used car. You bought a whole ass car in UberEats. Where is your car. Show me the car.",
+      "Two grand and you can't name a single meal",
+      "This is rent in most cities",
+      "Three thousand dollars in convenience fees. The only thing convenient here is your financial ruin.",
+      "This is a MacBook. You could be creative. Instead you're just fat.",
+      "Your landlord thinks you're a drug dealer with all these delivery drivers showing up",
+      "You invested in the economy. Just the worst part of it.",
+    ],
+    '3500-5000': [
+      "Four grand on delivery and you still don't tip 20%. I know you don't.",
+      "You could've bought a dishwasher, a stove, AND cooking lessons for this",
+      "This is a semester of community college. You chose chicken tenders instead of education.",
+      "This is what normal people spend on groceries for their entire family.",
+      "You could've taken a coding bootcamp and changed your life. You chose mozzarella sticks.",
+      "Your DoorDash driver is taking his wife to Aruba with your tip money",
+      "The real crime is that half of this was probably service fees",
+    ],
+    '5000-7500': [
+      "Don't show your parents.",
+      "Your bank account is begging for mercy and you're like 'yeah but the sushi place is 8 minutes away'",
+      "genuinely HOW? Were you ordering for the whole floor? Are you okay?",
+      "This is not normal behavior. Seek help. Actually don't, you can't afford it anymore.",
+      "You spent a down payment on a house. What is wrong with you?",
+      "Your ancestors survived wars for this?",
+      "The CEO of UberEats should send you a Christmas card",
+      "Genuinely concerned. Are you okay? Do you know how to turn on a stove?",
+    ],
+    '7500-10000': [
+      "This is a whole year of groceries for a family. You're a family of one eating McDonalds.",
+      "Ten bands. TEN. BANDS. You could've gotten a personal chef for less.",
+      "Your driver has investment properties because of you",
+      "This is wealth redistribution but to the worst possible people",
+      "You know UberEats has shareholders right? You're some consultant's data point in a PowerPoint about customer retention",
+      "This is a wedding. You could've gotten married. Instead you married Chipotle.",
+      "You've personally funded someone's food truck startup with this money",
+      "The delivery radius around your house is permanently trafficked",
+    ],
+    '10000-20000': [
+      "What the fuck is wrong with you",
+      "This HAS to be a business account. Please tell me this is a business account.",
+      "The IRS is going to audit you just out of curiosity",
+      "You need an intervention, not an app",
+      "Honestly impressive. Like I'm not even mad, I'm fascinated. This is a psychological case study",
+      "You could've hired a private chef, bought them a car, AND still saved money",
+      "Ten thousand dollars and you definitely still ate cereal for dinner sometimes",
+      "Your bank statement looks like a hostage situation",
+      "You need to be studied by scientists",
+      "Does your mom know?",
+      "You're the reason they keep raising the prices",
+    ],
+    '20000+': [
+      "I don't have a joke you need help",
+      "Mythical beast",
+    ],
+  },
 } as const;
 
 // Helper functions to determine ranges
@@ -844,6 +958,19 @@ function getWeekendWarriorCategory(
   if (ratio > 1.2) return 'weekend';
   if (ratio < 0.8) return 'weekday';
   return 'balanced';
+}
+
+function getSpentThisYearRange(totalSpent: number): keyof typeof WRAPPED_MESSAGES.spentThisYear {
+  if (totalSpent < 100) return '<100';
+  if (totalSpent < 500) return '100-500';
+  if (totalSpent < 1000) return '500-1000';
+  if (totalSpent < 2000) return '1000-2000';
+  if (totalSpent < 3500) return '2000-3500';
+  if (totalSpent < 5000) return '3500-5000';
+  if (totalSpent < 7500) return '5000-7500';
+  if (totalSpent < 10000) return '7500-10000';
+  if (totalSpent < 20000) return '10000-20000';
+  return '20000+';
 }
 
 // Helper function to interpolate placeholders in messages
@@ -1041,6 +1168,14 @@ export function getDeterministicMessage(
         );
         const warriorMessages = WRAPPED_MESSAGES.weekendWarrior[warriorCategory];
         selectedMessage = warriorMessages[rng.nextInt(0, warriorMessages.length)];
+      }
+      break;
+
+    case 'spentThisYear':
+      if (typeof value === 'number') {
+        const spentThisYearRange = getSpentThisYearRange(value);
+        const spentThisYearMessages = WRAPPED_MESSAGES.spentThisYear[spentThisYearRange];
+        selectedMessage = spentThisYearMessages[rng.nextInt(0, spentThisYearMessages.length)];
       }
       break;
   }

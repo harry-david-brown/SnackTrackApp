@@ -108,7 +108,7 @@ print_test "3" "First Analytics Load - Cache MISS Expected"
 ((TESTS_RUN++))
 
 print_info "Fetching analytics for the first time..."
-TIME1=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/validation/user/$USER_ID/summary\" > /tmp/analytics1.json")
+TIME1=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/users/$USER_ID/summary\" > /tmp/analytics1.json")
 
 RESPONSE1=$(cat /tmp/analytics1.json)
 if echo "$RESPONSE1" | jq -e '.user.id' > /dev/null; then
@@ -125,7 +125,7 @@ print_test "4" "Second Analytics Load - Cache HIT Expected"
 
 print_info "Fetching analytics again (should be cached)..."
 sleep 1
-TIME2=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/validation/user/$USER_ID/summary\" > /tmp/analytics2.json")
+TIME2=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/users/$USER_ID/summary\" > /tmp/analytics2.json")
 
 RESPONSE2=$(cat /tmp/analytics2.json)
 if echo "$RESPONSE2" | jq -e '.user.id' > /dev/null; then
@@ -180,7 +180,7 @@ print_info "Waiting 2 seconds for backend processing..."
 sleep 2
 
 print_info "Fetching analytics after upload (cache should be invalidated)..."
-TIME3=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/validation/user/$USER_ID/summary\" > /tmp/analytics3.json")
+TIME3=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/users/$USER_ID/summary\" > /tmp/analytics3.json")
 
 RESPONSE3=$(cat /tmp/analytics3.json)
 RECEIPTS_AFTER=$(echo "$RESPONSE3" | jq -r '.statistics.totalReceipts')
@@ -206,7 +206,7 @@ print_test "7" "Repeat Load After Upload - New Cache Entry"
 ((TESTS_RUN++))
 
 sleep 1
-TIME4=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/validation/user/$USER_ID/summary\" > /tmp/analytics4.json")
+TIME4=$(measure_time "curl -s -H \"Authorization: Bearer $ACCESS_TOKEN\" \"$API_URL/users/$USER_ID/summary\" > /tmp/analytics4.json")
 
 RESPONSE4=$(cat /tmp/analytics4.json)
 RECEIPTS_CACHED=$(echo "$RESPONSE4" | jq -r '.statistics.totalReceipts')
@@ -233,7 +233,7 @@ UPLOAD2=$(curl -s -X POST "$API_URL/csv/import" \
 
 sleep 2
 
-ANALYTICS_MULTI=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "$API_URL/validation/user/$USER_ID/summary")
+ANALYTICS_MULTI=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "$API_URL/users/$USER_ID/summary")
 RECEIPTS_MULTI=$(echo "$ANALYTICS_MULTI" | jq -r '.statistics.totalReceipts')
 
 if [ "$RECEIPTS_MULTI" == "8" ]; then
@@ -257,8 +257,8 @@ USER_ID2=$(echo "$REGISTER2" | jq -r '.userId')
 ACCESS_TOKEN2=$(echo "$REGISTER2" | jq -r '.accessToken')
 
 # Fetch analytics for both users
-ANALYTICS_USER1=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "$API_URL/validation/user/$USER_ID/summary")
-ANALYTICS_USER2=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN2" "$API_URL/validation/user/$USER_ID2/summary")
+ANALYTICS_USER1=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" "$API_URL/users/$USER_ID/summary")
+ANALYTICS_USER2=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN2" "$API_URL/users/$USER_ID2/summary")
 
 RECEIPTS_USER1=$(echo "$ANALYTICS_USER1" | jq -r '.statistics.totalReceipts')
 RECEIPTS_USER2=$(echo "$ANALYTICS_USER2" | jq -r '.statistics.totalReceipts')

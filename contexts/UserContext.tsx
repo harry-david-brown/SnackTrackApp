@@ -367,7 +367,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           cacheAnalytics(response.userId, summary).catch(() => {
             // Silently fail caching - not critical
           });
-          
+
           // Update user's totalSpent from the summary data
           if (summary.totalSpent !== user.totalSpent) {
             dispatch({ type: 'UPDATE_USER_DATA', payload: { 
@@ -385,14 +385,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             analyticsApi.getUserSummary(response.userId, true)
               .then((wrappedSummary) => {
                 // Always update analytics with the wrapped summary (it has all the data)
-                dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-                dispatch({
-                  type: 'UPDATE_USER_DATA',
-                  payload: {
-                    totalSpent: wrappedSummary.totalSpent,
-                    receiptCount: wrappedSummary.totalReceipts,
-                  },
-                });
+          dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+          dispatch({
+            type: 'UPDATE_USER_DATA',
+            payload: {
+              totalSpent: wrappedSummary.totalSpent,
+              receiptCount: wrappedSummary.totalReceipts,
+            },
+          });
                 cacheAnalytics(response.userId, wrappedSummary).catch(() => {
                   // Silently fail caching - not critical
                 });
@@ -411,8 +411,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           }).catch(() => {
             // Silently fail cache retrieval
           });
-          // Don't fail login if analytics fails - user can still use the app
-          console.warn('Failed to load analytics after login:', analyticsError);
+        // Don't fail login if analytics fails - user can still use the app
+        console.warn('Failed to load analytics after login:', analyticsError);
         })
         .finally(() => {
           dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });

@@ -146,7 +146,7 @@ echo "   Response: $BODY"
 echo ""
 
 # Test analytics endpoint
-RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/validation/user/$USER_ID/summary" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/users/$USER_ID/summary" \
     -H "Authorization: Bearer $ACCESS_TOKEN")
 test_endpoint "Get user analytics" "200" "$RESPONSE"
 echo ""

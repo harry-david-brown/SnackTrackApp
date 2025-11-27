@@ -209,6 +209,26 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       ),
     });
 
+    // Yearly Spent - new slide before 3am orders
+    if (wrapped?.comparative?.spentThisYear) {
+      const data = wrapped.comparative.spentThisYear;
+      const spentThisYearMessage = getDeterministicMessage('spentThisYear', analytics, data.totalSpent, 14);
+      slides.push({
+        gradient: 'lagoon',
+        emoji: '📅',
+        content: (
+          <>
+            <Spacer h={20} />
+            <Text style={styles.slideTitle}>This Year</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+            <Text style={styles.bigNumberLabel}>spent this year</Text>
+            <Spacer h={6} />
+            <Text style={styles.roastText}>{spentThisYearMessage}</Text>
+          </>
+        ),
+      });
+    }
+
     // Shame Section
     if (wrapped?.shame.lateNightOrders) {
       const data = wrapped.shame.lateNightOrders;

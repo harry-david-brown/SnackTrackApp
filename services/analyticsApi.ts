@@ -6,7 +6,7 @@ export const analyticsApi = {
   getUserSummary: async (userId: string, includeWrapped: boolean = false): Promise<UserSummary> => {
     try {
       const params = includeWrapped ? '?includeWrapped=true' : '';
-      const response = await api.get(`/validation/user/${userId}/summary${params}`);
+      const response = await api.get(`/users/${userId}/summary${params}`);
       const data = response.data;
       
       // Transform the API response to match our UserSummary interface

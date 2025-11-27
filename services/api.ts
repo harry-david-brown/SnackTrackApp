@@ -238,7 +238,7 @@ export const receiptApi = {
 export const validationApi = {
   // Get user summary
   getUserSummary: async (userId: string): Promise<UserSummary> => {
-    const response = await api.get(`/validation/user/${userId}/summary`);
+    const response = await api.get(`/users/${userId}/summary`);
     return response.data;
   },
 };
