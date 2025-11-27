@@ -119,7 +119,7 @@ export default function DashboardScreen() {
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>🥡 SnackTrack</Text>
-              <Text style={styles.subtitle}>Welcome back, {state.user.email.split('@')[0]}!</Text>
+              <Text style={styles.subtitle}>Welcome back!</Text>
             </View>
             {__DEV__ && (
               <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
