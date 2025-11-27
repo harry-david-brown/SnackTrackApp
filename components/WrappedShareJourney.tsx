@@ -475,19 +475,19 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
     if (wrapped?.comparative.costPerMeal) {
       const data = wrapped.comparative.costPerMeal;
-      const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.difference, 11);
+      const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.averageDeliveryFeePerMeal, 11);
       slides.push({
         gradient: 'tangerine',
         emoji: '🏪',
         content: (
         <>
           <Text style={styles.slideTitle}>The Delivery Tax</Text>
-          <Text style={styles.bigNumber}>{formatCurrency(data.difference)}</Text>
+          <Text style={styles.bigNumber}>{formatCurrency(data.averageDeliveryFeePerMeal)}</Text>
           <Text style={styles.bigNumberLabel}>extra per meal</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Delivery: {formatCurrency(data.deliveryAverage)}</Text>
-            <Text style={styles.detailText}>Groceries: ~{formatCurrency(data.groceryEstimate)}</Text>
+            <Text style={styles.detailText}>Total fees: {formatCurrency(data.totalDeliveryFees)}</Text>
+            <Text style={styles.detailText}>Across {data.totalOrders} orders</Text>
           </View>
           <Text style={styles.roastText}>{costPerMealMessage}</Text>
         </>
@@ -670,7 +670,10 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <View style={styles.slideContent}>
+              <View style={[
+                styles.slideContent,
+                slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
+              ]}>
                 {slide.image ? (
                   <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
                 ) : (
@@ -789,10 +792,13 @@ const styles = StyleSheet.create({
   },
   slideContent: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: SAFE_TOP - Math.round(screenHeight * 0.11), // Further reduce top spacing to move content up
+    justifyContent: 'center',
+    paddingTop: SAFE_TOP + Math.round(screenHeight * 0.05), // Add 5% more space to center content better
     paddingBottom: SAFE_BOTTOM + 100, // Extra padding to account for controls
     paddingHorizontal: SAFE_SIDE,
+  },
+  slideContentHelloFresh: {
+    paddingTop: SAFE_TOP, // Less top padding to bring content up for content-heavy slide
   },
   frame: {
     width: '100%',

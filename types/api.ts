@@ -258,10 +258,10 @@ export interface WrappedAnalytics {
       message: string;
     };
     costPerMeal?: {
-      deliveryAverage: number;
-      groceryEstimate: number;
-      difference: number;
-      annualWaste: number;
+      totalDeliveryFees: number;
+      averageDeliveryFee: number;
+      averageDeliveryFeePerMeal: number;
+      totalOrders: number;
       message: string;
     };
   };
