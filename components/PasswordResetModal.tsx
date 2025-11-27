@@ -189,7 +189,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
           <>
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
-              Enter the email you use for Snack Track and we’ll send you a secure reset code.
+              Enter the email you use for SnackTrack and we&apos;ll send you a secure reset code.
             </Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />

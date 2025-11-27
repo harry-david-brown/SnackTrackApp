@@ -67,7 +67,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share your Snack Track Analytics',
+          dialogTitle: 'Share your SnackTrack Analytics',
           UTI: 'public.png', // For iOS Instagram/Stories compatibility
         });
         onClose();
@@ -103,7 +103,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       style={styles.templateContainer}
     >
       <View style={styles.templateHeader}>
-        <Text style={styles.templateTitle}>🥡 Snack Track Analytics</Text>
+        <Text style={styles.templateTitle}>🥡 SnackTrack Analytics</Text>
         <Text style={styles.templateSubtitle}>Your food spending insights</Text>
       </View>
 
@@ -131,7 +131,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       </View>
 
       <View style={styles.templateFooter}>
-        <Text style={styles.footerText}>Track your meals with Snack Track</Text>
+        <Text style={styles.footerText}>Track your meals with SnackTrack</Text>
         <Text style={styles.footerSubtext}>snacktrack.app</Text>
       </View>
     </LinearGradient>
@@ -177,7 +177,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       </View>
 
       <View style={styles.templateFooter}>
-        <Text style={styles.footerText}>Track your meals with Snack Track</Text>
+        <Text style={styles.footerText}>Track your meals with SnackTrack</Text>
         <Text style={styles.footerSubtext}>snacktrack.app</Text>
       </View>
     </LinearGradient>
@@ -214,7 +214,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       </View>
 
       <View style={styles.templateFooter}>
-        <Text style={styles.footerText}>Track your meals with Snack Track</Text>
+        <Text style={styles.footerText}>Track your meals with SnackTrack</Text>
         <Text style={styles.footerSubtext}>snacktrack.app</Text>
       </View>
     </LinearGradient>

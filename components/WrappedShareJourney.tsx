@@ -187,7 +187,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       emoji: '🎊',
       content: (
         <>
-          <Text style={styles.title}>Your Snack Track</Text>
+          <Text style={styles.title}>Your SnackTrack</Text>
           <Text style={styles.introText}>Let&apos;s see your entire food delivery history...</Text>
         </>
       ),
@@ -590,7 +590,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       if (uri && await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share your Snack Track Wrapped',
+          dialogTitle: 'Share your SnackTrack Wrapped',
         });
       }
     } catch {
@@ -677,7 +677,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
                   fontSize: 15,
                   letterSpacing: 0.5,
                 }}>
-                  @snacktrack.app
+                  @snacktrack
                 </Text>
               </View>
             </LinearGradient>

@@ -25,11 +25,11 @@ export default function ChartContainer({
 
     try {
       // Default share functionality
-      const shareText = `🥡 ${title} - Check out my spending insights with Snack Track!`;
+      const shareText = `🥡 ${title} - Check out my spending insights with SnackTrack!`;
       
       await Share.share({
         message: shareText,
-        title: `Snack Track - ${title}`,
+        title: `SnackTrack - ${title}`,
       });
     } catch {
       // Silently fail - user can try again

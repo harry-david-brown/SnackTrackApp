@@ -201,7 +201,7 @@ export default function ProfileScreen() {
         
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Snack Track v1.0.0</Text>
+          <Text style={styles.appInfoText}>SnackTrack v1.0.0</Text>
           <Text style={styles.appInfoText}>Made with ❤️</Text>
         </View>
         </View>

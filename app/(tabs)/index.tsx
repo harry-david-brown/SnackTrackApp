@@ -118,7 +118,7 @@ export default function DashboardScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>🥡 Snack Track</Text>
+              <Text style={styles.title}>🥡 SnackTrack</Text>
               <Text style={styles.subtitle}>Welcome back, {state.user.email.split('@')[0]}!</Text>
             </View>
             {__DEV__ && (
@@ -175,19 +175,6 @@ export default function DashboardScreen() {
               <Ionicons name="chevron-forward" size={20} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionButtonSecondary]}
-              onPress={() => router.push('/(tabs)/analytics')}
-            >
-              <View style={styles.actionButtonContent}>
-                <Ionicons name="analytics" size={24} color="#007AFF" />
-                <View style={styles.actionButtonText}>
-                  <Text style={[styles.actionButtonTitle, { color: '#007AFF' }]}>View Analytics</Text>
-                  <Text style={[styles.actionButtonSubtitle, { color: '#666' }]}>See your spending insights</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#007AFF" />
-            </TouchableOpacity>
           </View>
 
           {/* Recent Activity */}

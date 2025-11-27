@@ -32,7 +32,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share your Snack Track Analytics',
+          dialogTitle: 'Share your SnackTrack Analytics',
           UTI: 'public.png',
         });
         onShare?.(uri);
@@ -80,7 +80,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         >
           {/* Header */}
           <View style={styles.graphicHeader}>
-            <Text style={styles.graphicTitle}>🥡 Snack Track Analytics</Text>
+            <Text style={styles.graphicTitle}>🥡 SnackTrack Analytics</Text>
             <Text style={styles.graphicSubtitle}>Your food spending insights</Text>
           </View>
 
@@ -111,7 +111,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
 
           {/* Footer */}
           <View style={styles.graphicFooter}>
-            <Text style={styles.footerText}>Track your meals with Snack Track</Text>
+            <Text style={styles.footerText}>Track your meals with SnackTrack</Text>
             <Text style={styles.footerSubtext}>snacktrack.app</Text>
           </View>
         </LinearGradient>

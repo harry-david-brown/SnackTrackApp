@@ -118,7 +118,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
       <View style={styles.container}>
         <Text style={styles.title}>💡 Insights</Text>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Keep using Snack Track to unlock personalized insights!</Text>
+          <Text style={styles.emptyText}>Keep using SnackTrack to unlock personalized insights!</Text>
         </View>
       </View>
     );

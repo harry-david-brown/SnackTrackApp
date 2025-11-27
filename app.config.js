@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Snack Track",
+    name: "SnackTrack",
     slug: "snack-track",
     scheme: "snacktrack",
     version: "1.0.0",

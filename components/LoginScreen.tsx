@@ -164,7 +164,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>🥡 Snack Track</Text>
+              <Text style={styles.title}>🥡 SnackTrack</Text>
               <Text style={styles.subtitle}>
                 Track your food spending and discover amazing insights
               </Text>
@@ -268,23 +268,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     : "Sign in to access your spending insights and analytics."
                   }
                 </Text>
-              </View>
-            </View>
-
-            {/* Features Preview */}
-            <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>What you&apos;ll get:</Text>
-              <View style={styles.featureItem}>
-                <Ionicons name="analytics-outline" size={20} color="#007AFF" />
-                <Text style={styles.featureText}>Beautiful spending analytics</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="cloud-upload-outline" size={20} color="#007AFF" />
-                <Text style={styles.featureText}>Easy CSV import from Uber Eats</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="share-social-outline" size={20} color="#007AFF" />
-                <Text style={styles.featureText}>Shareable spending summaries</Text>
               </View>
             </View>
           </View>
@@ -445,36 +428,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  featuresContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  featuresTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 12,
   },
 });
 
