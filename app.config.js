@@ -21,6 +21,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.snacktrack.mobile",
+      buildNumber: "2",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }
