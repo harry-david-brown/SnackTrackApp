@@ -22,6 +22,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.snacktrack.mobile",
       buildNumber: "2",
+      displayName: "SnackTrack",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }
