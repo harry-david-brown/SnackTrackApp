@@ -40,6 +40,14 @@ export default function RootLayout() {
                     animation: 'fade',
                   }} 
                 />
+                <Stack.Screen 
+                  name="oauth-callback" 
+                  options={{ 
+                    headerShown: false,
+                    contentStyle: { backgroundColor: 'transparent' },
+                    animation: 'fade',
+                  }} 
+                />
               </Stack>
               <StatusBar style="auto" />
             </UserProvider>

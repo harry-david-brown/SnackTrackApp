@@ -9,11 +9,13 @@ import { UberDataUpload } from '../../components/UberDataUpload';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { GmailConnection } from '../../components/GmailConnection';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showGmailModal, setShowGmailModal] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
 
   const handleUploadSuccess = async (receiptsCount: number) => {
@@ -44,6 +46,12 @@ export default function UploadScreen() {
 
   const handleUploadError = (error: string) => {
     // Error is already shown in UI by CSVUpload component
+  };
+
+  const handleGmailImportSuccess = async () => {
+    setShowGmailModal(false);
+    // Show processing loader
+    setShowLoader(true);
   };
 
   if (!state.user) {
@@ -85,18 +93,37 @@ export default function UploadScreen() {
             </View>
           </View>
           
-          {/* Upload Section */}
-          <View style={styles.uploadCard}>
-            <Ionicons name="cloud-upload-outline" size={64} color="#007AFF" />
-            <Text style={styles.uploadTitle}>Upload Your Data</Text>
-            <Text style={styles.uploadSubtitle}>
-              Upload your Uber Eats ZIP file to analyze your spending patterns
-            </Text>
-            
-            <UberDataUpload 
-              onUploadSuccess={handleUploadSuccess}
-              onUploadError={handleUploadError}
-            />
+          {/* Import Methods Grid */}
+          <View style={styles.methodsContainer}>
+            {/* ZIP Upload Card */}
+            <View style={styles.uploadCard}>
+              <Ionicons name="cloud-upload-outline" size={64} color="#007AFF" />
+              <Text style={styles.uploadTitle}>Upload ZIP File</Text>
+              <Text style={styles.uploadSubtitle}>
+                Upload your Uber Eats data export
+              </Text>
+              
+              <UberDataUpload 
+                onUploadSuccess={handleUploadSuccess}
+                onUploadError={handleUploadError}
+              />
+            </View>
+
+            {/* Gmail Import Card */}
+            <TouchableOpacity 
+              style={styles.uploadCard}
+              onPress={() => setShowGmailModal(true)}
+            >
+              <Ionicons name="mail-outline" size={64} color="#4CAF50" />
+              <Text style={styles.uploadTitle}>Import from Gmail</Text>
+              <Text style={styles.uploadSubtitle}>
+                Connect Gmail to auto-import receipts
+              </Text>
+              <View style={styles.gmailButton}>
+                <Ionicons name="logo-google" size={20} color="#4CAF50" />
+                <Text style={styles.gmailButtonText}>Connect Gmail</Text>
+              </View>
+            </TouchableOpacity>
           </View>
           
           {/* Tutorial Button */}
@@ -155,6 +182,29 @@ export default function UploadScreen() {
         <UberDataTutorial onComplete={() => setShowTutorial(false)} />
       </Modal>
 
+      {/* Gmail Connection Modal */}
+      <Modal
+        visible={showGmailModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowGmailModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>📧 Gmail Import</Text>
+            <TouchableOpacity
+              onPress={() => setShowGmailModal(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={28} color="#666" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <GmailConnection onImportSuccess={handleGmailImportSuccess} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       {/* Processing Loader (after upload) */}
       {showLoader && (
         <WrappedJourneyLoader onComplete={handleLoaderComplete} />
@@ -191,6 +241,9 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 30,
   },
+  methodsContainer: {
+    marginBottom: 20,
+  },
   uploadCard: {
     backgroundColor: 'white',
     padding: 30,
@@ -205,6 +258,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  gmailButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  gmailButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginLeft: 8,
   },
   uploadTitle: {
     fontSize: 22,
@@ -326,5 +394,30 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
   },
 });
