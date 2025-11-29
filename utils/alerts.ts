@@ -11,7 +11,12 @@ export const showAlert = (title: string, message?: string, buttons?: any[]) => {
     alert(message ? `${title}: ${message}` : title);
   } else {
     // On native platforms, use React Native's Alert
-    Alert.alert(title, message, buttons);
+    // Only pass buttons if defined to avoid undefined being passed as third argument
+    if (buttons !== undefined) {
+      Alert.alert(title, message, buttons);
+    } else {
+      Alert.alert(title, message);
+    }
   }
 };
 
