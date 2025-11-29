@@ -19,7 +19,7 @@ export default {
       "expo-router"
     ],
     ios: {
-      supportsTablet: true,
+      supportsTablet: false,
       bundleIdentifier: "com.snacktrack.mobile",
       buildNumber: "2",
       displayName: "SnackTrack",
