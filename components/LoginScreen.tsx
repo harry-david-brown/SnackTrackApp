@@ -37,9 +37,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   // Show error alert when state.error changes
   useEffect(() => {
     if (state.error && !state.isLoading) {
+      const title = isRegistering ? 'Registration Failed' : 'Login Failed';
+      const message = state.error;
+      alert(`${title}: ${message}`);
       Alert.alert(
-        isRegistering ? 'Registration Failed' : 'Login Failed',
-        state.error,
+        title,
+        message,
         [
           {
             text: 'OK',
@@ -76,30 +79,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit called");
     // Validate email
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      const message = 'Please enter your email address';
+      alert(message);
+      Alert.alert('Error', message);
       return;
     }
 
     if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      const message = 'Please enter a valid email address';
+      alert(message);
+      Alert.alert('Error', message);
       return;
     }
 
     // Validate password
     if (!password) {
-      Alert.alert('Error', 'Please enter your password');
+      const message = 'Please enter your password';
+      alert(message);
+      Alert.alert('Error', message);
       return;
     }
 
     if (isRegistering) {
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
-        Alert.alert(
-          'Invalid Password',
-          'Password must have:\n' + passwordValidation.errors.map(e => '• ' + e).join('\n')
-        );
+        const message = 'Password must have:\n' + passwordValidation.errors.map(e => '• ' + e).join('\n');
+        alert(message);
+        Alert.alert('Invalid Password', message);
         return;
       }
     }
