@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,6 +16,7 @@ import { useOnboarding } from '../contexts/OnboardingContext';
 import UberDataTutorial from './UberDataTutorial';
 import PasswordResetModal from './PasswordResetModal';
 import { useRouter } from 'expo-router';
+import { showAlert } from '../utils/alerts';
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -33,15 +33,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const { register, login, state, clearError } = useUser();
   const { completeOnboarding } = useOnboarding();
   const router = useRouter();
-
-  // Helper function for cross-platform alerts
-  const showAlert = (title: string, message?: string) => {
-    if (Platform.OS === 'web') {
-      alert(message ? `${title}: ${message}` : title);
-    } else {
-      Alert.alert(title, message);
-    }
-  };
 
   // Show error alert when state.error changes
   useEffect(() => {

@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Modal,
   Platform,
@@ -16,6 +15,7 @@ import { useUser } from '../contexts/UserContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { parseApiError } from '../utils/errorUtils';
 import { captureException } from '../utils/sentry';
+import { showAlert } from '../utils/alerts';
 
 interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;
@@ -53,15 +53,6 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   
   const isConnected = !isOffline;
   const isInternetReachable = networkHookStatus.isInternetReachable ?? true;
-
-  // Helper function for cross-platform alerts
-  const showAlert = (title: string, message?: string) => {
-    if (Platform.OS === 'web') {
-      alert(message ? `${title}: ${message}` : title);
-    } else {
-      Alert.alert(title, message);
-    }
-  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
