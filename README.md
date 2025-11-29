@@ -1,6 +1,6 @@
 # 📱 Snack Track App
 
-A React Native/Expo app that automatically tracks your food spending through **Uber CSV imports** and provides beautiful analytics and social sharing features.
+A React Native/Expo app that shows you how much you wasted on food delivery through **Uber CSV imports**, then roasts you.
 
 ## 📋 Project Progress
 
