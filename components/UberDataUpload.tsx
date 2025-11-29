@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -53,6 +54,15 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   const isConnected = !isOffline;
   const isInternetReachable = networkHookStatus.isInternetReachable ?? true;
 
+  // Helper function for cross-platform alerts
+  const showAlert = (title: string, message?: string) => {
+    if (Platform.OS === 'web') {
+      alert(message ? `${title}: ${message}` : title);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -71,14 +81,14 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     
     // Check file extension - accept both CSV and ZIP
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.zip')) {
-      Alert.alert('Wrong file!', 'Please select your Uber user data.');
+      showAlert('Wrong file!', 'Please select your Uber user data.');
       return false;
     }
 
     // Check file size (max 50MB for ZIP, 10MB for CSV)
     const maxSize = fileName.endsWith('.zip') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (asset.size && asset.size > maxSize) {
-      Alert.alert(
+      showAlert(
         'File Too Large',
         `Please select a ${fileName.endsWith('.zip') ? 'ZIP' : 'CSV'} file smaller than ${fileName.endsWith('.zip') ? '50' : '10'}MB.`
       );
@@ -107,29 +117,32 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         setShowModal(true);
       }
     } catch {
-      Alert.alert('Error', 'Failed to select file. Please try again.');
+      showAlert('Error', 'Failed to select file. Please try again.');
     }
   };
 
   const handleUpload = async () => {
+    console.log('🔵 handleUpload called');
+    
     if (!state.user) {
-      Alert.alert('Error', 'Please log in first.');
+      console.log('❌ No user logged in');
+      showAlert('Error', 'Please log in first.');
       return;
     }
 
+    console.log('🔵 Network status:', { isConnected, isInternetReachable });
+    
     // Check network connection before attempting upload (use hook status - updates immediately)
     if (!isConnected || isInternetReachable === false) {
-      Alert.alert(
-        'No Internet Connection',
-        'Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
+      console.log('❌ No internet connection');
+      showAlert('No Internet Connection', 'Please check your internet connection and try again.');
       return;
     }
 
     let progressInterval: NodeJS.Timeout | null = null;
     
     try {
+      console.log('🔵 Starting upload process...');
       setUploadState(prev => ({ ...prev, isUploading: true, progress: 0 }));
 
       // Simulate progress updates
@@ -149,16 +162,35 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         throw new Error('No file selected for upload');
       }
       
-      console.log('Uploading file to API:', uploadState.fileName);
+      console.log('🔵 Uploading file to API:', uploadState.fileName);
+      console.log('🔵 File URI:', uploadState.fileUri);
+      console.log('🔵 Platform:', Platform.OS);
       
       // Create a File object for the API with correct MIME type
       const isZip = uploadState.fileName?.toLowerCase().endsWith('.zip');
-      const file = {
-        uri: uploadState.fileUri,
-        type: isZip ? 'application/zip' : 'text/csv',
-        name: uploadState.fileName,
-      } as any;
+      let file: any;
       
+      if (Platform.OS === 'web') {
+        console.log('🔵 Web platform - fetching blob from URI...');
+        // On web, fetch the blob from the URI and create a File object
+        const fetchResponse = await fetch(uploadState.fileUri);
+        console.log('🔵 Fetch response status:', fetchResponse.status);
+        const blob = await fetchResponse.blob();
+        console.log('🔵 Blob size:', blob.size, 'type:', blob.type);
+        file = new File([blob], uploadState.fileName, {
+          type: isZip ? 'application/zip' : 'text/csv',
+        });
+        console.log('🔵 Created File object:', file.name, file.size, file.type);
+      } else {
+        // On native, use the standard format
+        file = {
+          uri: uploadState.fileUri,
+          type: isZip ? 'application/zip' : 'text/csv',
+          name: uploadState.fileName,
+        };
+      }
+      
+      console.log('🔵 Calling csvApi.importCsv...');
       // Upload to API - will throw error if API is unavailable
       response = await csvApi.importCsv(state.user.id, file);
       console.log('✅ File uploaded successfully to API');
@@ -181,11 +213,17 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       }, 500);
 
     } catch (error: any) {
+      console.error('❌ Upload error:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      
       if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, isUploading: false, progress: 0 }));
       
       // Report errors to Sentry (except user-facing validation errors)
       const parsedError = parseApiError(error);
+      console.log('❌ Parsed error:', parsedError);
+      
       if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
         captureException(error, {
           context: 'UberDataUpload',
@@ -207,7 +245,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       }
       
       // Show error message - user can retry manually
-      Alert.alert('Upload Failed', errorMessage);
+      showAlert('Upload Failed', errorMessage);
       
       onUploadError?.(errorMessage);
     }

@@ -34,22 +34,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const { completeOnboarding } = useOnboarding();
   const router = useRouter();
 
+  // Helper function for cross-platform alerts
+  const showAlert = (title: string, message?: string) => {
+    if (Platform.OS === 'web') {
+      alert(message ? `${title}: ${message}` : title);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   // Show error alert when state.error changes
   useEffect(() => {
     if (state.error && !state.isLoading) {
       const title = isRegistering ? 'Registration Failed' : 'Login Failed';
-      const message = state.error;
-      alert(`${title}: ${message}`);
-      Alert.alert(
-        title,
-        message,
-        [
-          {
-            text: 'OK',
-            onPress: () => clearError(),
-          },
-        ]
-      );
+      showAlert(title, state.error);
+      clearError();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.error, state.isLoading]);
@@ -79,36 +78,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   const handleSubmit = async () => {
-    console.log("handleSubmit called");
     // Validate email
     if (!email.trim()) {
-      const message = 'Please enter your email address';
-      alert(message);
-      Alert.alert('Error', message);
+      showAlert('Error', 'Please enter your email address');
       return;
     }
 
     if (!validateEmail(email)) {
-      const message = 'Please enter a valid email address';
-      alert(message);
-      Alert.alert('Error', message);
+      showAlert('Error', 'Please enter a valid email address');
       return;
     }
 
     // Validate password
     if (!password) {
-      const message = 'Please enter your password';
-      alert(message);
-      Alert.alert('Error', message);
+      showAlert('Error', 'Please enter your password');
       return;
     }
 
     if (isRegistering) {
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
-        const message = 'Password must have:\n' + passwordValidation.errors.map(e => '• ' + e).join('\n');
-        alert(message);
-        Alert.alert('Invalid Password', message);
+        const message = passwordValidation.errors.map(e => '• ' + e).join('\n');
+        showAlert('Invalid Password', message);
         return;
       }
     }
