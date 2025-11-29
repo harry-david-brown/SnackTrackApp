@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,6 +16,7 @@ import { useOnboarding } from '../contexts/OnboardingContext';
 import UberDataTutorial from './UberDataTutorial';
 import PasswordResetModal from './PasswordResetModal';
 import { useRouter } from 'expo-router';
+import { showAlert } from '../utils/alerts';
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -37,16 +37,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   // Show error alert when state.error changes
   useEffect(() => {
     if (state.error && !state.isLoading) {
-      Alert.alert(
-        isRegistering ? 'Registration Failed' : 'Login Failed',
-        state.error,
-        [
-          {
-            text: 'OK',
-            onPress: () => clearError(),
-          },
-        ]
-      );
+      const title = isRegistering ? 'Registration Failed' : 'Login Failed';
+      showAlert(title, state.error);
+      clearError();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.error, state.isLoading]);
@@ -78,28 +71,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const handleSubmit = async () => {
     // Validate email
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      showAlert('Error', 'Please enter your email address');
       return;
     }
 
     if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      showAlert('Error', 'Please enter a valid email address');
       return;
     }
 
     // Validate password
     if (!password) {
-      Alert.alert('Error', 'Please enter your password');
+      showAlert('Error', 'Please enter your password');
       return;
     }
 
     if (isRegistering) {
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
-        Alert.alert(
-          'Invalid Password',
-          'Password must have:\n' + passwordValidation.errors.map(e => '• ' + e).join('\n')
-        );
+        const message = passwordValidation.errors.map(e => '• ' + e).join('\n');
+        showAlert('Invalid Password', message);
         return;
       }
     }

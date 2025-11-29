@@ -1,15 +1,41 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 // Storage keys for authentication
-// Sensitive tokens use SecureStore, non-sensitive data uses AsyncStorage
+// Sensitive tokens use SecureStore on native, AsyncStorage on web
 export const AUTH_STORAGE_KEYS = {
-  ACCESS_TOKEN: 'snacktrack_auth_token', // SecureStore (sensitive)
-  REFRESH_TOKEN: 'snacktrack_refresh_token', // SecureStore (sensitive)
+  ACCESS_TOKEN: 'snacktrack_auth_token', // SecureStore (sensitive) / AsyncStorage (web)
+  REFRESH_TOKEN: 'snacktrack_refresh_token', // SecureStore (sensitive) / AsyncStorage (web)
   USER_DATA: '@snacktrack_user_data', // AsyncStorage (non-sensitive)
   USER_ID: '@snacktrack_user_id', // AsyncStorage (non-sensitive)
   TOKEN_EXPIRES_AT: '@snacktrack_token_expires', // AsyncStorage (non-sensitive)
 } as const;
+
+// Helper functions to handle storage (SecureStore on native, AsyncStorage on web)
+const setSecureItem = async (key: string, value: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.setItem(key, value);
+  } else {
+    await SecureStore.setItemAsync(key, value);
+  }
+};
+
+const getSecureItem = async (key: string): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    return await AsyncStorage.getItem(key);
+  } else {
+    return await SecureStore.getItemAsync(key);
+  }
+};
+
+const deleteSecureItem = async (key: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.removeItem(key);
+  } else {
+    await SecureStore.deleteItemAsync(key);
+  }
+};
 
 // Token expiry times (in milliseconds)
 export const TOKEN_EXPIRY = {
@@ -49,10 +75,10 @@ export const storeAuthTokens = async (
     // Get expiry time from the JWT token itself
     const expiresAt = decodeJWTExpiry(accessToken);
     
-    // Store sensitive tokens in SecureStore
+    // Store sensitive tokens (SecureStore on native, AsyncStorage on web)
     await Promise.all([
-      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
-      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+      setSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      setSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
     ]);
     
     // Store non-sensitive data in AsyncStorage
@@ -63,7 +89,8 @@ export const storeAuthTokens = async (
     ]);
     
     if (__DEV__) {
-      console.log('✅ Auth tokens stored successfully (SecureStore)');
+      const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
+      console.log(`✅ Auth tokens stored successfully (${storageType})`);
       console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -73,11 +100,11 @@ export const storeAuthTokens = async (
 };
 
 /**
- * Get the stored access token from SecureStore
+ * Get the stored access token
  */
 export const getAccessToken = async (): Promise<string | null> => {
   try {
-    return await SecureStore.getItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+    return await getSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
   } catch (error) {
     console.error('Error getting access token:', error);
     return null;
@@ -85,11 +112,11 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 /**
- * Get the stored refresh token from SecureStore
+ * Get the stored refresh token
  */
 export const getRefreshToken = async (): Promise<string | null> => {
   try {
-    return await SecureStore.getItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+    return await getSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
   } catch (error) {
     console.error('Error getting refresh token:', error);
     return null;
@@ -151,13 +178,13 @@ export const updateAccessToken = async (
     // Get expiry time from the JWT token itself
     const expiresAt = decodeJWTExpiry(accessToken);
     
-    // Update sensitive token in SecureStore
+    // Update sensitive tokens
     const secureUpdates = [
-      SecureStore.setItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      setSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
     ];
     
     if (refreshToken) {
-      secureUpdates.push(SecureStore.setItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken));
+      secureUpdates.push(setSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken));
     }
     
     // Update non-sensitive expiry in AsyncStorage
@@ -168,7 +195,8 @@ export const updateAccessToken = async (
     await Promise.all([...secureUpdates, ...asyncUpdates]);
     
     if (__DEV__) {
-      console.log('✅ Access token updated successfully (SecureStore)');
+      const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
+      console.log(`✅ Access token updated successfully (${storageType})`);
       console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -182,10 +210,10 @@ export const updateAccessToken = async (
  */
 export const clearAuthTokens = async (): Promise<void> => {
   try {
-    // Clear sensitive tokens from SecureStore
+    // Clear sensitive tokens
     await Promise.all([
-      SecureStore.deleteItemAsync(AUTH_STORAGE_KEYS.ACCESS_TOKEN).catch(() => {}),
-      SecureStore.deleteItemAsync(AUTH_STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
+      deleteSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN).catch(() => {}),
+      deleteSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
     ]);
     
     // Clear non-sensitive data from AsyncStorage

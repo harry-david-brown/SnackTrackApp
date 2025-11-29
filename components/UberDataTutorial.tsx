@@ -127,6 +127,18 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
     // Calculate heights and mark as ready
     // Note: For local require() assets, React Native will load them when rendered
     // We'll render them off-screen to preload them
+    
+    // On web, Image.resolveAssetSource doesn't exist, so we skip the size calculation
+    // and just use default heights
+    if (Platform.OS === 'web') {
+      // Use default heights for web
+      const heights = imageSources.map(() => 400);
+      setImageHeights(prev => ({ ...prev, [slideIndex]: heights }));
+      setImagesLoaded(prev => ({ ...prev, [slideIndex]: true }));
+      loadingRef.current.delete(slideIndex);
+      return;
+    }
+    
     const imageUris = imageSources.map(source => Image.resolveAssetSource(source).uri);
     
     Promise.all(
