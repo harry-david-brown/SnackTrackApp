@@ -473,6 +473,9 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       });
     }
 
+    // Show Delivery Tax for Uber Eats users (or mixed users)
+    // For DoorDash-only users, Waiting Time slide will be shown in patterns section instead
+    // For mixed users, both slides will be shown
     if (wrapped?.comparative.costPerMeal) {
       const data = wrapped.comparative.costPerMeal;
       const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.averageDeliveryFeePerMeal, 11);
@@ -496,6 +499,44 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     }
 
     // Patterns Section
+    if (wrapped?.patterns.deliveryWaits) {
+      const data = wrapped.patterns.deliveryWaits;
+      // Format total time - show hours if >= 1 hour, otherwise show minutes
+      const totalHours = (data.totalMinutes / 60).toFixed(1);
+      const totalDays = (data.totalMinutes / (60 * 24)).toFixed(1);
+      const formattedTotalTime = parseFloat(totalHours) >= 24 
+        ? `${totalDays} days`
+        : parseFloat(totalHours) >= 1
+        ? `${totalHours} hours`
+        : `${data.totalMinutes} minutes`;
+      
+      slides.push({
+        gradient: 'sunrise',
+        emoji: '⏱️',
+        content: (
+        <>
+          <Text style={styles.slideTitle}>Waiting Time</Text>
+          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formattedTotalTime}</Text>
+          <Text style={styles.bigNumberLabel}>spent waiting for delivery</Text>
+          <Spacer h={6} />
+          <View style={styles.detailBox}>
+            <Text style={styles.detailText}>{data.totalMinutes.toLocaleString()} minutes across {data.totalOrders} orders</Text>
+            <Text style={styles.detailText}>Average: {data.averageMinutes} minutes per order</Text>
+            {data.longestWait && (
+              <Text style={styles.detailText}>Longest: {data.longestWait.minutes} min at {data.longestWait.restaurant}</Text>
+            )}
+            {data.fastestDelivery && (
+              <Text style={styles.detailText}>Fastest: {data.fastestDelivery.minutes} min at {data.fastestDelivery.restaurant}</Text>
+            )}
+          </View>
+          {data.longestWait && data.longestWait.message && (
+            <Text style={styles.roastText}>{data.longestWait.message}</Text>
+          )}
+        </>
+        ),
+      });
+    }
+
     if (wrapped?.patterns.peakHungerHour) {
       const data = wrapped.patterns.peakHungerHour;
       const peakHungerMessage = getDeterministicMessage('peakHungerHour', analytics, data.hour, 12);

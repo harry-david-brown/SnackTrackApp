@@ -281,6 +281,21 @@ export interface WrappedAnalytics {
       ratio: number;
       message: string;
     };
+    deliveryWaits?: {
+      totalMinutes: number;
+      averageMinutes: number;
+      totalOrders: number;
+      longestWait?: {
+        minutes: number;
+        restaurant: string;
+        amount: number;
+        message: string;
+      };
+      fastestDelivery?: {
+        minutes: number;
+        restaurant: string;
+      };
+    };
   };
 }
 
