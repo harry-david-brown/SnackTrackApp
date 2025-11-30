@@ -23,9 +23,9 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <OnboardingProvider>
-          <CurrencyProvider>
-            <UserProvider>
+        <CurrencyProvider>
+          <UserProvider>
+            <OnboardingProvider>
               <Stack
                 screenOptions={{
                   contentStyle: { backgroundColor: 'transparent' },
@@ -42,9 +42,9 @@ export default function RootLayout() {
                 />
               </Stack>
               <StatusBar style="auto" />
-            </UserProvider>
-          </CurrencyProvider>
-        </OnboardingProvider>
+            </OnboardingProvider>
+          </UserProvider>
+        </CurrencyProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

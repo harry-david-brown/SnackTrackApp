@@ -74,112 +74,58 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const insets = useSafeAreaInsets();
-  const [imageHeights, setImageHeights] = useState<{ [key: number]: number[] }>({});
-  const [imagesLoaded, setImagesLoaded] = useState<{ [key: number]: boolean }>({});
-  const [imagesActuallyLoaded, setImagesActuallyLoaded] = useState<{ [key: number]: Set<number> }>({});
-  const loadingRef = useRef<Set<number>>(new Set());
-  
-  // Track when individual images are actually loaded
-  const handleImageLoad = (slideIndex: number, imageIndex: number) => {
-    setImagesActuallyLoaded(prev => {
-      const loaded = prev[slideIndex] || new Set();
-      loaded.add(imageIndex);
-      return { ...prev, [slideIndex]: new Set(loaded) };
-    });
-  };
-  
-  // Helper function to load images for a specific slide index
-  const loadSlideImages = (slideIndex: number) => {
-    // Prevent duplicate loads
-    if (loadingRef.current.has(slideIndex) || imagesLoaded[slideIndex]) {
-      return;
-    }
-    
-    loadingRef.current.add(slideIndex);
-    const imageWidth = width * 0.9;
-    let imageSources: any[] = [];
-    
-    if (slideIndex === 0) {
-      imageSources = [
-        require('../assets/UberDataTutorialPNGs/1/1.webp'),
-        require('../assets/UberDataTutorialPNGs/1/2.webp'),
-        require('../assets/UberDataTutorialPNGs/1/3.webp'),
-        require('../assets/UberDataTutorialPNGs/1/4.webp'),
-      ];
-    } else if (slideIndex === 1) {
-      imageSources = [
+
+  // Preload all images on mount using Image.prefetch
+  // Prioritize slide 2 images since they're slower to load
+  useEffect(() => {
+    const preloadImages = async () => {
+      // Slide 2 images first (they're slower)
+      const slide2Images = [
         require('../assets/UberDataTutorialPNGs/2/1.webp'),
         require('../assets/UberDataTutorialPNGs/2/2.webp'),
         require('../assets/UberDataTutorialPNGs/2/3.webp'),
       ];
-    } else if (slideIndex === 2) {
-      imageSources = [
+      
+      // Other images
+      const otherImages = [
+        require('../assets/UberDataTutorialPNGs/1/1.webp'),
+        require('../assets/UberDataTutorialPNGs/1/2.webp'),
+        require('../assets/UberDataTutorialPNGs/1/3.webp'),
+        require('../assets/UberDataTutorialPNGs/1/4.webp'),
         require('../assets/UberDataTutorialPNGs/3/1.webp'),
         require('../assets/UberDataTutorialPNGs/3/2.webp'),
       ];
-    }
-    
-    if (imageSources.length === 0) {
-      loadingRef.current.delete(slideIndex);
-      return;
-    }
-    
-    // Calculate heights and mark as ready
-    // Note: For local require() assets, React Native will load them when rendered
-    // We'll render them off-screen to preload them
-    
-    // On web, Image.resolveAssetSource doesn't exist, so we skip the size calculation
-    // and just use default heights
-    if (Platform.OS === 'web') {
-      // Use default heights for web
-      const heights = imageSources.map(() => 400);
-      setImageHeights(prev => ({ ...prev, [slideIndex]: heights }));
-      setImagesLoaded(prev => ({ ...prev, [slideIndex]: true }));
-      loadingRef.current.delete(slideIndex);
-      return;
-    }
-    
-    const imageUris = imageSources.map(source => Image.resolveAssetSource(source).uri);
-    
-    Promise.all(
-      imageUris.map((uri) => 
-        new Promise<number>((resolve) => {
-          Image.getSize(
-            uri,
-            (imgWidth, imgHeight) => {
-              const aspectRatio = imgHeight / imgWidth;
-              resolve(imageWidth * aspectRatio);
-            },
-            () => resolve(400) // fallback
-          );
-        })
-      )
-    ).then((heights) => {
-      setImageHeights(prev => ({ ...prev, [slideIndex]: heights }));
-      setImagesLoaded(prev => ({ ...prev, [slideIndex]: true }));
-      loadingRef.current.delete(slideIndex);
-    });
-  };
-  
-  // Load all slide images on mount
-  useEffect(() => {
-    // Load images for all slides immediately
-    for (let i = 0; i < slides.length; i++) {
-      loadSlideImages(i);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      try {
+        // Prefetch slide 2 images first (priority)
+        await Promise.all(
+          slide2Images.map((source) => {
+            const resolved = Image.resolveAssetSource(source);
+            return Image.prefetch(resolved.uri);
+          })
+        );
+        
+        // Then prefetch other images
+        await Promise.all(
+          otherImages.map((source) => {
+            const resolved = Image.resolveAssetSource(source);
+            return Image.prefetch(resolved.uri);
+          })
+        );
+      } catch (error) {
+        // Silently fail - images will load normally if prefetch fails
+      }
+    };
+
+    preloadImages();
   }, []);
-  
+
+  // Reset scroll position to top whenever slide changes
   useEffect(() => {
-    // Ensure current slide images are loaded (in case they weren't loaded on mount)
-    loadSlideImages(currentIndex);
-    
-    // Ensure next slide's images are loaded
-    const nextIndex = currentIndex + 1;
-    if (nextIndex < slides.length) {
-      loadSlideImages(nextIndex);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    scrollViewRef.current?.scrollTo({
+      y: 0,
+      animated: false,
+    });
   }, [currentIndex]);
 
   const handleNext = () => {
@@ -194,10 +140,6 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
       }).start(() => {
         // Change slide
         setCurrentIndex(nextIndex);
-        scrollViewRef.current?.scrollTo({
-          x: nextIndex * width,
-          animated: false,
-        });
         
         // Fade in
         Animated.timing(fadeAnim, {
@@ -221,10 +163,6 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
 
   const currentSlide = slides[currentIndex];
   const isLastSlide = currentIndex === slides.length - 1;
-  // For first slide, wait for heights to be calculated AND first image to actually load
-  // Check if first image (index 0) is loaded
-  const firstImageLoaded = imagesActuallyLoaded[0]?.has(0) || false;
-  const isFirstSlideLoading = currentIndex === 0 && (!imagesLoaded[0] || !firstImageLoaded);
 
   return (
     <LinearGradient colors={currentSlide.gradient as any} style={StyleSheet.absoluteFillObject}>
@@ -234,72 +172,64 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
         <Text style={styles.skipText}>Skip</Text>
       </TouchableOpacity>
 
-      {/* Off-screen image preloader - preload all slide images */}
-      <View style={styles.preloadContainer} pointerEvents="none">
-        {/* Preload slide 1 images */}
+      {/* Preload all images in hidden container for caching - render at full size off-screen */}
+      <View style={styles.preloadContainer}>
         <Image 
           source={require('../assets/UberDataTutorialPNGs/1/1.webp')} 
-          style={[styles.preloadImage, imageHeights[0]?.[0] ? { height: imageHeights[0][0] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(0, 0)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/1/2.webp')} 
-          style={[styles.preloadImage, imageHeights[0]?.[1] ? { height: imageHeights[0][1] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(0, 1)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/1/3.webp')} 
-          style={[styles.preloadImage, imageHeights[0]?.[2] ? { height: imageHeights[0][2] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(0, 2)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/1/4.webp')} 
-          style={[styles.preloadImage, imageHeights[0]?.[3] ? { height: imageHeights[0][3] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(0, 3)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
-        {/* Preload slide 2 images */}
         <Image 
           source={require('../assets/UberDataTutorialPNGs/2/1.webp')} 
-          style={[styles.preloadImage, imageHeights[1]?.[0] ? { height: imageHeights[1][0] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(1, 0)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/2/2.webp')} 
-          style={[styles.preloadImage, imageHeights[1]?.[1] ? { height: imageHeights[1][1] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(1, 1)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/2/3.webp')} 
-          style={[styles.preloadImage, imageHeights[1]?.[2] ? { height: imageHeights[1][2] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(1, 2)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
-        {/* Preload slide 3 images */}
         <Image 
           source={require('../assets/UberDataTutorialPNGs/3/1.webp')} 
-          style={[styles.preloadImage, imageHeights[2]?.[0] ? { height: imageHeights[2][0] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(2, 0)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
         <Image 
           source={require('../assets/UberDataTutorialPNGs/3/2.webp')} 
-          style={[styles.preloadImage, imageHeights[2]?.[1] ? { height: imageHeights[2][1] } : { height: 400 }]}
-          onLoad={() => handleImageLoad(2, 1)}
+          style={styles.preloadImage}
+          resizeMode="contain"
         />
       </View>
 
       <Animated.View style={[styles.mainContent, { opacity: fadeAnim, paddingTop: insets.top }]}>
-          {isFirstSlideLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="white" />
-            </View>
-          )}
           <ScrollView 
-            key={currentIndex}
-            style={[styles.scrollView, isFirstSlideLoading && styles.hiddenContent]}
+            ref={scrollViewRef}
+            style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             bounces={true}
             overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
-            pointerEvents={isFirstSlideLoading ? 'none' : 'auto'}
+            scrollEnabled={true}
           >
             <View style={styles.slideContent}>
             <View style={styles.iconContainer}>
@@ -321,113 +251,72 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
               ))}
             </View>
 
-            {/* Screenshots - render immediately to start loading */}
-            {currentIndex === 0 && imageHeights[0] ? (
-                <View style={styles.screenshotContainer}>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/1/1.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[0][0] }
-                      ]}
-                      resizeMode="contain"
-                      onLoad={() => handleImageLoad(0, 0)}
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/1/2.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[0][1] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/1/3.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[0][2] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/1/4.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[0][3] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-              ) : currentIndex === 1 && imageHeights[1] ? (
-                <View style={styles.screenshotContainer}>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/2/1.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[1][0] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/2/2.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[1][1] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/2/3.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[1][2] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-              ) : currentIndex === 2 && imageHeights[2] ? (
-                <View style={styles.screenshotContainer}>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/3/1.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[2][0] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={styles.screenshotWrapper}>
-                    <Image 
-                      source={require('../assets/UberDataTutorialPNGs/3/2.webp')} 
-                      style={[
-                        styles.screenshot,
-                        { height: imageHeights[2][1] }
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.screenshotPlaceholder}>
-                  <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.3)" />
-                  <Text style={styles.placeholderText}>Loading screenshots...</Text>
-                </View>
-              )}
+            {/* Screenshots - render all but show only active slide */}
+            <View style={styles.screenshotContainer}>
+              {/* Slide 0 images */}
+              <View style={[styles.slideScreenshots, currentIndex !== 0 && styles.hiddenSlide]}>
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/1/1.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/1/2.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/1/3.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/1/4.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+              </View>
+              {/* Slide 1 images */}
+              <View style={[styles.slideScreenshots, currentIndex !== 1 && styles.hiddenSlide]}>
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/2/1.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/2/2.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/2/3.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+              </View>
+              {/* Slide 2 images */}
+              <View style={[styles.slideScreenshots, currentIndex !== 2 && styles.hiddenSlide]}>
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/3/1.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+                <Image 
+                  source={require('../assets/UberDataTutorialPNGs/3/2.webp')} 
+                  style={styles.screenshot}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+              </View>
+            </View>
             </View>
           </ScrollView>
         </Animated.View>
@@ -476,31 +365,6 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  hiddenContent: {
-    opacity: 0,
-  },
-  preloadContainer: {
-    position: 'absolute',
-    left: -width * 2,
-    top: 0,
-    width: width * 0.9,
-    overflow: 'hidden',
-    opacity: 0.01,
-    zIndex: -1,
-  },
-  preloadImage: {
-    width: '100%',
   },
   scrollView: {
     flex: 1,
@@ -570,38 +434,46 @@ const styles = StyleSheet.create({
     color: 'white',
     lineHeight: 20,
   },
+  preloadContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    width: width * 0.9,
+    opacity: 0,
+    pointerEvents: 'none',
+  },
+  preloadImage: {
+    width: width * 0.9,
+    height: undefined,
+    aspectRatio: 0.5625,
+    marginBottom: 15,
+  },
   screenshotContainer: {
     width: '100%',
     marginTop: 0,
     alignItems: 'center',
+    position: 'relative',
   },
-  screenshotWrapper: {
-    width: width * 0.9,
-    marginBottom: 15,
+  slideScreenshots: {
+    width: '100%',
     alignItems: 'center',
   },
+  hiddenSlide: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    opacity: 0,
+    pointerEvents: 'none',
+  },
   screenshot: {
-    width: '100%',
+    width: width * 0.9,
+    height: undefined,
+    aspectRatio: 0.5625, // Common phone screenshot aspect ratio (9:16 inverted for landscape)
+    marginBottom: 15,
     borderRadius: 12,
     backgroundColor: 'white',
     borderWidth: 10,
     borderColor: 'rgb(255, 255, 255)',
-  },
-  screenshotPlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderStyle: 'dashed',
-  },
-  placeholderText: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 12,
-    marginTop: 8,
   },
   footer: {
     width: '100%',

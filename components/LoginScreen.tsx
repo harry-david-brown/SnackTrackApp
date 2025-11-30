@@ -12,8 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
-import { useOnboarding } from '../contexts/OnboardingContext';
-import UberDataTutorial from './UberDataTutorial';
 import PasswordResetModal from './PasswordResetModal';
 import { useRouter } from 'expo-router';
 import { showAlert } from '../utils/alerts';
@@ -28,10 +26,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(true); // Default to registration
-  const [showTutorial, setShowTutorial] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const { register, login, state, clearError } = useUser();
-  const { completeOnboarding } = useOnboarding();
   const router = useRouter();
 
   // Show error alert when state.error changes
@@ -100,15 +96,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
-        // Email verification is optional - proceed to tutorial regardless
-        setShowTutorial(true);
+        // Tutorial will be shown automatically by app/index.tsx since onboarding is not complete
       } else {
         await login(email.trim().toLowerCase(), password);
         // Email verification is optional - proceed to app regardless
-        if (!showTutorial) {
-          onLoginSuccess?.();
-          router.replace('/(tabs)');
-        }
+        onLoginSuccess?.();
+        router.replace('/(tabs)');
       }
     } catch {
       // Error is already set in state by UserContext
@@ -118,14 +111,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleTutorialComplete = async () => {
-    // Complete onboarding and let app/index.tsx handle navigation
-    await completeOnboarding();
-    setShowTutorial(false);
-    if (state.isAuthenticated && state.user) {
-      router.replace('/(tabs)');
-    }
-  };
 
 
   const openPasswordReset = () => {
@@ -135,11 +120,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const closePasswordReset = () => {
     setShowPasswordReset(false);
   };
-
-  // Show tutorial as full-screen overlay
-  if (showTutorial) {
-    return <UberDataTutorial onComplete={handleTutorialComplete} />;
-  }
 
   return (
     <SafeAreaView style={styles.container}>

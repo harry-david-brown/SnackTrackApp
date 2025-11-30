@@ -300,6 +300,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       dispatch({ type: 'SET_USER', payload: user });
       
+      console.log('🔍 [UserContext] User registered and set:', {
+        userId: user.id,
+        email: user.email,
+        isAuthenticated: true, // Will be set by reducer
+      });
+      
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
       
