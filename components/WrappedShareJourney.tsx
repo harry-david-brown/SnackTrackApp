@@ -473,9 +473,8 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       });
     }
 
-    // Show Delivery Tax for Uber Eats users (or mixed users)
-    // For DoorDash-only users, Waiting Time slide will be shown in patterns section instead
-    // For mixed users, both slides will be shown
+    // Delivery Tax slide - shown when cost per meal data is available
+    // (Available for users with delivery fee data, regardless of platform)
     if (wrapped?.comparative.costPerMeal) {
       const data = wrapped.comparative.costPerMeal;
       const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.averageDeliveryFeePerMeal, 11);
@@ -499,6 +498,8 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     }
 
     // Patterns Section
+    // Waiting Time slide - available for both Uber Eats and DoorDash users
+    // (Only shown when delivery time data is available)
     if (wrapped?.patterns.deliveryWaits) {
       const data = wrapped.patterns.deliveryWaits;
       // Format total time - show hours if >= 1 hour, otherwise show minutes
