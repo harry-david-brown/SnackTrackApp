@@ -9,7 +9,6 @@ import {
   Animated,
   Platform,
   Image,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -112,7 +111,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
             return Image.prefetch(resolved.uri);
           })
         );
-      } catch (error) {
+      } catch {
         // Silently fail - images will load normally if prefetch fails
       }
     };
