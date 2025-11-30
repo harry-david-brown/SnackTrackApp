@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
@@ -134,6 +134,9 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
+  
+  // Ref to prevent duplicate analytics loads
+  const loadingAnalyticsRef = useRef<Promise<UserSummary | null> | null>(null);
 
   // Load user data from storage on app start
   useEffect(() => {
@@ -179,60 +182,66 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
             
-            // Start loading analytics immediately so dashboard has data ready
-            // This is non-blocking - navigation will wait for it to complete
-            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-            analyticsApi.getUserSummary(userId, false)
-              .then((summary) => {
-                dispatch({ type: 'SET_ANALYTICS', payload: summary });
-                cacheAnalytics(userId, summary).catch(() => {
-                  // Silently fail caching - not critical
-                });
-                
-                // Update user's totalSpent from the summary data
-                if (summary.totalSpent !== userWithSpending.totalSpent) {
-                  dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-                    totalSpent: summary.totalSpent,
-                    receiptCount: summary.totalReceipts 
-                  }});
-                }
-                
-                // After /summary completes, if user has data, immediately preload wrapped data
-                if (summary.totalReceipts > 0) {
-                  // Preload wrapped analytics in background
-                  analyticsApi.getUserSummary(userId, true)
-                    .then((wrappedSummary) => {
-                      dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-                      dispatch({
-                        type: 'UPDATE_USER_DATA',
-                        payload: {
-                          totalSpent: wrappedSummary.totalSpent,
-                          receiptCount: wrappedSummary.totalReceipts,
-                        },
-                      });
-                      cacheAnalytics(userId, wrappedSummary).catch(() => {
-                        // Silently fail caching - not critical
-                      });
-                    })
-                    .catch(() => {
-                      // Silently fail wrapped preload - not critical
-                    });
-                }
-              })
-              .catch((analyticsError) => {
-                // Try to use cached data on error
-                getCachedAnalytics(userId).then((cached) => {
-                  if (cached) {
-                    dispatch({ type: 'SET_ANALYTICS', payload: cached });
+            // Prevent duplicate analytics loads
+            if (!loadingAnalyticsRef.current) {
+              dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+              
+              loadingAnalyticsRef.current = analyticsApi.getUserSummary(userId, false)
+                .then((summary) => {
+                  dispatch({ type: 'SET_ANALYTICS', payload: summary });
+                  cacheAnalytics(userId, summary).catch(() => {
+                    // Silently fail caching - not critical
+                  });
+                  
+                  // Update user's totalSpent from the summary data
+                  if (summary.totalSpent !== userWithSpending.totalSpent) {
+                    dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+                      totalSpent: summary.totalSpent,
+                      receiptCount: summary.totalReceipts 
+                    }});
                   }
-                }).catch(() => {
-                  // Silently fail cache retrieval
+                  
+                  // After /summary completes, if user has data, immediately preload wrapped data
+                  if (summary.totalReceipts > 0) {
+                    // Preload wrapped analytics in background
+                    analyticsApi.getUserSummary(userId, true)
+                      .then((wrappedSummary) => {
+                        dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                        dispatch({
+                          type: 'UPDATE_USER_DATA',
+                          payload: {
+                            totalSpent: wrappedSummary.totalSpent,
+                            receiptCount: wrappedSummary.totalReceipts,
+                          },
+                        });
+                        cacheAnalytics(userId, wrappedSummary).catch(() => {
+                          // Silently fail caching - not critical
+                        });
+                      })
+                      .catch(() => {
+                        // Silently fail wrapped preload - not critical
+                      });
+                  }
+                  
+                  return summary;
+                })
+                .catch((analyticsError) => {
+                  // Try to use cached data on error
+                  getCachedAnalytics(userId).then((cached) => {
+                    if (cached) {
+                      dispatch({ type: 'SET_ANALYTICS', payload: cached });
+                    }
+                  }).catch(() => {
+                    // Silently fail cache retrieval
+                  });
+                  console.warn('Failed to load analytics on app start:', analyticsError);
+                  return null;
+                })
+                .finally(() => {
+                  loadingAnalyticsRef.current = null;
+                  dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
                 });
-                console.warn('Failed to load analytics on app start:', analyticsError);
-              })
-              .finally(() => {
-                dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-              });
+            }
           } else {
             // Session invalid, clear and force re-login
             await clearAuthTokens();
@@ -366,63 +375,71 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Start loading analytics immediately (non-blocking) so dashboard has data ready
       // This prevents "Total Spent" from popping in after dashboard renders
       // Use response.userId directly since state.user might not be updated yet
-      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-      analyticsApi.getUserSummary(response.userId, false)
-        .then((summary) => {
-          dispatch({ type: 'SET_ANALYTICS', payload: summary });
-          cacheAnalytics(response.userId, summary).catch(() => {
-            // Silently fail caching - not critical
-          });
+      // Prevent duplicate analytics loads
+      if (!loadingAnalyticsRef.current) {
+        dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+        
+        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
+          .then((summary) => {
+            dispatch({ type: 'SET_ANALYTICS', payload: summary });
+            cacheAnalytics(response.userId, summary).catch(() => {
+              // Silently fail caching - not critical
+            });
 
-          // Update user's totalSpent from the summary data
-          if (summary.totalSpent !== user.totalSpent) {
-            dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-              totalSpent: summary.totalSpent,
-              receiptCount: summary.totalReceipts 
-            }});
-          }
-          
-          // After /summary completes, if user has data, immediately preload wrapped data
-          // This ensures Wrapped Journey tab loads instantly when clicked
-          // Check both totalReceipts and totalSpent to be safe
-          const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
-          if (hasData) {
-            // Preload wrapped analytics in background (don't await - let it run async)
-            analyticsApi.getUserSummary(response.userId, true)
-              .then((wrappedSummary) => {
-                // Always update analytics with the wrapped summary (it has all the data)
-          dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-          dispatch({
-            type: 'UPDATE_USER_DATA',
-            payload: {
-              totalSpent: wrappedSummary.totalSpent,
-              receiptCount: wrappedSummary.totalReceipts,
-            },
-          });
-                cacheAnalytics(response.userId, wrappedSummary).catch(() => {
-                  // Silently fail caching - not critical
-                });
-              })
-              .catch(() => {
-                // Silently fail wrapped preload - not critical for login
-              });
-          }
-        })
-        .catch((analyticsError) => {
-          // Try to use cached data on error
-          getCachedAnalytics(response.userId).then((cached) => {
-            if (cached) {
-              dispatch({ type: 'SET_ANALYTICS', payload: cached });
+            // Update user's totalSpent from the summary data
+            if (summary.totalSpent !== user.totalSpent) {
+              dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+                totalSpent: summary.totalSpent,
+                receiptCount: summary.totalReceipts 
+              }});
             }
-          }).catch(() => {
-            // Silently fail cache retrieval
+            
+            // After /summary completes, if user has data, immediately preload wrapped data
+            // This ensures Wrapped Journey tab loads instantly when clicked
+            // Check both totalReceipts and totalSpent to be safe
+            const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
+            if (hasData) {
+              // Preload wrapped analytics in background (don't await - let it run async)
+              analyticsApi.getUserSummary(response.userId, true)
+                .then((wrappedSummary) => {
+                  // Always update analytics with the wrapped summary (it has all the data)
+                  dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                  dispatch({
+                    type: 'UPDATE_USER_DATA',
+                    payload: {
+                      totalSpent: wrappedSummary.totalSpent,
+                      receiptCount: wrappedSummary.totalReceipts,
+                    },
+                  });
+                  cacheAnalytics(response.userId, wrappedSummary).catch(() => {
+                    // Silently fail caching - not critical
+                  });
+                })
+                .catch(() => {
+                  // Silently fail wrapped preload - not critical for login
+                });
+            }
+            
+            return summary;
+          })
+          .catch((analyticsError) => {
+            // Try to use cached data on error
+            getCachedAnalytics(response.userId).then((cached) => {
+              if (cached) {
+                dispatch({ type: 'SET_ANALYTICS', payload: cached });
+              }
+            }).catch(() => {
+              // Silently fail cache retrieval
+            });
+            // Don't fail login if analytics fails - user can still use the app
+            console.warn('Failed to load analytics after login:', analyticsError);
+            return null;
+          })
+          .finally(() => {
+            loadingAnalyticsRef.current = null;
+            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
           });
-        // Don't fail login if analytics fails - user can still use the app
-        console.warn('Failed to load analytics after login:', analyticsError);
-        })
-        .finally(() => {
-          dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-        });
+      }
       
       if (__DEV__) {
         console.log('✅ User logged in successfully:', email);
@@ -534,61 +551,91 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const loadAnalytics = async (includeWrapped: boolean = false): Promise<UserSummary | null> => {
     if (!state.user) return null;
 
+    // Prevent duplicate loads
+    if (loadingAnalyticsRef.current) {
+      return loadingAnalyticsRef.current;
+    }
+
+    // Capture user ID and user object to avoid null checks in callbacks
+    const userId = state.user.id;
+    const currentUser = state.user;
+
     try {
       dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
       
-      // Fetch analytics from API
-      const summary = await analyticsApi.getUserSummary(state.user.id, includeWrapped);
-      dispatch({ type: 'SET_ANALYTICS', payload: summary });
-      
-      // Cache for offline use
-      await cacheAnalytics(state.user.id, summary);
-      
-      // Update user's totalSpent in context from the summary data
-      if (summary.totalSpent !== state.user.totalSpent) {
-        dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-          totalSpent: summary.totalSpent,
-          receiptCount: summary.totalReceipts 
-        }});
-      }
-      
-      // If we loaded without wrapped data and user has data, preload wrapped data in background
-      // This ensures Wrapped Journey tab loads instantly when clicked
-      if (!includeWrapped && summary.totalReceipts > 0 && state.user) {
-        // Preload wrapped analytics in background (don't await - let it run async)
-        const userId = state.user.id;
-        analyticsApi.getUserSummary(userId, true)
-          .then((wrappedSummary) => {
-            // Always update analytics with the wrapped summary (it has all the data)
-            dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-            dispatch({
-              type: 'UPDATE_USER_DATA',
-              payload: {
-                totalSpent: wrappedSummary.totalSpent,
-                receiptCount: wrappedSummary.totalReceipts,
-              },
-            });
-            cacheAnalytics(userId, wrappedSummary).catch(() => {
-              // Silently fail caching - not critical
-            });
-          })
-          .catch(() => {
-            // Silently fail wrapped preload - not critical
+      // The deduplication in analyticsApi will handle concurrent calls
+      const summaryPromise = analyticsApi.getUserSummary(userId, includeWrapped)
+        .then((summary) => {
+          dispatch({ type: 'SET_ANALYTICS', payload: summary });
+          
+          // Cache for offline use
+          cacheAnalytics(userId, summary).catch(() => {
+            // Silently fail caching - not critical
           });
-      }
+          
+          // Update user's totalSpent in context from the summary data
+          if (summary.totalSpent !== currentUser.totalSpent) {
+            dispatch({ type: 'UPDATE_USER_DATA', payload: { 
+              totalSpent: summary.totalSpent,
+              receiptCount: summary.totalReceipts 
+            }});
+          }
+          
+          // If we loaded without wrapped data and user has data, preload wrapped data in background
+          // This ensures Wrapped Journey tab loads instantly when clicked
+          if (!includeWrapped && summary.totalReceipts > 0) {
+            // Preload wrapped analytics in background (don't await - let it run async)
+            analyticsApi.getUserSummary(userId, true)
+              .then((wrappedSummary) => {
+                // Always update analytics with the wrapped summary (it has all the data)
+                dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                dispatch({
+                  type: 'UPDATE_USER_DATA',
+                  payload: {
+                    totalSpent: wrappedSummary.totalSpent,
+                    receiptCount: wrappedSummary.totalReceipts,
+                  },
+                });
+                cacheAnalytics(userId, wrappedSummary).catch(() => {
+                  // Silently fail caching - not critical
+                });
+              })
+              .catch(() => {
+                // Silently fail wrapped preload - not critical
+              });
+          }
+          
+          return summary;
+        })
+        .catch(async (error: any) => {
+          // Try to use cached data on error
+          const cached = await getCachedAnalytics(userId);
+          if (cached) {
+            dispatch({ type: 'SET_ANALYTICS', payload: cached });
+            return cached;
+          }
+          // Don't set error here - let screens handle it individually
+          return null;
+        })
+        .finally(() => {
+          loadingAnalyticsRef.current = null;
+          dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
+        });
       
-      return summary;
+      // Store the promise in the ref so concurrent calls can reuse it
+      loadingAnalyticsRef.current = summaryPromise;
+      
+      return summaryPromise;
     } catch (error: any) {
+      loadingAnalyticsRef.current = null;
       // Try to use cached data on error
-      const cached = await getCachedAnalytics(state.user.id);
+      const cached = await getCachedAnalytics(userId);
       if (cached) {
         dispatch({ type: 'SET_ANALYTICS', payload: cached });
         return cached;
       }
       // Don't set error here - let screens handle it individually
       return null;
-    } finally {
-      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
     }
   };
 

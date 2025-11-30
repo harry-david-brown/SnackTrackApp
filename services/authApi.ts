@@ -26,6 +26,7 @@ import {
   isTokenExpired,
   getAccessToken,
 } from '../utils/tokenManager';
+import { deduplicateRequest } from '../utils/requestDeduplication';
 
 /**
  * Authentication API service
@@ -166,12 +167,18 @@ export const authApi = {
    * Check if the current session is valid
    */
   validateSession: async (): Promise<boolean> => {
-    try {
-      const token = await authApi.getValidToken();
-      return !!token;
-    } catch (error) {
-      return false;
-    }
+    return deduplicateRequest(
+      'GET',
+      '/auth/validate',
+      async () => {
+        try {
+          const token = await authApi.getValidToken();
+          return !!token;
+        } catch (error) {
+          return false;
+        }
+      }
+    );
   },
 
   /**
