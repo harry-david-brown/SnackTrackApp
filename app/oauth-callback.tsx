@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Platform } from 'react-native';
 
 /**
  * OAuth Callback Handler for Web

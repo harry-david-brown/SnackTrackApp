@@ -374,7 +374,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoNumber}>2</Text>
-          <Text style={styles.infoText}>We'll scan your email for Uber Eats receipts</Text>
+          <Text style={styles.infoText}>We&apos;ll scan your email for Uber Eats receipts</Text>
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoNumber}>3</Text>

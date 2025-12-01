@@ -72,6 +72,7 @@ export default function ReceiptsScreen() {
     if (state.user?.id) {
       fetchReceipts(0, false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.user?.id]);
 
   const onRefresh = async () => {
