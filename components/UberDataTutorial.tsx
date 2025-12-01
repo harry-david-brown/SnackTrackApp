@@ -17,6 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
 
+type DataPlatform = 'uber' | 'doordash';
+
 interface TutorialSlide {
   title: string;
   description: string;
@@ -25,22 +27,22 @@ interface TutorialSlide {
   gradient: string[];
 }
 
-const slides: TutorialSlide[] = [
+const uberSlides: TutorialSlide[] = [
   {
-    title: 'Request Your Uber Data',
-    description: 'First, you need to request your data from Uber',
+    title: '',
+    description: '',
     instructions: [
-      'Open the Uber Eats app',
       'Go to Account → Privacy',
+      'Scroll right and tap "Request"',
       'Tap "Request Data Download"',
       'Uber will process your request',
     ],
     icon: 'document-text-outline',
-    gradient: ['#667eea', '#764ba2'],
+    gradient: ['#06C167', '#00A859'],
   },
   {
-    title: 'Wait for the Email',
-    description: 'Uber will email you when your data is ready',
+    title: '',
+    description: '',
     instructions: [
       'Usually takes about an hour',
       'Could take up to 24 hours',
@@ -48,18 +50,54 @@ const slides: TutorialSlide[] = [
       'Tap the download link in the email',
     ],
     icon: 'mail-outline',
-    gradient: ['#f093fb', '#f5576c'],
+    gradient: ['#00A859', '#06C167'],
   },
   {
-    title: 'Upload Your Uber ZIP',
-    description: 'Upload your Uber data file and let us handle the rest',
+    title: '',
+    description: '',
     instructions: [
-      'Upload the entire ZIP file here',
-      'We will extract and process it automatically',
+      'Upload the ZIP file here',
       'Sit back and get ready to be roasted!',
     ],
     icon: 'cloud-upload-outline',
-    gradient: ['#4facfe', '#00f2fe'],
+    gradient: ['#06C167', '#00D96F'],
+  },
+];
+
+const doordashSlides: TutorialSlide[] = [
+  {
+    title: '',
+    description: '',
+    instructions: [
+      'Go to Account → Settings',
+      'Navigate to "Manage Account"',
+      'Tap "Manage Account"',
+      'Select "Request Archive"',
+    ],
+    icon: 'document-text-outline',
+    gradient: ['#FF3000', '#FF3000'],
+  },
+  {
+    title: '',
+    description: '',
+    instructions: [
+      'Usually takes about an hour',
+      'Could take up to 24 hours',
+      'You will receive an email notification when ready',
+      'Tap the download link in the email',
+    ],
+    icon: 'mail-outline',
+    gradient: ['#FF3000', '#FF3000'],
+  },
+  {
+    title: '',
+    description: '',
+    instructions: [
+      'Upload the ZIP file here',
+      'Sit back and get ready to be roasted!',
+    ],
+    icon: 'cloud-upload-outline',
+    gradient: ['#FF3000', '#FF3000'],
   },
 ];
 
@@ -69,31 +107,70 @@ interface UberDataTutorialProps {
 }
 
 export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutorialProps) {
+  const [platform, setPlatform] = useState<DataPlatform>('uber');
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
-  // Preload all images on mount using Image.prefetch
+  const slides = platform === 'uber' ? uberSlides : doordashSlides;
+
+  // Helper function to get image paths based on platform
+  const getImagePaths = (platformType: DataPlatform) => {
+    if (platformType === 'uber') {
+      return {
+        slide1: [
+          require('../assets/UberDataTutorialScreenshots/1/1.webp'),
+          require('../assets/UberDataTutorialScreenshots/1/2.webp'),
+          require('../assets/UberDataTutorialScreenshots/1/3.webp'),
+          require('../assets/UberDataTutorialScreenshots/1/4.webp'),
+        ],
+        slide2: [
+          require('../assets/UberDataTutorialScreenshots/2/1.webp'),
+          require('../assets/UberDataTutorialScreenshots/2/2.webp'),
+          require('../assets/UberDataTutorialScreenshots/2/3.webp'),
+        ],
+        slide3: [
+          require('../assets/UberDataTutorialScreenshots/3/1.webp'),
+          require('../assets/UberDataTutorialScreenshots/3/2.webp'),
+        ],
+      };
+    } else {
+      // DoorDash tutorial screenshots
+      return {
+        slide1: [
+          require('../assets/DoorDashDataTutorialScreenshots/1/1.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/1/2.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/1/3.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/1/4.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/1/5.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/1/6.webp'),
+        ],
+        slide2: [
+          require('../assets/DoorDashDataTutorialScreenshots/2/1.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/2/2.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/2/3.webp'),
+        ],
+        slide3: [
+          require('../assets/DoorDashDataTutorialScreenshots/3/1.webp'),
+          require('../assets/DoorDashDataTutorialScreenshots/3/2.webp'),
+        ],
+      };
+    }
+  };
+
+  // Preload all images on mount and when platform changes
   // Prioritize slide 2 images since they're slower to load
   useEffect(() => {
     const preloadImages = async () => {
+      const imagePaths = getImagePaths(platform);
+      
       // Slide 2 images first (they're slower)
-      const slide2Images = [
-        require('../assets/UberDataTutorialPNGs/2/1.webp'),
-        require('../assets/UberDataTutorialPNGs/2/2.webp'),
-        require('../assets/UberDataTutorialPNGs/2/3.webp'),
-      ];
+      const slide2Images = imagePaths.slide2;
       
       // Other images
-      const otherImages = [
-        require('../assets/UberDataTutorialPNGs/1/1.webp'),
-        require('../assets/UberDataTutorialPNGs/1/2.webp'),
-        require('../assets/UberDataTutorialPNGs/1/3.webp'),
-        require('../assets/UberDataTutorialPNGs/1/4.webp'),
-        require('../assets/UberDataTutorialPNGs/3/1.webp'),
-        require('../assets/UberDataTutorialPNGs/3/2.webp'),
-      ];
+      const otherImages = [...imagePaths.slide1, ...imagePaths.slide3];
 
       try {
         // Prefetch slide 2 images first (priority)
@@ -117,7 +194,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
     };
 
     preloadImages();
-  }, []);
+  }, [platform]);
 
   // Reset scroll position to top whenever slide changes
   useEffect(() => {
@@ -126,6 +203,50 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
       animated: false,
     });
   }, [currentIndex]);
+
+  // Reset scroll position when platform changes (but keep current slide index)
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({
+      y: 0,
+      animated: false,
+    });
+  }, [platform]);
+
+  const handlePlatformSwitch = (newPlatform: DataPlatform) => {
+    if (newPlatform === platform) return;
+    
+    // Animate slide out
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: newPlatform === 'uber' ? 20 : -20, // Slide out opposite direction
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setPlatform(newPlatform);
+      // Keep current slide index - don't reset to 0
+      
+      // Animate slide in from opposite direction
+      slideAnim.setValue(newPlatform === 'uber' ? -20 : 20);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
@@ -163,6 +284,29 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
   const currentSlide = slides[currentIndex];
   const isLastSlide = currentIndex === slides.length - 1;
 
+  // Get main title based on slide index
+  const getMainTitle = () => {
+    const titles = ['Request Your Data', 'Wait for the Email', 'Upload Your Zip'];
+    return titles[currentIndex] || 'Request Your Data';
+  };
+
+  // Animated value for selector position
+  const selectorPosition = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(selectorPosition, {
+      toValue: platform === 'uber' ? 0 : 1,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 8,
+    }).start();
+  }, [platform]);
+
+  const selectorLeft = selectorPosition.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['4%', '52%'],
+  });
+
   return (
     <LinearGradient colors={currentSlide.gradient as any} style={StyleSheet.absoluteFillObject}>
       <StatusBar hidden />
@@ -173,54 +317,30 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
 
       {/* Preload all images in hidden container for caching - render at full size off-screen */}
       <View style={styles.preloadContainer}>
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/1/1.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/1/2.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/1/3.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/1/4.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/2/1.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/2/2.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/2/3.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/3/1.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
-        <Image 
-          source={require('../assets/UberDataTutorialPNGs/3/2.webp')} 
-          style={styles.preloadImage}
-          resizeMode="contain"
-        />
+        {(() => {
+          const imagePaths = getImagePaths(platform);
+          const allImages = [...imagePaths.slide1, ...imagePaths.slide2, ...imagePaths.slide3];
+          return allImages.map((source, index) => (
+            <Image 
+              key={index}
+              source={source} 
+              style={styles.preloadImage}
+              resizeMode="contain"
+            />
+          ));
+        })()}
       </View>
 
-      <Animated.View style={[styles.mainContent, { opacity: fadeAnim, paddingTop: insets.top }]}>
+      <Animated.View 
+        style={[
+          styles.mainContent, 
+          { 
+            opacity: fadeAnim, 
+            paddingTop: insets.top,
+            transform: [{ translateX: slideAnim }]
+          }
+        ]}
+      >
           <ScrollView 
             ref={scrollViewRef}
             style={styles.scrollView}
@@ -235,8 +355,49 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
               <Ionicons name={currentSlide.icon} size={80} color="white" />
             </View>
 
-            <Text style={styles.title}>{currentSlide.title}</Text>
-            <Text style={styles.description}>{currentSlide.description}</Text>
+            <Text style={styles.mainTitle}>{getMainTitle()}</Text>
+
+            {/* Platform Selector */}
+            <View style={styles.selectorContainer}>
+              <Animated.View style={[styles.selectorBackground, { left: selectorLeft }]} />
+              <TouchableOpacity
+                style={styles.selectorOption}
+                onPress={() => handlePlatformSwitch('uber')}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.selectorText, 
+                  platform === 'uber' && [
+                    styles.selectorTextActive,
+                    { color: '#667eea' }
+                  ]
+                ]}>
+                  UberEats
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.selectorOption}
+                onPress={() => handlePlatformSwitch('doordash')}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.selectorText, 
+                  platform === 'doordash' && [
+                    styles.selectorTextActive,
+                    { color: '#FF3000' }
+                  ]
+                ]}>
+                  DoorDash
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {currentSlide.title ? (
+              <Text style={styles.title}>{currentSlide.title}</Text>
+            ) : null}
+            {currentSlide.description ? (
+              <Text style={styles.description}>{currentSlide.description}</Text>
+            ) : null}
 
             {/* Instructions List */}
             <View style={styles.instructionsContainer}>
@@ -252,69 +413,49 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
 
             {/* Screenshots - render all but show only active slide */}
             <View style={styles.screenshotContainer}>
-              {/* Slide 0 images */}
-              <View style={[styles.slideScreenshots, currentIndex !== 0 && styles.hiddenSlide]}>
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/1/1.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/1/2.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/1/3.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/1/4.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-              </View>
-              {/* Slide 1 images */}
-              <View style={[styles.slideScreenshots, currentIndex !== 1 && styles.hiddenSlide]}>
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/2/1.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/2/2.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/2/3.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-              </View>
-              {/* Slide 2 images */}
-              <View style={[styles.slideScreenshots, currentIndex !== 2 && styles.hiddenSlide]}>
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/3/1.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-                <Image 
-                  source={require('../assets/UberDataTutorialPNGs/3/2.webp')} 
-                  style={styles.screenshot}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-              </View>
+              {(() => {
+                const imagePaths = getImagePaths(platform);
+                return (
+                  <>
+                    {/* Slide 0 images */}
+                    <View style={[styles.slideScreenshots, currentIndex !== 0 && styles.hiddenSlide]}>
+                      {imagePaths.slide1.map((source, index) => (
+                        <Image 
+                          key={index}
+                          source={source} 
+                          style={styles.screenshot}
+                          resizeMode="contain"
+                          fadeDuration={0}
+                        />
+                      ))}
+                    </View>
+                    {/* Slide 1 images */}
+                    <View style={[styles.slideScreenshots, currentIndex !== 1 && styles.hiddenSlide]}>
+                      {imagePaths.slide2.map((source, index) => (
+                        <Image 
+                          key={index}
+                          source={source} 
+                          style={styles.screenshot}
+                          resizeMode="contain"
+                          fadeDuration={0}
+                        />
+                      ))}
+                    </View>
+                    {/* Slide 2 images */}
+                    <View style={[styles.slideScreenshots, currentIndex !== 2 && styles.hiddenSlide]}>
+                      {imagePaths.slide3.map((source, index) => (
+                        <Image 
+                          key={index}
+                          source={source} 
+                          style={styles.screenshot}
+                          resizeMode="contain"
+                          fadeDuration={0}
+                        />
+                      ))}
+                    </View>
+                  </>
+                );
+              })()}
             </View>
             </View>
           </ScrollView>
@@ -386,6 +527,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 30,
+  },
+  mainTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 24,
+    letterSpacing: 0.5,
+  },
+  selectorContainer: {
+    width: '100%',
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 24,
+    flexDirection: 'row',
+    marginBottom: 30,
+    position: 'relative',
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectorBackground: {
+    position: 'absolute',
+    width: '48%',
+    height: 40,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    top: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  selectorOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    paddingHorizontal: 12,
+    height: 40,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  selectorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginLeft: 8,
+    marginTop: 0,
+    ...(Platform.OS === 'android' && { includeFontPadding: false }),
+  },
+  selectorTextActive: {
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 28,
