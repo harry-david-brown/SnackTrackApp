@@ -511,6 +511,9 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         ? `${totalHours} hours`
         : `${data.totalMinutes} minutes`;
       
+      // Get deterministic roast message based on total waiting time
+      const waitingTimeMessage = getDeterministicMessage('deliveryWaits', analytics, data.totalMinutes, 14);
+      
       slides.push({
         gradient: 'sunrise',
         emoji: '⏱️',
@@ -523,16 +526,15 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
           <View style={styles.detailBox}>
             <Text style={styles.detailText}>{data.totalMinutes.toLocaleString()} minutes across {data.totalOrders} orders</Text>
             <Text style={styles.detailText}>Average: {data.averageMinutes} minutes per order</Text>
-            {data.longestWait && (
-              <Text style={styles.detailText}>Longest: {data.longestWait.minutes} min at {data.longestWait.restaurant}</Text>
-            )}
             {data.fastestDelivery && (
               <Text style={styles.detailText}>Fastest: {data.fastestDelivery.minutes} min at {data.fastestDelivery.restaurant}</Text>
             )}
+            {data.longestWait && (
+              <Text style={styles.detailText}>Longest: {data.longestWait.minutes} min at {data.longestWait.restaurant}</Text>
+            )}
+            
           </View>
-          {data.longestWait && data.longestWait.message && (
-            <Text style={styles.roastText}>{data.longestWait.message}</Text>
-          )}
+          <Text style={styles.roastText}>{waitingTimeMessage}</Text>
         </>
         ),
       });
