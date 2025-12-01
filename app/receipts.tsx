@@ -224,7 +224,7 @@ export default function ReceiptsScreen() {
       <Ionicons name="receipt-outline" size={80} color="#ccc" />
       <Text style={styles.emptyTitle}>No receipts yet</Text>
       <Text style={styles.emptyText}>
-        Upload your Uber Eats data or connect Gmail to see your receipts here
+        Upload your delivery app data or connect Gmail to see your receipts here
       </Text>
       <TouchableOpacity 
         style={styles.uploadButton}

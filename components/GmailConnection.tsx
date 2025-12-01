@@ -182,7 +182,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       }
     } catch (error: any) {
       console.error('❌ Failed to initiate Gmail connection:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to open Gmail authorization. Please try again.';
+      
+      let errorMessage = 'Failed to open Gmail authorization. Please try again.';
+      
+      if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+        
+        if (status === 500) {
+          errorMessage = 'Server error: Gmail integration is currently unavailable. Please contact support or try again later.';
+        } else if (errorData?.error) {
+          errorMessage = errorData.error;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       showSimpleAlert('Error', errorMessage);
       setIsLoading(false);
     }
@@ -322,10 +339,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color="#4CAF50" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color="white" />
+                <Ionicons name="logo-google" size={20} color="#4CAF50" />
                 <Text style={styles.primaryButtonText}>Connect Gmail</Text>
               </>
             )}
@@ -452,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#E8F5E9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -469,7 +486,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryButtonText: {
-    color: 'white',
+    color: '#4CAF50',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -542,6 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 40,
   },
   privacyContent: {
     flex: 1,

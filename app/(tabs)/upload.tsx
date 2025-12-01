@@ -118,7 +118,7 @@ export default function UploadScreen() {
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>📤 Upload Data</Text>
-              <Text style={styles.subtitle}>Import your Uber Eats order history</Text>
+              <Text style={styles.subtitle}>Import your delivery app order history</Text>
             </View>
           </View>
           
@@ -138,53 +138,33 @@ export default function UploadScreen() {
               />
             </View>
 
+            {/* Tutorial Button */}
+            <View style={styles.featuresCard}>
+              <TouchableOpacity 
+                style={styles.tutorialButton}
+                onPress={() => setShowTutorial(true)}
+              >
+                <Ionicons name="information-circle-outline" size={24} color="#666" />
+                <Text style={styles.tutorialButtonText}>View Tutorial</Text>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </TouchableOpacity>
+            </View>
+
             {/* Gmail Import Card */}
-            <TouchableOpacity 
-              style={styles.uploadCard}
-              onPress={() => setShowGmailModal(true)}
-            >
+            <View style={styles.uploadCard}>
               <Ionicons name="mail-outline" size={64} color="#4CAF50" />
               <Text style={styles.uploadTitle}>Import from Gmail</Text>
               <Text style={styles.uploadSubtitle}>
                 Connect Gmail to auto-import receipts
               </Text>
-              <View style={styles.gmailButton}>
+              <TouchableOpacity 
+                style={styles.gmailButton}
+                onPress={() => setShowGmailModal(true)}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="logo-google" size={20} color="#4CAF50" />
                 <Text style={styles.gmailButtonText}>Connect Gmail</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Tutorial Button */}
-          <View style={styles.featuresCard}>
-            <TouchableOpacity 
-              style={styles.tutorialButton}
-              onPress={() => setShowTutorial(true)}
-            >
-              <Ionicons name="information-circle-outline" size={24} color="#666" />
-              <Text style={styles.tutorialButtonText}>View Tutorial</Text>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Instructions */}
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>📋 How to get your data:</Text>
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>1</Text>
-              <Text style={styles.instructionText}>Go to Uber Eats website or app</Text>
-            </View>
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>2</Text>
-              <Text style={styles.instructionText}>Navigate to Account → Privacy → Download Your Data</Text>
-            </View>
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>3</Text>
-              <Text style={styles.instructionText}>Download the ZIP file from Uber</Text>
-            </View>
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>4</Text>
-              <Text style={styles.instructionText}>Upload the ZIP file above</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -291,6 +271,7 @@ const styles = StyleSheet.create({
   gmailButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#E8F5E9',
     paddingVertical: 12,
     paddingHorizontal: 24,
