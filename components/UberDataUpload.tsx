@@ -210,17 +210,31 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       // Parse error to get user-friendly message
       const parsedError = parseApiError(error);
       
-      // Only log detailed error info in development
-      if (__DEV__) {
-        console.error('❌ Upload error:', error);
-        if (error.response) {
-          console.error('❌ Response status:', error.response.status);
-          console.error('❌ Response data:', JSON.stringify(error.response.data, null, 2));
+      // Log errors based on type
+      if (parsedError.type === 'validation') {
+        // Validation errors are expected user-facing errors - log minimally
+        if (__DEV__) {
+          console.log('⚠️ Upload validation error:', parsedError.message);
         }
-        console.log('❌ Parsed error:', parsedError);
+      } else if (parsedError.type === 'server' || parsedError.type === 'network') {
+        // Server/network errors need detailed logging for debugging
+        if (__DEV__) {
+          console.error('❌ Upload error:', error);
+          if (error.response) {
+            console.error('❌ Response status:', error.response.status);
+            console.error('❌ Response data:', JSON.stringify(error.response.data, null, 2));
+          }
+        } else {
+          console.error('❌ Upload failed:', parsedError.message);
+        }
       } else {
-        // In production, only log the user-friendly error message
-        console.error('❌ Upload failed:', parsedError.message);
+        // Unknown errors - log in development
+        if (__DEV__) {
+          console.error('❌ Upload error:', error);
+          console.log('❌ Parsed error:', parsedError);
+        } else {
+          console.error('❌ Upload failed:', parsedError.message);
+        }
       }
       
       if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
