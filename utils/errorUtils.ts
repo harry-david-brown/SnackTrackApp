@@ -48,29 +48,34 @@ export const parseApiError = (error: any): ApiError => {
         const errorDetails = responseData?.details || [];
         const errorHint = responseData?.hint || '';
         
-        // Check if it's a file-related error (CSV/ZIP validation)
+        // Check if it's a file format/validation error (not data content errors)
+        // "No valid orders found" is a data content error, not a format error
         const errorLower = errorText.toLowerCase();
-        const isFileError = errorLower.includes('file') || 
-                           errorLower.includes('format') ||
-                           errorLower.includes('invalid csv') ||
-                           errorLower.includes('no valid orders') ||
-                           errorLower.includes('csv') ||
-                           errorLower.includes('zip') ||
-                           errorDetails.some((d: string) => 
-                             d.toLowerCase().includes('header') || 
-                             d.toLowerCase().includes('csv') ||
-                             d.toLowerCase().includes('format')
-                           );
+        const isFileFormatError = (
+          errorLower.includes('invalid csv format') ||
+          errorLower.includes('unknown csv format') ||
+          errorLower.includes('wrong file') ||
+          errorLower.includes('invalid file') ||
+          errorLower.includes('could not detect') ||
+          errorDetails.some((d: string) => {
+            const detailLower = d.toLowerCase();
+            return detailLower.includes('missing required') && 
+                   (detailLower.includes('header') || detailLower.includes('format'));
+          })
+        );
         
         // Build user-friendly message
         let userMessage: string;
-        if (isFileError) {
+        if (isFileFormatError) {
+          // File format errors: show generic "Wrong file" message
           userMessage = 'Wrong file! Please select your Uber user data.';
           // Include hint if available for better user guidance
           if (errorHint) {
             userMessage += ` ${errorHint}`;
           }
         } else if (errorText) {
+          // Data content errors (like "No valid orders found") or other errors:
+          // Show the actual error message from backend
           userMessage = errorText;
           // Include hint if available
           if (errorHint) {
