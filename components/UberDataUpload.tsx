@@ -204,16 +204,24 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
       }, 500);
 
     } catch (error: any) {
-      console.error('❌ Upload error:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      
       if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, isUploading: false, progress: 0 }));
       
-      // Report errors to Sentry (except user-facing validation errors)
+      // Parse error to get user-friendly message
       const parsedError = parseApiError(error);
-      console.log('❌ Parsed error:', parsedError);
+      
+      // Only log detailed error info in development
+      if (__DEV__) {
+        console.error('❌ Upload error:', error);
+        if (error.response) {
+          console.error('❌ Response status:', error.response.status);
+          console.error('❌ Response data:', JSON.stringify(error.response.data, null, 2));
+        }
+        console.log('❌ Parsed error:', parsedError);
+      } else {
+        // In production, only log the user-friendly error message
+        console.error('❌ Upload failed:', parsedError.message);
+      }
       
       if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
         captureException(error, {
@@ -225,20 +233,10 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         });
       }
       
-      // Check if this is a file validation error (400 status with file-related message)
-      let errorMessage = parsedError.message;
-      if (parsedError.statusCode === 400 && uploadState.fileName) {
-        // Check if error is related to file validation
-        const errorLower = errorMessage.toLowerCase();
-        if (errorLower.includes('file') || errorLower.includes('invalid') || errorLower.includes('format')) {
-          errorMessage = 'Wrong file! Please select your Uber user data.';
-        }
-      }
+      // Show user-friendly error message (parseApiError already handles file validation errors)
+      showAlert('Upload Failed', parsedError.message);
       
-      // Show error message - user can retry manually
-      showAlert('Upload Failed', errorMessage);
-      
-      onUploadError?.(errorMessage);
+      onUploadError?.(parsedError.message);
     }
   };
 

@@ -30,20 +30,58 @@ export const parseApiError = (error: any): ApiError => {
   // Axios error with response
   if (error.response) {
     const statusCode = error.response.status;
-    const responseData = error.response.data;
+    // Handle both object and string responses
+    const responseData = typeof error.response.data === 'string' 
+      ? (() => {
+          try {
+            return JSON.parse(error.response.data);
+          } catch {
+            return { message: error.response.data };
+          }
+        })()
+      : error.response.data;
 
     switch (statusCode) {
       case 400:
-        // Check if it's a file-related error
-        const errorMessage = responseData?.message || '';
-        const isFileError = errorMessage.toLowerCase().includes('file') || 
-                           errorMessage.toLowerCase().includes('format') ||
-                           errorMessage.toLowerCase().includes('invalid');
+        // Backend returns 'error' field, not 'message' for validation errors
+        const errorText = responseData?.error || responseData?.message || '';
+        const errorDetails = responseData?.details || [];
+        const errorHint = responseData?.hint || '';
+        
+        // Check if it's a file-related error (CSV/ZIP validation)
+        const errorLower = errorText.toLowerCase();
+        const isFileError = errorLower.includes('file') || 
+                           errorLower.includes('format') ||
+                           errorLower.includes('invalid csv') ||
+                           errorLower.includes('no valid orders') ||
+                           errorLower.includes('csv') ||
+                           errorLower.includes('zip') ||
+                           errorDetails.some((d: string) => 
+                             d.toLowerCase().includes('header') || 
+                             d.toLowerCase().includes('csv') ||
+                             d.toLowerCase().includes('format')
+                           );
+        
+        // Build user-friendly message
+        let userMessage: string;
+        if (isFileError) {
+          userMessage = 'Wrong file! Please select your Uber user data.';
+          // Include hint if available for better user guidance
+          if (errorHint) {
+            userMessage += ` ${errorHint}`;
+          }
+        } else if (errorText) {
+          userMessage = errorText;
+          // Include hint if available
+          if (errorHint) {
+            userMessage += ` ${errorHint}`;
+          }
+        } else {
+          userMessage = 'Invalid request. Please check your input.';
+        }
         
         return {
-          message: isFileError 
-            ? 'Wrong file! Please select your Uber user data.'
-            : (errorMessage || 'Invalid request. Please check your input.'),
+          message: userMessage,
           type: 'validation',
           statusCode,
           isRetryable: false,
@@ -67,7 +105,7 @@ export const parseApiError = (error: any): ApiError => {
       
       case 404:
         return {
-          message: responseData?.message || 'The requested resource was not found.',
+          message: responseData?.error || responseData?.message || 'The requested resource was not found.',
           type: 'validation',
           statusCode,
           isRetryable: false,
@@ -75,7 +113,7 @@ export const parseApiError = (error: any): ApiError => {
       
       case 422:
         return {
-          message: responseData?.message || 'Invalid data provided.',
+          message: responseData?.error || responseData?.message || 'Invalid data provided.',
           type: 'validation',
           statusCode,
           isRetryable: false,
@@ -102,7 +140,7 @@ export const parseApiError = (error: any): ApiError => {
       
       default:
         return {
-          message: responseData?.message || 'An unexpected error occurred.',
+          message: responseData?.error || responseData?.message || 'An unexpected error occurred.',
           type: 'server',
           statusCode,
           isRetryable: statusCode >= 500,
