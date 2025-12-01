@@ -247,8 +247,13 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         });
       }
       
-      // Show user-friendly error message (parseApiError already handles file validation errors)
-      showAlert('Upload Failed', parsedError.message);
+      // Show user-friendly error message
+      // Customize message for "no valid orders" case
+      if (parsedError.message.toLowerCase().includes('no valid orders found')) {
+        showAlert('No valid orders found in file', 'This is probably a new account');
+      } else {
+        showAlert('Upload Failed', parsedError.message);
+      }
       
       onUploadError?.(parsedError.message);
     }
