@@ -25,11 +25,11 @@ describe('Error Utils', () => {
       expect(result.message).toContain('timed out');
     });
 
-    it('should parse 400 validation errors', () => {
+    it('should parse 400 file validation errors', () => {
       const error = {
         response: {
           status: 400,
-          data: { message: 'Invalid input' },
+          data: { error: 'Invalid CSV format' },
         },
       };
       const result = parseApiError(error);
@@ -37,7 +37,7 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(400);
       expect(result.isRetryable).toBe(false);
-      // "Invalid input" contains "invalid" which triggers file error message
+      // File-related errors should show user-friendly message
       expect(result.message).toBe('Wrong file! Please select your Uber user data.');
     });
 
@@ -45,7 +45,7 @@ describe('Error Utils', () => {
       const error = {
         response: {
           status: 400,
-          data: { message: 'Missing required field' },
+          data: { error: 'Missing required field' },
         },
       };
       const result = parseApiError(error);
@@ -53,6 +53,7 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(400);
       expect(result.isRetryable).toBe(false);
+      // Non-file errors should show the actual error message
       expect(result.message).toBe('Missing required field');
     });
 
@@ -165,6 +166,8 @@ describe('Error Utils', () => {
   describe('getErrorMessage', () => {
     it('should extract error message', () => {
       expect(getErrorMessage({ code: 'NETWORK_ERROR' })).toContain('internet connection');
+      // Backend returns 'error' field, but also supports 'message' for backward compatibility
+      expect(getErrorMessage({ response: { status: 400, data: { error: 'Bad request' } } })).toBe('Bad request');
       expect(getErrorMessage({ response: { status: 400, data: { message: 'Bad request' } } })).toBe('Bad request');
       expect(getErrorMessage({ message: 'Custom error' })).toBe('Custom error');
     });
