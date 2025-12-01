@@ -40,6 +40,22 @@ export default function RootLayout() {
                     animation: 'fade',
                   }} 
                 />
+                <Stack.Screen 
+                  name="oauth-callback" 
+                  options={{ 
+                    headerShown: false,
+                    contentStyle: { backgroundColor: 'transparent' },
+                    animation: 'fade',
+                  }} 
+                />
+                <Stack.Screen 
+                  name="receipts" 
+                  options={{ 
+                    headerShown: false,
+                    contentStyle: { backgroundColor: 'transparent' },
+                    presentation: 'card',
+                  }} 
+                />
               </Stack>
               <StatusBar style="auto" />
             </OnboardingProvider>

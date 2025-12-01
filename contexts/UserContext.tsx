@@ -294,6 +294,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Register with the new auth API
       const response = await authApi.register({ email, password });
       
+      // Debug: Log response structure in development
+      if (__DEV__) {
+        console.log('📝 Registration response:', JSON.stringify(response, null, 2));
+      }
+      
+      // Validate response structure
+      if (!response.user) {
+        console.error('❌ Registration response missing user object:', response);
+        throw new Error('Invalid registration response from server');
+      }
+      
       // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
       // the full summary which includes totalSpent. This avoids a redundant API call.
       
@@ -301,7 +312,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const user: AppUser = {
         id: response.userId,
         email: response.email,
-        createdAt: response.user.createdAt,
+        createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
         totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,
@@ -354,6 +365,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
       
+      // Debug: Log response structure in development
+      if (__DEV__) {
+        console.log('📝 Login response:', JSON.stringify(response, null, 2));
+      }
+      
+      // Validate response structure
+      if (!response.user) {
+        console.error('❌ Login response missing user object:', response);
+        throw new Error('Invalid login response from server');
+      }
+      
       // Immediately load analytics to avoid showing $0 total spent
       // This ensures the dashboard has data as soon as it renders
       
@@ -361,7 +383,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const user: AppUser = {
         id: response.userId,
         email: response.email,
-        createdAt: response.user.createdAt,
+        createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
         totalSpent: 0, // Will be updated when dashboard loads
         receiptCount: 0,

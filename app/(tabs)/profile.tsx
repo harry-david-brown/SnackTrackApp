@@ -149,6 +149,15 @@ export default function ProfileScreen() {
         <View style={styles.menuCard}>
           <TouchableOpacity 
             style={styles.menuItem}
+            onPress={() => router.push('/receipts')}
+          >
+            <Ionicons name="receipt-outline" size={24} color="#666" />
+            <Text style={styles.menuText}>My Receipts</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
             onPress={() => router.push('/(tabs)/upload')}
           >
             <Ionicons name="cloud-upload-outline" size={24} color="#666" />
