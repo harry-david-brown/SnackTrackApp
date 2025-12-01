@@ -300,7 +300,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
       tension: 100,
       friction: 8,
     }).start();
-  }, [platform]);
+  }, [platform, selectorPosition]);
 
   const selectorLeft = selectorPosition.interpolate({
     inputRange: [0, 1],
