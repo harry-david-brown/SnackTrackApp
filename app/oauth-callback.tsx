@@ -39,7 +39,7 @@ export default function OAuthCallbackScreen() {
       // Defer navigation to ensure the router is fully mounted
       // Use setTimeout to push navigation to next tick
       setTimeout(() => {
-        router.replace('/(tabs)/upload');
+        router.replace('/(tabs)/upload?openGmail=true');
       }, 100);
     };
 

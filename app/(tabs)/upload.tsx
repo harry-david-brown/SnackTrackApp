@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UberDataUpload } from '../../components/UberDataUpload';
@@ -13,10 +13,39 @@ import { GmailConnection } from '../../components/GmailConnection';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
+  const params = useLocalSearchParams();
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
+  const hasProcessedOAuthParam = useRef(false);
+
+  // Auto-open Gmail modal if coming from OAuth callback
+  useEffect(() => {
+    if (params.openGmail === 'true' && !hasProcessedOAuthParam.current) {
+      hasProcessedOAuthParam.current = true;
+      console.log('📧 Opening Gmail modal after OAuth callback');
+      setShowGmailModal(true);
+      
+      // Clean up URL parameter without triggering navigation
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        // Use history API on web to avoid re-render
+        const url = new URL(window.location.href);
+        url.searchParams.delete('openGmail');
+        window.history.replaceState({}, '', url.pathname);
+      } else {
+        // On mobile, use router.replace
+        setTimeout(() => {
+          router.replace('/(tabs)/upload');
+        }, 500);
+      }
+    }
+  }, [params.openGmail]);
+
+  // Debug: Track modal state changes
+  useEffect(() => {
+    console.log('📊 Gmail modal state changed:', showGmailModal);
+  }, [showGmailModal]);
 
   const handleUploadSuccess = async (receiptsCount: number) => {
     // Show processing loader

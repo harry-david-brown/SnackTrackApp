@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
+import { showAlert, showSimpleAlert } from '../utils/platformAlert';
 
 interface GmailConnectionProps {
   onImportSuccess?: () => void;
@@ -56,6 +57,8 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       const code = localStorage.getItem('gmail_oauth_code');
       const timestamp = localStorage.getItem('gmail_oauth_timestamp');
       
+      console.log('🔍 Checking for OAuth code in localStorage:', { hasCode: !!code, hasTimestamp: !!timestamp });
+      
       if (!code || !timestamp) return;
       
       // Check if code is recent (within last 5 minutes)
@@ -71,20 +74,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       localStorage.removeItem('gmail_oauth_code');
       localStorage.removeItem('gmail_oauth_timestamp');
 
+      console.log('🔄 Exchanging OAuth code for tokens...');
+      
       // Exchange the code
       setIsLoading(true);
       const response = await gmailApi.exchangeToken(code);
       
+      console.log('✅ Token exchange complete, success:', response.success);
+      
       if (response.success) {
         setConnectionStatus({ connected: true });
-        Alert.alert('Success', 'Gmail connected successfully! You can now import your receipts.');
+        showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
       } else {
-        Alert.alert('Error', 'Failed to connect Gmail. Please try again.');
+        showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
       }
     } catch (error: any) {
       console.error('Web OAuth code exchange error:', error);
       const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showSimpleAlert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +111,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       const error = queryParams?.error as string | undefined;
 
       if (error) {
-        Alert.alert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
+        showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
         return;
       }
 
@@ -120,14 +127,14 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         
         if (response.success) {
           setConnectionStatus({ connected: true });
-          Alert.alert('Success', 'Gmail connected successfully! You can now import your receipts.');
+          showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
         } else {
-          Alert.alert('Error', 'Failed to connect Gmail. Please try again.');
+          showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
         }
       } catch (error: any) {
         console.error('Token exchange error:', error);
         const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
-        Alert.alert('Error', errorMessage);
+        showSimpleAlert('Error', errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -168,7 +175,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         if (result.type === 'success' && result.url) {
           await handleDeepLink({ url: result.url });
         } else if (result.type === 'cancel') {
-          Alert.alert('Cancelled', 'Gmail connection was cancelled.');
+          showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
         }
         
         setIsLoading(false);
@@ -176,13 +183,13 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     } catch (error: any) {
       console.error('❌ Failed to initiate Gmail connection:', error);
       const errorMessage = error.response?.data?.error || 'Failed to open Gmail authorization. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showSimpleAlert('Error', errorMessage);
       setIsLoading(false);
     }
   };
 
   const importReceipts = async () => {
-    Alert.alert(
+    showAlert(
       'Import Receipts',
       'Do you want to replace existing email-based receipts or add new ones?',
       [
@@ -210,41 +217,40 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       const result = await gmailApi.importReceipts(replaceExisting);
       
       if (result.success) {
-        Alert.alert(
+        // Refresh analytics IMMEDIATELY after import succeeds
+        if (state.user) {
+          try {
+            console.log('🔄 Refreshing analytics after Gmail import...');
+            const summary = await analyticsApi.getUserSummary(state.user.id, true);
+            setAnalytics(summary);
+            console.log('✅ Analytics refreshed successfully');
+          } catch (error) {
+            console.warn('Failed to refresh analytics:', error);
+          }
+        }
+        
+        // Show success message
+        showSimpleAlert(
           'Import Complete',
           `Successfully imported ${result.totalReceiptsImported} receipt${result.totalReceiptsImported !== 1 ? 's' : ''} ($${result.totalAmount.toFixed(2)})`,
-          [
-            {
-              text: 'OK',
-              onPress: async () => {
-                // Refresh analytics
-                if (state.user) {
-                  try {
-                    const summary = await analyticsApi.getUserSummary(state.user.id, true);
-                    setAnalytics(summary);
-                  } catch (error) {
-                    console.warn('Failed to refresh analytics:', error);
-                  }
-                }
-                onImportSuccess?.();
-              },
-            },
-          ]
+          () => {
+            onImportSuccess?.();
+          }
         );
       } else {
-        Alert.alert('Import Failed', 'Failed to import receipts. Please try again.');
+        showSimpleAlert('Import Failed', 'Failed to import receipts. Please try again.');
       }
     } catch (error: any) {
       console.error('Import failed:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to import receipts. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showSimpleAlert('Error', errorMessage);
     } finally {
       setIsImporting(false);
     }
   };
 
   const disconnectGmail = async () => {
-    Alert.alert(
+    showAlert(
       'Disconnect Gmail',
       'Are you sure you want to disconnect your Gmail account? Your imported receipts will remain.',
       [
@@ -260,10 +266,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
               setIsLoading(true);
               await gmailApi.disconnect();
               setConnectionStatus({ connected: false });
-              Alert.alert('Success', 'Gmail account disconnected.');
+              showSimpleAlert('Success', 'Gmail account disconnected.');
             } catch (error) {
               console.error('Disconnect failed:', error);
-              Alert.alert('Error', 'Failed to disconnect Gmail. Please try again.');
+              showSimpleAlert('Error', 'Failed to disconnect Gmail. Please try again.');
             } finally {
               setIsLoading(false);
             }

@@ -9,6 +9,8 @@ export interface GmailConnectionStatus {
 export interface GmailAuthUrlResponse {
   authUrl: string;
   state: string;
+  platform: 'web' | 'mobile';
+  redirectUri: string;
 }
 
 export interface GmailImportResponse {
