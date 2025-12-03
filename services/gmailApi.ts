@@ -1,17 +1,10 @@
 import api from './api';
-import { Platform } from 'react-native';
 
 export interface GmailConnectionStatus {
   connected: boolean;
   email?: string;
 }
 
-export interface GmailAuthUrlResponse {
-  authUrl: string;
-  state: string;
-  platform: 'web' | 'mobile';
-  redirectUri: string;
-}
 
 export interface GmailImportResponse {
   success: boolean;
@@ -30,32 +23,16 @@ export interface GmailExchangeTokenResponse {
 
 export const gmailApi = {
   /**
-   * Get OAuth URL - automatically detects platform (web/mobile)
+   * Exchange OAuth access token for backend tokens
+   * @param accessToken - OAuth access token from Google
    */
-  getAuthUrl: async (): Promise<GmailAuthUrlResponse> => {
-    const platform = Platform.OS === 'web' ? 'web' : 'mobile';
-    const response = await api.get(`/gmail/auth-url?platform=${platform}`);
-    
-    if (__DEV__) {
-      console.log(`📧 Gmail OAuth URL requested - Platform: ${platform}`);
-      console.log(`   Redirect URI: ${response.data.redirectUri}`);
-    }
-    
-    return response.data;
-  },
-
-  /**
-   * Exchange authorization code for tokens
-   */
-  exchangeToken: async (code: string): Promise<GmailExchangeTokenResponse> => {
-    const platform = Platform.OS === 'web' ? 'web' : 'mobile';
+  exchangeToken: async (accessToken: string): Promise<GmailExchangeTokenResponse> => {
     const response = await api.post('/gmail/exchange-token', { 
-      code,
-      platform 
+      accessToken
     });
     
     if (__DEV__) {
-      console.log(`✅ Gmail token exchange successful - Platform: ${platform}`);
+      console.log(`✅ Gmail token exchange successful`);
     }
     
     return response.data;

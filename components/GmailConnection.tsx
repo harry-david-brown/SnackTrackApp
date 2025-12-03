@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
+import { getConfig } from '../config/env';
 
 interface GmailConnectionProps {
   onImportSuccess?: () => void;
@@ -22,21 +23,35 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   const [isImporting, setIsImporting] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
+  // Get OAuth client IDs from environment
+  const config = getConfig();
+  
+  // Set up Google OAuth request
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: config.gmailAndroidClientId,
+    iosClientId: config.gmailIosClientId,
+    webClientId: config.gmailWebClientId,
+    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+  });
+
   useEffect(() => {
     checkConnectionStatus();
-    
-    // Set up deep link listener for mobile
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    
-    // For web, check if we have an OAuth code from localStorage
-    if (Platform.OS === 'web') {
-      checkWebOAuthCode();
-    }
-    
-    return () => {
-      subscription.remove();
-    };
   }, []);
+
+  // Handle OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        handleTokenExchange(authentication.accessToken);
+      }
+    } else if (response?.type === 'error') {
+      console.error('OAuth error:', response.error);
+      showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
+    } else if (response?.type === 'cancel') {
+      showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
+    }
+  }, [response]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -50,46 +65,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const checkWebOAuthCode = async () => {
-    if (Platform.OS !== 'web') return;
-
+  const handleTokenExchange = async (accessToken: string) => {
     try {
-      const code = localStorage.getItem('gmail_oauth_code');
-      const timestamp = localStorage.getItem('gmail_oauth_timestamp');
-      
-      console.log('🔍 Checking for OAuth code in localStorage:', { hasCode: !!code, hasTimestamp: !!timestamp });
-      
-      if (!code || !timestamp) return;
-      
-      // Check if code is recent (within last 5 minutes)
-      const codeAge = Date.now() - parseInt(timestamp);
-      if (codeAge > 5 * 60 * 1000) {
-        // Code is too old, clear it
-        localStorage.removeItem('gmail_oauth_code');
-        localStorage.removeItem('gmail_oauth_timestamp');
-        return;
-      }
-
-      // Clear the code immediately to prevent reprocessing
-      localStorage.removeItem('gmail_oauth_code');
-      localStorage.removeItem('gmail_oauth_timestamp');
-
-      console.log('🔄 Exchanging OAuth code for tokens...');
-      
-      // Exchange the code
       setIsLoading(true);
-      const response = await gmailApi.exchangeToken(code);
       
-      console.log('✅ Token exchange complete, success:', response.success);
+      if (__DEV__) {
+        console.log('🔄 Exchanging OAuth token...');
+      }
       
-      if (response.success) {
+      const result = await gmailApi.exchangeToken(accessToken);
+      
+      if (result.success) {
         setConnectionStatus({ connected: true });
         showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
       } else {
         showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
       }
     } catch (error: any) {
-      console.error('Web OAuth code exchange error:', error);
+      console.error('Token exchange error:', error);
       const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
       showSimpleAlert('Error', errorMessage);
     } finally {
@@ -97,110 +90,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const handleDeepLink = async (event: { url: string }) => {
-    try {
-      const url = event.url;
-      
-      // Check if this is an OAuth callback
-      if (!url.includes('oauth/callback')) {
-        return;
-      }
-
-      const { queryParams } = Linking.parse(url);
-      const code = queryParams?.code as string | undefined;
-      const error = queryParams?.error as string | undefined;
-
-      if (error) {
-        showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
-        return;
-      }
-
-      if (!code) {
-        return;
-      }
-
-      setIsLoading(true);
-
-      try {
-        // Exchange authorization code for tokens
-        const response = await gmailApi.exchangeToken(code);
-        
-        if (response.success) {
-          setConnectionStatus({ connected: true });
-          showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
-        } else {
-          showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
-        }
-      } catch (error: any) {
-        console.error('Token exchange error:', error);
-        const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
-        showSimpleAlert('Error', errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('Deep link handling error:', error);
-    }
-  };
-
   const connectGmail = async () => {
     try {
-      setIsLoading(true);
-      
-      // Get platform-specific OAuth URL from API
-      const { authUrl, platform: detectedPlatform } = await gmailApi.getAuthUrl();
-      
+      if (!request) {
+        showSimpleAlert('Error', 'OAuth configuration not ready. Please check your environment variables.');
+        return;
+      }
+
       if (__DEV__) {
         console.log(`🔐 Starting Gmail OAuth flow - Platform: ${Platform.OS}`);
-        console.log(`   Detected platform: ${detectedPlatform}`);
       }
       
-      if (Platform.OS === 'web') {
-        // WEB: Redirect to Google OAuth (will redirect back to /oauth-callback)
-        if (__DEV__) {
-          console.log('🌐 Web: Redirecting to Google OAuth...');
-        }
-        window.location.href = authUrl;
-      } else {
-        // MOBILE: Open system browser with deep link callback
-        if (__DEV__) {
-          console.log('📱 Mobile: Opening system browser with deep linking...');
-        }
-        
-        const result = await WebBrowser.openAuthSessionAsync(
-          authUrl,
-          'snacktrack://oauth/callback'
-        );
-
-        if (result.type === 'success' && result.url) {
-          await handleDeepLink({ url: result.url });
-        } else if (result.type === 'cancel') {
-          showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
-        }
-        
-        setIsLoading(false);
-      }
+      setIsLoading(true);
+      await promptAsync();
     } catch (error: any) {
       console.error('❌ Failed to initiate Gmail connection:', error);
-      
-      let errorMessage = 'Failed to open Gmail authorization. Please try again.';
-      
-      if (error.response) {
-        const status = error.response.status;
-        const errorData = error.response.data;
-        
-        if (status === 500) {
-          errorMessage = 'Server error: Gmail integration is currently unavailable. Please contact support or try again later.';
-        } else if (errorData?.error) {
-          errorMessage = errorData.error;
-        } else if (errorData?.message) {
-          errorMessage = errorData.message;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+      const errorMessage = error.message || 'Failed to open Gmail authorization. Please try again.';
       showSimpleAlert('Error', errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -334,15 +241,15 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       <View style={styles.actionContainer}>
         {!connectionStatus.connected ? (
           <TouchableOpacity
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+            style={[styles.primaryButton, (isLoading || !request) && styles.buttonDisabled]}
             onPress={connectGmail}
-            disabled={isLoading}
+            disabled={isLoading || !request}
           >
             {isLoading ? (
-              <ActivityIndicator color="#4CAF50" />
+              <ActivityIndicator color="white" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color="#4CAF50" />
+                <Ionicons name="logo-google" size={20} color="white" />
                 <Text style={styles.primaryButtonText}>Connect Gmail</Text>
               </>
             )}
@@ -469,7 +376,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#007AFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,7 +393,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryButtonText: {
-    color: '#4CAF50',
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -559,7 +466,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 40,
   },
   privacyContent: {
     flex: 1,
@@ -577,4 +483,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-

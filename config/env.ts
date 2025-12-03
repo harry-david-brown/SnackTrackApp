@@ -14,6 +14,10 @@ export interface EnvConfig {
   isDevelopment: boolean;
   isStaging: boolean;
   isProduction: boolean;
+  // Gmail OAuth client IDs
+  gmailAndroidClientId?: string;
+  gmailIosClientId?: string;
+  gmailWebClientId?: string;
 }
 
 /**
@@ -108,12 +112,20 @@ export function getEnvConfig(): EnvConfig {
   const apiUrl = getApiUrl();
   const appEnv = getAppEnv();
   
+  // Gmail OAuth client IDs (optional - only needed for Gmail integration)
+  const gmailAndroidClientId = getEnvVar('EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID', false);
+  const gmailIosClientId = getEnvVar('EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID', false);
+  const gmailWebClientId = getEnvVar('EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID', false);
+  
   return {
     apiUrl,
     appEnv,
     isDevelopment: appEnv === 'development',
     isStaging: appEnv === 'staging',
     isProduction: appEnv === 'production',
+    gmailAndroidClientId,
+    gmailIosClientId,
+    gmailWebClientId,
   };
 }
 
