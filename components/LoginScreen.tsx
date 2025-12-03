@@ -66,7 +66,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async () => {
     // Validate email
-    if (!email.trim()) {
+      if (!email.trim()) {
       showAlert('Error', 'Please enter your email address');
       return;
     }

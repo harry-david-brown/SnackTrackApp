@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
@@ -26,12 +28,32 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   // Get OAuth client IDs from environment
   const config = getConfig();
   
+  // Expo's auth proxy (auth.expo.io) has been deprecated
+  // Use backend OAuth callback instead for mobile
+  const getRedirectUri = () => {
+    if (Platform.OS === 'web') {
+      return AuthSession.makeRedirectUri(); // Web uses localhost
+    }
+    
+    // For mobile, use backend OAuth callback
+    // The backend will receive the OAuth code and redirect to the app
+    const apiUrl = config.apiUrl || 'https://snacktrackapi-production.up.railway.app';
+    return `${apiUrl}/gmail/oauth/callback`;
+  };
+  
+  const redirectUri = getRedirectUri();
+  
+  console.log('📍 OAuth Redirect URI:', redirectUri);
+  console.log('📍 Platform:', Platform.OS);
+  console.log('📍 Development Mode:', __DEV__);
+  
   // Set up Google OAuth request
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: config.gmailAndroidClientId,
     iosClientId: config.gmailIosClientId,
     webClientId: config.gmailWebClientId,
     scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+    redirectUri,
   });
 
   useEffect(() => {
