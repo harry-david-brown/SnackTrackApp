@@ -25,14 +25,16 @@ export const gmailApi = {
   /**
    * Exchange OAuth access token for backend tokens
    * @param accessToken - OAuth access token from Google
+   * @param refreshToken - OAuth refresh token from Google (optional)
    */
-  exchangeToken: async (accessToken: string): Promise<GmailExchangeTokenResponse> => {
+  exchangeToken: async (accessToken: string, refreshToken?: string): Promise<GmailExchangeTokenResponse> => {
     const response = await api.post('/gmail/exchange-token', { 
-      accessToken
+      accessToken,
+      refreshToken
     });
     
     if (__DEV__) {
-      console.log(`✅ Gmail token exchange successful`);
+      console.log(`✅ Gmail token exchange successful`, { hasRefreshToken: !!refreshToken });
     }
     
     return response.data;
@@ -48,9 +50,12 @@ export const gmailApi = {
 
   /**
    * Import receipts from Gmail
+   * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (replaceExisting: boolean = false): Promise<GmailImportResponse> => {
-    const response = await api.post('/gmail/import', { replaceExisting });
+    const response = await api.post('/gmail/import', { replaceExisting }, {
+      timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
+    });
     return response.data;
   },
 

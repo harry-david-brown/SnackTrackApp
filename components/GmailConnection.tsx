@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
@@ -15,9 +12,6 @@ interface GmailConnectionProps {
   onImportSuccess?: () => void;
 }
 
-// Warm up the browser for better UX
-WebBrowser.maybeCompleteAuthSession();
-
 export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSuccess }) => {
   const { state, setAnalytics } = useUser();
   const [connectionStatus, setConnectionStatus] = useState<GmailConnectionStatus>({ connected: false });
@@ -27,53 +21,45 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
   // Get OAuth client IDs from environment
   const config = getConfig();
-  
-  // Expo's auth proxy (auth.expo.io) has been deprecated
-  // Use backend OAuth callback instead for mobile
-  const getRedirectUri = () => {
-    if (Platform.OS === 'web') {
-      return AuthSession.makeRedirectUri(); // Web uses localhost
-    }
-    
-    // For mobile, use backend OAuth callback
-    // The backend will receive the OAuth code and redirect to the app
-    const apiUrl = config.apiUrl || 'https://snacktrackapi-production.up.railway.app';
-    return `${apiUrl}/gmail/oauth/callback`;
-  };
-  
-  const redirectUri = getRedirectUri();
-  
-  console.log('📍 OAuth Redirect URI:', redirectUri);
-  console.log('📍 Platform:', Platform.OS);
-  console.log('📍 Development Mode:', __DEV__);
-  
-  // Set up Google OAuth request
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: config.gmailAndroidClientId,
-    iosClientId: config.gmailIosClientId,
-    webClientId: config.gmailWebClientId,
-    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-    redirectUri,
-  });
 
+  // Configure Google Sign-In
   useEffect(() => {
+    const configureGoogleSignIn = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          if (config.gmailAndroidClientId && config.gmailWebClientId) {
+            GoogleSignin.configure({
+              webClientId: config.gmailWebClientId, // Required for offline access
+              offlineAccess: true, // Get refresh token
+              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+            });
+            console.log('✅ Google Sign-In configured for Android');
+          } else {
+            console.warn('⚠️ Google Sign-In not configured for Android - missing client IDs');
+          }
+        } else if (Platform.OS === 'ios') {
+          if (config.gmailIosClientId && config.gmailWebClientId) {
+            GoogleSignin.configure({
+              webClientId: config.gmailWebClientId, // Required for offline access
+              iosClientId: config.gmailIosClientId,
+              offlineAccess: true, // Get refresh token
+              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+            });
+            console.log('✅ Google Sign-In configured for iOS');
+          } else {
+            console.warn('⚠️ Google Sign-In not configured for iOS - missing client IDs (iOS setup on hold)');
+          }
+        } else if (Platform.OS === 'web') {
+          console.log('ℹ️ Google Sign-In not available on web platform');
+        }
+      } catch (error) {
+        console.error('❌ Failed to configure Google Sign-In:', error);
+      }
+    };
+
+    configureGoogleSignIn();
     checkConnectionStatus();
   }, []);
-
-  // Handle OAuth response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        handleTokenExchange(authentication.accessToken);
-      }
-    } else if (response?.type === 'error') {
-      console.error('OAuth error:', response.error);
-      showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
-    } else if (response?.type === 'cancel') {
-      showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
-    }
-  }, [response]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -87,18 +73,28 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const handleTokenExchange = async (accessToken: string) => {
+  const handleTokenExchange = async (accessToken: string, refreshToken?: string) => {
     try {
       setIsLoading(true);
       
       if (__DEV__) {
-        console.log('🔄 Exchanging OAuth token...');
+        console.log('🔄 Exchanging OAuth token...', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken
+        });
       }
       
-      const result = await gmailApi.exchangeToken(accessToken);
+      const result = await gmailApi.exchangeToken(accessToken, refreshToken);
       
       if (result.success) {
-        setConnectionStatus({ connected: true });
+        if (__DEV__) {
+          console.log('✅ Token exchange successful, refreshing connection status...');
+        }
+        // Refresh connection status to get the connected Gmail email
+        await checkConnectionStatus();
+        if (__DEV__) {
+          console.log('✅ Connection status refreshed:', connectionStatus);
+        }
         showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
       } else {
         showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
@@ -114,21 +110,96 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
   const connectGmail = async () => {
     try {
-      if (!request) {
-        showSimpleAlert('Error', 'OAuth configuration not ready. Please check your environment variables.');
-        return;
-      }
+      setIsLoading(true);
 
       if (__DEV__) {
         console.log(`🔐 Starting Gmail OAuth flow - Platform: ${Platform.OS}`);
       }
+
+      // Check platform support
+      if (Platform.OS === 'web') {
+        showSimpleAlert('Not Available', 'Gmail connection is not available on web. Please use the mobile app.');
+        return;
+      }
+
+      if (Platform.OS === 'ios' && !config.gmailIosClientId) {
+        showSimpleAlert('Not Configured', 'Gmail connection is not configured for iOS yet. Please configure iOS OAuth client ID.');
+        return;
+      }
+
+      if (Platform.OS === 'android' && !config.gmailAndroidClientId) {
+        showSimpleAlert('Not Configured', 'Gmail connection is not configured for Android. Please configure Android OAuth client ID.');
+        return;
+      }
+
+      // Check if Google Play Services are available (Android)
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+
+      // Always sign out any existing Google account to force account selection
+      // This ensures the account picker is shown even if there's a cached account
+      try {
+        await GoogleSignin.signOut();
+        console.log('🔓 Signed out any existing Google account to force account selection');
+      } catch (error: any) {
+        // Ignore errors when signing out (might not be signed in)
+        // This is fine - we just want to ensure a fresh sign-in flow
+        if (__DEV__) {
+          console.log('ℹ️ Sign out skipped (no existing account or error):', error?.message);
+        }
+      }
+
+      // Sign in with Google - this should now show the account picker
+      const signInResult = await GoogleSignin.signIn();
       
-      setIsLoading(true);
-      await promptAsync();
+      if (__DEV__) {
+        console.log('✅ Google Sign-In successful:', {
+          email: signInResult.data?.user?.email,
+          id: signInResult.data?.user?.id,
+          serverAuthCode: !!signInResult.data?.serverAuthCode,
+          // Log full response structure for debugging
+          responseKeys: Object.keys(signInResult.data || {})
+        });
+      }
+      
+      // Get the tokens (includes refresh token if offlineAccess is true)
+      const tokens = await GoogleSignin.getTokens();
+      
+      if (tokens.accessToken) {
+        if (__DEV__) {
+          console.log('✅ Got tokens from Google Sign-In:', {
+            hasAccessToken: !!tokens.accessToken,
+            idToken: tokens.idToken ? 'present' : 'missing',
+            // Check if refreshToken exists in tokens object
+            tokenKeys: Object.keys(tokens),
+            // Try to access refreshToken even if TypeScript doesn't know about it
+            refreshToken: (tokens as any).refreshToken ? 'present' : 'missing'
+          });
+        }
+        
+        // Try to get refresh token - it might be in the tokens object even if not typed
+        const refreshToken = (tokens as any).refreshToken;
+        
+        // Send access token (and refresh token if available)
+        // If refresh token is not available, backend will use access token directly
+        await handleTokenExchange(tokens.accessToken, refreshToken);
+      } else {
+        throw new Error('No access token received from Google Sign-In');
+      }
     } catch (error: any) {
-      console.error('❌ Failed to initiate Gmail connection:', error);
-      const errorMessage = error.message || 'Failed to open Gmail authorization. Please try again.';
-      showSimpleAlert('Error', errorMessage);
+      console.error('❌ Failed to connect Gmail:', error);
+      
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        showSimpleAlert('In Progress', 'Gmail connection is already in progress.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        showSimpleAlert('Error', 'Google Play Services not available. Please update Google Play Services.');
+      } else {
+        const errorMessage = error.message || 'Failed to connect Gmail. Please try again.';
+        showSimpleAlert('Error', errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -188,8 +259,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       }
     } catch (error: any) {
       console.error('Import failed:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to import receipts. Please try again.';
-      showSimpleAlert('Error', errorMessage);
+      
+      // Handle network/timeout errors specifically
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.message?.includes('timeout')) {
+        showSimpleAlert(
+          'Import Timeout',
+          'The import is taking longer than expected. This might mean you have many emails to process. Please try again or check your connection.'
+        );
+      } else if (error.response?.data?.error || error.response?.data?.message) {
+        // Server returned an error message
+        const errorMessage = error.response.data.error || error.response.data.message;
+        showSimpleAlert('Import Failed', errorMessage);
+      } else if (error.message) {
+        // Generic error message
+        showSimpleAlert('Import Failed', error.message);
+      } else {
+        // Fallback
+        showSimpleAlert('Import Failed', 'Failed to import receipts. Please check your connection and try again.');
+      }
     } finally {
       setIsImporting(false);
     }
@@ -263,9 +350,9 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       <View style={styles.actionContainer}>
         {!connectionStatus.connected ? (
           <TouchableOpacity
-            style={[styles.primaryButton, (isLoading || !request) && styles.buttonDisabled]}
+            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
             onPress={connectGmail}
-            disabled={isLoading || !request}
+            disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />

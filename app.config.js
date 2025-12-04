@@ -16,7 +16,18 @@ export default {
       "**/*"
     ],
     plugins: [
-      "expo-router"
+      "expo-router",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          // iOS URL scheme must be in format: com.googleusercontent.apps.CLIENT_ID_PART
+          // Using web client ID for now (will work for iOS when you set it up)
+          // Format: com.googleusercontent.apps.92555573714-vc42kgncpjcda8dog4g7j2ri13750pci
+          iosUrlScheme: process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID 
+            ? `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID.split('.apps.googleusercontent.com')[0]}`
+            : "com.googleusercontent.apps.92555573714-vc42kgncpjcda8dog4g7j2ri13750pci"
+        }
+      ]
     ],
     ios: {
       supportsTablet: false,
