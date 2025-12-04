@@ -2,6 +2,7 @@ export default {
   expo: {
     name: "SnackTrack",
     slug: "snack-track",
+    owner: "snacktrack",
     scheme: "snacktrack",
     version: "1.0.0",
     orientation: "portrait",
