@@ -1,17 +1,10 @@
 import api from './api';
-import { Platform } from 'react-native';
 
 export interface GmailConnectionStatus {
   connected: boolean;
   email?: string;
 }
 
-export interface GmailAuthUrlResponse {
-  authUrl: string;
-  state: string;
-  platform: 'web' | 'mobile';
-  redirectUri: string;
-}
 
 export interface GmailImportResponse {
   success: boolean;
@@ -30,32 +23,18 @@ export interface GmailExchangeTokenResponse {
 
 export const gmailApi = {
   /**
-   * Get OAuth URL - automatically detects platform (web/mobile)
+   * Exchange OAuth access token for backend tokens
+   * @param accessToken - OAuth access token from Google
+   * @param refreshToken - OAuth refresh token from Google (optional)
    */
-  getAuthUrl: async (): Promise<GmailAuthUrlResponse> => {
-    const platform = Platform.OS === 'web' ? 'web' : 'mobile';
-    const response = await api.get(`/gmail/auth-url?platform=${platform}`);
-    
-    if (__DEV__) {
-      console.log(`📧 Gmail OAuth URL requested - Platform: ${platform}`);
-      console.log(`   Redirect URI: ${response.data.redirectUri}`);
-    }
-    
-    return response.data;
-  },
-
-  /**
-   * Exchange authorization code for tokens
-   */
-  exchangeToken: async (code: string): Promise<GmailExchangeTokenResponse> => {
-    const platform = Platform.OS === 'web' ? 'web' : 'mobile';
+  exchangeToken: async (accessToken: string, refreshToken?: string): Promise<GmailExchangeTokenResponse> => {
     const response = await api.post('/gmail/exchange-token', { 
-      code,
-      platform 
+      accessToken,
+      refreshToken
     });
     
     if (__DEV__) {
-      console.log(`✅ Gmail token exchange successful - Platform: ${platform}`);
+      console.log(`✅ Gmail token exchange successful`, { hasRefreshToken: !!refreshToken });
     }
     
     return response.data;
@@ -71,9 +50,12 @@ export const gmailApi = {
 
   /**
    * Import receipts from Gmail
+   * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (replaceExisting: boolean = false): Promise<GmailImportResponse> => {
-    const response = await api.post('/gmail/import', { replaceExisting });
+    const response = await api.post('/gmail/import', { replaceExisting }, {
+      timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
+    });
     return response.data;
   },
 

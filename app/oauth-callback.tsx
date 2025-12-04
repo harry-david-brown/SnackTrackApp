@@ -1,53 +1,73 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
+import { gmailApi } from '../services/gmailApi';
+import { showSimpleAlert } from '../utils/platformAlert';
 
 /**
- * OAuth Callback Handler for Web
- * 
- * This route handles OAuth callbacks when running in web browser.
- * For mobile, deep linking is used instead (snacktrack://oauth/callback)
+ * OAuth Callback Screen
+ * Handles the deep link callback from Gmail OAuth
+ * Format: snacktrack://oauth/callback?access_token=xxx&state=xxx
  */
-export default function OAuthCallbackScreen() {
-  const router = useRouter();
+export default function OAuthCallback() {
   const params = useLocalSearchParams();
-  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    // Prevent multiple navigation attempts
-    if (isNavigating) return;
+    handleOAuthCallback();
+  }, []);
 
-    const handleCallback = async () => {
-      // Get authorization code from URL params
-      const code = params.code as string | undefined;
-      const error = params.error as string | undefined;
+  const handleOAuthCallback = async () => {
+    try {
+      const { access_token, error } = params;
+
+      console.log('📱 OAuth callback received:', { 
+        hasAccessToken: !!access_token, 
+        error 
+      });
 
       if (error) {
-        console.error('OAuth error:', error);
+        console.error('❌ OAuth error:', error);
+        showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
+        router.replace('/(tabs)/upload');
+        return;
       }
 
-      if (code && Platform.OS === 'web') {
-        // Store the code in localStorage for the GmailConnection component to pick up
-        localStorage.setItem('gmail_oauth_code', code);
-        localStorage.setItem('gmail_oauth_timestamp', Date.now().toString());
+      if (!access_token) {
+        console.error('❌ No access token in callback');
+        showSimpleAlert('Error', 'No access token received. Please try again.');
+        router.replace('/(tabs)/upload');
+        return;
       }
 
-      // Mark that we're about to navigate
-      setIsNavigating(true);
+      console.log('🔄 Exchanging access token with backend...');
 
-      // Defer navigation to ensure the router is fully mounted
-      // Use setTimeout to push navigation to next tick
-      setTimeout(() => {
-        router.replace('/(tabs)/upload?openGmail=true');
-      }, 100);
-    };
+      // Exchange the access token with the backend
+      const result = await gmailApi.exchangeToken(access_token as string);
 
-    handleCallback();
-  }, [params, router, isNavigating]);
+      if (result.success) {
+        console.log('✅ Gmail connected successfully');
+        showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
+        // Navigate to upload screen with Gmail modal open
+        router.replace({
+          pathname: '/(tabs)/upload',
+          params: { openGmail: 'true' }
+        });
+      } else {
+        console.error('❌ Token exchange failed');
+        showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
+        router.replace('/(tabs)/upload');
+      }
+    } catch (error: any) {
+      console.error('❌ Error in OAuth callback:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to complete Gmail connection.';
+      showSimpleAlert('Error', errorMessage);
+      router.replace('/(tabs)/upload');
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#007AFF" />
+      <ActivityIndicator size="large" color="#4CAF50" />
       <Text style={styles.text}>Completing Gmail connection...</Text>
     </View>
   );
@@ -58,7 +78,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
   text: {
     marginTop: 16,

@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
+import { getConfig } from '../config/env';
 
 interface GmailConnectionProps {
   onImportSuccess?: () => void;
 }
-
-// Warm up the browser for better UX
-WebBrowser.maybeCompleteAuthSession();
 
 export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSuccess }) => {
   const { state, setAnalytics } = useUser();
@@ -22,20 +19,46 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   const [isImporting, setIsImporting] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
+  // Get OAuth client IDs from environment
+  const config = getConfig();
+
+  // Configure Google Sign-In
   useEffect(() => {
-    checkConnectionStatus();
-    
-    // Set up deep link listener for mobile
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    
-    // For web, check if we have an OAuth code from localStorage
-    if (Platform.OS === 'web') {
-      checkWebOAuthCode();
-    }
-    
-    return () => {
-      subscription.remove();
+    const configureGoogleSignIn = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          if (config.gmailAndroidClientId && config.gmailWebClientId) {
+            GoogleSignin.configure({
+              webClientId: config.gmailWebClientId, // Required for offline access
+              offlineAccess: true, // Get refresh token
+              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+            });
+            console.log('✅ Google Sign-In configured for Android');
+          } else {
+            console.warn('⚠️ Google Sign-In not configured for Android - missing client IDs');
+          }
+        } else if (Platform.OS === 'ios') {
+          if (config.gmailIosClientId && config.gmailWebClientId) {
+            GoogleSignin.configure({
+              webClientId: config.gmailWebClientId, // Required for offline access
+              iosClientId: config.gmailIosClientId,
+              offlineAccess: true, // Get refresh token
+              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+            });
+            console.log('✅ Google Sign-In configured for iOS');
+          } else {
+            console.warn('⚠️ Google Sign-In not configured for iOS - missing client IDs (iOS setup on hold)');
+          }
+        } else if (Platform.OS === 'web') {
+          console.log('ℹ️ Google Sign-In not available on web platform');
+        }
+      } catch (error) {
+        console.error('❌ Failed to configure Google Sign-In:', error);
+      }
     };
+
+    configureGoogleSignIn();
+    checkConnectionStatus();
   }, []);
 
   const checkConnectionStatus = async () => {
@@ -50,46 +73,34 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const checkWebOAuthCode = async () => {
-    if (Platform.OS !== 'web') return;
-
+  const handleTokenExchange = async (accessToken: string, refreshToken?: string) => {
     try {
-      const code = localStorage.getItem('gmail_oauth_code');
-      const timestamp = localStorage.getItem('gmail_oauth_timestamp');
-      
-      console.log('🔍 Checking for OAuth code in localStorage:', { hasCode: !!code, hasTimestamp: !!timestamp });
-      
-      if (!code || !timestamp) return;
-      
-      // Check if code is recent (within last 5 minutes)
-      const codeAge = Date.now() - parseInt(timestamp);
-      if (codeAge > 5 * 60 * 1000) {
-        // Code is too old, clear it
-        localStorage.removeItem('gmail_oauth_code');
-        localStorage.removeItem('gmail_oauth_timestamp');
-        return;
-      }
-
-      // Clear the code immediately to prevent reprocessing
-      localStorage.removeItem('gmail_oauth_code');
-      localStorage.removeItem('gmail_oauth_timestamp');
-
-      console.log('🔄 Exchanging OAuth code for tokens...');
-      
-      // Exchange the code
       setIsLoading(true);
-      const response = await gmailApi.exchangeToken(code);
       
-      console.log('✅ Token exchange complete, success:', response.success);
+      if (__DEV__) {
+        console.log('🔄 Exchanging OAuth token...', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken
+        });
+      }
       
-      if (response.success) {
-        setConnectionStatus({ connected: true });
+      const result = await gmailApi.exchangeToken(accessToken, refreshToken);
+      
+      if (result.success) {
+        if (__DEV__) {
+          console.log('✅ Token exchange successful, refreshing connection status...');
+        }
+        // Refresh connection status to get the connected Gmail email
+        await checkConnectionStatus();
+        if (__DEV__) {
+          console.log('✅ Connection status refreshed:', connectionStatus);
+        }
         showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
       } else {
         showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
       }
     } catch (error: any) {
-      console.error('Web OAuth code exchange error:', error);
+      console.error('Token exchange error:', error);
       const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
       showSimpleAlert('Error', errorMessage);
     } finally {
@@ -97,110 +108,99 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const handleDeepLink = async (event: { url: string }) => {
-    try {
-      const url = event.url;
-      
-      // Check if this is an OAuth callback
-      if (!url.includes('oauth/callback')) {
-        return;
-      }
-
-      const { queryParams } = Linking.parse(url);
-      const code = queryParams?.code as string | undefined;
-      const error = queryParams?.error as string | undefined;
-
-      if (error) {
-        showSimpleAlert('Authorization Failed', 'Failed to connect Gmail. Please try again.');
-        return;
-      }
-
-      if (!code) {
-        return;
-      }
-
-      setIsLoading(true);
-
-      try {
-        // Exchange authorization code for tokens
-        const response = await gmailApi.exchangeToken(code);
-        
-        if (response.success) {
-          setConnectionStatus({ connected: true });
-          showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
-        } else {
-          showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
-        }
-      } catch (error: any) {
-        console.error('Token exchange error:', error);
-        const errorMessage = error.response?.data?.error || 'Failed to connect Gmail. Please try again.';
-        showSimpleAlert('Error', errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('Deep link handling error:', error);
-    }
-  };
-
   const connectGmail = async () => {
     try {
       setIsLoading(true);
-      
-      // Get platform-specific OAuth URL from API
-      const { authUrl, platform: detectedPlatform } = await gmailApi.getAuthUrl();
-      
+
       if (__DEV__) {
         console.log(`🔐 Starting Gmail OAuth flow - Platform: ${Platform.OS}`);
-        console.log(`   Detected platform: ${detectedPlatform}`);
+      }
+
+      // Check platform support
+      if (Platform.OS === 'web') {
+        showSimpleAlert('Not Available', 'Gmail connection is not available on web. Please use the mobile app.');
+        return;
+      }
+
+      if (Platform.OS === 'ios' && !config.gmailIosClientId) {
+        showSimpleAlert('Not Configured', 'Gmail connection is not configured for iOS yet. Please configure iOS OAuth client ID.');
+        return;
+      }
+
+      if (Platform.OS === 'android' && !config.gmailAndroidClientId) {
+        showSimpleAlert('Not Configured', 'Gmail connection is not configured for Android. Please configure Android OAuth client ID.');
+        return;
+      }
+
+      // Check if Google Play Services are available (Android)
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+
+      // Always sign out any existing Google account to force account selection
+      // This ensures the account picker is shown even if there's a cached account
+      try {
+        await GoogleSignin.signOut();
+        console.log('🔓 Signed out any existing Google account to force account selection');
+      } catch (error: any) {
+        // Ignore errors when signing out (might not be signed in)
+        // This is fine - we just want to ensure a fresh sign-in flow
+        if (__DEV__) {
+          console.log('ℹ️ Sign out skipped (no existing account or error):', error?.message);
+        }
+      }
+
+      // Sign in with Google - this should now show the account picker
+      const signInResult = await GoogleSignin.signIn();
+      
+      if (__DEV__) {
+        console.log('✅ Google Sign-In successful:', {
+          email: signInResult.data?.user?.email,
+          id: signInResult.data?.user?.id,
+          serverAuthCode: !!signInResult.data?.serverAuthCode,
+          // Log full response structure for debugging
+          responseKeys: Object.keys(signInResult.data || {})
+        });
       }
       
-      if (Platform.OS === 'web') {
-        // WEB: Redirect to Google OAuth (will redirect back to /oauth-callback)
+      // Get the tokens (includes refresh token if offlineAccess is true)
+      const tokens = await GoogleSignin.getTokens();
+      
+      if (tokens.accessToken) {
         if (__DEV__) {
-          console.log('🌐 Web: Redirecting to Google OAuth...');
+          console.log('✅ Got tokens from Google Sign-In:', {
+            hasAccessToken: !!tokens.accessToken,
+            idToken: tokens.idToken ? 'present' : 'missing',
+            // Check if refreshToken exists in tokens object
+            tokenKeys: Object.keys(tokens),
+            // Try to access refreshToken even if TypeScript doesn't know about it
+            refreshToken: (tokens as any).refreshToken ? 'present' : 'missing'
+          });
         }
-        window.location.href = authUrl;
+        
+        // Try to get refresh token - it might be in the tokens object even if not typed
+        const refreshToken = (tokens as any).refreshToken;
+        
+        // Send access token (and refresh token if available)
+        // If refresh token is not available, backend will use access token directly
+        await handleTokenExchange(tokens.accessToken, refreshToken);
       } else {
-        // MOBILE: Open system browser with deep link callback
-        if (__DEV__) {
-          console.log('📱 Mobile: Opening system browser with deep linking...');
-        }
-        
-        const result = await WebBrowser.openAuthSessionAsync(
-          authUrl,
-          'snacktrack://oauth/callback'
-        );
-
-        if (result.type === 'success' && result.url) {
-          await handleDeepLink({ url: result.url });
-        } else if (result.type === 'cancel') {
-          showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
-        }
-        
-        setIsLoading(false);
+        throw new Error('No access token received from Google Sign-In');
       }
     } catch (error: any) {
-      console.error('❌ Failed to initiate Gmail connection:', error);
+      console.error('❌ Failed to connect Gmail:', error);
       
-      let errorMessage = 'Failed to open Gmail authorization. Please try again.';
-      
-      if (error.response) {
-        const status = error.response.status;
-        const errorData = error.response.data;
-        
-        if (status === 500) {
-          errorMessage = 'Server error: Gmail integration is currently unavailable. Please contact support or try again later.';
-        } else if (errorData?.error) {
-          errorMessage = errorData.error;
-        } else if (errorData?.message) {
-          errorMessage = errorData.message;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        showSimpleAlert('In Progress', 'Gmail connection is already in progress.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        showSimpleAlert('Error', 'Google Play Services not available. Please update Google Play Services.');
+      } else {
+        const errorMessage = error.message || 'Failed to connect Gmail. Please try again.';
+        showSimpleAlert('Error', errorMessage);
       }
-      
-      showSimpleAlert('Error', errorMessage);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -259,8 +259,24 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       }
     } catch (error: any) {
       console.error('Import failed:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to import receipts. Please try again.';
-      showSimpleAlert('Error', errorMessage);
+      
+      // Handle network/timeout errors specifically
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.message?.includes('timeout')) {
+        showSimpleAlert(
+          'Import Timeout',
+          'The import is taking longer than expected. This might mean you have many emails to process. Please try again or check your connection.'
+        );
+      } else if (error.response?.data?.error || error.response?.data?.message) {
+        // Server returned an error message
+        const errorMessage = error.response.data.error || error.response.data.message;
+        showSimpleAlert('Import Failed', errorMessage);
+      } else if (error.message) {
+        // Generic error message
+        showSimpleAlert('Import Failed', error.message);
+      } else {
+        // Fallback
+        showSimpleAlert('Import Failed', 'Failed to import receipts. Please check your connection and try again.');
+      }
     } finally {
       setIsImporting(false);
     }
@@ -339,10 +355,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#4CAF50" />
+              <ActivityIndicator color="white" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color="#4CAF50" />
+                <Ionicons name="logo-google" size={20} color="white" />
                 <Text style={styles.primaryButtonText}>Connect Gmail</Text>
               </>
             )}
@@ -469,7 +485,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#007AFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,7 +502,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryButtonText: {
-    color: '#4CAF50',
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -559,7 +575,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 40,
   },
   privacyContent: {
     flex: 1,
@@ -577,4 +592,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-
