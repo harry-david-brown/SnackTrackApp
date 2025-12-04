@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { gmailApi } from '../services/gmailApi';
@@ -12,7 +12,7 @@ import { showSimpleAlert } from '../utils/platformAlert';
 export default function OAuthCallback() {
   const params = useLocalSearchParams();
 
-  const handleOAuthCallback = async () => {
+  const handleOAuthCallback = useCallback(async () => {
     try {
       const { access_token, error } = params;
 
@@ -59,11 +59,11 @@ export default function OAuthCallback() {
       showSimpleAlert('Error', errorMessage);
       router.replace('/(tabs)/upload');
     }
-  };
+  }, [params]);
 
   useEffect(() => {
     handleOAuthCallback();
-  }, [params]);
+  }, [handleOAuthCallback]);
 
   return (
     <View style={styles.container}>
