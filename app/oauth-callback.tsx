@@ -12,10 +12,6 @@ import { showSimpleAlert } from '../utils/platformAlert';
 export default function OAuthCallback() {
   const params = useLocalSearchParams();
 
-  useEffect(() => {
-    handleOAuthCallback();
-  }, []);
-
   const handleOAuthCallback = async () => {
     try {
       const { access_token, error } = params;
@@ -64,6 +60,10 @@ export default function OAuthCallback() {
       router.replace('/(tabs)/upload');
     }
   };
+
+  useEffect(() => {
+    handleOAuthCallback();
+  }, [params]);
 
   return (
     <View style={styles.container}>

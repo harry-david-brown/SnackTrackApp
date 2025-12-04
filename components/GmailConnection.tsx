@@ -59,7 +59,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
     configureGoogleSignIn();
     checkConnectionStatus();
-  }, []);
+  }, [config.gmailAndroidClientId, config.gmailIosClientId, config.gmailWebClientId]);
 
   const checkConnectionStatus = async () => {
     try {
