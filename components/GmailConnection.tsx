@@ -19,6 +19,11 @@ import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
 import { getConfig } from '../config/env';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+
+// Initialize WebBrowser for web auth
+WebBrowser.maybeCompleteAuthSession();
 
 interface GmailConnectionProps {
   onImportSuccess?: () => void;
@@ -69,6 +74,22 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
     configureGoogleSignIn();
   }, [config.gmailWebClientId, config.gmailIosClientId]);
+
+  // Expo Auth Session for Web Fallback
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: config.gmailWebClientId,
+    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+  });
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && response?.type === 'success' && response.authentication) {
+      console.log('✅ Web authentication successful');
+      handleTokenExchange(response.authentication.accessToken);
+    } else if (Platform.OS === 'web' && response?.type === 'error') {
+      console.error('❌ Web authentication failed:', response.error);
+      showSimpleAlert('Error', 'Failed to connect Gmail on web.');
+    }
+  }, [response]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -163,7 +184,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
       // Check platform support
       if (Platform.OS === 'web') {
-        showSimpleAlert('Not Available', 'Gmail connection is not available on web. Please use the mobile app.');
+        console.log('🌍 Starting Web Sign-In flow...');
+        await promptAsync();
+        // The result will be handled by the useEffect above
+        setIsLoading(false); // promptAsync might resolve before the effect runs, but usually it redirects
         return;
       }
 
