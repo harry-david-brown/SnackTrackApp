@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GoogleSignin,
+  statusCodes,
+  isErrorWithCode,
+  isSuccessResponse,
+  isNoSavedCredentialFoundResponse,
+  isCancelledResponse,
+} from '@react-native-google-signin/google-signin';
+
+// Universal API (One Tap) - TypeScript types may not be complete in v16
+// Using GoogleSignin with type assertion for Universal API methods
+// @ts-ignore - Universal API methods exist at runtime but types may be incomplete
+const GoogleOneTapSignIn = GoogleSignin as any;
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
@@ -22,44 +34,41 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   // Get OAuth client IDs from environment
   const config = getConfig();
 
-  // Configure Google Sign-In
+  // Configure Universal Google Sign-In (One Tap)
   useEffect(() => {
     const configureGoogleSignIn = async () => {
       try {
-        if (Platform.OS === 'android') {
-          if (config.gmailAndroidClientId && config.gmailWebClientId) {
-            GoogleSignin.configure({
-              webClientId: config.gmailWebClientId, // Required for offline access
-              offlineAccess: true, // Get refresh token
-              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-            });
-            console.log('✅ Google Sign-In configured for Android');
-          } else {
-            console.warn('⚠️ Google Sign-In not configured for Android - missing client IDs');
-          }
-        } else if (Platform.OS === 'ios') {
-          if (config.gmailIosClientId && config.gmailWebClientId) {
-            GoogleSignin.configure({
-              webClientId: config.gmailWebClientId, // Required for offline access
-              iosClientId: config.gmailIosClientId,
-              offlineAccess: true, // Get refresh token
-              scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-            });
-            console.log('✅ Google Sign-In configured for iOS');
-          } else {
-            console.warn('⚠️ Google Sign-In not configured for iOS - missing client IDs (iOS setup on hold)');
-          }
-        } else if (Platform.OS === 'web') {
+        if (Platform.OS === 'web') {
           console.log('ℹ️ Google Sign-In not available on web platform');
+          checkConnectionStatus();
+          return;
         }
+
+        if (!config.gmailWebClientId) {
+          console.warn('⚠️ Google Sign-In not configured - missing webClientId');
+          checkConnectionStatus();
+          return;
+        }
+
+        // Configure Universal Google Sign-In
+        // According to docs: webClientId is required, iosClientId is optional (auto-detected with Expo/Firebase)
+        GoogleOneTapSignIn.configure({
+          webClientId: config.gmailWebClientId,
+          ...(Platform.OS === 'ios' && config.gmailIosClientId && {
+            iosClientId: config.gmailIosClientId,
+          }),
+        });
+
+        console.log('✅ Universal Google Sign-In configured');
+        checkConnectionStatus();
       } catch (error) {
         console.error('❌ Failed to configure Google Sign-In:', error);
+        checkConnectionStatus();
       }
     };
 
     configureGoogleSignIn();
-    checkConnectionStatus();
-  }, [config.gmailAndroidClientId, config.gmailIosClientId, config.gmailWebClientId]);
+  }, [config.gmailWebClientId, config.gmailIosClientId]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -76,25 +85,22 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   const handleTokenExchange = async (accessToken: string, refreshToken?: string) => {
     try {
       setIsLoading(true);
-      
+
       if (__DEV__) {
         console.log('🔄 Exchanging OAuth token...', {
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken
         });
       }
-      
+
       const result = await gmailApi.exchangeToken(accessToken, refreshToken);
-      
+
       if (result.success) {
         if (__DEV__) {
           console.log('✅ Token exchange successful, refreshing connection status...');
         }
         // Refresh connection status to get the connected Gmail email
         await checkConnectionStatus();
-        if (__DEV__) {
-          console.log('✅ Connection status refreshed:', connectionStatus);
-        }
         showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
       } else {
         showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
@@ -105,6 +111,45 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       showSimpleAlert('Error', errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Request Gmail API authorization with scopes
+  const requestGmailAuthorization = async () => {
+    try {
+      console.log('🔄 Requesting Gmail API authorization...');
+
+      // Request authorization for Gmail scopes
+      // This is separate from sign-in - it requests access to Gmail API
+      await GoogleOneTapSignIn.addScopes({
+        scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+      });
+
+      // Get tokens after adding scopes
+      const tokens = await GoogleOneTapSignIn.getTokens();
+
+      if (tokens.accessToken) {
+        console.log('✅ Got Gmail access token from authorization');
+        // Note: Universal API doesn't provide refresh tokens directly
+        // The backend will need to handle token refresh using the access token
+        await handleTokenExchange(tokens.accessToken);
+      } else {
+        throw new Error('No access token received from authorization request');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to request Gmail authorization:', error);
+
+      if (isErrorWithCode(error)) {
+        if (error.code === statusCodes.SIGN_IN_REQUIRED) {
+          // User needs to sign in first
+          showSimpleAlert('Error', 'Please sign in with Google first.');
+        } else {
+          showSimpleAlert('Error', `Authorization failed: ${error.message || 'Unknown error'}`);
+        }
+      } else {
+        showSimpleAlert('Error', `Failed to authorize Gmail access: ${error.message || 'Unknown error'}`);
+      }
+      throw error;
     }
   };
 
@@ -122,80 +167,79 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         return;
       }
 
-      if (Platform.OS === 'ios' && !config.gmailIosClientId) {
-        showSimpleAlert('Not Configured', 'Gmail connection is not configured for iOS yet. Please configure iOS OAuth client ID.');
+      if (!config.gmailWebClientId) {
+        showSimpleAlert('Not Configured', 'Gmail connection is not configured. Please configure OAuth client IDs.');
         return;
       }
 
-      if (Platform.OS === 'android' && !config.gmailAndroidClientId) {
-        showSimpleAlert('Not Configured', 'Gmail connection is not configured for Android. Please configure Android OAuth client ID.');
-        return;
-      }
+      // Check Google Play Services (Android) or verify Google Client Library (Web)
+      await GoogleOneTapSignIn.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-      // Check if Google Play Services are available (Android)
-      if (Platform.OS === 'android') {
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      }
+      // Step 1: Try automatic sign-in (no user interaction if previously signed in)
+      let signInResponse = await GoogleOneTapSignIn.signIn();
 
-      // Always sign out any existing Google account to force account selection
-      // This ensures the account picker is shown even if there's a cached account
-      try {
-        await GoogleSignin.signOut();
-        console.log('🔓 Signed out any existing Google account to force account selection');
-      } catch (error: any) {
-        // Ignore errors when signing out (might not be signed in)
-        // This is fine - we just want to ensure a fresh sign-in flow
-        if (__DEV__) {
-          console.log('ℹ️ Sign out skipped (no existing account or error):', error?.message);
+      if (isSuccessResponse(signInResponse)) {
+        // User was automatically signed in
+        console.log('✅ Automatic sign-in successful');
+        // Now request Gmail API authorization
+        await requestGmailAuthorization();
+      } else if (isNoSavedCredentialFoundResponse(signInResponse)) {
+        // No saved credential - user hasn't signed in before
+        console.log('ℹ️ No saved credential found, starting create account flow');
+
+        // Step 2: Create account (first-time sign-in)
+        const createResponse = await GoogleOneTapSignIn.createAccount();
+
+        if (isSuccessResponse(createResponse)) {
+          console.log('✅ Account creation successful');
+          // Now request Gmail API authorization
+          await requestGmailAuthorization();
+        } else if (isNoSavedCredentialFoundResponse(createResponse)) {
+          // No Google account on device - show explicit sign-in
+          console.log('ℹ️ No Google account found, showing explicit sign-in');
+
+          // Step 3: Present explicit sign-in dialog
+          const explicitResponse = await GoogleOneTapSignIn.presentExplicitSignIn();
+
+          if (isSuccessResponse(explicitResponse)) {
+            console.log('✅ Explicit sign-in successful');
+            // Now request Gmail API authorization
+            await requestGmailAuthorization();
+          } else if (isCancelledResponse(explicitResponse)) {
+            showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
+          }
+        } else if (isCancelledResponse(createResponse)) {
+          showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
         }
-      }
-
-      // Sign in with Google - this should now show the account picker
-      const signInResult = await GoogleSignin.signIn();
-      
-      if (__DEV__) {
-        console.log('✅ Google Sign-In successful:', {
-          email: signInResult.data?.user?.email,
-          id: signInResult.data?.user?.id,
-          serverAuthCode: !!signInResult.data?.serverAuthCode,
-          // Log full response structure for debugging
-          responseKeys: Object.keys(signInResult.data || {})
-        });
-      }
-      
-      // Get the tokens (includes refresh token if offlineAccess is true)
-      const tokens = await GoogleSignin.getTokens();
-      
-      if (tokens.accessToken) {
-        if (__DEV__) {
-          console.log('✅ Got tokens from Google Sign-In:', {
-            hasAccessToken: !!tokens.accessToken,
-            idToken: tokens.idToken ? 'present' : 'missing',
-            // Check if refreshToken exists in tokens object
-            tokenKeys: Object.keys(tokens),
-            // Try to access refreshToken even if TypeScript doesn't know about it
-            refreshToken: (tokens as any).refreshToken ? 'present' : 'missing'
-          });
-        }
-        
-        // Try to get refresh token - it might be in the tokens object even if not typed
-        const refreshToken = (tokens as any).refreshToken;
-        
-        // Send access token (and refresh token if available)
-        // If refresh token is not available, backend will use access token directly
-        await handleTokenExchange(tokens.accessToken, refreshToken);
-      } else {
-        throw new Error('No access token received from Google Sign-In');
+      } else if (isCancelledResponse(signInResponse)) {
+        showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
       }
     } catch (error: any) {
       console.error('❌ Failed to connect Gmail:', error);
-      
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        showSimpleAlert('In Progress', 'Gmail connection is already in progress.');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        showSimpleAlert('Error', 'Google Play Services not available. Please update Google Play Services.');
+
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case 'ONE_TAP_START_FAILED':
+            // Android rate limiting - try explicit sign-in
+            console.log('⚠️ One Tap rate limited, trying explicit sign-in');
+            try {
+              const explicitResponse = await GoogleOneTapSignIn.presentExplicitSignIn();
+              if (isSuccessResponse(explicitResponse)) {
+                await requestGmailAuthorization();
+              } else if (isCancelledResponse(explicitResponse)) {
+                showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
+              }
+            } catch (explicitError) {
+              showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
+            }
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            showSimpleAlert('Error', 'Google Play Services not available. Please update Google Play Services.');
+            break;
+          default:
+            const errorMessage = error.message || 'Failed to connect Gmail. Please try again.';
+            showSimpleAlert('Error', errorMessage);
+        }
       } else {
         const errorMessage = error.message || 'Failed to connect Gmail. Please try again.';
         showSimpleAlert('Error', errorMessage);
@@ -230,9 +274,9 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   const performImport = async (replaceExisting: boolean) => {
     try {
       setIsImporting(true);
-      
+
       const result = await gmailApi.importReceipts(replaceExisting);
-      
+
       if (result.success) {
         // Refresh analytics IMMEDIATELY after import succeeds
         if (state.user) {
@@ -245,7 +289,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
             console.warn('Failed to refresh analytics:', error);
           }
         }
-        
+
         // Show success message
         showSimpleAlert(
           'Import Complete',
@@ -259,7 +303,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       }
     } catch (error: any) {
       console.error('Import failed:', error);
-      
+
       // Handle network/timeout errors specifically
       if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.message?.includes('timeout')) {
         showSimpleAlert(
@@ -297,6 +341,16 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
           onPress: async () => {
             try {
               setIsLoading(true);
+
+              // Sign out from Google Sign-In
+              try {
+                await GoogleOneTapSignIn.signOut();
+                console.log('✅ Signed out from Google Sign-In');
+              } catch (signOutError) {
+                console.warn('⚠️ Sign out error (may not be signed in):', signOutError);
+              }
+
+              // Disconnect on backend
               await gmailApi.disconnect();
               setConnectionStatus({ connected: false });
               showSimpleAlert('Success', 'Gmail account disconnected.');
@@ -326,10 +380,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       {/* Connection Status Card */}
       <View style={styles.statusCard}>
         <View style={styles.statusHeader}>
-          <Ionicons 
-            name={connectionStatus.connected ? 'checkmark-circle' : 'mail-outline'} 
-            size={48} 
-            color={connectionStatus.connected ? '#4CAF50' : '#999'} 
+          <Ionicons
+            name={connectionStatus.connected ? 'checkmark-circle' : 'mail-outline'}
+            size={48}
+            color={connectionStatus.connected ? '#4CAF50' : '#999'}
           />
           <Text style={styles.statusTitle}>
             {connectionStatus.connected ? 'Gmail Connected' : 'Gmail Not Connected'}
