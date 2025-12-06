@@ -5,12 +5,12 @@ import { mockUserApi } from '../services/mockApi';
 import { authApi } from '../services/authApi';
 import { analyticsApi } from '../services/analyticsApi';
 import { AppUser, UserSummary, RegisterResponse, LoginResponse } from '../types/api';
-import { 
-  getUserData, 
-  getUserId, 
+import {
+  getUserData,
+  getUserId,
   isAuthenticated as checkIsAuthenticated,
   clearAuthTokens,
-  AUTH_STORAGE_KEYS 
+  AUTH_STORAGE_KEYS
 } from '../utils/tokenManager';
 import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
 import { setSentryUser, clearSentryUser } from '../utils/sentry';
@@ -39,6 +39,7 @@ type UserAction =
 interface UserContextType {
   state: UserState;
   login: (email: string, password: string) => Promise<LoginResponse>;
+  loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
   register: (email: string, password: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -134,7 +135,7 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
-  
+
   // Ref to prevent duplicate analytics loads
   const loadingAnalyticsRef = useRef<Promise<UserSummary | null> | null>(null);
 
@@ -155,10 +156,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const loadUserFromStorage = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
+
       // Check if user has JWT tokens (new auth system)
       const isAuth = await checkIsAuthenticated();
-      
+
       if (isAuth) {
         // Load user from new auth system
         const [userData, userId] = await Promise.all([
@@ -169,7 +170,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         if (userData && userId) {
           // Validate session
           const isValid = await authApi.validateSession();
-          
+
           if (isValid) {
             // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
             // the full summary which includes totalSpent. This avoids a redundant API call.
@@ -179,28 +180,30 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               totalSpent: 0, // Will be updated when analytics loads
               receiptCount: 0,
             };
-            
+
             dispatch({ type: 'SET_USER', payload: userWithSpending });
-            
+
             // Prevent duplicate analytics loads
             if (!loadingAnalyticsRef.current) {
               dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-              
+
               loadingAnalyticsRef.current = analyticsApi.getUserSummary(userId, false)
                 .then((summary) => {
                   dispatch({ type: 'SET_ANALYTICS', payload: summary });
                   cacheAnalytics(userId, summary).catch(() => {
                     // Silently fail caching - not critical
                   });
-                  
+
                   // Update user's totalSpent from the summary data
                   if (summary.totalSpent !== userWithSpending.totalSpent) {
-                    dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-                      totalSpent: summary.totalSpent,
-                      receiptCount: summary.totalReceipts 
-                    }});
+                    dispatch({
+                      type: 'UPDATE_USER_DATA', payload: {
+                        totalSpent: summary.totalSpent,
+                        receiptCount: summary.totalReceipts
+                      }
+                    });
                   }
-                  
+
                   // After /summary completes, if user has data, immediately preload wrapped data
                   if (summary.totalReceipts > 0) {
                     // Preload wrapped analytics in background
@@ -222,7 +225,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                         // Silently fail wrapped preload - not critical
                       });
                   }
-                  
+
                   return summary;
                 })
                 .catch((analyticsError) => {
@@ -293,21 +296,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       // Register with the new auth API
       const response = await authApi.register({ email, password });
-      
+
       // Debug: Log response structure in development
       if (__DEV__) {
         console.log('📝 Registration response:', JSON.stringify(response, null, 2));
       }
-      
+
       // Validate response structure
       if (!response.user) {
         console.error('❌ Registration response missing user object:', response);
         throw new Error('Invalid registration response from server');
       }
-      
+
       // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
       // the full summary which includes totalSpent. This avoids a redundant API call.
-      
+
       // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
         id: response.userId,
@@ -319,28 +322,28 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
 
       dispatch({ type: 'SET_USER', payload: user });
-      
+
       console.log('🔍 [UserContext] User registered and set:', {
         userId: user.id,
         email: user.email,
         isAuthenticated: true, // Will be set by reducer
       });
-      
+
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
-      
+
       if (__DEV__) {
         console.log('✅ User registered successfully:', email);
       }
       return response;
     } catch (error: any) {
       let errorMessage = 'Failed to create account';
-      
+
       if (error.response?.data) {
         // The error might be in different formats
         const errorData = error.response.data.error || error.response.data.message || error.response.data;
         const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
-        
+
         if (apiError.toLowerCase().includes('already exists') || apiError.toLowerCase().includes('duplicate')) {
           errorMessage = 'An account with this email already exists. Please login instead.';
         } else if (apiError.toLowerCase().includes('password')) {
@@ -351,7 +354,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -364,21 +367,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       // Login with the new auth API
       const response = await authApi.login({ email, password });
-      
+
       // Debug: Log response structure in development
       if (__DEV__) {
         console.log('📝 Login response:', JSON.stringify(response, null, 2));
       }
-      
+
       // Validate response structure
       if (!response.user) {
         console.error('❌ Login response missing user object:', response);
         throw new Error('Invalid login response from server');
       }
-      
+
       // Immediately load analytics to avoid showing $0 total spent
       // This ensures the dashboard has data as soon as it renders
-      
+
       // Create user object (totalSpent will be loaded by dashboard)
       const user: AppUser = {
         id: response.userId,
@@ -390,17 +393,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       };
 
       dispatch({ type: 'SET_USER', payload: user });
-      
+
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
-      
+
       // Start loading analytics immediately (non-blocking) so dashboard has data ready
       // This prevents "Total Spent" from popping in after dashboard renders
       // Use response.userId directly since state.user might not be updated yet
       // Prevent duplicate analytics loads
       if (!loadingAnalyticsRef.current) {
         dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-        
+
         loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
           .then((summary) => {
             dispatch({ type: 'SET_ANALYTICS', payload: summary });
@@ -410,12 +413,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
             // Update user's totalSpent from the summary data
             if (summary.totalSpent !== user.totalSpent) {
-              dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-                totalSpent: summary.totalSpent,
-                receiptCount: summary.totalReceipts 
-              }});
+              dispatch({
+                type: 'UPDATE_USER_DATA', payload: {
+                  totalSpent: summary.totalSpent,
+                  receiptCount: summary.totalReceipts
+                }
+              });
             }
-            
+
             // After /summary completes, if user has data, immediately preload wrapped data
             // This ensures Wrapped Journey tab loads instantly when clicked
             // Check both totalReceipts and totalSpent to be safe
@@ -441,7 +446,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                   // Silently fail wrapped preload - not critical for login
                 });
             }
-            
+
             return summary;
           })
           .catch((analyticsError) => {
@@ -462,20 +467,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
           });
       }
-      
+
       if (__DEV__) {
         console.log('✅ User logged in successfully:', email);
       }
-      
+
       return response;
     } catch (error: any) {
       let errorMessage = 'Failed to login';
-      
+
       if (error.response?.data) {
         // The error might be in different formats
         const errorData = error.response.data.error || error.response.data.message || error.response.data;
         const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
-        
+
         if (apiError.toLowerCase().includes('invalid') || apiError.toLowerCase().includes('credentials') || apiError.toLowerCase().includes('password')) {
           errorMessage = 'Invalid email or password. Please try again.';
         } else {
@@ -486,7 +491,90 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    }
+  };
+
+
+
+  const loginWithGoogle = async (idToken: string): Promise<LoginResponse> => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+
+      const response = await authApi.googleLogin(idToken);
+
+      if (__DEV__) {
+        console.log('📝 Google Login response:', JSON.stringify(response, null, 2));
+      }
+
+      if (!response.user) {
+        throw new Error('Invalid login response from server');
+      }
+
+      const user: AppUser = {
+        id: response.userId,
+        email: response.email,
+        createdAt: response.user.createdAt || new Date().toISOString(),
+        emailVerified: response.user.emailVerified ?? false,
+        totalSpent: 0,
+        receiptCount: 0,
+      };
+
+      dispatch({ type: 'SET_USER', payload: user });
+      setSentryUser(response.userId, response.email);
+
+      // Load analytics logic (same as regular login)
+      if (!loadingAnalyticsRef.current) {
+        dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+
+        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
+          .then((summary) => {
+            dispatch({ type: 'SET_ANALYTICS', payload: summary });
+            cacheAnalytics(response.userId, summary).catch(() => { });
+
+            if (summary.totalSpent !== user.totalSpent) {
+              dispatch({
+                type: 'UPDATE_USER_DATA', payload: {
+                  totalSpent: summary.totalSpent,
+                  receiptCount: summary.totalReceipts
+                }
+              });
+            }
+
+            const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
+            if (hasData) {
+              analyticsApi.getUserSummary(response.userId, true)
+                .then((wrappedSummary) => {
+                  dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                  dispatch({
+                    type: 'UPDATE_USER_DATA',
+                    payload: {
+                      totalSpent: wrappedSummary.totalSpent,
+                      receiptCount: wrappedSummary.totalReceipts,
+                    },
+                  });
+                  cacheAnalytics(response.userId, wrappedSummary).catch(() => { });
+                }).catch(() => { });
+            }
+            return summary;
+          })
+          .catch((error) => {
+            console.warn('Failed to load analytics after google login:', error);
+            return null;
+          })
+          .finally(() => {
+            loadingAnalyticsRef.current = null;
+            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
+          });
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error('Google Login Error:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to login with Google';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -496,21 +584,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       // Call backend logout endpoint to invalidate refresh token
       await authApi.logout();
-      
+
       // Clear local storage
       await clearUserStorage();
-      
+
       // Clear Sentry user context
       clearSentryUser();
-      
+
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       // Still dispatch logout even if API call fails
       await clearUserStorage();
-      
+
       // Clear Sentry user context
       clearSentryUser();
-      
+
       dispatch({ type: 'LOGOUT' });
     }
   };
@@ -520,13 +608,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
+
       // Fetch updated spending data
       const totalSpent = await userApi.getTotalSpent(state.user.id);
-      
+
       // Update user state
       dispatch({ type: 'UPDATE_USER_DATA', payload: { totalSpent } });
-      
+
     } catch (error: any) {
       // Handle session expired
       if (error.message === 'SESSION_EXPIRED') {
@@ -559,10 +647,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_ANALYTICS', payload: analytics });
     // Update user data from analytics
     if (state.user && (analytics.totalSpent !== state.user.totalSpent || analytics.totalReceipts !== state.user.receiptCount)) {
-      dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-        totalSpent: analytics.totalSpent,
-        receiptCount: analytics.totalReceipts 
-      }});
+      dispatch({
+        type: 'UPDATE_USER_DATA', payload: {
+          totalSpent: analytics.totalSpent,
+          receiptCount: analytics.totalReceipts
+        }
+      });
     }
     // Cache it
     if (state.user) {
@@ -584,25 +674,27 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
     try {
       dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-      
+
       // The deduplication in analyticsApi will handle concurrent calls
       const summaryPromise = analyticsApi.getUserSummary(userId, includeWrapped)
         .then((summary) => {
           dispatch({ type: 'SET_ANALYTICS', payload: summary });
-          
+
           // Cache for offline use
           cacheAnalytics(userId, summary).catch(() => {
             // Silently fail caching - not critical
           });
-          
+
           // Update user's totalSpent in context from the summary data
           if (summary.totalSpent !== currentUser.totalSpent) {
-            dispatch({ type: 'UPDATE_USER_DATA', payload: { 
-              totalSpent: summary.totalSpent,
-              receiptCount: summary.totalReceipts 
-            }});
+            dispatch({
+              type: 'UPDATE_USER_DATA', payload: {
+                totalSpent: summary.totalSpent,
+                receiptCount: summary.totalReceipts
+              }
+            });
           }
-          
+
           // If we loaded without wrapped data and user has data, preload wrapped data in background
           // This ensures Wrapped Journey tab loads instantly when clicked
           if (!includeWrapped && summary.totalReceipts > 0) {
@@ -626,7 +718,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 // Silently fail wrapped preload - not critical
               });
           }
-          
+
           return summary;
         })
         .catch(async (error: any) => {
@@ -643,10 +735,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           loadingAnalyticsRef.current = null;
           dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
         });
-      
+
       // Store the promise in the ref so concurrent calls can reuse it
       loadingAnalyticsRef.current = summaryPromise;
-      
+
       return summaryPromise;
     } catch (error: any) {
       loadingAnalyticsRef.current = null;
@@ -665,6 +757,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     state,
     register,
     login,
+    loginWithGoogle,
     logout,
     refreshUserData,
     loadAnalytics,

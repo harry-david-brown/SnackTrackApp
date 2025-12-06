@@ -15,6 +15,25 @@ import { useUser } from '../contexts/UserContext';
 import PasswordResetModal from './PasswordResetModal';
 import { useRouter } from 'expo-router';
 import { showAlert } from '../utils/alerts';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import { getConfig } from '../config/env';
+
+const config = getConfig();
+
+// Initialize WebBrowser for web auth
+WebBrowser.maybeCompleteAuthSession();
+
+// Configure Google Signin (Native)
+GoogleSignin.configure({
+  webClientId: config.gmailWebClientId,
+  iosClientId: config.gmailIosClientId,
+  offlineAccess: true,
+});
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -27,8 +46,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(true); // Default to registration
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const { register, login, state, clearError } = useUser();
+  const { register, login, loginWithGoogle, state, clearError } = useUser();
   const router = useRouter();
+
+  // Expo Auth Session for Web
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: config.gmailWebClientId,
+    iosClientId: config.gmailIosClientId,
+    androidClientId: config.gmailAndroidClientId,
+  });
 
   // Show error alert when state.error changes
   useEffect(() => {
@@ -40,6 +66,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.error, state.isLoading]);
 
+  // Handle Web Sign-In Response
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      if (response?.type === 'success') {
+        // parsing the response to find the idToken
+        // On web, sometimes it comes in authentication.idToken, sometimes in params.id_token
+        const { authentication, params } = response;
+        const idToken = authentication?.idToken || params?.id_token;
+        const accessToken = authentication?.accessToken || params?.access_token;
+
+        if (idToken) {
+          performGoogleLogin(idToken);
+        } else {
+          console.warn('No ID token in successful response', response);
+          setIsLoading(false);
+          showAlert('Login Failed', 'No ID Token received from Google');
+        }
+      } else if (response?.type === 'error') {
+        setIsLoading(false);
+        console.error('Web Auth Error:', response.error);
+        showAlert('Login Failed', 'Google sign-in failed on web');
+      } else if (response?.type === 'dismiss') {
+        setIsLoading(false);
+      }
+    }
+  }, [response]);
+
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -47,7 +100,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
-    
+
     if (password.length < 8) {
       errors.push('At least 8 characters');
     }
@@ -57,7 +110,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     if (!/[0-9]/.test(password)) {
       errors.push('At least 1 number');
     }
-    
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -66,7 +119,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async () => {
     // Validate email
-      if (!email.trim()) {
+    if (!email.trim()) {
       showAlert('Error', 'Please enter your email address');
       return;
     }
@@ -93,7 +146,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       setIsLoading(true);
-      
+
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
         // Tutorial will be shown automatically by app/index.tsx since onboarding is not complete
@@ -111,7 +164,57 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const performGoogleLogin = async (idToken: string) => {
+    try {
+      if (state.user) return;
 
+      if (!idToken) {
+        throw new Error('ID Token is empty');
+      }
+
+      await loginWithGoogle(idToken);
+      onLoginSuccess?.();
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('Google Login Error:', error);
+      showAlert('Login Failed', error.message || 'Failed to verify Google token');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+
+      if (Platform.OS === 'web') {
+        await promptAsync();
+        // The effect will handle the response
+      } else {
+        // Native (Android/iOS) Flow
+        await GoogleSignin.hasPlayServices();
+        const response = await GoogleSignin.signIn();
+
+        if (response.data?.idToken) {
+          await performGoogleLogin(response.data.idToken);
+        } else {
+          throw new Error('No ID token obtained from Google');
+        }
+      }
+    } catch (error: any) {
+      setIsLoading(false);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled the login flow
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        showAlert('Error', 'Google Play Services not available');
+      } else {
+        console.error('Google Sign-In Error', error);
+        showAlert('Login Failed', error.message || 'Failed to sign in with Google');
+      }
+    }
+  };
 
   const openPasswordReset = () => {
     setShowPasswordReset(true);
@@ -127,7 +230,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
           bounces={true}
@@ -192,10 +295,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   autoComplete="password"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons 
-                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={24} 
-                    color="#666" 
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={24}
+                    color="#666"
                   />
                 </TouchableOpacity>
               </View>
@@ -231,10 +334,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 )}
               </TouchableOpacity>
 
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Google Sign In Button */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleGoogleLogin}
+                disabled={isLoading || state.isLoading}
+              >
+                <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+
               {/* Info */}
               <View style={styles.infoContainer}>
                 <Text style={styles.infoText}>
-                  {isRegistering 
+                  {isRegistering
                     ? "We'll use your email to create your account and securely save your spending data."
                     : "Sign in to access your spending insights and analytics."
                   }
@@ -400,8 +520,48 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#999',
+    fontWeight: '600',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  googleIcon: {
+    marginRight: 12,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
 });
-
-// Modals live outside component tree return? need to ensure we include them before closing
 
 export default LoginScreen;

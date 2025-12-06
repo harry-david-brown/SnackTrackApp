@@ -38,7 +38,7 @@ export const authApi = {
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
     try {
       const response = await api.post<RegisterResponse>('/auth/register', data);
-      
+
       // Store tokens and user data
       await storeAuthTokens(
         response.data.accessToken,
@@ -46,7 +46,7 @@ export const authApi = {
         response.data.userId,
         response.data.user
       );
-      
+
       return response.data;
     } catch (error: any) {
       throw error;
@@ -59,7 +59,7 @@ export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     try {
       const response = await api.post<LoginResponse>('/auth/login', data);
-      
+
       // Store tokens and user data
       await storeAuthTokens(
         response.data.accessToken,
@@ -67,7 +67,31 @@ export const authApi = {
         response.data.userId,
         response.data.user
       );
-      
+
+      return response.data;
+      return response.data;
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  /**
+   * Login with Google ID Token
+   */
+  googleLogin: async (idToken: string): Promise<LoginResponse> => {
+    try {
+      console.log('Sending Google Login request to API...');
+      const response = await api.post<LoginResponse>('/auth/google', { idToken });
+      console.log('API Response received:', response.status);
+
+      // Store tokens and user data
+      await storeAuthTokens(
+        response.data.accessToken,
+        response.data.refreshToken,
+        response.data.userId,
+        response.data.user
+      );
+
       return response.data;
     } catch (error: any) {
       throw error;
@@ -80,30 +104,30 @@ export const authApi = {
   refresh: async (): Promise<RefreshTokenResponse> => {
     try {
       const refreshToken = await getRefreshToken();
-      
+
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
-      
+
       const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
         refreshToken,
       });
-      
+
       // Update stored tokens
       await updateAccessToken(
         response.data.accessToken,
         response.data.refreshToken
       );
-      
+
       if (__DEV__) {
         console.log('✅ Token refreshed successfully');
       }
-      
+
       return response.data;
     } catch (error: any) {
       // If refresh fails, clear all tokens (user needs to login again)
       await clearAuthTokens();
-      
+
       throw error;
     }
   },
@@ -114,29 +138,29 @@ export const authApi = {
   logout: async (): Promise<LogoutResponse> => {
     try {
       const refreshToken = await getRefreshToken();
-      
+
       if (!refreshToken) {
         // No token to logout, just clear local storage
         await clearAuthTokens();
         return { success: true, message: 'Logged out successfully' };
       }
-      
+
       const response = await api.post<LogoutResponse>('/auth/logout', {
         refreshToken,
       });
-      
+
       // Clear local tokens
       await clearAuthTokens();
-      
+
       if (__DEV__) {
         console.log('✅ User logged out successfully');
       }
-      
+
       return response.data;
     } catch (error: any) {
       // Even if logout fails on server, clear local tokens
       await clearAuthTokens();
-      
+
       // Don't throw error, logout should always succeed locally
       return { success: true, message: 'Logged out locally' };
     }
@@ -149,14 +173,14 @@ export const authApi = {
     try {
       // Check if token needs refresh
       const expired = await isTokenExpired();
-      
+
       if (expired) {
         if (__DEV__) {
           console.log('🔄 Token expired, refreshing...');
         }
         await authApi.refresh();
       }
-      
+
       return await getAccessToken();
     } catch (error) {
       return null;
