@@ -17,23 +17,45 @@ import { useRouter } from 'expo-router';
 import { showAlert } from '../utils/alerts';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import { getConfig } from '../config/env';
 
 const config = getConfig();
 
-// Initialize WebBrowser for web auth
+// Initialize WebBrowser for auth
 WebBrowser.maybeCompleteAuthSession();
 
-// Configure Google Signin (Native)
-GoogleSignin.configure({
-  webClientId: config.gmailWebClientId,
-  iosClientId: config.gmailIosClientId,
-  offlineAccess: true,
-});
+// Dynamic Google Signin variables for native module (dev builds only)
+let GoogleSignin: any = null;
+let statusCodes: any = null;
+let nativeGoogleSignInAvailable = false;
+
+// Check if native Google Sign-In is available (only in development builds, not Expo Go)
+const checkNativeGoogleSignIn = () => {
+  if (Platform.OS === 'web') return false;
+
+  try {
+    const googleSigninModule = require('@react-native-google-signin/google-signin');
+    GoogleSignin = googleSigninModule.GoogleSignin;
+    statusCodes = googleSigninModule.statusCodes;
+
+    // Configure only if loaded successfully
+    if (GoogleSignin) {
+      GoogleSignin.configure({
+        webClientId: config.gmailWebClientId,
+        iosClientId: config.gmailIosClientId,
+        offlineAccess: true,
+      });
+      nativeGoogleSignInAvailable = true;
+      return true;
+    }
+  } catch (error) {
+    console.log('Native Google Sign-In not available (running in Expo Go), using expo-auth-session fallback');
+  }
+  return false;
+};
+
+// Check availability once at module load
+checkNativeGoogleSignIn();
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -66,15 +88,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.error, state.isLoading]);
 
-  // Handle Web Sign-In Response
+  // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    // Only handle response if we're using expo-auth-session (web or Expo Go fallback)
+    if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
       if (response?.type === 'success') {
         // parsing the response to find the idToken
-        // On web, sometimes it comes in authentication.idToken, sometimes in params.id_token
+        // Sometimes it comes in authentication.idToken, sometimes in params.id_token
         const { authentication, params } = response;
         const idToken = authentication?.idToken || params?.id_token;
-        const accessToken = authentication?.accessToken || params?.access_token;
 
         if (idToken) {
           performGoogleLogin(idToken);
@@ -85,8 +107,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
       } else if (response?.type === 'error') {
         setIsLoading(false);
-        console.error('Web Auth Error:', response.error);
-        showAlert('Login Failed', 'Google sign-in failed on web');
+        console.error('Auth Session Error:', response.error);
+        showAlert('Login Failed', 'Google sign-in failed');
       } else if (response?.type === 'dismiss') {
         setIsLoading(false);
       }
@@ -187,11 +209,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     try {
       setIsLoading(true);
 
-      if (Platform.OS === 'web') {
+      // Use expo-auth-session for web OR when native module isn't available (Expo Go)
+      if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
         await promptAsync();
         // The effect will handle the response
       } else {
-        // Native (Android/iOS) Flow
+        // Native (Android/iOS) Flow - only for development builds with native modules
         await GoogleSignin.hasPlayServices();
         const response = await GoogleSignin.signIn();
 
@@ -203,14 +226,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       }
     } catch (error: any) {
       setIsLoading(false);
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      if (statusCodes && error.code === statusCodes.SIGN_IN_CANCELLED) {
         // user cancelled the login flow
-      } else if (error.code === statusCodes.IN_PROGRESS) {
+      } else if (statusCodes && error.code === statusCodes.IN_PROGRESS) {
         // operation (e.g. sign in) is in progress already
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      } else if (statusCodes && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         showAlert('Error', 'Google Play Services not available');
       } else {
         console.error('Google Sign-In Error', error);
+        console.log('ℹ️ Configured Web Client ID:', config.gmailWebClientId);
+        console.log('ℹ️ Configured iOS Client ID:', config.gmailIosClientId);
+        console.log('ℹ️ Configured Android Client ID:', config.gmailAndroidClientId);
         showAlert('Login Failed', error.message || 'Failed to sign in with Google');
       }
     }

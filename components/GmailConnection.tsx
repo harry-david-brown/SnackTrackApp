@@ -1,19 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  GoogleSignin,
-  statusCodes,
-  isErrorWithCode,
-  isSuccessResponse,
-  isNoSavedCredentialFoundResponse,
-  isCancelledResponse,
-} from '@react-native-google-signin/google-signin';
-
-// Universal API (One Tap) - TypeScript types may not be complete in v16
-// Using GoogleSignin with type assertion for Universal API methods
-// @ts-ignore - Universal API methods exist at runtime but types may be incomplete
-const GoogleOneTapSignIn = GoogleSignin as any;
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
@@ -21,6 +8,43 @@ import { showAlert, showSimpleAlert } from '../utils/platformAlert';
 import { getConfig } from '../config/env';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+
+// Lazy load Google Sign-In module only when needed and on native platforms
+let GoogleSigninModule: any = null;
+let GoogleSignin: any = null;
+let statusCodes: any = null;
+let isErrorWithCode: any = null;
+let isSuccessResponse: any = null;
+let isNoSavedCredentialFoundResponse: any = null;
+let isCancelledResponse: any = null;
+let GoogleOneTapSignIn: any = null;
+
+const loadGoogleSignIn = async () => {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  if (GoogleSigninModule) {
+    return GoogleSigninModule;
+  }
+
+  try {
+    GoogleSigninModule = await import('@react-native-google-signin/google-signin');
+    GoogleSignin = GoogleSigninModule.GoogleSignin;
+    statusCodes = GoogleSigninModule.statusCodes;
+    isErrorWithCode = GoogleSigninModule.isErrorWithCode;
+    isSuccessResponse = GoogleSigninModule.isSuccessResponse;
+    isNoSavedCredentialFoundResponse = GoogleSigninModule.isNoSavedCredentialFoundResponse;
+    isCancelledResponse = GoogleSigninModule.isCancelledResponse;
+    // Universal API (One Tap) - TypeScript types may not be complete in v16
+    // @ts-ignore - Universal API methods exist at runtime but types may be incomplete
+    GoogleOneTapSignIn = GoogleSignin as any;
+    return GoogleSigninModule;
+  } catch (error) {
+    console.warn('⚠️ Google Sign-In module not available:', error);
+    return null;
+  }
+};
 
 // Initialize WebBrowser for web auth
 WebBrowser.maybeCompleteAuthSession();
@@ -55,13 +79,20 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
           return;
         }
 
+        // Load the Google Sign-In module
+        const module = await loadGoogleSignIn();
+        if (!module || !GoogleOneTapSignIn) {
+          console.warn('⚠️ Google Sign-In module not available - native module may not be linked');
+          checkConnectionStatus();
+          return;
+        }
+
         // Configure Universal Google Sign-In
         // According to docs: webClientId is required, iosClientId is optional (auto-detected with Expo/Firebase)
         GoogleOneTapSignIn.configure({
           webClientId: config.gmailWebClientId,
-          ...(Platform.OS === 'ios' && config.gmailIosClientId && {
-            iosClientId: config.gmailIosClientId,
-          }),
+          iosClientId: config.gmailIosClientId,
+          androidClientId: config.gmailAndroidClientId,
         });
 
         console.log('✅ Universal Google Sign-In configured');
@@ -140,6 +171,12 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     try {
       console.log('🔄 Requesting Gmail API authorization...');
 
+      // Ensure Google Sign-In module is loaded
+      const module = await loadGoogleSignIn();
+      if (!module || !GoogleOneTapSignIn) {
+        throw new Error('Google Sign-In module not available');
+      }
+
       // Request authorization for Gmail scopes
       // This is separate from sign-in - it requests access to Gmail API
       await GoogleOneTapSignIn.addScopes({
@@ -196,6 +233,13 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         return;
       }
 
+      // Ensure Google Sign-In module is loaded
+      const module = await loadGoogleSignIn();
+      if (!module || !GoogleOneTapSignIn) {
+        showSimpleAlert('Error', 'Google Sign-In is not available. Please rebuild the app with native modules.');
+        return;
+      }
+
       // Check Google Play Services (Android) or verify Google Client Library (Web)
       await GoogleOneTapSignIn.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
@@ -240,6 +284,9 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       }
     } catch (error: any) {
       console.error('❌ Failed to connect Gmail:', error);
+      console.log('ℹ️ Configured Web Client ID:', config.gmailWebClientId);
+      console.log('ℹ️ Configured iOS Client ID:', config.gmailIosClientId);
+      console.log('ℹ️ Configured Android Client ID:', config.gmailAndroidClientId);
 
       if (isErrorWithCode(error)) {
         switch (error.code) {
@@ -247,6 +294,12 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
             // Android rate limiting - try explicit sign-in
             console.log('⚠️ One Tap rate limited, trying explicit sign-in');
             try {
+              if (!GoogleOneTapSignIn) {
+                const module = await loadGoogleSignIn();
+                if (!module || !GoogleOneTapSignIn) {
+                  throw new Error('Google Sign-In module not available');
+                }
+              }
               const explicitResponse = await GoogleOneTapSignIn.presentExplicitSignIn();
               if (isSuccessResponse(explicitResponse)) {
                 await requestGmailAuthorization();
@@ -368,8 +421,11 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
               // Sign out from Google Sign-In
               try {
-                await GoogleOneTapSignIn.signOut();
-                console.log('✅ Signed out from Google Sign-In');
+                const module = await loadGoogleSignIn();
+                if (module && GoogleOneTapSignIn) {
+                  await GoogleOneTapSignIn.signOut();
+                  console.log('✅ Signed out from Google Sign-In');
+                }
               } catch (signOutError) {
                 console.warn('⚠️ Sign out error (may not be signed in):', signOutError);
               }
