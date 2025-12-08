@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
 import { getConfig } from '../config/env';
+import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 
@@ -24,11 +25,19 @@ const loadGoogleSignIn = async () => {
     return null;
   }
 
+  // Check if we're in Expo Go - if so, skip native module load entirely
+  const executionEnvironment = Constants.executionEnvironment;
+  if (executionEnvironment === 'storeClient') {
+    // We're in Expo Go - native modules won't be available
+    return null;
+  }
+
   if (GoogleSigninModule) {
     return GoogleSigninModule;
   }
 
   try {
+    // Only try to import in development builds (not Expo Go)
     GoogleSigninModule = await import('@react-native-google-signin/google-signin');
     GoogleSignin = GoogleSigninModule.GoogleSignin;
     statusCodes = GoogleSigninModule.statusCodes;
@@ -41,7 +50,10 @@ const loadGoogleSignIn = async () => {
     GoogleOneTapSignIn = GoogleSignin as any;
     return GoogleSigninModule;
   } catch (error) {
-    console.warn('⚠️ Google Sign-In module not available:', error);
+    // Native module not available - this is expected in Expo Go
+    if (__DEV__) {
+      console.warn('⚠️ Google Sign-In module not available:', error);
+    }
     return null;
   }
 };
@@ -106,21 +118,61 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     configureGoogleSignIn();
   }, [config.gmailWebClientId, config.gmailIosClientId]);
 
-  // Expo Auth Session for Web Fallback
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: config.gmailWebClientId,
+  // Track if native Google Sign-In is available
+  const [nativeGoogleSignInAvailable, setNativeGoogleSignInAvailable] = useState(false);
+
+  // Check if native module is available
+  useEffect(() => {
+    const checkNativeModule = async () => {
+      if (Platform.OS === 'web') {
+        setNativeGoogleSignInAvailable(false);
+        return;
+      }
+      const module = await loadGoogleSignIn();
+      setNativeGoogleSignInAvailable(!!(module && GoogleOneTapSignIn));
+    };
+    checkNativeModule();
+  }, []);
+
+  // Expo Auth Session for Web and Expo Go Fallback
+  // Conditionally construct config - use web client ID as fallback for iOS if iosClientId is missing
+  const googleAuthConfig: {
+    clientId: string;
+    iosClientId?: string;
+    androidClientId?: string;
+    scopes: string[];
+  } = {
+    clientId: config.gmailWebClientId || '',
     scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-  });
+  };
+  
+  // expo-auth-session requires iosClientId on iOS, so use web client ID as fallback if missing
+  if (Platform.OS === 'ios') {
+    googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
+  } else if (config.gmailIosClientId) {
+    googleAuthConfig.iosClientId = config.gmailIosClientId;
+  }
+  
+  if (config.gmailAndroidClientId) {
+    googleAuthConfig.androidClientId = config.gmailAndroidClientId;
+  }
+  
+  const [request, response, promptAsync] = Google.useAuthRequest(googleAuthConfig);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && response?.type === 'success' && response.authentication) {
-      console.log('✅ Web authentication successful');
+    // Handle auth response for both web and Expo Go (when native module isn't available)
+    if (!nativeGoogleSignInAvailable && response?.type === 'success' && response.authentication) {
+      console.log('✅ Authentication successful via expo-auth-session');
       handleTokenExchange(response.authentication.accessToken);
-    } else if (Platform.OS === 'web' && response?.type === 'error') {
-      console.error('❌ Web authentication failed:', response.error);
-      showSimpleAlert('Error', 'Failed to connect Gmail on web.');
+    } else if (!nativeGoogleSignInAvailable && response?.type === 'error') {
+      console.error('❌ Authentication failed:', response.error);
+      showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
+      setIsLoading(false);
+    } else if (!nativeGoogleSignInAvailable && response?.type === 'dismiss') {
+      console.log('ℹ️ Authentication dismissed by user');
+      setIsLoading(false);
     }
-  }, [response]);
+  }, [response, nativeGoogleSignInAvailable]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -219,24 +271,28 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         console.log(`🔐 Starting Gmail OAuth flow - Platform: ${Platform.OS}`);
       }
 
-      // Check platform support
-      if (Platform.OS === 'web') {
-        console.log('🌍 Starting Web Sign-In flow...');
-        await promptAsync();
-        // The result will be handled by the useEffect above
-        setIsLoading(false); // promptAsync might resolve before the effect runs, but usually it redirects
-        return;
-      }
-
       if (!config.gmailWebClientId) {
         showSimpleAlert('Not Configured', 'Gmail connection is not configured. Please configure OAuth client IDs.');
+        setIsLoading(false);
         return;
       }
 
+      // Use expo-auth-session for web or when native module isn't available (Expo Go)
+      if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
+        console.log('🌍 Starting expo-auth-session flow...');
+        await promptAsync();
+        // The result will be handled by the useEffect above
+        // Don't set isLoading to false here - let the useEffect handle it
+        return;
+      }
+
+      // Use native Google Sign-In for development builds
       // Ensure Google Sign-In module is loaded
       const module = await loadGoogleSignIn();
       if (!module || !GoogleOneTapSignIn) {
-        showSimpleAlert('Error', 'Google Sign-In is not available. Please rebuild the app with native modules.');
+        // Fallback to expo-auth-session if native module failed to load
+        console.log('⚠️ Native module not available, falling back to expo-auth-session');
+        await promptAsync();
         return;
       }
 

@@ -17,9 +17,8 @@ import { useRouter } from 'expo-router';
 import { showAlert } from '../utils/alerts';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
 import { getConfig } from '../config/env';
-
-const config = getConfig();
 
 // Initialize WebBrowser for auth
 WebBrowser.maybeCompleteAuthSession();
@@ -28,34 +27,68 @@ WebBrowser.maybeCompleteAuthSession();
 let GoogleSignin: any = null;
 let statusCodes: any = null;
 let nativeGoogleSignInAvailable = false;
+let nativeModuleChecked = false;
 
 // Check if native Google Sign-In is available (only in development builds, not Expo Go)
+// This is called lazily, not at module load time, to avoid crashes in Expo Go
 const checkNativeGoogleSignIn = () => {
-  if (Platform.OS === 'web') return false;
+  if (nativeModuleChecked) {
+    return nativeGoogleSignInAvailable;
+  }
+  
+  nativeModuleChecked = true;
+  
+  if (Platform.OS === 'web') {
+    nativeGoogleSignInAvailable = false;
+    return false;
+  }
 
+  // Check if we're in Expo Go - if so, skip native module check entirely
+  // Constants.executionEnvironment is 'storeClient' in Expo Go, 'standalone' in production builds
+  const executionEnvironment = Constants.executionEnvironment;
+  if (executionEnvironment === 'storeClient') {
+    // We're in Expo Go - native modules won't be available
+    nativeGoogleSignInAvailable = false;
+    return false;
+  }
+
+  // Only try to load native module if we're in a development build (not Expo Go)
   try {
+    // Try to require the module - this will work in development builds
     const googleSigninModule = require('@react-native-google-signin/google-signin');
     GoogleSignin = googleSigninModule.GoogleSignin;
     statusCodes = googleSigninModule.statusCodes;
 
-    // Configure only if loaded successfully
+    // Configure only if loaded successfully and config is available
     if (GoogleSignin) {
-      GoogleSignin.configure({
-        webClientId: config.gmailWebClientId,
-        iosClientId: config.gmailIosClientId,
-        offlineAccess: true,
-      });
-      nativeGoogleSignInAvailable = true;
-      return true;
+      try {
+        const config = getConfig();
+        if (config.gmailWebClientId) {
+          GoogleSignin.configure({
+            webClientId: config.gmailWebClientId,
+            iosClientId: config.gmailIosClientId,
+            offlineAccess: true,
+          });
+          nativeGoogleSignInAvailable = true;
+          return true;
+        }
+      } catch (configError) {
+        // Config might not be ready yet - that's okay, we'll use expo-auth-session
+        if (__DEV__) {
+          console.log('Config not ready for Google Sign-In, using expo-auth-session fallback');
+        }
+      }
     }
-  } catch (error) {
-    console.log('Native Google Sign-In not available (running in Expo Go), using expo-auth-session fallback');
+  } catch (error: any) {
+    // Native module not available - use expo-auth-session fallback
+    if (__DEV__) {
+      console.log('Native Google Sign-In not available, using expo-auth-session fallback');
+    }
   }
+  
+  nativeGoogleSignInAvailable = false;
   return false;
 };
-
-// Check availability once at module load
-checkNativeGoogleSignIn();
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -70,13 +103,37 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const { register, login, loginWithGoogle, state, clearError } = useUser();
   const router = useRouter();
+  
+  // Get config inside component to ensure it's loaded
+  const config = getConfig();
+  
+  // Check native module availability lazily (only when needed)
+  useEffect(() => {
+    checkNativeGoogleSignIn();
+  }, []);
 
   // Expo Auth Session for Web
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: config.gmailWebClientId,
-    iosClientId: config.gmailIosClientId,
-    androidClientId: config.gmailAndroidClientId,
-  });
+  // Conditionally construct config - use web client ID as fallback for iOS if iosClientId is missing
+  const googleAuthConfig: {
+    clientId: string;
+    iosClientId?: string;
+    androidClientId?: string;
+  } = {
+    clientId: config.gmailWebClientId || '',
+  };
+  
+  // expo-auth-session requires iosClientId on iOS, so use web client ID as fallback if missing
+  if (Platform.OS === 'ios') {
+    googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
+  } else if (config.gmailIosClientId) {
+    googleAuthConfig.iosClientId = config.gmailIosClientId;
+  }
+  
+  if (config.gmailAndroidClientId) {
+    googleAuthConfig.androidClientId = config.gmailAndroidClientId;
+  }
+  
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(googleAuthConfig);
 
   // Show error alert when state.error changes
   useEffect(() => {
