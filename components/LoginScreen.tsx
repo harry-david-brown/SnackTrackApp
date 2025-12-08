@@ -162,7 +162,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       showAlert(title, state.error);
       clearError();
     }
-  }, [state.error, state.isLoading, isRegistering, showAlert, clearError]);
+  }, [state.error, state.isLoading, isRegistering, clearError]);
 
   // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
