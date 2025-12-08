@@ -292,6 +292,8 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
       if (!module || !GoogleOneTapSignIn) {
         // Fallback to expo-auth-session if native module failed to load
         console.log('⚠️ Native module not available, falling back to expo-auth-session');
+        // Update state so the useEffect will handle the response
+        setNativeGoogleSignInAvailable(false);
         await promptAsync();
         return;
       }
