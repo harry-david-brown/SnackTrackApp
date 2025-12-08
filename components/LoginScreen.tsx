@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -55,6 +55,7 @@ const checkNativeGoogleSignIn = () => {
   // Only try to load native module if we're in a development build (not Expo Go)
   try {
     // Try to require the module - this will work in development builds
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const googleSigninModule = require('@react-native-google-signin/google-signin');
     GoogleSignin = googleSigninModule.GoogleSignin;
     statusCodes = googleSigninModule.statusCodes;
@@ -72,14 +73,14 @@ const checkNativeGoogleSignIn = () => {
           nativeGoogleSignInAvailable = true;
           return true;
         }
-      } catch (configError) {
+      } catch {
         // Config might not be ready yet - that's okay, we'll use expo-auth-session
         if (__DEV__) {
           console.log('Config not ready for Google Sign-In, using expo-auth-session fallback');
         }
       }
     }
-  } catch (error: any) {
+  } catch {
     // Native module not available - use expo-auth-session fallback
     if (__DEV__) {
       console.log('Native Google Sign-In not available, using expo-auth-session fallback');
@@ -133,7 +134,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     googleAuthConfig.androidClientId = config.gmailAndroidClientId;
   }
   
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(googleAuthConfig);
+  const [, response, promptAsync] = Google.useIdTokenAuthRequest(googleAuthConfig);
+
+  const performGoogleLogin = useCallback(async (idToken: string) => {
+    try {
+      if (state.user) return;
+
+      if (!idToken) {
+        throw new Error('ID Token is empty');
+      }
+
+      await loginWithGoogle(idToken);
+      onLoginSuccess?.();
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('Google Login Error:', error);
+      showAlert('Login Failed', error.message || 'Failed to verify Google token');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [state.user, loginWithGoogle, onLoginSuccess, router]);
 
   // Show error alert when state.error changes
   useEffect(() => {
@@ -148,6 +168,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
     // Only handle response if we're using expo-auth-session (web or Expo Go fallback)
+    // nativeGoogleSignInAvailable is a module-level variable, checked at runtime
     if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
       if (response?.type === 'success') {
         // parsing the response to find the idToken
@@ -170,7 +191,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setIsLoading(false);
       }
     }
-  }, [response]);
+     
+  }, [response, performGoogleLogin]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -238,25 +260,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     } catch {
       // Error is already set in state by UserContext
       // state.error will be displayed when the component re-renders
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const performGoogleLogin = async (idToken: string) => {
-    try {
-      if (state.user) return;
-
-      if (!idToken) {
-        throw new Error('ID Token is empty');
-      }
-
-      await loginWithGoogle(idToken);
-      onLoginSuccess?.();
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      console.error('Google Login Error:', error);
-      showAlert('Login Failed', error.message || 'Failed to verify Google token');
     } finally {
       setIsLoading(false);
     }

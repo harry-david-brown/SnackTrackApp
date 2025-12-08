@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
@@ -116,7 +116,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     };
 
     configureGoogleSignIn();
-  }, [config.gmailWebClientId, config.gmailIosClientId]);
+  }, [config.gmailWebClientId, config.gmailIosClientId, config.gmailAndroidClientId]);
 
   // Track if native Google Sign-In is available
   const [nativeGoogleSignInAvailable, setNativeGoogleSignInAvailable] = useState(false);
@@ -157,22 +157,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     googleAuthConfig.androidClientId = config.gmailAndroidClientId;
   }
   
-  const [request, response, promptAsync] = Google.useAuthRequest(googleAuthConfig);
-
-  useEffect(() => {
-    // Handle auth response for both web and Expo Go (when native module isn't available)
-    if (!nativeGoogleSignInAvailable && response?.type === 'success' && response.authentication) {
-      console.log('✅ Authentication successful via expo-auth-session');
-      handleTokenExchange(response.authentication.accessToken);
-    } else if (!nativeGoogleSignInAvailable && response?.type === 'error') {
-      console.error('❌ Authentication failed:', response.error);
-      showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
-      setIsLoading(false);
-    } else if (!nativeGoogleSignInAvailable && response?.type === 'dismiss') {
-      console.log('ℹ️ Authentication dismissed by user');
-      setIsLoading(false);
-    }
-  }, [response, nativeGoogleSignInAvailable]);
+  const [, response, promptAsync] = Google.useAuthRequest(googleAuthConfig);
 
   const checkConnectionStatus = async () => {
     try {
@@ -186,7 +171,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
-  const handleTokenExchange = async (accessToken: string, refreshToken?: string) => {
+  const handleTokenExchange = useCallback(async (accessToken: string, refreshToken?: string) => {
     try {
       setIsLoading(true);
 
@@ -216,7 +201,22 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Handle auth response for both web and Expo Go (when native module isn't available)
+    if (!nativeGoogleSignInAvailable && response?.type === 'success' && response.authentication) {
+      console.log('✅ Authentication successful via expo-auth-session');
+      handleTokenExchange(response.authentication.accessToken);
+    } else if (!nativeGoogleSignInAvailable && response?.type === 'error') {
+      console.error('❌ Authentication failed:', response.error);
+      showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
+      setIsLoading(false);
+    } else if (!nativeGoogleSignInAvailable && response?.type === 'dismiss') {
+      console.log('ℹ️ Authentication dismissed by user');
+      setIsLoading(false);
+    }
+  }, [response, nativeGoogleSignInAvailable, handleTokenExchange]);
 
   // Request Gmail API authorization with scopes
   const requestGmailAuthorization = async () => {
@@ -362,7 +362,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
               } else if (isCancelledResponse(explicitResponse)) {
                 showSimpleAlert('Cancelled', 'Gmail connection was cancelled.');
               }
-            } catch (explicitError) {
+            } catch {
               showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
             }
             break;
