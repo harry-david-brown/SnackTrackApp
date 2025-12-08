@@ -162,8 +162,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       showAlert(title, state.error);
       clearError();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.error, state.isLoading]);
+  }, [state.error, state.isLoading, isRegistering, showAlert, clearError]);
 
   // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
