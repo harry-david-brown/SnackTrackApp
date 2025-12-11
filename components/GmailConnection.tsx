@@ -385,32 +385,11 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
   };
 
   const importReceipts = async () => {
-    showAlert(
-      'Import Receipts',
-      'Do you want to replace existing email-based receipts or add new ones?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Add New',
-          onPress: () => performImport(false),
-        },
-        {
-          text: 'Replace All',
-          style: 'destructive',
-          onPress: () => performImport(true),
-        },
-      ]
-    );
-  };
-
-  const performImport = async (replaceExisting: boolean) => {
     try {
       setIsImporting(true);
 
-      const result = await gmailApi.importReceipts(replaceExisting);
+      // Always replaces existing email-based receipts
+      const result = await gmailApi.importReceipts();
 
       if (result.success) {
         // Refresh analytics IMMEDIATELY after import succeeds

@@ -50,10 +50,11 @@ export const gmailApi = {
 
   /**
    * Import receipts from Gmail
+   * Always replaces existing email-based receipts before importing new ones
    * Note: This operation can take a while, so we use a longer timeout
    */
-  importReceipts: async (replaceExisting: boolean = false): Promise<GmailImportResponse> => {
-    const response = await api.post('/gmail/import', { replaceExisting }, {
+  importReceipts: async (): Promise<GmailImportResponse> => {
+    const response = await api.post('/gmail/import', {}, {
       timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
     });
     return response.data;
