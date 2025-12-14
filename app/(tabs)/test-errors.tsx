@@ -12,6 +12,7 @@ import { parseApiError } from '../../utils/errorUtils';
 import { testErrorScenarios, createFailingApi } from '../../utils/testErrorScenarios';
 import { captureException } from '../../utils/sentry';
 import * as Sentry from '@sentry/react-native';
+import { featureFlags } from '../../config/featureFlags';
 
 function TestErrorsScreen() {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +28,7 @@ function TestErrorsScreen() {
   }, [error, data]);
 
   // Only show this screen in development
-  if (!__DEV__) {
+  if (!featureFlags.showTestErrors) {
     return null;
   }
 

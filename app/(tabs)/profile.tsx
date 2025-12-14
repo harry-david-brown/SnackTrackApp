@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
@@ -11,16 +10,7 @@ import { useState } from 'react';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
-
-const resolveAppEnv = () => {
-  const extras =
-    (Constants.expoConfig?.extra as Record<string, any> | undefined) ??
-    ((Constants as any).manifest?.extra as Record<string, any> | undefined) ??
-    ((Constants as any).manifest2?.extra as Record<string, any> | undefined) ??
-    {};
-
-  return extras.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
-};
+import { featureFlags } from '../../config/featureFlags';
 
 export default function ProfileScreen() {
   const { state, logout } = useUser();
@@ -29,8 +19,7 @@ export default function ProfileScreen() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
-  const appEnv = resolveAppEnv();
-  const showReset = __DEV__ || appEnv === 'development';
+  const showReset = featureFlags.showResetOnboarding;
   
   // Use analytics from context instead of loading separately
   const analytics = state.analytics;

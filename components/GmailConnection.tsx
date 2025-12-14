@@ -101,11 +101,18 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
         // Configure Universal Google Sign-In
         // According to docs: webClientId is required, iosClientId is optional (auto-detected with Expo/Firebase)
-        GoogleOneTapSignIn.configure({
+        // iOS doesn't accept androidClientId parameter, so we need platform-specific config
+        const configureOptions: any = {
           webClientId: config.gmailWebClientId,
-          iosClientId: config.gmailIosClientId,
-          androidClientId: config.gmailAndroidClientId,
-        });
+        };
+        
+        if (Platform.OS === 'ios' && config.gmailIosClientId) {
+          configureOptions.iosClientId = config.gmailIosClientId;
+        } else if (Platform.OS === 'android' && config.gmailAndroidClientId) {
+          configureOptions.androidClientId = config.gmailAndroidClientId;
+        }
+        
+        GoogleOneTapSignIn.configure(configureOptions);
 
         console.log('✅ Universal Google Sign-In configured');
         checkConnectionStatus();

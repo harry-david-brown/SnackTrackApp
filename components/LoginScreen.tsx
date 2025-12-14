@@ -19,6 +19,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import Constants from 'expo-constants';
 import { getConfig } from '../config/env';
+import { featureFlags } from '../config/featureFlags';
 
 // Initialize WebBrowser for auth
 WebBrowser.maybeCompleteAuthSession();
@@ -107,6 +108,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   
   // Get config inside component to ensure it's loaded
   const config = getConfig();
+  const showGoogleAuth = featureFlags.showGoogleAuth;
   
   // Check native module availability lazily (only when needed)
   useEffect(() => {
@@ -419,22 +421,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 )}
               </TouchableOpacity>
 
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
+              {/* Divider & Google Sign In Button (Dev Only) */}
+              {showGoogleAuth && (
+                <>
+                  <View style={styles.dividerContainer}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
 
-              {/* Google Sign In Button */}
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleGoogleLogin}
-                disabled={isLoading || state.isLoading}
-              >
-                <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.googleButton}
+                    onPress={handleGoogleLogin}
+                    disabled={isLoading || state.isLoading}
+                  >
+                    <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
               {/* Info */}
               <View style={styles.infoContainer}>

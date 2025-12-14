@@ -21,7 +21,8 @@ export default {
       [
         "@react-native-google-signin/google-signin",
         {
-          iosUrlScheme: process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID || "com.googleusercontent.apps.92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp"
+          // Build URL scheme from unique iOS client ID: com.googleusercontent.apps.{uniqueId}
+          iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID || "92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp"}`
         }
       ]
     ],

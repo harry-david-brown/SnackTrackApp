@@ -10,6 +10,7 @@ import UberDataTutorial from '../../components/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { GmailConnection } from '../../components/GmailConnection';
+import { featureFlags } from '../../config/featureFlags';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
@@ -19,10 +20,11 @@ export default function UploadScreen() {
   const [showGmailModal, setShowGmailModal] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
   const hasProcessedOAuthParam = useRef(false);
+  const showGmailFeature = featureFlags.showGmailImport;
 
-  // Auto-open Gmail modal if coming from OAuth callback
+  // Auto-open Gmail modal if coming from OAuth callback (dev only)
   useEffect(() => {
-    if (params.openGmail === 'true' && !hasProcessedOAuthParam.current) {
+    if (showGmailFeature && params.openGmail === 'true' && !hasProcessedOAuthParam.current) {
       hasProcessedOAuthParam.current = true;
       console.log('📧 Opening Gmail modal after OAuth callback');
       setShowGmailModal(true);
@@ -150,22 +152,24 @@ export default function UploadScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Gmail Import Card */}
-            <View style={styles.uploadCard}>
-              <Ionicons name="mail-outline" size={64} color="#4CAF50" />
-              <Text style={styles.uploadTitle}>Import from Gmail</Text>
-              <Text style={styles.uploadSubtitle}>
-                Connect Gmail to auto-import receipts
-              </Text>
-              <TouchableOpacity 
-                style={styles.gmailButton}
-                onPress={() => setShowGmailModal(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="logo-google" size={20} color="#4CAF50" />
-                <Text style={styles.gmailButtonText}>Connect Gmail</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Gmail Import Card (Dev Only) */}
+            {showGmailFeature && (
+              <View style={styles.uploadCard}>
+                <Ionicons name="mail-outline" size={64} color="#4CAF50" />
+                <Text style={styles.uploadTitle}>Import from Gmail</Text>
+                <Text style={styles.uploadSubtitle}>
+                  Connect Gmail to auto-import receipts
+                </Text>
+                <TouchableOpacity 
+                  style={styles.gmailButton}
+                  onPress={() => setShowGmailModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="logo-google" size={20} color="#4CAF50" />
+                  <Text style={styles.gmailButtonText}>Connect Gmail</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* Privacy Note */}
@@ -191,28 +195,30 @@ export default function UploadScreen() {
         <UberDataTutorial onComplete={() => setShowTutorial(false)} />
       </Modal>
 
-      {/* Gmail Connection Modal */}
-      <Modal
-        visible={showGmailModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowGmailModal(false)}
-      >
-        <SafeAreaView style={styles.modalContainer} edges={['top']}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>📧 Gmail Import</Text>
-            <TouchableOpacity
-              onPress={() => setShowGmailModal(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={28} color="#666" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent}>
-            <GmailConnection onImportSuccess={handleGmailImportSuccess} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* Gmail Connection Modal (Dev Only) */}
+      {showGmailFeature && (
+        <Modal
+          visible={showGmailModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowGmailModal(false)}
+        >
+          <SafeAreaView style={styles.modalContainer} edges={['top']}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📧 Gmail Import</Text>
+              <TouchableOpacity
+                onPress={() => setShowGmailModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              <GmailConnection onImportSuccess={handleGmailImportSuccess} />
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
 
       {/* Processing Loader (after upload) */}
       {showLoader && (
