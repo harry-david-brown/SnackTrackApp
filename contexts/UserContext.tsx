@@ -40,6 +40,7 @@ interface UserContextType {
   state: UserState;
   login: (email: string, password: string) => Promise<LoginResponse>;
   loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
+  loginWithApple: (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<LoginResponse>;
   register: (email: string, password: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -580,6 +581,87 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithApple = async (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }): Promise<LoginResponse> => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+
+      const response = await authApi.appleLogin(identityToken, user);
+
+      if (__DEV__) {
+        console.log('📝 Apple Login response:', JSON.stringify(response, null, 2));
+      }
+
+      if (!response.user) {
+        throw new Error('Invalid login response from server');
+      }
+
+      const appUser: AppUser = {
+        id: response.userId,
+        email: response.email,
+        createdAt: response.user.createdAt || new Date().toISOString(),
+        emailVerified: response.user.emailVerified ?? false,
+        totalSpent: 0,
+        receiptCount: 0,
+      };
+
+      dispatch({ type: 'SET_USER', payload: appUser });
+      setSentryUser(response.userId, response.email);
+
+      // Load analytics logic (same as other login methods)
+      if (!loadingAnalyticsRef.current) {
+        dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
+
+        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
+          .then((summary) => {
+            dispatch({ type: 'SET_ANALYTICS', payload: summary });
+            cacheAnalytics(response.userId, summary).catch(() => { });
+
+            if (summary.totalSpent !== appUser.totalSpent) {
+              dispatch({
+                type: 'UPDATE_USER_DATA', payload: {
+                  totalSpent: summary.totalSpent,
+                  receiptCount: summary.totalReceipts
+                }
+              });
+            }
+
+            const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
+            if (hasData) {
+              analyticsApi.getUserSummary(response.userId, true)
+                .then((wrappedSummary) => {
+                  dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
+                  dispatch({
+                    type: 'UPDATE_USER_DATA',
+                    payload: {
+                      totalSpent: wrappedSummary.totalSpent,
+                      receiptCount: wrappedSummary.totalReceipts,
+                    },
+                  });
+                  cacheAnalytics(response.userId, wrappedSummary).catch(() => { });
+                }).catch(() => { });
+            }
+            return summary;
+          })
+          .catch((error) => {
+            console.warn('Failed to load analytics after Apple login:', error);
+            return null;
+          })
+          .finally(() => {
+            loadingAnalyticsRef.current = null;
+            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
+          });
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error('Apple Login Error:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to login with Apple';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       // Call backend logout endpoint to invalidate refresh token
@@ -758,6 +840,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     register,
     login,
     loginWithGoogle,
+    loginWithApple,
     logout,
     refreshUserData,
     loadAnalytics,

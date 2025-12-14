@@ -98,11 +98,16 @@ export function showDevFeatures(): boolean {
  * 
  * Usage:
  *   import { featureFlags } from '../config/featureFlags';
- *   const { showGoogleAuth, showGmailImport, showResetOnboarding } = featureFlags;
+ *   const { showGoogleAuth, showAppleAuth, showGmailImport, showResetOnboarding } = featureFlags;
  */
 export const featureFlags = {
   /** Show Google OAuth login button */
   get showGoogleAuth() {
+	return showDevFeatures();
+  },
+  
+  /** Show Apple Sign In button */
+  get showAppleAuth() {
 	return showDevFeatures();
   },
   

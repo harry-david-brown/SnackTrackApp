@@ -99,6 +99,29 @@ export const authApi = {
   },
 
   /**
+   * Login with Apple Identity Token
+   */
+  appleLogin: async (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }): Promise<LoginResponse> => {
+    try {
+      console.log('Sending Apple Login request to API...');
+      const response = await api.post<LoginResponse>('/auth/apple', { identityToken, user });
+      console.log('API Response received:', response.status);
+
+      // Store tokens and user data
+      await storeAuthTokens(
+        response.data.accessToken,
+        response.data.refreshToken,
+        response.data.userId,
+        response.data.user
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw error;
+    }
+  },
+
+  /**
    * Refresh the access token using refresh token
    */
   refresh: async (): Promise<RefreshTokenResponse> => {

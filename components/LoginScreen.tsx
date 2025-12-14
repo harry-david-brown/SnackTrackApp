@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { showAlert } from '../utils/alerts';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import { getConfig } from '../config/env';
 import { featureFlags } from '../config/featureFlags';
@@ -103,17 +104,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(true); // Default to registration
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const { register, login, loginWithGoogle, state, clearError } = useUser();
+  const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+  const { register, login, loginWithGoogle, loginWithApple, state, clearError } = useUser();
   const router = useRouter();
   
   // Get config inside component to ensure it's loaded
   const config = getConfig();
   const showGoogleAuth = featureFlags.showGoogleAuth;
+  const showAppleAuth = featureFlags.showAppleAuth;
   
   // Check native module availability lazily (only when needed)
   useEffect(() => {
     checkNativeGoogleSignIn();
-  }, []);
+    
+    // Check if Apple Sign In is available (iOS 13+)
+    if (Platform.OS === 'ios' && showAppleAuth) {
+      AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
+    }
+  }, [showAppleAuth]);
 
   // Expo Auth Session for Web
   // Conditionally construct config - use web client ID as fallback for iOS if iosClientId is missing
@@ -303,6 +311,49 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleAppleLogin = async () => {
+    try {
+      setIsLoading(true);
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      // identityToken is the JWT we need to verify on the backend
+      if (credential.identityToken) {
+        // Prepare user data (only available on first sign-in)
+        const userData = credential.email ? {
+          email: credential.email,
+          name: credential.fullName ? {
+            firstName: credential.fullName.givenName || undefined,
+            lastName: credential.fullName.familyName || undefined,
+          } : undefined,
+        } : undefined;
+
+        await loginWithApple(credential.identityToken, userData);
+        
+        // Navigate to main app
+        onLoginSuccess?.();
+        router.replace('/(tabs)');
+      } else {
+        throw new Error('No identity token obtained from Apple');
+      }
+    } catch (error: any) {
+      setIsLoading(false);
+      
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        // User cancelled the sign-in flow - don't show error
+        return;
+      }
+      
+      console.error('Apple Sign-In Error', error);
+      showAlert('Login Failed', error.message || 'Failed to sign in with Apple');
+    }
+  };
+
   const openPasswordReset = () => {
     setShowPasswordReset(true);
   };
@@ -421,8 +472,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 )}
               </TouchableOpacity>
 
-              {/* Divider & Google Sign In Button (Dev Only) */}
-              {showGoogleAuth && (
+              {/* Divider & Social Sign In Buttons (Dev Only) */}
+              {(showGoogleAuth || (showAppleAuth && isAppleSignInAvailable)) && (
                 <>
                   <View style={styles.dividerContainer}>
                     <View style={styles.dividerLine} />
@@ -430,14 +481,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     <View style={styles.dividerLine} />
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.googleButton}
-                    onPress={handleGoogleLogin}
-                    disabled={isLoading || state.isLoading}
-                  >
-                    <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
-                    <Text style={styles.googleButtonText}>Continue with Google</Text>
-                  </TouchableOpacity>
+                  {showAppleAuth && isAppleSignInAvailable && (
+                    <AppleAuthentication.AppleAuthenticationButton
+                      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                      cornerRadius={8}
+                      style={styles.appleButton}
+                      onPress={handleAppleLogin}
+                    />
+                  )}
+
+                  {showGoogleAuth && (
+                    <TouchableOpacity
+                      style={styles.googleButton}
+                      onPress={handleGoogleLogin}
+                      disabled={isLoading || state.isLoading}
+                    >
+                      <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
+                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
 
@@ -624,6 +687,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     color: '#999',
     fontWeight: '600',
+  },
+  appleButton: {
+    width: '100%',
+    height: 50,
+    marginBottom: 12,
   },
   googleButton: {
     flexDirection: 'row',

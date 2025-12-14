@@ -24,7 +24,8 @@ export default {
           // Build URL scheme from unique iOS client ID: com.googleusercontent.apps.{uniqueId}
           iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID || "92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp"}`
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     ios: {
       supportsTablet: false,
