@@ -51,7 +51,7 @@ api.interceptors.request.use(
     }
 
     // Skip auth for public endpoints
-    const publicEndpoints = ['/auth/register', '/auth/login', '/auth/refresh', '/health'];
+    const publicEndpoints = ['/auth/register', '/auth/login', '/auth/google', '/auth/apple', '/auth/refresh', '/health'];
     const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint)) || config.url === '/';
     
     if (!isPublicEndpoint) {
@@ -86,7 +86,7 @@ api.interceptors.response.use(
     // But skip refresh logic for public endpoints (login/register failures should not trigger refresh)
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Check if this is a public endpoint - if so, don't try to refresh
-      const publicEndpoints = ['/auth/register', '/auth/login', '/auth/refresh', '/health'];
+      const publicEndpoints = ['/auth/register', '/auth/login', '/auth/google', '/auth/apple', '/auth/refresh', '/health'];
       const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint)) || originalRequest.url === '/';
       
       if (isPublicEndpoint) {

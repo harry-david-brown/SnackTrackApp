@@ -108,7 +108,7 @@ export const featureFlags = {
   
   /** Show Apple Sign In button */
   get showAppleAuth() {
-	return showDevFeatures();
+	return true;
   },
   
   /** Show Gmail import feature */

@@ -656,7 +656,20 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       return response;
     } catch (error: any) {
       console.error('Apple Login Error:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to login with Apple';
+      
+      let errorMessage = 'Failed to login with Apple';
+      
+      if (error.response?.data) {
+        // The error might be in different formats
+        const errorData = error.response.data.error || error.response.data.message || error.response.data;
+        const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+        errorMessage = apiError;
+      } else if (error.message === 'SESSION_EXPIRED') {
+        errorMessage = 'Your session has expired. Please try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }

@@ -158,12 +158,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       onLoginSuccess?.();
       router.replace('/(tabs)');
     } catch (error: any) {
+      // Clear the error from state to prevent the useEffect from showing another alert
+      clearError();
+      
       console.error('Google Login Error:', error);
       showAlert('Login Failed', error.message || 'Failed to verify Google token');
     } finally {
       setIsLoading(false);
     }
-  }, [state.user, loginWithGoogle, onLoginSuccess, router]);
+  }, [state.user, loginWithGoogle, onLoginSuccess, router, clearError]);
 
   // Show error alert when state.error changes
   useEffect(() => {
@@ -321,7 +324,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
       // identityToken is the JWT we need to verify on the backend
       if (credential.identityToken) {
         // Prepare user data (only available on first sign-in)
@@ -344,13 +346,48 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     } catch (error: any) {
       setIsLoading(false);
       
+      // Log detailed error information
+      console.log("APPLE ERROR", error?.code, error?.message, error);
+      
       if (error.code === 'ERR_REQUEST_CANCELED') {
         // User cancelled the sign-in flow - don't show error
         return;
       }
       
       console.error('Apple Sign-In Error', error);
-      showAlert('Login Failed', error.message || 'Failed to sign in with Apple');
+      
+      // Clear the error from state to prevent the useEffect from showing another alert
+      clearError();
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to sign in with Apple. Please try again.';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // Check for specific error messages we can make user-friendly
+        if (errorData.message) {
+          const msg = errorData.message.toLowerCase();
+          
+          if (msg.includes('not configured') || msg.includes('apple sign in not configured')) {
+            errorMessage = 'Apple Sign In is not configured. Please contact support.';
+          } else if (msg.includes('invalid') && msg.includes('token')) {
+            errorMessage = 'Authentication failed. Please try signing in again.';
+          } else if (msg.includes('email not provided')) {
+            errorMessage = 'Unable to get your email from Apple. Please try again or use a different sign-in method.';
+          } else if (msg.includes('authentication failed')) {
+            errorMessage = 'Unable to verify your Apple ID. Please try again.';
+          } else {
+            // Use the backend message if it's user-friendly
+            errorMessage = errorData.message || errorMessage;
+          }
+        }
+      } else if (state.error) {
+        // Use error from UserContext if available
+        errorMessage = state.error;
+      }
+      
+      showAlert('Sign In Failed', errorMessage);
     }
   };
 
