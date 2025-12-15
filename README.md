@@ -2,57 +2,14 @@
 
 A React Native/Expo app that shows you how much you wasted on food delivery through **Uber CSV imports**, then roasts you.
 
-## 📋 Project Progress
-
-### ✅ **Core MVP Features** - Production-ready frontend
-- [x] **Development Environment** - Complete Docker, Git, and documentation setup
-- [x] **JWT Authentication** - Password-based login/register with automatic token refresh
-- [x] **CSV & ZIP Upload** - Support for both CSV and ZIP files (auto-extract)
-- [x] **Dashboard Integration** - Real data display with live API connection
-- [x] **API Integration** - Full backend integration with auth headers
-- [x] **Professional UI** - Beautiful, responsive design with NativeWind styling
-- [x] **Team Onboarding** - Complete documentation for seamless collaboration
-
-### 🔄 **Recent Additions** (October 2025)
-- [x] **JWT Authentication System** - Secure password-based auth with token management
-- [x] **Automatic Token Refresh** - Seamless 15-minute token refresh in background
-- [x] **ZIP File Upload** - Full support for Uber data export ZIP files
-- [x] **Authorization Headers** - Automatic injection for all protected API calls
-- [x] **Session Management** - Persistent login with secure token storage
-- [x] **Password Validation** - Real-time validation with user feedback
-- [x] **Error Handling** - 401/403 handling with auto-logout on session expiry
-- [x] **Error Handling Improvements** - Silent error handling, no console spam
-- [x] **Performance Optimization** - Fixed duplicate API calls on refresh and login
-- [x] **Analytics Charts** - Spending visualizations and trend analysis
-- [x] **Advanced Error Handling** - Comprehensive loading states and error management
-- [x] **Network Monitoring** - Real-time connection status and offline detection
-- [x] **Social Sharing** - Spotify Wrapped-style viral journey with native share sheet
-- [x] **Offline Support** - Analytics caching and offline viewing (15min TTL)
-- [x] **User Onboarding** - 4-slide tutorial with viral messaging
-- [x] **Uber Data Tutorial** - Step-by-step ZIP upload guide
-- [x] **Animations** - Smooth transitions and swipeable content
-- [x] **Spotify Wrapped-Style Journey** - 13 analytics categories with dynamic slide generation
-- [x] **Wrapped Analytics API** - Backend support for comprehensive analytics insights
-- [x] **Visual Design Enhancements** - Premium gradients, shadows, and responsive typography
-- [x] **Loading State Improvements** - Eliminated $0 flash and progress bar delays
-- [x] **Processing Screen Polish** - Enhanced visual design with professional styling
-- [x] **API Call Optimization** - Reduced redundant calls by 75-80% in typical sessions
-- [x] **Global Analytics State** - Shared analytics across all screens for better performance
-- [x] **ZIP-First UX** - Renamed CSVUpload to UberDataUpload for clarity
-- [x] **Cross-Device Compatibility** - Responsive safe zones and type scales
-- [x] **Instagram Stories Optimization** - Watermark positioning for optimal sharing
-- [x] **Email Verification & Password Reset** - OTP-based verification flows with secure password recovery UX
-
----
-
 ### 📅 **Future Enhancements**
 - [x] **Forgot Password** - Password reset flow (shipped with OTP UX)
 - [x] **Email Verification** - Verify user emails on registration
-- [ ] **Social Login** - Google and Apple Sign In
+- [x] **Social Login** - Google and Apple Sign In
 - [ ] **Biometric Auth** - Face ID / Touch ID support
 - [ ] **Multi-Template Sharing** - Additional Wrapped-style slide variations
 - [X] **Currency Auto-Detection** - Detect CAD/USD/EUR from CSV or locale
-- [ ] **Receipt List View** - Browse individual transactions
+- [x] **Receipt List View** - Browse individual transactions
 - [ ] **Performance Optimization** - Bundle size and loading improvements
 
 ---

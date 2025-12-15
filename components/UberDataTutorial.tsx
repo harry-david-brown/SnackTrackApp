@@ -186,7 +186,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
           otherImages.map((source) => {
             const resolved = Image.resolveAssetSource(source);
             return Image.prefetch(resolved.uri);
-          })
+        })
         );
       } catch {
         // Silently fail - images will load normally if prefetch fails
@@ -321,7 +321,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
           const imagePaths = getImagePaths(platform);
           const allImages = [...imagePaths.slide1, ...imagePaths.slide2, ...imagePaths.slide3];
           return allImages.map((source, index) => (
-            <Image 
+        <Image 
               key={index}
               source={source} 
               style={styles.preloadImage}
@@ -393,10 +393,10 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
             </View>
 
             {currentSlide.title ? (
-              <Text style={styles.title}>{currentSlide.title}</Text>
+            <Text style={styles.title}>{currentSlide.title}</Text>
             ) : null}
             {currentSlide.description ? (
-              <Text style={styles.description}>{currentSlide.description}</Text>
+            <Text style={styles.description}>{currentSlide.description}</Text>
             ) : null}
 
             {/* Instructions List */}
@@ -412,7 +412,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
             </View>
 
             {/* Screenshots - render all but show only active slide */}
-            <View style={styles.screenshotContainer}>
+                <View style={styles.screenshotContainer}>
               {(() => {
                 const imagePaths = getImagePaths(platform);
                 return (
@@ -420,43 +420,43 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
                     {/* Slide 0 images */}
                     <View style={[styles.slideScreenshots, currentIndex !== 0 && styles.hiddenSlide]}>
                       {imagePaths.slide1.map((source, index) => (
-                        <Image 
+                    <Image 
                           key={index}
                           source={source} 
                           style={styles.screenshot}
-                          resizeMode="contain"
+                      resizeMode="contain"
                           fadeDuration={0}
-                        />
+                    />
                       ))}
-                    </View>
+                  </View>
                     {/* Slide 1 images */}
                     <View style={[styles.slideScreenshots, currentIndex !== 1 && styles.hiddenSlide]}>
                       {imagePaths.slide2.map((source, index) => (
-                        <Image 
+                    <Image 
                           key={index}
                           source={source} 
                           style={styles.screenshot}
-                          resizeMode="contain"
+                      resizeMode="contain"
                           fadeDuration={0}
-                        />
+                    />
                       ))}
-                    </View>
+                  </View>
                     {/* Slide 2 images */}
                     <View style={[styles.slideScreenshots, currentIndex !== 2 && styles.hiddenSlide]}>
                       {imagePaths.slide3.map((source, index) => (
-                        <Image 
+                    <Image 
                           key={index}
                           source={source} 
                           style={styles.screenshot}
-                          resizeMode="contain"
+                      resizeMode="contain"
                           fadeDuration={0}
-                        />
+                    />
                       ))}
-                    </View>
+                  </View>
                   </>
                 );
               })()}
-            </View>
+                </View>
             </View>
           </ScrollView>
         </Animated.View>

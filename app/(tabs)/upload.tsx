@@ -42,7 +42,7 @@ export default function UploadScreen() {
         }, 500);
       }
     }
-  }, [params.openGmail]);
+  }, [params.openGmail, showGmailFeature]);
 
   // Debug: Track modal state changes
   useEffect(() => {
@@ -138,19 +138,19 @@ export default function UploadScreen() {
                 onUploadSuccess={handleUploadSuccess}
                 onUploadError={handleUploadError}
               />
-            </View>
-
-            {/* Tutorial Button */}
-            <View style={styles.featuresCard}>
-              <TouchableOpacity 
-                style={styles.tutorialButton}
-                onPress={() => setShowTutorial(true)}
-              >
-                <Ionicons name="information-circle-outline" size={24} color="#666" />
-                <Text style={styles.tutorialButtonText}>View Tutorial</Text>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
-              </TouchableOpacity>
-            </View>
+          </View>
+          
+          {/* Tutorial Button */}
+          <View style={styles.featuresCard}>
+            <TouchableOpacity 
+              style={styles.tutorialButton}
+              onPress={() => setShowTutorial(true)}
+            >
+              <Ionicons name="information-circle-outline" size={24} color="#666" />
+              <Text style={styles.tutorialButtonText}>View Tutorial</Text>
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            </TouchableOpacity>
+          </View>
 
             {/* Gmail Import Card (Dev Only) */}
             {showGmailFeature && (
@@ -168,7 +168,7 @@ export default function UploadScreen() {
                   <Ionicons name="logo-google" size={20} color="#4CAF50" />
                   <Text style={styles.gmailButtonText}>Connect Gmail</Text>
                 </TouchableOpacity>
-              </View>
+            </View>
             )}
           </View>
 
@@ -197,27 +197,27 @@ export default function UploadScreen() {
 
       {/* Gmail Connection Modal (Dev Only) */}
       {showGmailFeature && (
-        <Modal
-          visible={showGmailModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowGmailModal(false)}
-        >
-          <SafeAreaView style={styles.modalContainer} edges={['top']}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📧 Gmail Import</Text>
-              <TouchableOpacity
-                onPress={() => setShowGmailModal(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={28} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalContent}>
-              <GmailConnection onImportSuccess={handleGmailImportSuccess} />
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
+      <Modal
+        visible={showGmailModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowGmailModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>📧 Gmail Import</Text>
+            <TouchableOpacity
+              onPress={() => setShowGmailModal(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={28} color="#666" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <GmailConnection onImportSuccess={handleGmailImportSuccess} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       )}
 
       {/* Processing Loader (after upload) */}

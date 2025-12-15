@@ -29,7 +29,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Track current userId to detect changes synchronously
   const currentUserId = userState.user?.id || null;
   const isAuthenticated = userState.isAuthenticated && !!userState.user;
-  
+
   useEffect(() => {
     // Check onboarding status when:
     // 1. Initial mount (lastCheckedUserId is null)
@@ -46,7 +46,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       }
       
       setLastCheckedUserId(currentUserId);
-      checkOnboardingStatus();
+    checkOnboardingStatus();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userState.user?.id, userState.isAuthenticated]);

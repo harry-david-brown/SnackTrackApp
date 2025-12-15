@@ -213,7 +213,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
-
+    
     if (password.length < 8) {
       errors.push('At least 8 characters');
     }
@@ -223,7 +223,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     if (!/[0-9]/.test(password)) {
       errors.push('At least 1 number');
     }
-
+    
     return {
       isValid: errors.length === 0,
       errors,
@@ -259,15 +259,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       setIsLoading(true);
-
+      
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
         // Tutorial will be shown automatically by app/index.tsx since onboarding is not complete
       } else {
         await login(email.trim().toLowerCase(), password);
         // Email verification is optional - proceed to app regardless
-        onLoginSuccess?.();
-        router.replace('/(tabs)');
+          onLoginSuccess?.();
+          router.replace('/(tabs)');
       }
     } catch {
       // Error is already set in state by UserContext
@@ -324,33 +324,120 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      // identityToken is the JWT we need to verify on the backend
+      
+      // Decode JWT payload to see claims (for debugging and validation)
+      let tokenClaims: any = null;
       if (credential.identityToken) {
-        // Prepare user data (only available on first sign-in)
-        const userData = credential.email ? {
-          email: credential.email,
-          name: credential.fullName ? {
-            firstName: credential.fullName.givenName || undefined,
-            lastName: credential.fullName.familyName || undefined,
-          } : undefined,
-        } : undefined;
-
-        await loginWithApple(credential.identityToken, userData);
-        
-        // Navigate to main app
-        onLoginSuccess?.();
-        router.replace('/(tabs)');
-      } else {
-        throw new Error('No identity token obtained from Apple');
+        try {
+          const parts = credential.identityToken.split('.');
+          if (parts.length === 3) {
+            const payload = parts[1];
+            // Add padding if needed for base64 decoding
+            const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+            // Use global atob or Buffer for base64 decoding
+            const decodedPayload = typeof atob !== 'undefined' 
+              ? atob(paddedPayload)
+              : Buffer.from(paddedPayload, 'base64').toString('utf-8');
+            tokenClaims = JSON.parse(decodedPayload);
+          }
+        } catch (e) {
+          // Ignore decode errors - token might be in different format
+          if (__DEV__) {
+            console.warn('Could not decode Apple identity token:', e);
+          }
+        }
       }
+      
+      // Log credential details for debugging
+      if (__DEV__) {
+        console.log('🍎 Apple Sign-In credential received:', {
+          hasIdentityToken: !!credential.identityToken,
+          identityTokenLength: credential.identityToken?.length,
+          hasEmail: !!credential.email,
+          hasFullName: !!credential.fullName,
+          user: credential.user, // Apple user ID (stable identifier)
+          tokenClaims: tokenClaims ? {
+            sub: tokenClaims.sub, // Apple user ID (same as credential.user)
+            email: tokenClaims.email,
+            email_verified: tokenClaims.email_verified,
+            iss: tokenClaims.iss, // Should be "https://appleid.apple.com"
+            aud: tokenClaims.aud, // Should be your Apple Client ID
+            exp: tokenClaims.exp, // Expiration timestamp
+            iat: tokenClaims.iat, // Issued at timestamp
+          } : null,
+        });
+      }
+      
+      // identityToken is the JWT we need to verify on the backend
+      if (!credential.identityToken) {
+        throw new Error('No identity token obtained from Apple. Please try again.');
+      }
+
+      // Validate token format (basic JWT structure check)
+      const tokenParts = credential.identityToken.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid token format received from Apple. Please try again.');
+      }
+
+      // Check token expiration if we decoded it
+      if (__DEV__ && tokenClaims) {
+        const now = Math.floor(Date.now() / 1000);
+        if (tokenClaims.exp && tokenClaims.exp < now) {
+          console.warn('⚠️ Apple token is expired. This should not happen as tokens are fresh.');
+        }
+      }
+
+      // Prepare user data (only available on first sign-in)
+      // Note: Email may be null on subsequent sign-ins - that's expected
+      const userData = credential.email ? {
+        email: credential.email,
+        name: credential.fullName ? {
+          firstName: credential.fullName.givenName || undefined,
+          lastName: credential.fullName.familyName || undefined,
+        } : undefined,
+      } : undefined;
+
+      // Log if email is missing (expected on subsequent sign-ins)
+      if (__DEV__ && !credential.email && tokenClaims?.email) {
+        console.log('ℹ️ Email not in credential but present in token (subsequent sign-in)');
+      }
+
+      await loginWithApple(credential.identityToken, userData);
+      
+      // Navigate to main app
+      onLoginSuccess?.();
+      router.replace('/(tabs)');
     } catch (error: any) {
       setIsLoading(false);
       
-      // Log detailed error information
-      console.log("APPLE ERROR", error?.code, error?.message, error);
+      // Log detailed error information for debugging
+      if (__DEV__) {
+        console.log("🍎 APPLE ERROR", error?.code, error?.message, error);
+      }
       
-      if (error.code === 'ERR_REQUEST_CANCELED') {
-        // User cancelled the sign-in flow - don't show error
+      // Handle user cancellation - don't show error
+      if (error.code === 'ERR_REQUEST_CANCELED' || error.code === 'ERR_CANCELED') {
+        if (__DEV__) {
+          console.log('ℹ️ User cancelled Apple Sign-In');
+        }
+        return;
+      }
+      
+      // Handle Apple Sign-In not available (shouldn't happen if button is shown)
+      if (error.code === 'ERR_NOT_AVAILABLE' || error.message?.includes('not available')) {
+        showAlert(
+          'Apple Sign-In Unavailable',
+          'Apple Sign-In is not available on this device. Please use email/password or Google Sign-In.'
+        );
+        return;
+      }
+      
+      // Handle network errors
+      if (!error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network'))) {
+        showAlert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.'
+        );
         return;
       }
       
@@ -363,24 +450,60 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       let errorMessage = 'Failed to sign in with Apple. Please try again.';
       
       if (error.response?.data) {
-        const errorData = error.response.data;
+        const errorData = error.response.data.error || error.response.data;
         
         // Check for specific error messages we can make user-friendly
         if (errorData.message) {
           const msg = errorData.message.toLowerCase();
           
-          if (msg.includes('not configured') || msg.includes('apple sign in not configured')) {
-            errorMessage = 'Apple Sign In is not configured. Please contact support.';
-          } else if (msg.includes('invalid') && msg.includes('token')) {
-            errorMessage = 'Authentication failed. Please try signing in again.';
-          } else if (msg.includes('email not provided')) {
+          // Backend configuration errors
+          if (msg.includes('audience invalid') || msg.includes('jwt audience invalid')) {
+            errorMessage = 'Apple Sign-In configuration issue. This is a development/testing issue. Please contact support or try a development build.';
+            if (__DEV__) {
+              console.error('🔧 Backend needs to accept both "com.snacktrack.mobile" and "host.exp.Exponent" audiences. See docs/APPLE_SIGNIN_BACKEND_FIX.md');
+            }
+          } else if (msg.includes('not configured') || msg.includes('apple sign in not configured')) {
+            errorMessage = 'Apple Sign In is not configured on the server. Please contact support.';
+          } 
+          // Token validation errors
+          else if (msg.includes('invalid') && (msg.includes('token') || msg.includes('signature'))) {
+            errorMessage = 'Authentication failed. The token could not be verified. Please try signing in again.';
+          } else if (msg.includes('expired') || msg.includes('exp')) {
+            errorMessage = 'Your sign-in session expired. Please try again.';
+          }
+          // User data errors
+          else if (msg.includes('email not provided') || msg.includes('email required')) {
             errorMessage = 'Unable to get your email from Apple. Please try again or use a different sign-in method.';
-          } else if (msg.includes('authentication failed')) {
+          } 
+          // Generic authentication failures
+          else if (msg.includes('authentication failed') || msg.includes('verification failed')) {
             errorMessage = 'Unable to verify your Apple ID. Please try again.';
-          } else {
-            // Use the backend message if it's user-friendly
+          } 
+          // Server errors
+          else if (error.response.status >= 500) {
+            errorMessage = 'Server error occurred. Please try again in a moment.';
+          }
+          // Use the backend message if it's user-friendly
+          else {
             errorMessage = errorData.message || errorMessage;
           }
+        } else if (error.response.status === 401) {
+          errorMessage = 'Authentication failed. Please try signing in again.';
+        } else if (error.response.status === 403) {
+          errorMessage = 'Access denied. Please contact support.';
+        } else if (error.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+      } else if (error.message) {
+        // Handle frontend errors
+        if (error.message.includes('No identity token')) {
+          errorMessage = 'Unable to get authentication token from Apple. Please try again.';
+        } else if (error.message.includes('Invalid token format')) {
+          errorMessage = 'Invalid authentication token received. Please try again.';
+        } else if (error.message === 'SESSION_EXPIRED') {
+          errorMessage = 'Your session has expired. Please try again.';
+        } else {
+          errorMessage = error.message;
         }
       } else if (state.error) {
         // Use error from UserContext if available
@@ -405,7 +528,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView
+        <ScrollView 
           contentContainerStyle={styles.scrollContent}
           overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
           bounces={true}
@@ -470,10 +593,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   autoComplete="password"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={24}
-                    color="#666"
+                  <Ionicons 
+                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                    size={24} 
+                    color="#666" 
                   />
                 </TouchableOpacity>
               </View>
@@ -544,7 +667,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               {/* Info */}
               <View style={styles.infoContainer}>
                 <Text style={styles.infoText}>
-                  {isRegistering
+                  {isRegistering 
                     ? "We'll use your email to create your account and securely save your spending data."
                     : "Sign in to access your spending insights and analytics."
                   }
