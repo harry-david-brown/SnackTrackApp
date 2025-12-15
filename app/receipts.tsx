@@ -28,6 +28,7 @@ export default function ReceiptsScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
+  const [totalReceipts, setTotalReceipts] = useState<number>(0);
 
   const ITEMS_PER_PAGE = 20;
 
@@ -41,6 +42,8 @@ export default function ReceiptsScreen() {
 
       if (!append) {
         setLoading(true);
+        // Reset expanded receipt when refreshing
+        setExpandedReceiptId(null);
       } else {
         setLoadingMore(true);
       }
@@ -53,6 +56,11 @@ export default function ReceiptsScreen() {
         setReceipts(prev => [...prev, ...response.data]);
       } else {
         setReceipts(response.data);
+      }
+
+      // Update total count from pagination
+      if (response.pagination?.total !== undefined) {
+        setTotalReceipts(response.pagination.total);
       }
 
       // Check if we have more items to load
@@ -95,34 +103,63 @@ export default function ReceiptsScreen() {
     });
   };
 
-  const getDataSourceIcon = (dataSource: DataSource) => {
-    switch (dataSource) {
-      case DataSource.EMAIL:
-        return 'mail-outline';
-      case DataSource.CSV:
-        return 'document-outline';
-      default:
-        return 'receipt-outline';
+  const getReceiptTypeLabel = (receipt: Receipt): string => {
+    // Use receiptType if available, otherwise fall back to dataSource
+    if (receipt.receiptType) {
+      switch (receipt.receiptType) {
+        case 'uber_eats':
+          return 'UberEats';
+        case 'doordash':
+          return 'DoorDash';
+        default:
+          // If receiptType exists but is unknown, fall back to dataSource
+          return receipt.dataSource === DataSource.EMAIL ? 'Email' : 'CSV';
+      }
     }
+    // Fallback to dataSource for backward compatibility
+    return receipt.dataSource === DataSource.EMAIL ? 'Email' : 'CSV';
   };
 
-  const getDataSourceColor = (dataSource: DataSource) => {
-    switch (dataSource) {
-      case DataSource.EMAIL:
-        return '#4CAF50';
-      case DataSource.CSV:
-        return '#2196F3';
-      default:
-        return '#666';
+  const getReceiptTypeIcon = (receipt: Receipt): string => {
+    if (receipt.receiptType) {
+      switch (receipt.receiptType) {
+        case 'uber_eats':
+          return 'car-outline';
+        case 'doordash':
+          return 'bicycle-outline';
+        default:
+          return 'receipt-outline';
+      }
     }
+    // Fallback to dataSource icons
+    return receipt.dataSource === DataSource.EMAIL ? 'mail-outline' : 'document-outline';
+  };
+
+  const getReceiptTypeColor = (receipt: Receipt): string => {
+    if (receipt.receiptType) {
+      switch (receipt.receiptType) {
+        case 'uber_eats':
+          return '#06C167'; // UberEats green (from UberDataTutorial)
+        case 'doordash':
+          return '#FF3000'; // DoorDash red
+        default:
+          return '#666';
+      }
+    }
+    // Fallback to dataSource colors
+    return receipt.dataSource === DataSource.EMAIL ? '#4CAF50' : '#2196F3';
   };
 
   const toggleExpanded = (receiptId: string) => {
-    setExpandedReceiptId(expandedReceiptId === receiptId ? null : receiptId);
+    setExpandedReceiptId((current) => {
+      // Use functional update to ensure we have the latest state
+      return current === receiptId ? null : receiptId;
+    });
   };
 
   const renderReceipt = ({ item }: { item: Receipt }) => {
-    const isExpanded = expandedReceiptId === item.id;
+    // Only check expansion if item has a valid ID
+    const isExpanded = item.id && expandedReceiptId === item.id;
     // Ensure items is an array
     const items = Array.isArray(item.items) ? item.items : [];
     const hasItems = items.length > 0;
@@ -134,8 +171,7 @@ export default function ReceiptsScreen() {
           hasItems && pressed && styles.receiptCardPressed
         ]}
         onPress={() => {
-          if (hasItems) {
-            console.log('🎯 Receipt tapped:', item.id, 'Current expanded:', expandedReceiptId);
+          if (hasItems && item.id) {
             toggleExpanded(item.id);
           }
         }}
@@ -153,14 +189,14 @@ export default function ReceiptsScreen() {
           </View>
           <View style={styles.amountContainer}>
             <Text style={styles.amount}>{formatCurrency(item.amountSpent)}</Text>
-            <View style={[styles.sourceBadge, { backgroundColor: getDataSourceColor(item.dataSource) }]}>
+            <View style={[styles.sourceBadge, { backgroundColor: getReceiptTypeColor(item) }]}>
               <Ionicons 
-                name={getDataSourceIcon(item.dataSource) as any} 
+                name={getReceiptTypeIcon(item) as any} 
                 size={12} 
                 color="#fff" 
               />
               <Text style={styles.sourceBadgeText}>
-                {item.dataSource === DataSource.EMAIL ? 'Email' : 'CSV'}
+                {getReceiptTypeLabel(item)}
               </Text>
             </View>
           </View>
@@ -195,8 +231,11 @@ export default function ReceiptsScreen() {
               const itemQuantity = typeof receiptItem?.quantity === 'number' ? receiptItem.quantity : 1;
               const itemPrice = typeof receiptItem?.price === 'number' ? receiptItem.price : 0;
               
+              // Use a unique key combining receipt ID and index
+              const uniqueKey = `${item.id}-item-${index}`;
+              
               return (
-                <View key={index} style={styles.itemRow}>
+                <View key={uniqueKey} style={styles.itemRow}>
                   <View style={styles.itemDetails}>
                     <Text style={styles.itemName} numberOfLines={2}>
                       {itemName}
@@ -275,7 +314,7 @@ export default function ReceiptsScreen() {
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>My Receipts</Text>
           <Text style={styles.headerSubtitle}>
-            {receipts.length} {receipts.length === 1 ? 'receipt' : 'receipts'}
+            {totalReceipts > 0 ? totalReceipts : receipts.length} {totalReceipts > 0 ? (totalReceipts === 1 ? 'receipt' : 'receipts') : (receipts.length === 1 ? 'receipt' : 'receipts')}
           </Text>
         </View>
         <View style={styles.backButton} />
@@ -303,7 +342,7 @@ export default function ReceiptsScreen() {
         <FlatList
           data={receipts}
           renderItem={renderReceipt}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.id || `receipt-${index}`}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}

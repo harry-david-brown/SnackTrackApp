@@ -284,7 +284,28 @@ export const receiptApi = {
           });
         }
         
-        return receipt;
+        // Ensure id field is preserved (backend may return it as 'id' or it might be missing)
+        // Map snake_case fields to camelCase if needed
+        const receiptId = receipt.id || receipt._id;
+        
+        const mappedReceipt: any = {
+          ...receipt,
+          id: receiptId || `receipt-${idx}`, // Ensure id exists (fallback for debugging)
+          userId: receipt.userId || receipt.user_id,
+          restaurantName: receipt.restaurantName || receipt.restaurant_name,
+          orderDate: receipt.orderDate || receipt.order_date,
+          amountSpent: receipt.amountSpent || receipt.amount_spent,
+          dataSource: receipt.dataSource || receipt.data_source,
+          receiptType: receipt.receiptType || receipt.receipt_type,
+          createdAt: receipt.createdAt || receipt.created_at || new Date().toISOString(),
+        };
+        
+        // Only warn if ID is truly missing (not just using fallback)
+        if (!receiptId && __DEV__ && idx === 0) {
+          console.warn('⚠️ Some receipts may be missing IDs from backend');
+        }
+        
+        return mappedReceipt;
       });
     }
     

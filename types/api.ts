@@ -18,6 +18,12 @@ export enum DataSource {
   EMAIL = 'email'
 }
 
+export enum ReceiptType {
+  UBER_EATS = 'uber_eats',
+  DOORDASH = 'doordash',
+  UNKNOWN = 'unknown'
+}
+
 export interface Receipt {
   id: string;
   userId: string;
@@ -26,6 +32,7 @@ export interface Receipt {
   amountSpent: number;
   items: ReceiptItem[];
   dataSource: DataSource;
+  receiptType?: ReceiptType; // Optional for backward compatibility
   createdAt: string;
 }
 
