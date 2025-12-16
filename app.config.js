@@ -41,7 +41,8 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"
       },
-      package: "com.snacktrack.app"
+      package: "com.snacktrack.app",
+      versionCode: 1
     },
     web: {
       favicon: "./assets/icon.png"
