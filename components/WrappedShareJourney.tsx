@@ -45,47 +45,47 @@ const SUBTITLE_SIZE = Math.min(32, Math.max(26, Math.round(screenWidth * 0.085))
 
 // Curated gradients tuned for share compression
 export const STORY_GRADIENTS = {
-  amethyst: { 
+  amethyst: {
     colors: ['#6E61FF', '#B960FF', '#9E3EFF'],
     locations: [0, 0.52, 1],
   },
-  flamingo: { 
+  flamingo: {
     colors: ['#FF6B6B', '#FF7FA0', '#EE5A6F'],
     locations: [0, 0.52, 1],
   },
-  sunrise: { 
+  sunrise: {
     colors: ['#FA709A', '#FF9E6E', '#FEE140'],
     locations: [0, 0.52, 1],
   },
-  tangerine: { 
+  tangerine: {
     colors: ['#FF9966', '#FF7F6A', '#FF5E62'],
     locations: [0, 0.52, 1],
   },
-  lagoon: { 
+  lagoon: {
     colors: ['#4FACFE', '#29D1FE', '#00F2FE'],
     locations: [0, 0.52, 1],
   },
-  orchid: { 
+  orchid: {
     colors: ['#A18CD1', '#D6A6E3', '#FBC2EB'],
     locations: [0, 0.52, 1],
   },
-  mango: { 
+  mango: {
     colors: ['#FFEAA7', '#FFD890', '#FDCB6E'],
     locations: [0, 0.52, 1],
   },
-  ember: { 
+  ember: {
     colors: ['#FA8231', '#F99A4A', '#F9B15D'],
     locations: [0, 0.52, 1],
   },
-  mint: { 
+  mint: {
     colors: ['#C1DFC4', '#D1E7CF', '#DEECDD'],
     locations: [0, 0.52, 1],
   },
-  cotton: { 
+  cotton: {
     colors: ['#A8EDEA', '#D7F1EF', '#FED6E3'],
     locations: [0, 0.52, 1],
   },
-  hellofresh: { 
+  hellofresh: {
     colors: ['#99CC33', '#85C442', '#6FB04F'],
     locations: [0, 0.52, 1],
   },
@@ -110,20 +110,20 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
   const [isReady, setIsReady] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const viewShotRefs = useRef<(ViewShot | null)[]>([]);
-  
+
   const wrapped = analytics.wrappedAnalytics;
 
   // Reset to first slide when component mounts
   React.useEffect(() => {
     setCurrentSlide(0);
     setIsReady(false);
-    
+
     // Force scroll to first slide immediately
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollTo({ x: 0, animated: false });
       setIsReady(true);
     }, 50);
-    
+
     return () => clearTimeout(timer);
   }, []); // Only run on mount
 
@@ -155,14 +155,14 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       // Calculate average monthly spending
       const avgMonthlySpent = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length;
       const avgMonthlyOrders = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length;
-      
+
       // Assume 1 meal per order for delivery
       const avgMonthlyMeals = avgMonthlyOrders;
       const avgCostPerMeal = avgMonthlyMeals > 0 ? avgMonthlySpent / avgMonthlyMeals : analytics.averageOrderValue;
-      
+
       // Calculate savings per meal
       const savingsPerMeal = Math.max(0, avgCostPerMeal - HELLOFRESH_CONFIG.mealPricePerServing);
-      
+
       // Project to annual (12 months)
       const annualSavings = savingsPerMeal * avgMonthlyMeals * 12;
       return { annualSavings, savingsPerMeal };
@@ -237,17 +237,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'tangerine',
         emoji: '🌙',
         content: (
-        <>
-          <Text style={styles.slideTitle}>3am Regret</Text>
-          <Text style={styles.bigNumber}>{data.count}</Text>
-          <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
-            <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
-          </View>
-          <Text style={styles.roastText}>{lateNightMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>3am Regret</Text>
+            <Text style={styles.bigNumber}>{data.count}</Text>
+            <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Worst offense: {data.worstOffender.restaurant}</Text>
+              <Text style={styles.detailText}>at {data.worstOffender.time} for {formatCurrency(data.worstOffender.amount)}</Text>
+            </View>
+            <Text style={styles.roastText}>{lateNightMessage}</Text>
+          </>
         ),
       });
     }
@@ -259,17 +259,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'sunrise',
         emoji: '😴',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Laziest Day</Text>
-          <Text style={styles.bigNumber}>{data.orderCount}</Text>
-          <Text style={styles.bigNumberLabel}>orders in one day</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
-            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-          </View>
-          <Text style={styles.roastText}>{laziestDayMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Laziest Day</Text>
+            <Text style={styles.bigNumber}>{data.orderCount}</Text>
+            <Text style={styles.bigNumberLabel}>orders in one day</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{formatDate(data.date)} ({data.dayOfWeek})</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{laziestDayMessage}</Text>
+          </>
         ),
       });
     }
@@ -281,17 +281,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'ember',
         emoji: '🔥',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Serial Orderer</Text>
-          <Text style={styles.bigNumber}>{data.days}</Text>
-          <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
-            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-          </View>
-          <Text style={styles.roastText}>{streakMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Serial Orderer</Text>
+            <Text style={styles.bigNumber}>{data.days}</Text>
+            <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{formatDate(data.startDate)} - {formatDate(data.endDate)}</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{streakMessage}</Text>
+          </>
         ),
       });
     }
@@ -303,17 +303,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'mango',
         emoji: '🍔',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Chain Dependency</Text>
-          <Text style={styles.bigNumber}>{data.percentage}%</Text>
-          <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.orderCount} orders</Text>
-            <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
-          </View>
-          <Text style={styles.roastText}>{chainMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Chain Dependency</Text>
+            <Text style={styles.bigNumber}>{data.percentage}%</Text>
+            <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders</Text>
+              <Text style={styles.detailText}>{formatCurrency(data.totalSpent)} spent</Text>
+            </View>
+            <Text style={styles.roastText}>{chainMessage}</Text>
+          </>
         ),
       });
     }
@@ -325,17 +325,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'cotton',
         emoji: '🤏',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
-          <Text style={styles.bigNumber}>{data.count}</Text>
-          <Text style={styles.bigNumberLabel}>single-item orders</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
-            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-          </View>
-          <Text style={styles.roastText}>{singleItemMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
+            <Text style={styles.bigNumber}>{data.count}</Text>
+            <Text style={styles.bigNumberLabel}>single-item orders</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Most common: {data.mostCommon}</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{singleItemMessage}</Text>
+          </>
         ),
       });
     }
@@ -348,17 +348,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'lagoon',
         emoji: '💰',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Bougie Moment</Text>
-          <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
-          <Text style={styles.bigNumberLabel}>most expensive order</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.restaurant}</Text>
-            <Text style={styles.detailText}>{formatDate(data.date)}</Text>
-          </View>
-          <Text style={styles.roastText}>{expensiveMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Bougie Moment</Text>
+            <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
+            <Text style={styles.bigNumberLabel}>most expensive order</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.restaurant}</Text>
+              <Text style={styles.detailText}>{formatDate(data.date)}</Text>
+            </View>
+            <Text style={styles.roastText}>{expensiveMessage}</Text>
+          </>
         ),
       });
     }
@@ -370,17 +370,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'mint',
         emoji: '☕',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Coffee Addiction</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
-          <Text style={styles.bigNumberLabel}>spent on coffee</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.orderCount} orders</Text>
-            <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
-          </View>
-          <Text style={styles.roastText}>{coffeeMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Coffee Addiction</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+            <Text style={styles.bigNumberLabel}>spent on coffee</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders</Text>
+              <Text style={styles.detailText}>Most ordered: {data.mostOrdered}</Text>
+            </View>
+            <Text style={styles.roastText}>{coffeeMessage}</Text>
+          </>
         ),
       });
     }
@@ -392,17 +392,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'orchid',
         emoji: '🦉',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Night Owl Badge</Text>
-          <Text style={styles.bigNumber}>{data.percentage}%</Text>
-          <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.count} late-night orders</Text>
-            <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
-          </View>
-          <Text style={styles.roastText}>{nightOwlMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Night Owl Badge</Text>
+            <Text style={styles.bigNumber}>{data.percentage}%</Text>
+            <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.count} late-night orders</Text>
+              <Text style={styles.detailText}>Total: {formatCurrency(data.totalSpent)}</Text>
+            </View>
+            <Text style={styles.roastText}>{nightOwlMessage}</Text>
+          </>
         ),
       });
     }
@@ -412,13 +412,13 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       const data = wrapped.comparative.couldHaveBought;
       // Find best comparison: Honda Civic if >2, otherwise use next available
       let selectedComparison = data.comparisons[0];
-      
+
       // Check if first comparison is Honda Civic and quantity <= 2
       if (selectedComparison.item.toLowerCase().includes('honda civic') && selectedComparison.quantity <= 2) {
         // Use the second comparison (groceries) instead
         selectedComparison = data.comparisons[1] || selectedComparison;
       }
-      
+
       // Choose emoji based on what we're showing
       let emoji = '📱'; // default to phone
       const itemLower = selectedComparison.item.toLowerCase();
@@ -431,23 +431,23 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       } else if (itemLower.includes('civic') || itemLower.includes('car')) {
         emoji = '🚗';
       }
-      
+
       const couldHaveBoughtMessage = getDeterministicMessage('couldHaveBought', analytics, undefined, 9);
       slides.push({
         gradient: 'mango',
         emoji: emoji,
         content: (
-        <>
-          <Text style={styles.slideTitle}>Could Have Bought</Text>
-          <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
-          <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
-            <Text style={styles.detailText}>on food delivery</Text>
-          </View>
-          <Text style={styles.roastText}>{couldHaveBoughtMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Could Have Bought</Text>
+            <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
+            <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
+              <Text style={styles.detailText}>on food delivery</Text>
+            </View>
+            <Text style={styles.roastText}>{couldHaveBoughtMessage}</Text>
+          </>
         ),
       });
     }
@@ -459,16 +459,16 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'ember',
         emoji: '📈',
         content: (
-        <>
-          <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
-          <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
-          </View>
-          <Text style={styles.roastText}>{investmentMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
+            <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
+            </View>
+            <Text style={styles.roastText}>{investmentMessage}</Text>
+          </>
         ),
       });
     }
@@ -482,17 +482,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'tangerine',
         emoji: '🏪',
         content: (
-        <>
-          <Text style={styles.slideTitle}>The Delivery Tax</Text>
-          <Text style={styles.bigNumber}>{formatCurrency(data.averageDeliveryFeePerMeal)}</Text>
-          <Text style={styles.bigNumberLabel}>extra per meal</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Total fees: {formatCurrency(data.totalDeliveryFees)}</Text>
-            <Text style={styles.detailText}>Across {data.totalOrders} orders</Text>
-          </View>
-          <Text style={styles.roastText}>{costPerMealMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>The Delivery Tax</Text>
+            <Text style={styles.bigNumber}>{formatCurrency(data.averageDeliveryFeePerMeal)}</Text>
+            <Text style={styles.bigNumberLabel}>extra per meal</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Total fees: {formatCurrency(data.totalDeliveryFees)}</Text>
+              <Text style={styles.detailText}>Across {data.totalOrders} orders</Text>
+            </View>
+            <Text style={styles.roastText}>{costPerMealMessage}</Text>
+          </>
         ),
       });
     }
@@ -505,37 +505,37 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       // Format total time - show hours if >= 1 hour, otherwise show minutes
       const totalHours = (data.totalMinutes / 60).toFixed(1);
       const totalDays = (data.totalMinutes / (60 * 24)).toFixed(1);
-      const formattedTotalTime = parseFloat(totalHours) >= 24 
+      const formattedTotalTime = parseFloat(totalHours) >= 24
         ? `${totalDays} days`
         : parseFloat(totalHours) >= 1
-        ? `${totalHours} hours`
-        : `${data.totalMinutes} minutes`;
-      
+          ? `${totalHours} hours`
+          : `${data.totalMinutes} minutes`;
+
       // Get deterministic roast message based on total waiting time
       const waitingTimeMessage = getDeterministicMessage('deliveryWaits', analytics, data.totalMinutes, 14);
-      
+
       slides.push({
         gradient: 'sunrise',
         emoji: '⏱️',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Waiting Time</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formattedTotalTime}</Text>
-          <Text style={styles.bigNumberLabel}>spent waiting for delivery</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.totalMinutes.toLocaleString()} minutes across {data.totalOrders} orders</Text>
-            <Text style={styles.detailText}>Average: {data.averageMinutes} minutes per order</Text>
-            {data.fastestDelivery && (
-              <Text style={styles.detailText}>Fastest: {data.fastestDelivery.minutes} min at {data.fastestDelivery.restaurant}</Text>
-            )}
-            {data.longestWait && (
-              <Text style={styles.detailText}>Longest: {data.longestWait.minutes} min at {data.longestWait.restaurant}</Text>
-            )}
-            
-          </View>
-          <Text style={styles.roastText}>{waitingTimeMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Waiting Time</Text>
+            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formattedTotalTime}</Text>
+            <Text style={styles.bigNumberLabel}>spent waiting for delivery</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.totalMinutes.toLocaleString()} minutes across {data.totalOrders} orders</Text>
+              <Text style={styles.detailText}>Average: {data.averageMinutes} minutes per order</Text>
+              {data.fastestDelivery && (
+                <Text style={styles.detailText}>Fastest: {data.fastestDelivery.minutes} min at {data.fastestDelivery.restaurant}</Text>
+              )}
+              {data.longestWait && (
+                <Text style={styles.detailText}>Longest: {data.longestWait.minutes} min at {data.longestWait.restaurant}</Text>
+              )}
+
+            </View>
+            <Text style={styles.roastText}>{waitingTimeMessage}</Text>
+          </>
         ),
       });
     }
@@ -547,16 +547,16 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'lagoon',
         emoji: '⏰',
         content: (
-        <>
-          <Text style={styles.slideTitle}>Peak Hunger Hour</Text>
-          <Text style={styles.bigNumber}>{data.hourDisplay}</Text>
-          <Text style={styles.bigNumberLabel}>your hungriest time</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
-          </View>
-          <Text style={styles.roastText}>{peakHungerMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>Peak Hunger Hour</Text>
+            <Text style={styles.bigNumber}>{data.hourDisplay}</Text>
+            <Text style={styles.bigNumberLabel}>your hungriest time</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>{data.orderCount} orders ({data.percentageOfTotal}%)</Text>
+            </View>
+            <Text style={styles.roastText}>{peakHungerMessage}</Text>
+          </>
         ),
       });
     }
@@ -569,17 +569,17 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
         gradient: 'orchid',
         emoji: isWeekendMore ? '🎉' : '💼',
         content: (
-        <>
-          <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
-          <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
-          <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
-          <Spacer h={6} />
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
-            <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
-          </View>
-          <Text style={styles.roastText}>{weekendWarriorMessage}</Text>
-        </>
+          <>
+            <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
+            <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
+            <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
+            <Spacer h={6} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
+              <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
+            </View>
+            <Text style={styles.roastText}>{weekendWarriorMessage}</Text>
+          </>
         ),
       });
     }
@@ -591,9 +591,23 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       content: (
         <>
           <Text style={styles.title}>That&apos;s Your Year</Text>
-          <Text style={styles.subtitle}>{analytics.totalReceipts} orders</Text>
-          <Text style={styles.subtitle}>{formatCurrency(analytics.totalSpent)} spent</Text>
+          <Text style={styles.subtitle}>{wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders</Text>
+          <Text style={styles.subtitle}>{formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent</Text>
           <Text style={styles.introText}>Share your Wrapped Journey with friends!</Text>
+        </>
+      ),
+    });
+
+    // All Time Stats Slide
+    slides.push({
+      gradient: 'flamingo',
+      emoji: '🏆',
+      content: (
+        <>
+          <Text style={styles.title}>All Time Stats</Text>
+          <Text style={styles.subtitle}>{analytics.totalReceipts} total orders</Text>
+          <Text style={styles.subtitle}>{formatCurrency(analytics.totalSpent)} total spent</Text>
+          <Text style={styles.introText}>You&apos;re a true SnackTrack legend!</Text>
         </>
       ),
     });
@@ -603,9 +617,9 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     // Calculate average cost per meal for comparison
     const avgCostPerMeal = analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0
       ? (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length) /
-        (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
+      (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
       : analytics.averageOrderValue;
-    
+
     slides.push({
       gradient: 'hellofresh',
       emoji: '🍽️', // Fallback if image fails
@@ -727,7 +741,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
                   {slide.content}
                 </View>
               </View>
-              
+
               {/* Watermark Footer - positioned above progress bar */}
               <View style={{
                 position: 'absolute',
@@ -755,40 +769,40 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       {/* Navigation Controls - only show when ready */}
       {isReady && (
         <View style={[styles.controls, { paddingBottom: Math.max(36, insets.bottom) }]}>
-        <View style={styles.pagination}>
-          {slides.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.paginationDot,
-                index === currentSlide && styles.paginationDotActive,
-              ]}
-            />
-          ))}
-        </View>
+          <View style={styles.pagination}>
+            {slides.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  index === currentSlide && styles.paginationDotActive,
+                ]}
+              />
+            ))}
+          </View>
 
-        <View style={styles.buttonRow}>
-          {currentSlide > 0 ? (
-            <TouchableOpacity style={styles.navButton} onPress={goToPrevious}>
-              <Ionicons name="arrow-back" size={24} color="white" />
+          <View style={styles.buttonRow}>
+            {currentSlide > 0 ? (
+              <TouchableOpacity style={styles.navButton} onPress={goToPrevious}>
+                <Ionicons name="arrow-back" size={24} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.navButton} />
+            )}
+
+            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+              <Ionicons name="share-social" size={20} color="white" />
+              <Text style={styles.shareText}>Share</Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.navButton} />
-          )}
 
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-social" size={20} color="white" />
-            <Text style={styles.shareText}>Share</Text>
-          </TouchableOpacity>
-
-          {currentSlide < slides.length - 1 ? (
-            <TouchableOpacity style={styles.navButton} onPress={goToNext}>
-              <Ionicons name="arrow-forward" size={24} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.navButton} />
-          )}
-        </View>
+            {currentSlide < slides.length - 1 ? (
+              <TouchableOpacity style={styles.navButton} onPress={goToNext}>
+                <Ionicons name="arrow-forward" size={24} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.navButton} />
+            )}
+          </View>
         </View>
       )}
     </View>
