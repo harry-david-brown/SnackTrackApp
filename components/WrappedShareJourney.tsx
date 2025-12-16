@@ -19,6 +19,7 @@ import * as Linking from 'expo-linking';
 import { UserSummary } from '../types/api';
 import { getDeterministicMessage } from '../utils/wrappedMessages';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { featureFlags } from '../config/featureFlags';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -612,37 +613,39 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       ),
     });
 
-    // HelloFresh Affiliate Slide - Final slide
-    const savings = calculateAnnualSavings();
-    // Calculate average cost per meal for comparison
-    const avgCostPerMeal = analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0
-      ? (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length) /
-      (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
-      : analytics.averageOrderValue;
+    // HelloFresh Affiliate Slide - Final slide (only shown if feature flag is enabled)
+    if (featureFlags.showHelloFresh) {
+      const savings = calculateAnnualSavings();
+      // Calculate average cost per meal for comparison
+      const avgCostPerMeal = analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0
+        ? (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length) /
+        (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
+        : analytics.averageOrderValue;
 
-    slides.push({
-      gradient: 'hellofresh',
-      emoji: '🍽️', // Fallback if image fails
-      image: require('../assets/hellofresh-logo.png'),
-      content: (
-        <>
-          <Text style={[styles.slideTitle, { marginBottom: 32, marginTop: -32 }]}>Why not try HelloFresh?</Text>
-          <View style={[styles.savingsHighlight]}>
-            <Text style={styles.savingsLabel}>This year you would have saved</Text>
-            <Text style={styles.savingsAmount} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(savings.annualSavings)}</Text>
-          </View>
-          <View style={[styles.detailBox]}>
-            <Text style={styles.detailText}>Your avg order: {formatCurrency(avgCostPerMeal)}</Text>
-            <Text style={styles.detailText}>HelloFresh meal: {formatCurrency(HELLOFRESH_CONFIG.mealPricePerServing)}</Text>
-            <Text style={styles.detailText}>You would have saved {formatCurrency(savings.savingsPerMeal)} per meal</Text>
-          </View>
-          <TouchableOpacity style={styles.affiliateButton} onPress={handleAffiliateClick}>
-            <Text style={styles.affiliateButtonText}>Try HelloFresh</Text>
-            <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
-          </TouchableOpacity>
-        </>
-      ),
-    });
+      slides.push({
+        gradient: 'hellofresh',
+        emoji: '🍽️', // Fallback if image fails
+        image: require('../assets/hellofresh-logo.png'),
+        content: (
+          <>
+            <Text style={[styles.slideTitle, { marginBottom: 32, marginTop: -32 }]}>Why not try HelloFresh?</Text>
+            <View style={[styles.savingsHighlight]}>
+              <Text style={styles.savingsLabel}>This year you would have saved</Text>
+              <Text style={styles.savingsAmount} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(savings.annualSavings)}</Text>
+            </View>
+            <View style={[styles.detailBox]}>
+              <Text style={styles.detailText}>Your avg order: {formatCurrency(avgCostPerMeal)}</Text>
+              <Text style={styles.detailText}>HelloFresh meal: {formatCurrency(HELLOFRESH_CONFIG.mealPricePerServing)}</Text>
+              <Text style={styles.detailText}>You would have saved {formatCurrency(savings.savingsPerMeal)} per meal</Text>
+            </View>
+            <TouchableOpacity style={styles.affiliateButton} onPress={handleAffiliateClick}>
+              <Text style={styles.affiliateButtonText}>Try HelloFresh</Text>
+              <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
+            </TouchableOpacity>
+          </>
+        ),
+      });
+    }
 
     return slides;
   }, [analytics, wrapped, formatCurrency, formatDate, calculateAnnualSavings, handleAffiliateClick]);

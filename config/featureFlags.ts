@@ -125,6 +125,11 @@ export const featureFlags = {
   get showTestErrors() {
 	return showDevFeatures();
   },
+  
+  /** Show HelloFresh affiliate slide in Wrapped Journey */
+  get showHelloFresh() {
+	return showDevFeatures();
+  },
 };
 
 export default featureFlags;
