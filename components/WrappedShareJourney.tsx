@@ -8,6 +8,8 @@ import {
   ScrollView,
   Platform,
   Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -102,7 +104,157 @@ interface Slide {
   emoji: string;
   image?: any; // For logo images
   content: React.ReactNode;
+  backgroundType?: 'default' | 'animated';
 }
+
+const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    animatedValue.setValue(0);
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 8000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        })
+      ])
+    );
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [animatedValue]);
+
+  // Movement 1: Diagonally up-left and back
+  const translate1 = animatedValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, -150, 0],
+  });
+
+  // Movement 2: Diagonally down-right and back
+  const translate2 = animatedValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 100, 0],
+  });
+
+  const scale = animatedValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1.3, 1.8, 1.3],
+  });
+
+  const rotate = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const rotateRev = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
+
+  return (
+    <View style={[{ width: screenWidth, height: screenHeight, overflow: 'hidden' }]}>
+      {/* Background Base - Deep Vivid Purple/Blue */}
+      <LinearGradient
+        colors={['#2E1E62', '#4B1057', '#C86B33']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Moving Overlay 1 - Pink/Orange Nebula */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            width: screenWidth * 2.5,
+            height: screenHeight * 2.5,
+            left: -screenWidth * 0.75,
+            top: -screenHeight * 0.75,
+            opacity: 0.7,
+            transform: [
+              { translateY: translate1 },
+              { translateX: translate1 },
+              { scale },
+              { rotate },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['transparent', '#FF00CC', 'transparent']}
+          start={{ x: 0.3, y: 0 }}
+          end={{ x: 0.7, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* Moving Overlay 2 - Cyan/Blue Aqua */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            width: screenWidth * 2.5,
+            height: screenHeight * 2.5,
+            left: -screenWidth * 0.75,
+            top: -screenHeight * 0.75,
+            opacity: 0.6,
+            transform: [
+              { translateY: translate2 },
+              { scale: 1.5 },
+              { rotate: rotateRev },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['transparent', '#00FFFF', 'transparent']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* Moving Overlay 3 - Gold Light */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            width: screenWidth * 2.5,
+            height: screenHeight * 2.5,
+            left: -screenWidth * 0.75,
+            top: -screenHeight * 0.75,
+            opacity: 0.5,
+            transform: [
+              { scale: scale },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['transparent', '#FFD700', 'transparent']}
+          start={{ x: 0.8, y: 0.8 }}
+          end={{ x: 0.2, y: 0.2 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* Content Container */}
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+        {children}
+      </View>
+    </View>
+  );
+};
 
 export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
@@ -616,6 +768,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     // Your Summary - Bento Box Grid Style
     slides.push({
       gradient: 'amethyst',
+      backgroundType: 'animated',
       emoji: '🎯',
       content: (
         <>
@@ -795,47 +948,85 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
             options={{ format: 'png', quality: 1.0 }}
             style={styles.slideContainer}
           >
-            <LinearGradient
-              colors={STORY_GRADIENTS[slide.gradient].colors}
-              locations={STORY_GRADIENTS[slide.gradient].locations}
-              style={styles.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={[
-                styles.slideContent,
-                slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
-              ]}>
-                {slide.image ? (
-                  <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.emoji}>{slide.emoji}</Text>
-                )}
-                <View style={styles.frame}>
-                  {slide.content}
+            {slide.backgroundType === 'animated' ? (
+              <AnimatedBackground>
+                <View style={[
+                  styles.slideContent,
+                  slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
+                ]}>
+                  {slide.image ? (
+                    <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.emoji}>{slide.emoji}</Text>
+                  )}
+                  <View style={styles.frame}>
+                    {slide.content}
+                  </View>
                 </View>
-              </View>
 
-              {/* Watermark Footer - positioned above progress bar */}
-              <View style={{
-                position: 'absolute',
-                bottom: SAFE_BOTTOM + 8,
-                left: 0,
-                right: 0,
-                alignItems: 'center',
-                pointerEvents: 'none',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  opacity: 1,
-                  fontWeight: '800',
-                  fontSize: 15,
-                  letterSpacing: 0.5,
+                {/* Watermark Footer */}
+                <View style={{
+                  position: 'absolute',
+                  bottom: SAFE_BOTTOM + 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  pointerEvents: 'none',
                 }}>
-                  @snacktrack
-                </Text>
-              </View>
-            </LinearGradient>
+                  <Text style={{
+                    color: 'white',
+                    opacity: 1,
+                    fontWeight: '800',
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}>
+                    @snacktrack
+                  </Text>
+                </View>
+              </AnimatedBackground>
+            ) : (
+              <LinearGradient
+                colors={STORY_GRADIENTS[slide.gradient].colors}
+                locations={STORY_GRADIENTS[slide.gradient].locations}
+                style={styles.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={[
+                  styles.slideContent,
+                  slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
+                ]}>
+                  {slide.image ? (
+                    <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.emoji}>{slide.emoji}</Text>
+                  )}
+                  <View style={styles.frame}>
+                    {slide.content}
+                  </View>
+                </View>
+
+                {/* Watermark Footer */}
+                <View style={{
+                  position: 'absolute',
+                  bottom: SAFE_BOTTOM + 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    opacity: 1,
+                    fontWeight: '800',
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}>
+                    @snacktrack
+                  </Text>
+                </View>
+              </LinearGradient>
+            )}
           </ViewShot>
         ))}
       </ScrollView>
