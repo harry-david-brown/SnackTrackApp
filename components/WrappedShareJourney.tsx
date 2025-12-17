@@ -613,6 +613,77 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       ),
     });
 
+    // Your Summary - Bento Box Grid Style
+    slides.push({
+      gradient: 'amethyst',
+      emoji: '🎯',
+      content: (
+        <>
+          <Text style={styles.slideTitle}>Your Summary</Text>
+          <View style={styles.bentoContainer}>
+            {/* 1. Total Spent */}
+            <View style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text style={styles.bentoIcon}>💸</Text>
+                <Text style={styles.bentoLabel}>Total Spent</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: '#FF9E6E' }]} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(analytics.totalSpent)}
+              </Text>
+            </View>
+
+            {/* 2. Total Orders */}
+            <View style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text style={styles.bentoIcon}>📦</Text>
+                <Text style={styles.bentoLabel}>Total Orders</Text>
+              </View>
+              <Text style={[styles.bentoValue, { color: '#FEE140' }]} numberOfLines={1} adjustsFontSizeToFit>
+                {analytics.totalReceipts}
+              </Text>
+            </View>
+
+            {/* 3. Top Restaurant */}
+            {analytics.topRestaurants && analytics.topRestaurants.length > 0 ? (() => {
+              const topSpotName = analytics.topRestaurants[0].name;
+              const fontSize = topSpotName.length < 12 ? 32 : (topSpotName.length < 20 ? 24 : 20);
+              const lineHeight = fontSize * 1.2;
+              return (
+                <View style={styles.bentoCard}>
+                  <View style={styles.bentoHeader}>
+                    <Text style={styles.bentoIcon}>🏆</Text>
+                    <Text style={styles.bentoLabel}>Top Spot</Text>
+                  </View>
+                  <Text style={[styles.bentoValue, { color: '#4FACFE', fontSize, lineHeight }]} numberOfLines={2}>
+                    {topSpotName}
+                  </Text>
+                </View>
+              );
+            })() : <View style={styles.bentoCard} />}
+
+            {/* 4. Favorite Meal (Proxy) */}
+            {(() => {
+              const faveMealName = wrapped?.shame?.singleItemOrders?.mostCommon || wrapped?.flex?.coffeeAddiction?.mostOrdered || "Burgers";
+              const fontSize = faveMealName.length < 12 ? 32 : (faveMealName.length < 20 ? 24 : 20);
+              const lineHeight = fontSize * 1.2;
+              return (
+                <View style={styles.bentoCard}>
+                  <View style={styles.bentoHeader}>
+                    <Text style={styles.bentoIcon}>🍔</Text>
+                    <Text style={styles.bentoLabel}>Fave Meal</Text>
+                  </View>
+                  <Text style={[styles.bentoValue, { color: '#FF7F6A', fontSize, lineHeight }]} numberOfLines={2}>
+                    {faveMealName}
+                  </Text>
+                </View>
+              );
+            })()}
+          </View>
+          <Text style={styles.summaryFooter}>2025 Legend Status</Text>
+        </>
+      ),
+    });
+
     // HelloFresh Affiliate Slide - Final slide (only shown if feature flag is enabled)
     if (featureFlags.showHelloFresh) {
       const savings = calculateAnnualSavings();
@@ -1080,5 +1151,62 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  bentoContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    marginTop: 8,
+  },
+  bentoCard: {
+    width: '47%',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    minHeight: 120,
+    justifyContent: 'space-between',
+  },
+  bentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  bentoIcon: {
+    fontSize: 18,
+  },
+  bentoLabel: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  bentoValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  summaryFooter: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginTop: 24,
+    fontWeight: '500',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });
