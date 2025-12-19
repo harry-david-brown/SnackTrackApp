@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
-import { ErrorType } from '../components/ErrorMessage';
+import { ErrorType } from '../components/ui/ErrorMessage';
+import { logger } from './logger';
 
 export interface ApiError {
   message: string;
@@ -7,6 +8,87 @@ export interface ApiError {
   statusCode?: number;
   isRetryable: boolean;
 }
+
+/**
+ * Whitelist of safe error messages that can be shown to users
+ * These messages do not leak sensitive information
+ */
+const SAFE_ERROR_PATTERNS = [
+  // Authentication errors
+  /invalid email or password/i,
+  /email already exists/i,
+  /account with this email already exists/i,
+  /password must be at least/i,
+  /authentication required/i,
+  /session expired/i,
+  
+  // Validation errors
+  /invalid email format/i,
+  /invalid request/i,
+  /invalid data provided/i,
+  /missing required/i,
+  /invalid csv format/i,
+  /unknown csv format/i,
+  /wrong file/i,
+  /invalid file/i,
+  /no valid orders found/i,
+  
+  // Authorization errors
+  /you don't have permission/i,
+  /unauthorized/i,
+  /access denied/i,
+  
+  // Resource errors
+  /not found/i,
+  /resource not found/i,
+  
+  // Network errors
+  /network error/i,
+  /unable to connect/i,
+  /request timed out/i,
+  /server is busy/i,
+  /service temporarily unavailable/i,
+];
+
+/**
+ * Generic error messages for different error types
+ */
+const GENERIC_ERROR_MESSAGES = {
+  validation: 'Invalid request. Please check your input and try again.',
+  network: 'Unable to connect to the server. Please check your internet connection.',
+  server: 'Service temporarily unavailable. Please try again in a few minutes.',
+  unknown: 'An unexpected error occurred. Please try again.',
+  unauthorized: 'Authentication required. Please log in again.',
+};
+
+/**
+ * Sanitizes error message by checking against whitelist
+ * If message is not in whitelist, returns generic message
+ * @param errorMessage - The error message to sanitize
+ * @param errorType - The type of error (for generic message selection)
+ * @returns Sanitized error message safe for display
+ */
+const sanitizeErrorMessage = (errorMessage: string, errorType: ErrorType = 'unknown'): string => {
+  if (!errorMessage || typeof errorMessage !== 'string') {
+    return GENERIC_ERROR_MESSAGES[errorType];
+  }
+
+  // Check if error message matches any safe pattern
+  const isSafeMessage = SAFE_ERROR_PATTERNS.some(pattern => pattern.test(errorMessage));
+
+  if (isSafeMessage) {
+    // Limit length to prevent excessive messages
+    return errorMessage.substring(0, 200);
+  }
+
+  // Log the unsanitized error for debugging (server-side only in production)
+  if (__DEV__) {
+    logger.warn('Unsanitized error message blocked:', errorMessage);
+  }
+
+  // Return generic message for unknown error patterns
+  return GENERIC_ERROR_MESSAGES[errorType];
+};
 
 export const parseApiError = (error: any): ApiError => {
   // Network error (no response)
@@ -48,41 +130,15 @@ export const parseApiError = (error: any): ApiError => {
         const errorDetails = responseData?.details || [];
         const errorHint = responseData?.hint || '';
         
-        // Check if it's a file format/validation error (not data content errors)
-        // "No valid orders found" is a data content error, not a format error
-        const errorLower = errorText.toLowerCase();
-        const isFileFormatError = (
-          errorLower.includes('invalid csv format') ||
-          errorLower.includes('unknown csv format') ||
-          errorLower.includes('wrong file') ||
-          errorLower.includes('invalid file') ||
-          errorLower.includes('could not detect') ||
-          errorDetails.some((d: string) => {
-            const detailLower = d.toLowerCase();
-            return detailLower.includes('missing required') && 
-                   (detailLower.includes('header') || detailLower.includes('format'));
-          })
-        );
+        // Sanitize the error message
+        let userMessage = sanitizeErrorMessage(errorText, 'validation');
         
-        // Build user-friendly message
-        let userMessage: string;
-        if (isFileFormatError) {
-          // File format errors: show generic "Wrong file" message
-          userMessage = 'Wrong file! Please select your Uber user data.';
-          // Include hint if available for better user guidance
-          if (errorHint) {
-            userMessage += ` ${errorHint}`;
+        // If hint is provided and the main message passed sanitization, append it
+        if (errorHint && userMessage === errorText) {
+          const sanitizedHint = sanitizeErrorMessage(errorHint, 'validation');
+          if (sanitizedHint !== GENERIC_ERROR_MESSAGES.validation) {
+            userMessage += ` ${sanitizedHint}`;
           }
-        } else if (errorText) {
-          // Data content errors (like "No valid orders found") or other errors:
-          // Show the actual error message from backend
-          userMessage = errorText;
-          // Include hint if available
-          if (errorHint) {
-            userMessage += ` ${errorHint}`;
-          }
-        } else {
-          userMessage = 'Invalid request. Please check your input.';
         }
         
         return {
@@ -93,32 +149,36 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       case 401:
+        const unauthorizedMessage = responseData?.error || responseData?.message || '';
         return {
-          message: 'Authentication required. Please log in again.',
+          message: sanitizeErrorMessage(unauthorizedMessage, 'validation'),
           type: 'validation',
           statusCode,
           isRetryable: false,
         };
       
       case 403:
+        const forbiddenMessage = responseData?.error || responseData?.message || 'You don\'t have permission to perform this action.';
         return {
-          message: 'You don\'t have permission to perform this action.',
+          message: sanitizeErrorMessage(forbiddenMessage, 'validation'),
           type: 'validation',
           statusCode,
           isRetryable: false,
         };
       
       case 404:
+        const notFoundMessage = responseData?.error || responseData?.message || 'The requested resource was not found.';
         return {
-          message: responseData?.error || responseData?.message || 'The requested resource was not found.',
+          message: sanitizeErrorMessage(notFoundMessage, 'validation'),
           type: 'validation',
           statusCode,
           isRetryable: false,
         };
       
       case 422:
+        const unprocessableMessage = responseData?.error || responseData?.message || 'Invalid data provided.';
         return {
-          message: responseData?.error || responseData?.message || 'Invalid data provided.',
+          message: sanitizeErrorMessage(unprocessableMessage, 'validation'),
           type: 'validation',
           statusCode,
           isRetryable: false,
@@ -144,8 +204,9 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       default:
+        const defaultMessage = responseData?.error || responseData?.message || 'An unexpected error occurred.';
         return {
-          message: responseData?.error || responseData?.message || 'An unexpected error occurred.',
+          message: sanitizeErrorMessage(defaultMessage, 'server'),
           type: 'server',
           statusCode,
           isRetryable: statusCode >= 500,
@@ -153,9 +214,10 @@ export const parseApiError = (error: any): ApiError => {
     }
   }
 
-  // Generic error
+  // Generic error - sanitize error message
+  const genericMessage = error.message || 'An unexpected error occurred.';
   return {
-    message: error.message || 'An unexpected error occurred.',
+    message: sanitizeErrorMessage(genericMessage, 'unknown'),
     type: 'unknown',
     isRetryable: false,
   };

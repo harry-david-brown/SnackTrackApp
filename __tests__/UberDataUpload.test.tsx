@@ -6,7 +6,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { UberDataUpload } from '../components/UberDataUpload';
+import { UberDataUpload } from '../components/upload/UberDataUpload';
 import { useUser } from '../contexts/UserContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { csvApi } from '../services/api';

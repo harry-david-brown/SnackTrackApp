@@ -71,7 +71,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
 
     // Category diversity insight
     const uniqueCategories = new Set();
-    analytics.topRestaurants.forEach(restaurant => {
+    analytics.topRestaurants.forEach((restaurant: { name: string; count: number; totalSpent: number }) => {
       const name = restaurant.name.toLowerCase();
       if (name.includes('pizza')) uniqueCategories.add('pizza');
       else if (name.includes('burger') || name.includes('mcdonald')) uniqueCategories.add('fast food');
@@ -92,7 +92,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
 
     // Monthly spending insight
     if (analytics.monthlyBreakdown.length > 0) {
-      const monthlySpending = analytics.monthlyBreakdown.map(m => m.totalSpent);
+      const monthlySpending = analytics.monthlyBreakdown.map((m: { totalSpent: number; receiptCount: number; month: string }) => m.totalSpent);
       const maxMonth = Math.max(...monthlySpending);
       const minMonth = Math.min(...monthlySpending);
       const variation = ((maxMonth - minMonth) / minMonth) * 100;

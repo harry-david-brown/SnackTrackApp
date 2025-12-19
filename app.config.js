@@ -22,7 +22,7 @@ export default {
         "@react-native-google-signin/google-signin",
         {
           // Build URL scheme from unique iOS client ID: com.googleusercontent.apps.{uniqueId}
-          iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID || "92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp"}`
+          iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID}`
         }
       ],
       "expo-apple-authentication"
@@ -48,8 +48,8 @@ export default {
       favicon: "./assets/icon.png"
     },
     extra: {
-      // Default to Railway production API
-      apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://snacktrackapi-production.up.railway.app',
+      // API URL from environment variable (required - app will fail if not set)
+      apiUrl: process.env.EXPO_PUBLIC_API_URL,
       // Sentry DSN (optional - app works without it)
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
       // Gmail OAuth client IDs (optional - only needed for Gmail integration)

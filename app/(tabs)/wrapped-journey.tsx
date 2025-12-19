@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
-import WrappedShareJourney from '../../components/WrappedShareJourney';
 import { getCachedAnalytics } from '../../utils/offlineCache';
+
+// Lazy load WrappedShareJourney component for code splitting
+const WrappedShareJourney = lazy(() => import('../../components/wrapped/WrappedShareJourney'));
 
 const hasWrappedData = (summary: UserSummary | null | undefined): summary is UserSummary =>
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
@@ -149,11 +151,17 @@ export default function WrappedJourneyScreen() {
   }
 
   return (
-    <WrappedShareJourney
-      key={loadTimestamp}
-      analytics={analytics}
-      onClose={() => router.replace('/(tabs)')}
-    />
+    <Suspense fallback={
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+      </View>
+    }>
+      <WrappedShareJourney
+        key={loadTimestamp}
+        analytics={analytics}
+        onClose={() => router.replace('/(tabs)')}
+      />
+    </Suspense>
   );
 }
 

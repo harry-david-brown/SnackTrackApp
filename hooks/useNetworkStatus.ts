@@ -22,6 +22,15 @@ if (Platform.OS !== 'web') {
   });
 }
 
+/**
+ * Hook for monitoring network connectivity status
+ * Works on both web and native platforms
+ * @returns NetworkStatus object with connection state and network type
+ * @example
+ * ```tsx
+ * const { isConnected, isInternetReachable, type } = useNetworkStatus();
+ * ```
+ */
 export const useNetworkStatus = (): NetworkStatus => {
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
     isConnected: true,

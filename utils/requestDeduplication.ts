@@ -3,6 +3,8 @@
  * Prevents duplicate simultaneous API calls by caching in-flight requests
  */
 
+import { REQUEST_DEDUP } from '../constants';
+
 interface PendingRequest {
   promise: Promise<any>;
   timestamp: number;
@@ -12,7 +14,7 @@ interface PendingRequest {
 const pendingRequests = new Map<string, PendingRequest>();
 
 // Time window for deduplication (milliseconds)
-const DEDUP_WINDOW = 2000; // 2 seconds
+const DEDUP_WINDOW = REQUEST_DEDUP.WINDOW_MS;
 
 /**
  * Generate a unique key for a request
@@ -39,7 +41,7 @@ export function deduplicateRequest<T>(
   if (existing) {
     const age = now - existing.timestamp;
     // If request is recent (within dedup window), return the same promise
-    if (age < DEDUP_WINDOW) {
+    if (age < REQUEST_DEDUP.WINDOW_MS) {
       if (__DEV__) {
         console.log(`🔄 Deduplicating request: ${key} (age: ${age}ms)`);
       }

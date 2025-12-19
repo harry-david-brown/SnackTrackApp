@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
-import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
-import { EmptyState } from '../../components/EmptyState';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorTestingPanel } from '../../components/ErrorTestingPanel';
 import { ErrorThrower } from '../../components/ErrorThrower';
 import { parseApiError } from '../../utils/errorUtils';

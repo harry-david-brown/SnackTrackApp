@@ -5,11 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
-import { UberDataUpload } from '../../components/UberDataUpload';
-import UberDataTutorial from '../../components/UberDataTutorial';
-import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
+import { UberDataUpload } from '../../components/upload/UberDataUpload';
+import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import WrappedJourneyLoader from '../../components/wrapped/WrappedJourneyLoader';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { GmailConnection } from '../../components/GmailConnection';
+import { GmailConnection } from '../../components/gmail/GmailConnection';
 import { featureFlags } from '../../config/featureFlags';
 
 export default function UploadScreen() {
