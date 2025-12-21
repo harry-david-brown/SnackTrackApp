@@ -962,28 +962,27 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
                   <View style={styles.frame}>
                     {slide.content}
                   </View>
-                  </View>
-              </View>
-              
-              {/* Watermark Footer - positioned above progress bar */}
-              <View style={{
-                position: 'absolute',
-                bottom: SAFE_BOTTOM + 8,
-                left: 0,
-                right: 0,
-                alignItems: 'center',
-                pointerEvents: 'none',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  opacity: 1,
-                  fontWeight: '800',
-                  fontSize: 15,
-                  letterSpacing: 0.5,
+                </View>
+                
+                {/* Watermark Footer - positioned above progress bar */}
+                <View style={{
+                  position: 'absolute',
+                  bottom: SAFE_BOTTOM + 8,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  pointerEvents: 'none',
                 }}>
-                  @snacktrack
-                </Text>
-              </View>
+                  <Text style={{
+                    color: 'white',
+                    opacity: 1,
+                    fontWeight: '800',
+                    fontSize: 15,
+                    letterSpacing: 0.5,
+                  }}>
+                    @snacktrack
+                  </Text>
+                </View>
               </AnimatedBackground>
             ) : (
               <LinearGradient
