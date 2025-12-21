@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
@@ -7,18 +7,23 @@ import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import UberDataTutorial from '../../components/UberDataTutorial';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 import { featureFlags } from '../../config/featureFlags';
+import { authApi } from '../../services/authApi';
+import { getRefreshToken } from '../../utils/tokenManager';
 
 export default function ProfileScreen() {
   const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
+  const navigation = useNavigation();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const showReset = featureFlags.showResetOnboarding;
   
   // Use analytics from context instead of loading separately
@@ -54,9 +59,27 @@ export default function ProfileScreen() {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/');
+          onPress: async () => {
+            await logout();
+            
+            // Navigate to root route using parent navigator (Stack level)
+            // We need to navigate at the Stack level, not the tabs level
+            setTimeout(() => {
+              try {
+                // Get the parent navigator (Stack) and navigate to index
+                const parent = navigation.getParent();
+                if (parent) {
+                  // Navigate to index route at Stack level
+                  // @ts-ignore - Expo Router navigation types
+                  parent.navigate('index');
+                } else {
+                  // Fallback to router - but this might not work from tabs
+                  router.replace('/');
+                }
+              } catch {
+                // Navigation failed silently
+              }
+            }, 200);
           },
         },
       ]
@@ -87,14 +110,124 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.\n\nThis action is irreversible.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDeleteAccount,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Final Confirmation',
+      'This is your last chance to cancel. Your account will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes, Delete My Account',
+          style: 'destructive',
+          onPress: performAccountDeletion,
+        },
+      ]
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    setIsDeleting(true);
+    
+    try {
+      // Get refresh token to send with deletion request
+      const refreshToken = await getRefreshToken();
+      
+      // Call the API to delete the account
+      await authApi.deleteAccount(refreshToken || undefined);
+      
+      // Close the Help & Support modal
+      setShowHelpSupport(false);
+      
+      // Success - logout first
+      await logout();
+      
+      // Navigate to root route using parent navigator (Stack level)
+      // We need to navigate at the Stack level, not the tabs level
+      // Use a small delay to ensure logout state has propagated
+      setTimeout(() => {
+        try {
+          // Get the parent navigator (Stack) and navigate to index
+          const parent = navigation.getParent();
+          if (parent) {
+            // Navigate to index route at Stack level
+            // @ts-ignore - Expo Router navigation types
+            parent.navigate('index');
+          } else {
+            // Fallback to router - but this might not work from tabs
+            router.replace('/');
+          }
+        } catch {
+          // Navigation failed silently
+        }
+      }, 200);
+      
+      // Show success alert after navigation
+      setTimeout(() => {
+        Alert.alert(
+          'Account Deleted',
+          'Your account has been permanently deleted.',
+          [{ text: 'OK' }],
+          { cancelable: false }
+        );
+      }, 500);
+    } catch (error: any) {
+      
+      let errorMessage = 'Failed to delete account. Please try again.';
+      
+      if (error.response) {
+        // API returned an error
+        const status = error.response.status;
+        const errorData = error.response.data;
+        
+        if (status === 401) {
+          errorMessage = 'Your session has expired. Please log in again.';
+        } else if (status === 404) {
+          errorMessage = 'Account not found. It may have already been deleted.';
+        } else if (errorData?.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      Alert.alert('Deletion Failed', errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // No need to load analytics - Profile uses shared analytics from context
   // If analytics haven't been loaded yet, the Dashboard will load them when visited
 
-  if (!state.user) {
+  // If user is logged out, show loading - navigation will be handled by tabs layout
+  if (!state.user || !state.isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Loading...</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
         </View>
       </SafeAreaView>
     );
@@ -189,12 +322,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
           
-          {__DEV__ && (
           <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
             <Text style={[styles.menuText, { color: '#ff3b30' }]}>Sign Out</Text>
           </TouchableOpacity>
-          )}
         </View>
         
         {/* App Info */}
@@ -256,7 +387,7 @@ export default function ProfileScreen() {
                   A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
                   
                   <Text style={styles.helpQuestion}>Q: Can I delete my account?</Text>{'\n'}
-                  A: Yes, contact us at hello@getsnacktrack.com to request account deletion.
+                  A: Yes, you can delete your account directly from the Account Deletion section below.
                 </Text>
               </View>
 
@@ -274,6 +405,27 @@ export default function ProfileScreen() {
                   <Text style={styles.privacyLinkText}>View Privacy Policy</Text>
                   <Ionicons name="open-outline" size={20} color="#007AFF" />
                 </TouchableOpacity>
+              </View>
+
+              <View style={styles.helpSection}>
+                <Text style={styles.helpSectionTitle}>🗑️ Account Deletion</Text>
+                <TouchableOpacity 
+                  onPress={handleDeleteAccount} 
+                  style={styles.deleteAccountButton}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color="#ff3b30" />
+                  ) : (
+                    <>
+                      <Text style={styles.deleteAccountButtonText}>Delete My Account</Text>
+                      <Ionicons name="trash-outline" size={20} color="#ff3b30" />
+                    </>
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.deleteAccountWarning}>
+                  This will permanently delete all your data. This action cannot be undone.
+                </Text>
               </View>
             </ScrollView>
           </View>
@@ -333,6 +485,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
@@ -552,5 +709,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#007AFF',
     fontWeight: '500',
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#ffebee',
+  },
+  deleteAccountButtonText: {
+    fontSize: 15,
+    color: '#ff3b30',
+    fontWeight: '500',
+  },
+  deleteAccountWarning: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

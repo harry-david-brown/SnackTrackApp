@@ -65,6 +65,7 @@ export default function HomeScreen() {
     }
   }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding, state.analyticsLoading, onboardingLoading]);
 
+
   const handleOnboardingComplete = async () => {
     // Don't mark onboarding as complete yet - wait until tutorial is done
     // Just hide the onboarding screen to show the login screen

@@ -30,7 +30,7 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.snacktrack.mobile",
-      buildNumber: "4",
+      buildNumber: "5",
       displayName: "SnackTrack",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
@@ -42,7 +42,7 @@ export default {
         backgroundColor: "#ffffff"
       },
       package: "com.snacktrack.app",
-      versionCode: 1
+      versionCode: 2
     },
     web: {
       favicon: "./assets/icon.png"

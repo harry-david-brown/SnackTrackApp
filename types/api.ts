@@ -126,6 +126,11 @@ export interface VerifyEmailCodeResponse {
   message: string;
 }
 
+export interface DeleteAccountResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
 }

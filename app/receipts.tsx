@@ -127,9 +127,9 @@ export default function ReceiptsScreen() {
           return 'car-outline';
         case 'doordash':
           return 'bicycle-outline';
-        default:
-          return 'receipt-outline';
-      }
+      default:
+        return 'receipt-outline';
+    }
     }
     // Fallback to dataSource icons
     return receipt.dataSource === DataSource.EMAIL ? 'mail-outline' : 'document-outline';
@@ -142,9 +142,9 @@ export default function ReceiptsScreen() {
           return '#06C167'; // UberEats green (from UberDataTutorial)
         case 'doordash':
           return '#FF3000'; // DoorDash red
-        default:
-          return '#666';
-      }
+      default:
+        return '#666';
+    }
     }
     // Fallback to dataSource colors
     return receipt.dataSource === DataSource.EMAIL ? '#4CAF50' : '#2196F3';

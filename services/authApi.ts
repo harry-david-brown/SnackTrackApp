@@ -17,6 +17,7 @@ import {
   SendVerificationEmailResponse,
   VerifyEmailCodeRequest,
   VerifyEmailCodeResponse,
+  DeleteAccountResponse,
 } from '../types/api';
 import {
   storeAuthTokens,
@@ -312,6 +313,34 @@ export const authApi = {
   ): Promise<VerifyEmailCodeResponse> => {
     const response = await api.post<VerifyEmailCodeResponse>('/auth/email/verify/confirm', data);
     return response.data;
+  },
+
+  /**
+   * Delete user account permanently
+   * This will delete all user data including receipts, OAuth accounts, and user record
+   */
+  deleteAccount: async (refreshToken?: string): Promise<DeleteAccountResponse> => {
+    try {
+      // If refreshToken is not provided, try to get it from storage
+      const tokenToUse = refreshToken || await getRefreshToken();
+      
+      const response = await api.delete<DeleteAccountResponse>('/auth/delete-account', {
+        data: tokenToUse ? { refreshToken: tokenToUse } : {},
+      });
+      
+      // Clear local tokens after successful deletion
+      await clearAuthTokens();
+      
+      if (__DEV__) {
+        console.log('✅ Account deleted successfully');
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      // Even if deletion fails, clear local tokens for security
+      await clearAuthTokens();
+      throw error;
+    }
   },
 };
 

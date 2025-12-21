@@ -7,11 +7,12 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
 import { SlideInView } from '../../components/SlideInView';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
   const { formatCurrency } = useCurrency();
+  const navigation = useNavigation();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const initialLoadDoneRef = useRef(false);
   
@@ -51,10 +52,40 @@ export default function DashboardScreen() {
   const handleLogout = async () => {
     try {
       await logout();
-      router.replace('/');
+      
+      // Navigate to root route using parent navigator (Stack level)
+      // We need to navigate at the Stack level, not the tabs level
+      setTimeout(() => {
+        try {
+          // Get the parent navigator (Stack) and navigate to index
+          const parent = navigation.getParent();
+          if (parent) {
+            // Navigate to index route at Stack level
+            // @ts-ignore - Expo Router navigation types
+            parent.navigate('index');
+          } else {
+            // Fallback to router - but this might not work from tabs
+            router.replace('/');
+          }
+        } catch {
+          // Navigation failed silently
+        }
+      }, 200);
     } catch {
       // Force navigation even if logout fails
-      router.replace('/');
+      setTimeout(() => {
+        try {
+          const parent = navigation.getParent();
+          if (parent) {
+            // @ts-ignore - Expo Router navigation types
+            parent.navigate('index');
+          } else {
+            router.replace('/');
+          }
+        } catch {
+          // Navigation failed silently
+        }
+      }, 200);
     }
   };
 
