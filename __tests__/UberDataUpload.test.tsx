@@ -344,8 +344,8 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        // "Invalid file format" contains "invalid" which triggers file error message
-        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Wrong file! Please select your Uber user data.');
+        // "Invalid file format" passes through sanitization since it matches /invalid file/i pattern
+        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
       }, { timeout: 3000 });
     });
   });

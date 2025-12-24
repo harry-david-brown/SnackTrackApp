@@ -14,12 +14,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as offlineCache from '../../utils/offlineCache';
 
 // Mock dependencies
-jest.mock('../contexts/UserContext');
-jest.mock('../hooks/useNetworkStatus');
-jest.mock('../services/api');
+jest.mock('../../contexts/UserContext');
+jest.mock('../../hooks/useNetworkStatus');
+jest.mock('../../services/api');
 jest.mock('expo-document-picker');
-jest.mock('../utils/offlineCache');
-jest.mock('../utils/sentry', () => ({
+jest.mock('../../utils/offlineCache');
+jest.mock('../../utils/sentry', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),
 }));
@@ -344,8 +344,8 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        // "Invalid file format" contains "invalid" which triggers file error message
-        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Wrong file! Please select your Uber user data.');
+        // "Invalid file format" passes through sanitization since it matches /invalid file/i pattern
+        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
       }, { timeout: 3000 });
     });
   });

@@ -37,8 +37,8 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(400);
       expect(result.isRetryable).toBe(false);
-      // File-related errors should show user-friendly message
-      expect(result.message).toBe('Wrong file! Please select your Uber user data.');
+      // File-related errors pass through sanitization since they're in the whitelist
+      expect(result.message).toBe('Invalid CSV format');
     });
 
     it('should parse 400 non-file validation errors', () => {
@@ -69,7 +69,8 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(401);
       expect(result.isRetryable).toBe(false);
-      expect(result.message).toContain('log in again');
+      // Empty error message gets sanitized to generic validation message
+      expect(result.message).toBe('Invalid request. Please check your input and try again.');
     });
 
     it('should parse 429 rate limit errors', () => {
@@ -123,7 +124,8 @@ describe('Error Utils', () => {
 
       expect(result.type).toBe('unknown');
       expect(result.isRetryable).toBe(false);
-      expect(result.message).toBe('Something went wrong');
+      // Generic error messages not in whitelist get sanitized
+      expect(result.message).toBe('An unexpected error occurred. Please try again.');
     });
 
     it('should handle errors without message', () => {
@@ -167,9 +169,11 @@ describe('Error Utils', () => {
     it('should extract error message', () => {
       expect(getErrorMessage({ code: 'NETWORK_ERROR' })).toContain('internet connection');
       // Backend returns 'error' field, but also supports 'message' for backward compatibility
-      expect(getErrorMessage({ response: { status: 400, data: { error: 'Bad request' } } })).toBe('Bad request');
-      expect(getErrorMessage({ response: { status: 400, data: { message: 'Bad request' } } })).toBe('Bad request');
-      expect(getErrorMessage({ message: 'Custom error' })).toBe('Custom error');
+      // "Bad request" is not in the whitelist, so it gets sanitized
+      expect(getErrorMessage({ response: { status: 400, data: { error: 'Bad request' } } })).toBe('Invalid request. Please check your input and try again.');
+      expect(getErrorMessage({ response: { status: 400, data: { message: 'Bad request' } } })).toBe('Invalid request. Please check your input and try again.');
+      // "Custom error" is not in the whitelist, so it gets sanitized
+      expect(getErrorMessage({ message: 'Custom error' })).toBe('An unexpected error occurred. Please try again.');
     });
   });
 

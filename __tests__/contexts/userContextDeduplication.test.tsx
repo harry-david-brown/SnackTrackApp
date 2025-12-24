@@ -10,7 +10,7 @@ import { analyticsApi } from '../../services/analyticsApi';
 import { clearPendingRequests } from '../../utils/requestDeduplication';
 
 // Mock dependencies
-jest.mock('../services/analyticsApi');
+jest.mock('../../services/analyticsApi');
 
 // Mock console methods
 const originalConsoleLog = console.log;

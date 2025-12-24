@@ -118,7 +118,7 @@ describe('Token Manager', () => {
       const result = await getAccessToken();
 
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith('Error getting access token:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting access token:', expect.any(Error));
     });
   });
 
@@ -139,7 +139,7 @@ describe('Token Manager', () => {
       const result = await getRefreshToken();
 
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith('Error getting refresh token:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting refresh token:', expect.any(Error));
     });
   });
 
@@ -160,7 +160,7 @@ describe('Token Manager', () => {
       const result = await getUserId();
 
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith('Error getting user ID:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting user ID:', expect.any(Error));
     });
   });
 
@@ -189,7 +189,7 @@ describe('Token Manager', () => {
       const result = await getUserData();
 
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith('Error getting user data:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting user data:', expect.any(Error));
     });
   });
 
@@ -330,7 +330,7 @@ describe('Token Manager', () => {
 
       expect(result).toBe(false);
       // The error is actually logged by getAccessToken, not isAuthenticated
-      expect(console.error).toHaveBeenCalledWith('Error getting access token:', expect.any(Error));
+      expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting access token:', expect.any(Error));
     });
   });
 

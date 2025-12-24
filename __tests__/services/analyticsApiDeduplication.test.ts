@@ -8,7 +8,12 @@ import api from '../../services/api';
 import { clearPendingRequests } from '../../utils/requestDeduplication';
 
 // Mock the API client
-jest.mock('../services/api');
+jest.mock('../../services/api');
+
+// Mock security validation to bypass ownership checks in tests
+jest.mock('../../utils/securityValidation', () => ({
+  validateAndAuthorizeUserId: jest.fn((userId: string) => Promise.resolve(userId)),
+}));
 
 // Mock console.log to avoid noise in test output
 const originalConsoleLog = console.log;
@@ -36,7 +41,7 @@ describe('Analytics API Deduplication', () => {
   });
 
   const mockUserSummary = {
-    user: { id: 'test-user-id' },
+    user: { id: '123e4567-e89b-12d3-a456-426614174000' },
     statistics: {
       totalSpent: 1000,
       totalReceipts: 10,
@@ -62,7 +67,7 @@ describe('Analytics API Deduplication', () => {
 
       (api.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
       const promise1 = analyticsApi.getUserSummary(userId, false);
       const promise2 = analyticsApi.getUserSummary(userId, false);
       const promise3 = analyticsApi.getUserSummary(userId, false);
@@ -77,30 +82,32 @@ describe('Analytics API Deduplication', () => {
       // All results should be the same
       expect(results[0]).toEqual(results[1]);
       expect(results[1]).toEqual(results[2]);
-      expect(results[0].userId).toBe('test-user-id');
+      expect(results[0].userId).toBe('123e4567-e89b-12d3-a456-426614174000');
       expect(results[0].totalSpent).toBe(1000);
     });
 
     it('should create separate requests for different users', async () => {
+      const userId1 = '123e4567-e89b-12d3-a456-426614174000';
+      const userId2 = '223e4567-e89b-12d3-a456-426614174001';
       const mockResponse1 = {
-        data: { ...mockUserSummary, user: { id: 'user-1' } },
+        data: { ...mockUserSummary, user: { id: userId1 } },
       };
       const mockResponse2 = {
-        data: { ...mockUserSummary, user: { id: 'user-2' } },
+        data: { ...mockUserSummary, user: { id: userId2 } },
       };
 
       (api.get as jest.Mock)
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2);
 
-      const promise1 = analyticsApi.getUserSummary('user-1', false);
-      const promise2 = analyticsApi.getUserSummary('user-2', false);
+      const promise1 = analyticsApi.getUserSummary(userId1, false);
+      const promise2 = analyticsApi.getUserSummary(userId2, false);
 
       await Promise.all([promise1, promise2]);
 
       expect(api.get).toHaveBeenCalledTimes(2);
-      expect(api.get).toHaveBeenCalledWith('/users/user-1/summary');
-      expect(api.get).toHaveBeenCalledWith('/users/user-2/summary');
+      expect(api.get).toHaveBeenCalledWith(`/users/${userId1}/summary`);
+      expect(api.get).toHaveBeenCalledWith(`/users/${userId2}/summary`);
     });
 
     it('should create separate requests for includeWrapped parameter', async () => {
@@ -116,7 +123,7 @@ describe('Analytics API Deduplication', () => {
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
       const promise1 = analyticsApi.getUserSummary(userId, false);
       const promise2 = analyticsApi.getUserSummary(userId, true);
 
@@ -133,7 +140,7 @@ describe('Analytics API Deduplication', () => {
 
       (api.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
       const promise1 = analyticsApi.getUserSummary(userId, true);
       const promise2 = analyticsApi.getUserSummary(userId, true);
       const promise3 = analyticsApi.getUserSummary(userId, true);
@@ -153,7 +160,7 @@ describe('Analytics API Deduplication', () => {
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(mockResponse);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
 
       // First request fails
       await expect(analyticsApi.getUserSummary(userId, false)).rejects.toThrow('Network error');
@@ -162,14 +169,14 @@ describe('Analytics API Deduplication', () => {
       const result = await analyticsApi.getUserSummary(userId, false);
 
       expect(api.get).toHaveBeenCalledTimes(2);
-      expect(result.userId).toBe('test-user-id');
+      expect(result.userId).toBe('123e4567-e89b-12d3-a456-426614174000');
     });
 
     it('should handle rapid sequential requests', async () => {
       const mockResponse = { data: mockUserSummary };
       (api.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
       
       // Make 10 rapid requests
       const promises = Array.from({ length: 10 }, () => 
@@ -196,14 +203,14 @@ describe('Analytics API Deduplication', () => {
 
       (api.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const userId = 'test-user-id';
+      const userId = '123e4567-e89b-12d3-a456-426614174000';
       const promise1 = analyticsApi.getUserSummary(userId, true);
       const promise2 = analyticsApi.getUserSummary(userId, true);
 
       const [result1, result2] = await Promise.all([promise1, promise2]);
 
       // Both should have the same transformed data
-      expect(result1.userId).toBe('test-user-id');
+      expect(result1.userId).toBe('123e4567-e89b-12d3-a456-426614174000');
       expect(result1.totalSpent).toBe(1000);
       expect(result1.totalReceipts).toBe(10);
       expect(result1.wrappedAnalytics).toBeDefined();

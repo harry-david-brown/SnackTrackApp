@@ -10,9 +10,9 @@ import * as offlineCache from '../../utils/offlineCache';
 import { csvApi } from '../../services/api';
 
 // Mock dependencies
-jest.mock('../hooks/useNetworkStatus');
-jest.mock('../utils/offlineCache');
-jest.mock('../services/api');
+jest.mock('../../hooks/useNetworkStatus');
+jest.mock('../../utils/offlineCache');
+jest.mock('../../services/api');
 
 const mockUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
 const mockGetPendingOperations = offlineCache.getPendingOperations as jest.MockedFunction<typeof offlineCache.getPendingOperations>;

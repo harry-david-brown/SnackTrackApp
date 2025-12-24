@@ -8,10 +8,10 @@ import * as tokenManager from '../../utils/tokenManager';
 import { clearPendingRequests } from '../../utils/requestDeduplication';
 
 // Mock token manager
-jest.mock('../utils/tokenManager');
+jest.mock('../../utils/tokenManager');
 
 // Mock API client
-jest.mock('../services/api', () => ({
+jest.mock('../../services/api', () => ({
   __esModule: true,
   default: {
     post: jest.fn(),
@@ -124,7 +124,7 @@ describe('Auth API Deduplication - validateSession', () => {
       (tokenManager.getRefreshToken as jest.Mock).mockResolvedValue('refresh-token');
       
       // Mock the refresh API call
-      const api = require('../services/api').default;
+      const api = require('../../services/api').default;
       (api.post as jest.Mock).mockResolvedValue({
         data: {
           accessToken: 'new-access-token',
