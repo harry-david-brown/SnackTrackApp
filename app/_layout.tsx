@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
-import { ErrorBoundary } from '../components/ErrorBoundary';
+import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { initSentry } from '../utils/sentry';
 
 // Initialize Sentry as early as possible

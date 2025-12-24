@@ -1,5 +1,4 @@
 import api from './api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   RegisterRequest,
   RegisterResponse,
@@ -28,6 +27,8 @@ import {
   getAccessToken,
 } from '../utils/tokenManager';
 import { deduplicateRequest } from '../utils/requestDeduplication';
+import { logger } from '../utils/logger';
+import { JWT_CONFIG } from '../constants';
 
 /**
  * Authentication API service
@@ -35,6 +36,9 @@ import { deduplicateRequest } from '../utils/requestDeduplication';
 export const authApi = {
   /**
    * Register a new user with email and password
+   * @param data - Registration data containing email and password
+   * @returns Promise resolving to RegisterResponse with user data and tokens
+   * @throws {Error} If registration fails (e.g., email already exists, invalid password)
    */
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
     try {
@@ -56,6 +60,9 @@ export const authApi = {
 
   /**
    * Login existing user with email and password
+   * @param data - Login credentials (email and password)
+   * @returns Promise resolving to LoginResponse with user data and tokens
+   * @throws {Error} If login fails (e.g., invalid credentials)
    */
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     try {
@@ -70,20 +77,22 @@ export const authApi = {
       );
 
       return response.data;
-      return response.data;
     } catch (error: any) {
       throw error;
     }
   },
 
   /**
-   * Login with Google ID Token
+   * Login with Google ID Token (OAuth)
+   * @param idToken - Google OAuth ID token from Google Sign-In
+   * @returns Promise resolving to LoginResponse with user data and tokens
+   * @throws {Error} If Google login fails (e.g., invalid token)
    */
   googleLogin: async (idToken: string): Promise<LoginResponse> => {
     try {
-      console.log('Sending Google Login request to API...');
+      logger.debug('Sending Google Login request to API...');
       const response = await api.post<LoginResponse>('/auth/google', { idToken });
-      console.log('API Response received:', response.status);
+      logger.apiResponse(response.status, '/auth/google');
       
       // Store tokens and user data
       await storeAuthTokens(
@@ -100,7 +109,11 @@ export const authApi = {
   },
 
   /**
-   * Login with Apple Identity Token
+   * Login with Apple Identity Token (Sign in with Apple)
+   * @param identityToken - Apple OAuth identity token from Apple Sign-In
+   * @param user - Optional user data from Apple (email, name) - may be null on subsequent logins
+   * @returns Promise resolving to LoginResponse with user data and tokens
+   * @throws {Error} If Apple login fails (e.g., invalid token format)
    */
   appleLogin: async (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }): Promise<LoginResponse> => {
     try {
@@ -111,7 +124,7 @@ export const authApi = {
 
       // Validate token format (basic JWT structure: header.payload.signature)
       const tokenParts = identityToken.split('.');
-      if (tokenParts.length !== 3) {
+      if (tokenParts.length !== JWT_CONFIG.REQUIRED_PARTS) {
         throw new Error('Invalid token format: token must be a valid JWT');
       }
 
@@ -121,19 +134,15 @@ export const authApi = {
       }
 
       // Log request details (without exposing full token)
-      if (__DEV__) {
-        console.log('🍎 Sending Apple Login request to API...');
-        console.log('📋 Token length:', identityToken.length);
-        console.log('📋 Token preview:', identityToken.substring(0, 20) + '...');
-        console.log('👤 User data:', user ? { email: user.email, hasName: !!user.name } : 'none');
-      }
+      logger.debug('Sending Apple Login request to API...');
+      logger.debug('Token length:', identityToken.length);
+      logger.debug('Token: [REDACTED]');
+      logger.debug('User data:', user ? { email: '[REDACTED]', hasName: !!user.name, hasFirstName: !!user.name?.firstName, hasLastName: !!user.name?.lastName } : 'none');
 
       const requestPayload = { identityToken, user };
       const response = await api.post<LoginResponse>('/auth/apple', requestPayload);
       
-      if (__DEV__) {
-        console.log('✅ API Response received:', response.status);
-      }
+      logger.apiResponse(response.status, '/auth/apple');
 
       // Store tokens and user data
       await storeAuthTokens(
@@ -145,21 +154,23 @@ export const authApi = {
 
       return response.data;
     } catch (error: any) {
-      // Enhanced error logging for debugging
-      if (__DEV__) {
-        console.error('❌ Apple Login API Error:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          message: error.response?.data?.message || error.message,
-          data: error.response?.data,
-        });
-      }
+      // Enhanced error logging for debugging (sanitized)
+      logger.error('Apple Login API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.response?.data?.message || error.message,
+        hasData: !!error.response?.data,
+        // Do not log full error.data to prevent token/PII leakage
+      });
       throw error;
     }
   },
 
   /**
    * Refresh the access token using refresh token
+   * Automatically clears tokens if refresh fails
+   * @returns Promise resolving to RefreshTokenResponse with new tokens
+   * @throws {Error} If refresh fails (e.g., refresh token expired)
    */
   refresh: async (): Promise<RefreshTokenResponse> => {
     try {
@@ -179,9 +190,7 @@ export const authApi = {
         response.data.refreshToken
       );
       
-      if (__DEV__) {
-        console.log('✅ Token refreshed successfully');
-      }
+      logger.debug('Token refreshed successfully');
       
       return response.data;
     } catch (error: any) {
@@ -194,6 +203,8 @@ export const authApi = {
 
   /**
    * Logout user and invalidate refresh token
+   * Always succeeds locally even if server request fails
+   * @returns Promise resolving to LogoutResponse indicating success
    */
   logout: async (): Promise<LogoutResponse> => {
     try {
@@ -202,6 +213,7 @@ export const authApi = {
       if (!refreshToken) {
         // No token to logout, just clear local storage
         await clearAuthTokens();
+        
         return { success: true, message: 'Logged out successfully' };
       }
       
@@ -212,15 +224,12 @@ export const authApi = {
       // Clear local tokens
       await clearAuthTokens();
       
-      if (__DEV__) {
-        console.log('✅ User logged out successfully');
-      }
+      logger.debug('User logged out successfully');
       
       return response.data;
     } catch (error: any) {
       // Even if logout fails on server, clear local tokens
       await clearAuthTokens();
-      
       // Don't throw error, logout should always succeed locally
       return { success: true, message: 'Logged out locally' };
     }
@@ -228,6 +237,7 @@ export const authApi = {
 
   /**
    * Get a valid access token (refreshes if needed)
+   * @returns Promise resolving to access token string or null if refresh fails
    */
   getValidToken: async (): Promise<string | null> => {
     try {
@@ -235,9 +245,7 @@ export const authApi = {
       const expired = await isTokenExpired();
       
       if (expired) {
-        if (__DEV__) {
-          console.log('🔄 Token expired, refreshing...');
-        }
+        logger.debug('Token expired, refreshing...');
         await authApi.refresh();
       }
       
@@ -249,6 +257,8 @@ export const authApi = {
 
   /**
    * Check if the current session is valid
+   * Uses request deduplication to prevent multiple simultaneous validation calls
+   * @returns Promise resolving to true if session is valid, false otherwise
    */
   validateSession: async (): Promise<boolean> => {
     return deduplicateRequest(

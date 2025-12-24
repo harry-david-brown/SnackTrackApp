@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { getEnvConfig } from '../config/env';
+import { logger } from './logger';
 
 /**
  * Initialize Sentry for error tracking and performance monitoring
@@ -13,7 +14,7 @@ export function initSentry(): void {
   // Only initialize if DSN is provided
   if (!sentryDsn) {
     if (__DEV__) {
-      console.log('ℹ️  Sentry DSN not configured - error tracking disabled');
+      logger.info('ℹ️  Sentry DSN not configured - error tracking disabled');
     }
     return;
   }
@@ -67,11 +68,11 @@ export function initSentry(): void {
     });
     
     if (__DEV__) {
-      console.log('✅ Sentry initialized successfully');
+      logger.debug('✅ Sentry initialized successfully');
     }
   } catch (error) {
     // Don't crash the app if Sentry initialization fails
-    console.error('❌ Failed to initialize Sentry:', error);
+    logger.error('❌ Failed to initialize Sentry:', error);
   }
 }
 

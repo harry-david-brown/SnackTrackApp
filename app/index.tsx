@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
-import { LoginScreen } from '../components/LoginScreen';
+import { LoginScreen } from '../components/auth/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
-import UberDataTutorial from '../components/UberDataTutorial';
+import UberDataTutorial from '../components/upload/UberDataTutorial';
 
 export default function HomeScreen() {
   const { state } = useUser();

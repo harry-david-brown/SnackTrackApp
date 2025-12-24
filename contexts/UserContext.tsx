@@ -14,119 +14,24 @@ import {
 } from '../utils/tokenManager';
 import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
 import { setSentryUser, clearSentryUser } from '../utils/sentry';
-
-// User state interface
-interface UserState {
-  user: AppUser | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  error: string | null;
-  analytics: UserSummary | null;
-  analyticsLoading: boolean;
-}
-
-// User actions
-type UserAction =
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: AppUser | null }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'LOGOUT' }
-  | { type: 'UPDATE_USER_DATA'; payload: Partial<AppUser> }
-  | { type: 'SET_ANALYTICS'; payload: UserSummary | null }
-  | { type: 'SET_ANALYTICS_LOADING'; payload: boolean };
-
-// User context interface
-interface UserContextType {
-  state: UserState;
-  login: (email: string, password: string) => Promise<LoginResponse>;
-  loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
-  loginWithApple: (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<LoginResponse>;
-  register: (email: string, password: string) => Promise<RegisterResponse>;
-  logout: () => Promise<void>;
-  refreshUserData: () => Promise<void>;
-  loadAnalytics: (includeWrapped?: boolean) => Promise<UserSummary | null>;
-  setAnalytics: (analytics: UserSummary) => void;
-  clearAnalytics: () => void;
-  clearError: () => void;
-  markEmailVerified: () => void;
-}
-
-// Initial state
-const initialState: UserState = {
-  user: null,
-  isLoading: false,
-  isAuthenticated: false,
-  error: null,
-  analytics: null,
-  analyticsLoading: false,
-};
-
-// User reducer
-const userReducer = (state: UserState, action: UserAction): UserState => {
-  switch (action.type) {
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload,
-        error: null,
-      };
-    case 'SET_USER':
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: !!action.payload,
-        isLoading: false,
-        error: null,
-      };
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        error: null,
-        isLoading: false,
-        analytics: null,
-        analyticsLoading: false,
-      };
-    case 'UPDATE_USER_DATA':
-      return {
-        ...state,
-        user: state.user ? { ...state.user, ...action.payload } : null,
-      };
-    case 'SET_ANALYTICS':
-      return {
-        ...state,
-        analytics: action.payload,
-      };
-    case 'SET_ANALYTICS_LOADING':
-      return {
-        ...state,
-        analyticsLoading: action.payload,
-      };
-    default:
-      return state;
-  }
-};
+import { loadUserAnalytics } from '../utils/userAnalytics';
+import { logger } from '../utils/logger';
+import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '../constants';
+import { UserState, UserAction, UserContextType, initialState } from './userTypes';
+import { userReducer } from './userReducer';
 
 // Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 // Legacy storage keys (for backward compatibility during migration)
 const LEGACY_STORAGE_KEYS = {
-  USER_DATA: '@snacktrack_user_data',
-  USER_ID: '@snacktrack_user_id',
+  USER_DATA: STORAGE_KEYS.LEGACY_USER_DATA,
+  USER_ID: STORAGE_KEYS.LEGACY_USER_ID,
 };
 
 // UUID validation function
 const isValidUUID = (uuid: string): boolean => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
+  return UUID_REGEX.test(uuid);
 };
 
 // User provider component
@@ -148,7 +53,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   // Clear storage if user ID is not a valid UUID
   useEffect(() => {
     if (state.user && !isValidUUID(state.user.id)) {
-      console.log('Invalid UUID detected, clearing storage...');
+      logger.warn('Invalid UUID detected, clearing storage...');
       clearUserStorage();
       dispatch({ type: 'SET_USER', payload: null });
     }
@@ -178,74 +83,22 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             const userWithSpending: AppUser = {
               ...userData,
               emailVerified: userData.emailVerified ?? false,
-              totalSpent: 0, // Will be updated when analytics loads
-              receiptCount: 0,
+              totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when analytics loads
+              receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
             };
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
             
-            // Prevent duplicate analytics loads
-            if (!loadingAnalyticsRef.current) {
-            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-
-              loadingAnalyticsRef.current = analyticsApi.getUserSummary(userId, false)
-              .then((summary) => {
-                dispatch({ type: 'SET_ANALYTICS', payload: summary });
-                cacheAnalytics(userId, summary).catch(() => {
-                  // Silently fail caching - not critical
-                });
-                
-                // Update user's totalSpent from the summary data
-                if (summary.totalSpent !== userWithSpending.totalSpent) {
-                    dispatch({
-                      type: 'UPDATE_USER_DATA', payload: {
-                    totalSpent: summary.totalSpent,
-                    receiptCount: summary.totalReceipts 
-                      }
-                    });
-                }
-                
-                // After /summary completes, if user has data, immediately preload wrapped data
-                if (summary.totalReceipts > 0) {
-                  // Preload wrapped analytics in background
-                  analyticsApi.getUserSummary(userId, true)
-                    .then((wrappedSummary) => {
-                      dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-                      dispatch({
-                        type: 'UPDATE_USER_DATA',
-                        payload: {
-                          totalSpent: wrappedSummary.totalSpent,
-                          receiptCount: wrappedSummary.totalReceipts,
-                        },
-                      });
-                      cacheAnalytics(userId, wrappedSummary).catch(() => {
-                        // Silently fail caching - not critical
-                      });
-                    })
-                    .catch(() => {
-                      // Silently fail wrapped preload - not critical
-                    });
-                }
-
-                  return summary;
-              })
-              .catch((analyticsError) => {
-                // Try to use cached data on error
-                getCachedAnalytics(userId).then((cached) => {
-                  if (cached) {
-                    dispatch({ type: 'SET_ANALYTICS', payload: cached });
-                  }
-                }).catch(() => {
-                  // Silently fail cache retrieval
-                });
-                console.warn('Failed to load analytics on app start:', analyticsError);
-                  return null;
-              })
-              .finally(() => {
-                  loadingAnalyticsRef.current = null;
-                dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-              });
-            }
+            // Load analytics using extracted utility function
+            loadUserAnalytics({
+              userId,
+              user: userWithSpending,
+              dispatch,
+              loadingRef: loadingAnalyticsRef,
+              preloadWrapped: true,
+            }).catch(() => {
+              // Silently fail - analytics loading is non-critical for app start
+            });
           } else {
             // Session invalid, clear and force re-login
             await clearAuthTokens();
@@ -282,8 +135,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         clearAuthTokens(),
         AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_DATA),
         AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_ID),
-        AsyncStorage.removeItem('@snacktrack_analytics_cache'),
-        AsyncStorage.removeItem('@snacktrack_last_sync'),
+        AsyncStorage.removeItem(STORAGE_KEYS.ANALYTICS_CACHE),
+        AsyncStorage.removeItem(STORAGE_KEYS.LAST_SYNC),
       ]);
     } catch (error) {
       // Silently fail - we tried our best to clear storage
@@ -299,13 +152,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const response = await authApi.register({ email, password });
 
       // Debug: Log response structure in development
-      if (__DEV__) {
-        console.log('📝 Registration response:', JSON.stringify(response, null, 2));
-      }
+      logger.debug('Registration response:', JSON.stringify(response, null, 2));
 
       // Validate response structure
       if (!response.user) {
-        console.error('❌ Registration response missing user object:', response);
+        logger.error('Registration response missing user object:', response);
         throw new Error('Invalid registration response from server');
       }
       
@@ -318,13 +169,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         email: response.email,
         createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
-        totalSpent: 0, // Will be updated when dashboard loads
-        receiptCount: 0,
+        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when dashboard loads
+        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
       };
 
       dispatch({ type: 'SET_USER', payload: user });
 
-      console.log('🔍 [UserContext] User registered and set:', {
+      logger.debug('[UserContext] User registered and set:', {
         userId: user.id,
         email: user.email,
         isAuthenticated: true, // Will be set by reducer
@@ -333,9 +184,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
       
-      if (__DEV__) {
-        console.log('✅ User registered successfully:', email);
-      }
+      logger.info('User registered successfully:', email);
       return response;
     } catch (error: any) {
       let errorMessage = 'Failed to create account';
@@ -370,13 +219,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const response = await authApi.login({ email, password });
 
       // Debug: Log response structure in development
-      if (__DEV__) {
-        console.log('📝 Login response:', JSON.stringify(response, null, 2));
-      }
+      logger.debug('Login response:', JSON.stringify(response, null, 2));
 
       // Validate response structure
       if (!response.user) {
-        console.error('❌ Login response missing user object:', response);
+        logger.error('Login response missing user object:', response);
         throw new Error('Invalid login response from server');
       }
       
@@ -389,8 +236,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         email: response.email,
         createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
-        totalSpent: 0, // Will be updated when dashboard loads
-        receiptCount: 0,
+        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when dashboard loads
+        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
       };
 
       dispatch({ type: 'SET_USER', payload: user });
@@ -401,77 +248,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Start loading analytics immediately (non-blocking) so dashboard has data ready
       // This prevents "Total Spent" from popping in after dashboard renders
       // Use response.userId directly since state.user might not be updated yet
-      // Prevent duplicate analytics loads
-      if (!loadingAnalyticsRef.current) {
-      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-
-        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
-        .then((summary) => {
-          dispatch({ type: 'SET_ANALYTICS', payload: summary });
-          cacheAnalytics(response.userId, summary).catch(() => {
-            // Silently fail caching - not critical
-          });
-
-          // Update user's totalSpent from the summary data
-          if (summary.totalSpent !== user.totalSpent) {
-              dispatch({
-                type: 'UPDATE_USER_DATA', payload: {
-              totalSpent: summary.totalSpent,
-              receiptCount: summary.totalReceipts 
-                }
-              });
-          }
-          
-          // After /summary completes, if user has data, immediately preload wrapped data
-          // This ensures Wrapped Journey tab loads instantly when clicked
-          // Check both totalReceipts and totalSpent to be safe
-          const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
-          if (hasData) {
-            // Preload wrapped analytics in background (don't await - let it run async)
-            analyticsApi.getUserSummary(response.userId, true)
-              .then((wrappedSummary) => {
-                // Always update analytics with the wrapped summary (it has all the data)
-          dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-          dispatch({
-            type: 'UPDATE_USER_DATA',
-            payload: {
-              totalSpent: wrappedSummary.totalSpent,
-              receiptCount: wrappedSummary.totalReceipts,
-            },
-          });
-                cacheAnalytics(response.userId, wrappedSummary).catch(() => {
-                  // Silently fail caching - not critical
-                });
-              })
-              .catch(() => {
-                // Silently fail wrapped preload - not critical for login
-              });
-          }
-
-            return summary;
-        })
-        .catch((analyticsError) => {
-          // Try to use cached data on error
-          getCachedAnalytics(response.userId).then((cached) => {
-            if (cached) {
-              dispatch({ type: 'SET_ANALYTICS', payload: cached });
-            }
-          }).catch(() => {
-            // Silently fail cache retrieval
-          });
+      loadUserAnalytics({
+        userId: response.userId,
+        user,
+        dispatch,
+        loadingRef: loadingAnalyticsRef,
+        preloadWrapped: true,
+      }).catch(() => {
         // Don't fail login if analytics fails - user can still use the app
-        console.warn('Failed to load analytics after login:', analyticsError);
-            return null;
-        })
-        .finally(() => {
-            loadingAnalyticsRef.current = null;
-          dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-        });
-      }
+      });
       
-      if (__DEV__) {
-        console.log('✅ User logged in successfully:', email);
-      }
+      logger.info('User logged in successfully:', email);
       
       return response;
     } catch (error: any) {
@@ -507,9 +294,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       const response = await authApi.googleLogin(idToken);
 
-      if (__DEV__) {
-        console.log('📝 Google Login response:', JSON.stringify(response, null, 2));
-      }
+      logger.debug('Google Login response:', JSON.stringify(response, null, 2));
 
       if (!response.user) {
         throw new Error('Invalid login response from server');
@@ -520,61 +305,27 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         email: response.email,
         createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
-        totalSpent: 0,
-        receiptCount: 0,
+        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
+        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
       };
 
       dispatch({ type: 'SET_USER', payload: user });
       setSentryUser(response.userId, response.email);
 
-      // Load analytics logic (same as regular login)
-      if (!loadingAnalyticsRef.current) {
-        dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-
-        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
-          .then((summary) => {
-            dispatch({ type: 'SET_ANALYTICS', payload: summary });
-            cacheAnalytics(response.userId, summary).catch(() => { });
-
-            if (summary.totalSpent !== user.totalSpent) {
-              dispatch({
-                type: 'UPDATE_USER_DATA', payload: {
-                  totalSpent: summary.totalSpent,
-                  receiptCount: summary.totalReceipts
-                }
-              });
-            }
-
-            const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
-            if (hasData) {
-              analyticsApi.getUserSummary(response.userId, true)
-                .then((wrappedSummary) => {
-                  dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-                  dispatch({
-                    type: 'UPDATE_USER_DATA',
-                    payload: {
-                      totalSpent: wrappedSummary.totalSpent,
-                      receiptCount: wrappedSummary.totalReceipts,
-                    },
-                  });
-                  cacheAnalytics(response.userId, wrappedSummary).catch(() => { });
-                }).catch(() => { });
-            }
-            return summary;
-          })
-          .catch((error) => {
-            console.warn('Failed to load analytics after google login:', error);
-            return null;
-          })
-          .finally(() => {
-            loadingAnalyticsRef.current = null;
-            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-          });
-      }
+      // Load analytics using extracted utility function
+      loadUserAnalytics({
+        userId: response.userId,
+        user,
+        dispatch,
+        loadingRef: loadingAnalyticsRef,
+        preloadWrapped: true,
+      }).catch(() => {
+        // Don't fail login if analytics fails - user can still use the app
+      });
 
       return response;
     } catch (error: any) {
-      console.error('Google Login Error:', error);
+      logger.error('Google Login Error:', error);
       const errorMessage = error.response?.data?.error || 'Failed to login with Google';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
@@ -593,9 +344,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       const response = await authApi.appleLogin(identityToken, user);
 
-      if (__DEV__) {
-        console.log('📝 Apple Login response:', JSON.stringify(response, null, 2));
-      }
+      logger.debug('Apple Login response:', JSON.stringify(response, null, 2));
 
       // Validate response structure
       if (!response) {
@@ -620,66 +369,32 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         email: response.email || user?.email || '', // Fallback to provided email if response doesn't have it
         createdAt: response.user.createdAt || new Date().toISOString(),
         emailVerified: response.user.emailVerified ?? false,
-        totalSpent: 0,
-        receiptCount: 0,
+        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
+        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
       };
 
       // Warn if email is missing (shouldn't happen but handle gracefully)
-      if (!appUser.email && __DEV__) {
-        console.warn('⚠️ Apple login succeeded but no email in response or user data');
+      if (!appUser.email) {
+        logger.warn('Apple login succeeded but no email in response or user data');
       }
 
       dispatch({ type: 'SET_USER', payload: appUser });
       setSentryUser(response.userId, response.email);
 
-      // Load analytics logic (same as other login methods)
-      if (!loadingAnalyticsRef.current) {
-        dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-
-        loadingAnalyticsRef.current = analyticsApi.getUserSummary(response.userId, false)
-          .then((summary) => {
-            dispatch({ type: 'SET_ANALYTICS', payload: summary });
-            cacheAnalytics(response.userId, summary).catch(() => { });
-
-            if (summary.totalSpent !== appUser.totalSpent) {
-              dispatch({
-                type: 'UPDATE_USER_DATA', payload: {
-                  totalSpent: summary.totalSpent,
-                  receiptCount: summary.totalReceipts
-                }
-              });
-            }
-
-            const hasData = summary.totalReceipts > 0 || summary.totalSpent > 0;
-            if (hasData) {
-              analyticsApi.getUserSummary(response.userId, true)
-                .then((wrappedSummary) => {
-                  dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-                  dispatch({
-                    type: 'UPDATE_USER_DATA',
-                    payload: {
-                      totalSpent: wrappedSummary.totalSpent,
-                      receiptCount: wrappedSummary.totalReceipts,
-                    },
-                  });
-                  cacheAnalytics(response.userId, wrappedSummary).catch(() => { });
-                }).catch(() => { });
-            }
-            return summary;
-          })
-          .catch((error) => {
-            console.warn('Failed to load analytics after Apple login:', error);
-            return null;
-          })
-          .finally(() => {
-            loadingAnalyticsRef.current = null;
-            dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-          });
-      }
+      // Load analytics using extracted utility function
+      loadUserAnalytics({
+        userId: response.userId,
+        user: appUser,
+        dispatch,
+        loadingRef: loadingAnalyticsRef,
+        preloadWrapped: true,
+      }).catch(() => {
+        // Don't fail login if analytics fails - user can still use the app
+      });
 
       return response;
     } catch (error: any) {
-      console.error('Apple Login Error:', error);
+      logger.error('Apple Login Error:', error);
       
       let errorMessage = 'Failed to login with Apple';
       

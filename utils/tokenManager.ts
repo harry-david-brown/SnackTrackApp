@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { logger } from './logger';
 
 // Storage keys for authentication
 // Sensitive tokens use SecureStore on native, AsyncStorage on web
@@ -90,11 +91,11 @@ export const storeAuthTokens = async (
     
     if (__DEV__) {
       const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
-      console.log(`✅ Auth tokens stored successfully (${storageType})`);
-      console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
+      logger.debug(`✅ Auth tokens stored successfully (${storageType})`);
+      logger.debug(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
-    console.error('Error storing auth tokens:', error);
+    logger.error('Error storing auth tokens:', error);
     throw new Error('Failed to store authentication tokens');
   }
 };
@@ -106,7 +107,7 @@ export const getAccessToken = async (): Promise<string | null> => {
   try {
     return await getSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
   } catch (error) {
-    console.error('Error getting access token:', error);
+    logger.error('Error getting access token:', error);
     return null;
   }
 };
@@ -118,7 +119,7 @@ export const getRefreshToken = async (): Promise<string | null> => {
   try {
     return await getSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
   } catch (error) {
-    console.error('Error getting refresh token:', error);
+    logger.error('Error getting refresh token:', error);
     return null;
   }
 };
@@ -130,7 +131,7 @@ export const getUserId = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(AUTH_STORAGE_KEYS.USER_ID);
   } catch (error) {
-    console.error('Error getting user ID:', error);
+    logger.error('Error getting user ID:', error);
     return null;
   }
 };
@@ -143,7 +144,7 @@ export const getUserData = async (): Promise<any | null> => {
     const userData = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.USER_DATA);
     return userData ? JSON.parse(userData) : null;
   } catch (error) {
-    console.error('Error getting user data:', error);
+    logger.error('Error getting user data:', error);
     return null;
   }
 };
@@ -162,7 +163,7 @@ export const isTokenExpired = async (): Promise<boolean> => {
     // Return true if token is expired or will expire within threshold
     return now >= expiresAt - TOKEN_EXPIRY.REFRESH_THRESHOLD;
   } catch (error) {
-    console.error('Error checking token expiry:', error);
+    logger.error('Error checking token expiry:', error);
     return true; // Assume expired on error
   }
 };
@@ -196,11 +197,11 @@ export const updateAccessToken = async (
     
     if (__DEV__) {
       const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
-      console.log(`✅ Access token updated successfully (${storageType})`);
-      console.log(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
+      logger.debug(`✅ Access token updated successfully (${storageType})`);
+      logger.debug(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
-    console.error('Error updating access token:', error);
+    logger.error('Error updating access token:', error);
     throw new Error('Failed to update access token');
   }
 };
@@ -224,10 +225,10 @@ export const clearAuthTokens = async (): Promise<void> => {
     ]);
     
     if (__DEV__) {
-      console.log('✅ Auth tokens cleared successfully');
+      logger.debug('✅ Auth tokens cleared successfully');
     }
   } catch (error) {
-    console.error('Error clearing auth tokens:', error);
+    logger.error('Error clearing auth tokens:', error);
   }
 };
 
@@ -243,7 +244,7 @@ export const isAuthenticated = async (): Promise<boolean> => {
     
     return !!(accessToken && refreshToken);
   } catch (error) {
-    console.error('Error checking authentication:', error);
+    logger.error('Error checking authentication:', error);
     return false;
   }
 };

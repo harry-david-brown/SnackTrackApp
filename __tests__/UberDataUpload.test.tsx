@@ -6,7 +6,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { UberDataUpload } from '../components/UberDataUpload';
+import { UberDataUpload } from '../components/upload/UberDataUpload';
 import { useUser } from '../contexts/UserContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { csvApi } from '../services/api';
@@ -344,8 +344,8 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        // "Invalid file format" contains "invalid" which triggers file error message
-        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Wrong file! Please select your Uber user data.');
+        // "Invalid file format" passes through sanitization since it matches /invalid file/i pattern
+        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
       }, { timeout: 3000 });
     });
   });

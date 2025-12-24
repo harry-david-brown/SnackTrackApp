@@ -3,9 +3,17 @@ import { useNetworkStatus } from './useNetworkStatus';
 import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation } from '../utils/offlineCache';
 import { csvApi } from '../services/api';
 import { captureException } from '../utils/sentry';
+import { OFFLINE_SYNC } from '../constants';
 
-const MAX_RETRIES = 3;
-
+/**
+ * Hook for managing offline sync of pending operations
+ * Automatically syncs pending operations when network comes back online
+ * @returns Object containing sync state and manual sync function
+ * @example
+ * ```tsx
+ * const { isSyncing, pendingCount, syncNow } = useOfflineSync();
+ * ```
+ */
 export function useOfflineSync() {
   const { isConnected } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -40,7 +48,7 @@ export function useOfflineSync() {
     for (const operation of pending) {
       try {
         // Skip if max retries exceeded
-        if (operation.retryCount >= MAX_RETRIES) {
+        if (operation.retryCount >= OFFLINE_SYNC.MAX_RETRIES) {
           await removeOperation(operation.id);
           continue;
         }

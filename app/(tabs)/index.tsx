@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
-import { ErrorMessage, ErrorType } from '../../components/ErrorMessage';
-import { SlideInView } from '../../components/SlideInView';
+import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
+import { SlideInView } from '../../components/ui/SlideInView';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 export default function DashboardScreen() {
@@ -52,7 +52,7 @@ export default function DashboardScreen() {
   const handleLogout = async () => {
     try {
       await logout();
-      
+
       // Navigate to root route using parent navigator (Stack level)
       // We need to navigate at the Stack level, not the tabs level
       setTimeout(() => {

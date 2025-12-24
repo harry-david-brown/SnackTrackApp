@@ -8,8 +8,8 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import UberDataTutorial from '../../components/UberDataTutorial';
-import EmailVerificationBanner from '../../components/EmailVerificationBanner';
+import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import EmailVerificationBanner from '../../components/auth/EmailVerificationBanner';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 import { featureFlags } from '../../config/featureFlags';
 import { authApi } from '../../services/authApi';
@@ -61,7 +61,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            
+
             // Navigate to root route using parent navigator (Stack level)
             // We need to navigate at the Stack level, not the tabs level
             setTimeout(() => {
@@ -149,20 +149,20 @@ export default function ProfileScreen() {
 
   const performAccountDeletion = async () => {
     setIsDeleting(true);
-    
+
     try {
       // Get refresh token to send with deletion request
       const refreshToken = await getRefreshToken();
-      
+
       // Call the API to delete the account
       await authApi.deleteAccount(refreshToken || undefined);
-      
+
       // Close the Help & Support modal
       setShowHelpSupport(false);
-      
+
       // Success - logout first
       await logout();
-      
+
       // Navigate to root route using parent navigator (Stack level)
       // We need to navigate at the Stack level, not the tabs level
       // Use a small delay to ensure logout state has propagated
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
           // Navigation failed silently
         }
       }, 200);
-      
+
       // Show success alert after navigation
       setTimeout(() => {
         Alert.alert(
@@ -193,14 +193,14 @@ export default function ProfileScreen() {
         );
       }, 500);
     } catch (error: any) {
-      
+
       let errorMessage = 'Failed to delete account. Please try again.';
-      
+
       if (error.response) {
         // API returned an error
         const status = error.response.status;
         const errorData = error.response.data;
-        
+
         if (status === 401) {
           errorMessage = 'Your session has expired. Please log in again.';
         } else if (status === 404) {
@@ -212,7 +212,7 @@ export default function ProfileScreen() {
         // Request was made but no response received
         errorMessage = 'Network error. Please check your connection and try again.';
       }
-      
+
       Alert.alert('Deletion Failed', errorMessage);
     } finally {
       setIsDeleting(false);
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
               <Text style={[styles.menuText, { color: '#FF9500' }]}>Reset Onboarding (Dev)</Text>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
             <Text style={[styles.menuText, { color: '#ff3b30' }]}>Sign Out</Text>
@@ -409,8 +409,8 @@ export default function ProfileScreen() {
 
               <View style={styles.helpSection}>
                 <Text style={styles.helpSectionTitle}>🗑️ Account Deletion</Text>
-                <TouchableOpacity 
-                  onPress={handleDeleteAccount} 
+                <TouchableOpacity
+                  onPress={handleDeleteAccount}
                   style={styles.deleteAccountButton}
                   disabled={isDeleting}
                 >

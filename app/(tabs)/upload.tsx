@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Modal } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useUser } from '../../contexts/UserContext';
-import { analyticsApi } from '../../services/analyticsApi';
-import { UberDataUpload } from '../../components/UberDataUpload';
-import UberDataTutorial from '../../components/UberDataTutorial';
-import WrappedJourneyLoader from '../../components/WrappedJourneyLoader';
-import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { GmailConnection } from '../../components/GmailConnection';
-import { featureFlags } from '../../config/featureFlags';
+import { useUser } from '@contexts/UserContext';
+import { analyticsApi } from '@services/analyticsApi';
+import { UberDataUpload } from '@components/upload/UberDataUpload';
+import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import WrappedJourneyLoader from '../../components/wrapped/WrappedJourneyLoader';
+import { useOfflineSync } from '@hooks/useOfflineSync';
+import { GmailConnection } from '@/components';
+import { featureFlags } from '@config/featureFlags';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
