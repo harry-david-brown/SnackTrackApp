@@ -60,3 +60,19 @@ jest.mock('expo-constants', () => ({
     },
   },
 }));
+
+// Cleanup intervals after all tests to prevent open handles
+afterAll(async () => {
+  // Cleanup rate limiter interval
+  try {
+    const rateLimiterModule = require('../utils/rateLimiter');
+    if (rateLimiterModule.destroyRateLimiter) {
+      rateLimiterModule.destroyRateLimiter();
+    }
+  } catch (error) {
+    // Ignore errors if module is not loaded
+  }
+  
+  // Give time for cleanup to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
+});

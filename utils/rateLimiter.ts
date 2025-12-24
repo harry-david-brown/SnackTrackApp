@@ -29,6 +29,11 @@ class RateLimiter {
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, 60000);
+    // Use unref() to prevent the interval from keeping the process alive
+    // This is important for tests and allows the process to exit naturally
+    if (this.cleanupInterval && typeof (this.cleanupInterval as any).unref === 'function') {
+      (this.cleanupInterval as any).unref();
+    }
   }
 
   /**
@@ -226,6 +231,13 @@ export function resetRateLimit(endpoint: string): void {
  */
 export function clearAllRateLimits(): void {
   rateLimiter.clearAll();
+}
+
+/**
+ * Destroy the rate limiter instance (useful for testing cleanup)
+ */
+export function destroyRateLimiter(): void {
+  rateLimiter.destroy();
 }
 
 /**
