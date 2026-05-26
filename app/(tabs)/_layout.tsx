@@ -1,20 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
-
-const resolveAppEnv = () => {
-  const extras =
-    (Constants.expoConfig?.extra as Record<string, any> | undefined) ??
-    ((Constants as any).manifest?.extra as Record<string, any> | undefined) ??
-    ((Constants as any).manifest2?.extra as Record<string, any> | undefined) ??
-    {};
-
-  return extras.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
-};
+import { featureFlags } from '../../config/featureFlags';
 
 export default function TabLayout() {
-  const appEnv = resolveAppEnv();
-  const showDevTabs = __DEV__ || appEnv === 'development';
+  const showDevTabs = featureFlags.showTestErrors;
 
   return (
     <Tabs

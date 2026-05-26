@@ -13,9 +13,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
         "EXPO_PUBLIC_APP_ENV": "development",
-        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "92555573714-m6aio0mkv33t0ulv7h7nn17poqj2a90t.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "92555573714-vc42kgncpjcda8dog4g7j2ri13750pci.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "340407880465-m9vg33qql2caes5oaqudkser2haldbmg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -27,9 +27,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://snacktrackapi-production.up.railway.app",
         "EXPO_PUBLIC_APP_ENV": "preview",
-        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "92555573714-o8t171su1hniv2fitha5dm475t22s4pl.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "92555573714-bsrac7skm6d47ufur7sq7ceiba4he9gp",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "92555573714-vc42kgncpjcda8dog4g7j2ri13750pci.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "340407880465-5p166du04l67h82qqpds5m64641impmr.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com"
       }
     },
     "production": {

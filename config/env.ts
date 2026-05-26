@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 /**
  * Environment types
  */
-export type AppEnvironment = 'development' | 'staging' | 'production';
+export type AppEnvironment = 'development' | 'preview' | 'staging' | 'production';
 
 /**
  * Environment configuration
@@ -12,6 +12,7 @@ export interface EnvConfig {
   apiUrl: string;
   appEnv: AppEnvironment;
   isDevelopment: boolean;
+  isPreview: boolean;
   isStaging: boolean;
   isProduction: boolean;
   // Gmail OAuth client IDs
@@ -29,22 +30,17 @@ function getEnvVar(name: string, required: boolean = true): string | undefined {
     return process.env[name];
   }
 
-  // 2. Check app.config.js extra config
-  const extra = Constants.expoConfig?.extra as Record<string, any> | undefined;
-  if (extra?.[name]) {
-    return extra[name];
-  }
+  const extrasSources = [
+    Constants.expoConfig?.extra as Record<string, any> | undefined,
+    (Constants as any).manifest?.extra as Record<string, any> | undefined,
+    (Constants as any).manifest2?.extra as Record<string, any> | undefined,
+  ];
 
-  // 3. Check legacy manifest (for older Expo versions)
-  const manifest = (Constants as any).manifest?.extra as Record<string, any> | undefined;
-  if (manifest?.[name]) {
-    return manifest[name];
-  }
-
-  // 4. Check manifest2 (for newer Expo versions)
-  const manifest2 = (Constants as any).manifest2?.extra as Record<string, any> | undefined;
-  if (manifest2?.[name]) {
-    return manifest2[name];
+  for (const extra of extrasSources) {
+    if (!extra) continue;
+    if (extra[name]) {
+      return extra[name];
+    }
   }
 
   if (required) {
@@ -61,7 +57,7 @@ function getEnvVar(name: string, required: boolean = true): string | undefined {
 /**
  * Validate and get API URL
  * Throws an error if EXPO_PUBLIC_API_URL is not set (fail-secure)
- * Enforces HTTPS in production environments
+ * Enforces HTTPS in non-development environments
  */
 function getApiUrl(): string {
   const apiUrl = getEnvVar('EXPO_PUBLIC_API_URL', false);
@@ -86,10 +82,10 @@ function getApiUrl(): string {
   }
 
   // Get app environment
-  const appEnv = getEnvVar('EXPO_PUBLIC_APP_ENV', false) || 'development';
+  const appEnv = getAppEnv();
 
-  // Enforce HTTPS in production and staging
-  if ((appEnv === 'production' || appEnv === 'staging') && parsedUrl.protocol !== 'https:') {
+  // Enforce HTTPS outside local development.
+  if (appEnv !== 'development' && parsedUrl.protocol !== 'https:') {
     throw new Error(
       `Security Error: ${appEnv} API URL must use HTTPS protocol.\n` +
       `Current URL: ${apiUrl}\n` +
@@ -124,7 +120,7 @@ function getApiUrl(): string {
 function getAppEnv(): AppEnvironment {
   const appEnv = getEnvVar('EXPO_PUBLIC_APP_ENV', false) || 'development';
 
-  const validEnvs: AppEnvironment[] = ['development', 'staging', 'production'];
+  const validEnvs: AppEnvironment[] = ['development', 'preview', 'staging', 'production'];
   if (!validEnvs.includes(appEnv as AppEnvironment)) {
     throw new Error(
       `Invalid EXPO_PUBLIC_APP_ENV: ${appEnv}\n` +
@@ -153,6 +149,7 @@ export function getEnvConfig(): EnvConfig {
     apiUrl,
     appEnv,
     isDevelopment: appEnv === 'development',
+    isPreview: appEnv === 'preview',
     isStaging: appEnv === 'staging',
     isProduction: appEnv === 'production',
     gmailAndroidClientId,
@@ -202,4 +199,3 @@ export function getConfig(): EnvConfig {
 // Note: We don't validate on module load to avoid issues in test environments
 // Validation happens when getConfig() is called, which is done in services/api.ts
 // The validate-env.js script ensures validation happens before expo start
-

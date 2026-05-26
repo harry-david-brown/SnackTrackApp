@@ -49,7 +49,8 @@ export default {
     },
     extra: {
       // API URL from environment variable (required - app will fail if not set)
-      apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_APP_ENV: process.env.EXPO_PUBLIC_APP_ENV || 'development',
       // Sentry DSN (optional - app works without it)
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
       // Gmail OAuth client IDs (optional - only needed for Gmail integration)
@@ -61,9 +62,7 @@ export default {
       },
       router: {
         origin: "snacktrack://"
-      },
-      appEnv: process.env.EXPO_PUBLIC_APP_ENV || 'development'
+      }
     }
   }
 };
-

@@ -326,7 +326,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       return response;
     } catch (error: any) {
       logger.error('Google Login Error:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to login with Google';
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        (error.response?.status === 401 ? 'Google authentication was rejected by the server.' : null) ||
+        error.message ||
+        'Failed to login with Google';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }

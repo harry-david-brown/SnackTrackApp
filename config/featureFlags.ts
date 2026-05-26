@@ -47,7 +47,7 @@ function getAppEnv(): string {
 	((Constants as any).manifest2?.extra as Record<string, any> | undefined) ??
 	{};
 
-  return extras.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
+  return extras.EXPO_PUBLIC_APP_ENV ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'production';
 }
 
 /**
@@ -56,7 +56,7 @@ function getAppEnv(): string {
  * Logic:
  * 1. If EXPO_PUBLIC_SHOW_DEV_FEATURES is 'true' -> always show
  * 2. If EXPO_PUBLIC_SHOW_DEV_FEATURES is 'false' -> always hide
- * 3. Otherwise (auto): show if __DEV__ or appEnv === 'development'
+ * 3. Otherwise (auto): show if __DEV__ or appEnv is development/preview
  */
 function calculateShowDevFeatures(): boolean {
   const mode = getDevFeaturesMode();
@@ -64,9 +64,9 @@ function calculateShowDevFeatures(): boolean {
   if (mode === 'true') return true;
   if (mode === 'false') return false;
   
-  // Auto mode: show in dev builds or development environment
+  // Auto mode: show in dev builds and internal preview builds
   const appEnv = getAppEnv();
-  return __DEV__ || appEnv === 'development';
+  return __DEV__ || appEnv === 'development' || appEnv === 'preview';
 }
 
 // Cache the result since it won't change during runtime
@@ -133,4 +133,3 @@ export const featureFlags = {
 };
 
 export default featureFlags;
-

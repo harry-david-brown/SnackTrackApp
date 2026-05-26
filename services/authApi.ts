@@ -104,6 +104,12 @@ export const authApi = {
       
       return response.data;
     } catch (error: any) {
+      logger.error('Google Login API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.response?.data?.message || error.response?.data?.error || error.message,
+        hasData: !!error.response?.data,
+      });
       throw error;
     }
   },
@@ -355,4 +361,3 @@ export const authApi = {
 };
 
 export default authApi;
-
