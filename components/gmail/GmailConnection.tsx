@@ -178,6 +178,19 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
     }
   };
 
+  const formatExpiry = (expiresAt?: string | null): string | null => {
+    if (!expiresAt) {
+      return null;
+    }
+
+    const expiry = new Date(expiresAt);
+    if (Number.isNaN(expiry.getTime())) {
+      return null;
+    }
+
+    return expiry.toLocaleString();
+  };
+
   const handleTokenExchange = useCallback(async (accessToken: string, refreshToken?: string) => {
     try {
       setIsLoading(true);
@@ -197,7 +210,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
         }
         // Refresh connection status to get the connected Gmail email
         await checkConnectionStatus();
-        showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
+        const successMessage = result.connectionMode === 'temporary'
+          ? 'Gmail connected with temporary access. You may need to reconnect later when the token expires.'
+          : 'Gmail connected successfully! You can now import your receipts.';
+        showSimpleAlert('Success', successMessage);
       } else {
         showSimpleAlert('Error', 'Failed to connect Gmail. Please try again.');
       }
@@ -393,6 +409,11 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
   const importReceipts = async () => {
     try {
+      if (connectionStatus.canImport === false) {
+        showSimpleAlert('Reconnect Gmail', connectionStatus.statusMessage || 'Reconnect Gmail before importing receipts.');
+        return;
+      }
+
       setIsImporting(true);
 
       // Always replaces existing email-based receipts
@@ -519,9 +540,15 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
         <Text style={styles.statusDescription}>
           {connectionStatus.connected
-            ? 'Your Gmail account is connected. You can import Uber Eats receipts directly from your email.'
+            ? (connectionStatus.statusMessage || 'Your Gmail account is connected. You can import Uber Eats receipts directly from your email.')
             : 'Connect your Gmail to automatically import Uber Eats receipts from your email.'}
         </Text>
+        {connectionStatus.connected && connectionStatus.connectionMode === 'temporary' && connectionStatus.expiresAt && (
+          <Text style={styles.statusMeta}>Temporary access expires {formatExpiry(connectionStatus.expiresAt)}</Text>
+        )}
+        {connectionStatus.connected && connectionStatus.needsReconnect && (
+          <Text style={styles.warningText}>Reconnect Gmail before importing again.</Text>
+        )}
       </View>
 
       {/* Action Buttons */}
@@ -543,20 +570,37 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity
-              style={[styles.primaryButton, isImporting && styles.buttonDisabled]}
-              onPress={importReceipts}
-              disabled={isImporting}
-            >
-              {isImporting ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <>
-                  <Ionicons name="download-outline" size={20} color="white" />
-                  <Text style={styles.primaryButtonText}>Import Receipts</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {connectionStatus.needsReconnect ? (
+              <TouchableOpacity
+                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                onPress={connectGmail}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="refresh-outline" size={20} color="white" />
+                    <Text style={styles.primaryButtonText}>Reconnect Gmail</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.primaryButton, (isImporting || connectionStatus.canImport === false) && styles.buttonDisabled]}
+                onPress={importReceipts}
+                disabled={isImporting || connectionStatus.canImport === false}
+              >
+                {isImporting ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="download-outline" size={20} color="white" />
+                    <Text style={styles.primaryButtonText}>Import Receipts</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.secondaryButton, isLoading && styles.buttonDisabled]}
@@ -658,6 +702,19 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  statusMeta: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#C2410C',
+    textAlign: 'center',
+    marginTop: 10,
+    fontWeight: '600',
   },
   actionContainer: {
     marginBottom: 20,

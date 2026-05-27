@@ -3,6 +3,13 @@ import api from './api';
 export interface GmailConnectionStatus {
   connected: boolean;
   email?: string;
+  canImport?: boolean;
+  needsReconnect?: boolean;
+  connectionMode?: 'none' | 'temporary' | 'offline';
+  scopes?: string[];
+  hasRequiredScope?: boolean;
+  expiresAt?: string | null;
+  statusMessage?: string;
 }
 
 
@@ -19,6 +26,9 @@ export interface GmailExchangeTokenResponse {
   success: boolean;
   message: string;
   connected: boolean;
+  connectionMode?: 'temporary' | 'offline';
+  expiresAt?: string | null;
+  scopes?: string[];
 }
 
 export const gmailApi = {
@@ -68,4 +78,3 @@ export const gmailApi = {
     return response.data;
   },
 };
-
