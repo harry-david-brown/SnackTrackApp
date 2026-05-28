@@ -158,7 +158,7 @@ export default function ProfileScreen() {
     setIsClearingReceipts(true);
 
     try {
-      await receiptApi.clearReceipts(state.user.id);
+      await receiptApi.clearReceipts();
       resetReceiptData();
       Alert.alert('Receipts Cleared', 'All of your receipts have been deleted.');
     } catch (error: any) {

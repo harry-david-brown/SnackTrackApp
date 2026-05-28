@@ -108,15 +108,12 @@ export const receiptApi = {
   },
 
   /**
-   * Delete all receipts for a user
-   * @param userId - The user ID whose receipts should be deleted
+   * Delete all receipts for the authenticated user
    * @returns Promise resolving to the backend deletion response
    * @throws {Error} If API request fails
    */
-  clearReceipts: async (userId: string): Promise<DeleteReceiptsResponse> => {
-    const validatedUserId = await validateAndAuthorizeUserId(userId);
-
-    const response = await api.delete<DeleteReceiptsResponse>(`/receipts?userId=${validatedUserId}`);
+  clearReceipts: async (): Promise<DeleteReceiptsResponse> => {
+    const response = await api.delete<DeleteReceiptsResponse>('/receipts');
     return response.data;
   },
 };
