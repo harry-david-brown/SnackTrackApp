@@ -13,10 +13,11 @@ import EmailVerificationBanner from '../../components/auth/EmailVerificationBann
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 import { featureFlags } from '../../config/featureFlags';
 import { authApi } from '../../services/authApi';
+import { receiptApi } from '../../services/api';
 import { getRefreshToken } from '../../utils/tokenManager';
 
 export default function ProfileScreen() {
-  const { state, logout } = useUser();
+  const { state, logout, resetReceiptData } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
   const navigation = useNavigation();
@@ -24,6 +25,7 @@ export default function ProfileScreen() {
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isClearingReceipts, setIsClearingReceipts] = useState(false);
   const showReset = featureFlags.showResetOnboarding;
   
   // Use analytics from context instead of loading separately
@@ -127,6 +129,66 @@ export default function ProfileScreen() {
       ],
       { cancelable: true }
     );
+  };
+
+  const handleClearReceipts = () => {
+    if (!state.user || isClearingReceipts) return;
+
+    Alert.alert(
+      'Clear All Receipts',
+      'This will permanently delete all of your receipts and reset your spending analytics. Your account will remain active.\n\nThis action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear Receipts',
+          style: 'destructive',
+          onPress: performClearReceipts,
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const performClearReceipts = async () => {
+    if (!state.user) return;
+
+    setIsClearingReceipts(true);
+
+    try {
+      await receiptApi.clearReceipts(state.user.id);
+      resetReceiptData();
+      Alert.alert('Receipts Cleared', 'All of your receipts have been deleted.');
+    } catch (error: any) {
+      let errorMessage = 'Failed to clear receipts. Please try again.';
+
+      if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+        const apiErrorMessage =
+          errorData?.error?.message ||
+          errorData?.error ||
+          errorData?.message;
+
+        if (status === 401) {
+          errorMessage = 'Your session has expired. Please log in again.';
+        } else if (status === 404) {
+          errorMessage = 'No receipts were found for this account.';
+        } else if (apiErrorMessage) {
+          errorMessage = apiErrorMessage;
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Clear Failed', errorMessage);
+    } finally {
+      setIsClearingReceipts(false);
+    }
   };
 
   const confirmDeleteAccount = () => {
@@ -321,6 +383,22 @@ export default function ProfileScreen() {
               <Text style={[styles.menuText, { color: '#FF9500' }]}>Reset Onboarding (Dev)</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleClearReceipts}
+            disabled={isClearingReceipts || isDeleting}
+          >
+            <Ionicons name="trash-outline" size={24} color="#ff3b30" />
+            <Text style={[styles.menuText, { color: '#ff3b30' }]}>
+              {isClearingReceipts ? 'Clearing Receipts...' : 'Clear My Receipts'}
+            </Text>
+            {isClearingReceipts ? (
+              <ActivityIndicator size="small" color="#ff3b30" />
+            ) : (
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff3b30" />

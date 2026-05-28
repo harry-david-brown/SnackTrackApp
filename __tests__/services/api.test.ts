@@ -17,4 +17,10 @@ describe('API Services', () => {
     expect(validationApi).toBeDefined();
     expect(typeof validationApi.getUserSummary).toBe('function');
   });
+
+  it('should have receiptApi with clearReceipts method', () => {
+    const { receiptApi } = require('../../services/api');
+    expect(receiptApi).toBeDefined();
+    expect(typeof receiptApi.clearReceipts).toBe('function');
+  });
 });

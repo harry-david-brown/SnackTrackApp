@@ -3,7 +3,7 @@
  */
 
 import api from './client';
-import { Receipt, PaginationResponse } from '../../types/api';
+import { Receipt, PaginationResponse, DeleteReceiptsResponse } from '../../types/api';
 import { API_CONFIG } from '@/constants';
 import { logger } from '@utils/logger';
 import { validateAndAuthorizeUserId } from '@utils/securityValidation';
@@ -106,5 +106,17 @@ export const receiptApi = {
 
     return data;
   },
-};
 
+  /**
+   * Delete all receipts for a user
+   * @param userId - The user ID whose receipts should be deleted
+   * @returns Promise resolving to the backend deletion response
+   * @throws {Error} If API request fails
+   */
+  clearReceipts: async (userId: string): Promise<DeleteReceiptsResponse> => {
+    const validatedUserId = await validateAndAuthorizeUserId(userId);
+
+    const response = await api.delete<DeleteReceiptsResponse>(`/receipts?userId=${validatedUserId}`);
+    return response.data;
+  },
+};

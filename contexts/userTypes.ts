@@ -36,6 +36,7 @@ export interface UserContextType {
   loadAnalytics: (includeWrapped?: boolean) => Promise<UserSummary | null>;
   setAnalytics: (analytics: UserSummary) => void;
   clearAnalytics: () => void;
+  resetReceiptData: () => void;
   clearError: () => void;
   markEmailVerified: () => void;
 }
@@ -49,4 +50,3 @@ export const initialState: UserState = {
   analytics: null,
   analyticsLoading: false,
 };
-

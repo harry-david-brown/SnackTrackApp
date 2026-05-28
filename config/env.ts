@@ -21,6 +21,16 @@ export interface EnvConfig {
   gmailWebClientId?: string;
 }
 
+function normalizeIosGoogleClientId(clientId?: string): string | undefined {
+  if (!clientId) {
+    return undefined;
+  }
+
+  return clientId.endsWith('.apps.googleusercontent.com')
+    ? clientId
+    : `${clientId}.apps.googleusercontent.com`;
+}
+
 /**
  * Get environment variable with validation
  */
@@ -142,7 +152,9 @@ export function getEnvConfig(): EnvConfig {
 
   // Gmail OAuth client IDs (optional - only needed for Gmail integration)
   const gmailAndroidClientId = getEnvVar('EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID', false);
-  const gmailIosClientId = getEnvVar('EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID', false);
+  const gmailIosClientId = normalizeIosGoogleClientId(
+    getEnvVar('EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID', false)
+  );
   const gmailWebClientId = getEnvVar('EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID', false);
 
   return {

@@ -1,3 +1,8 @@
+const rawIosClientId = process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID;
+const iosClientIdUniquePart = rawIosClientId
+  ? rawIosClientId.replace(/\.apps\.googleusercontent\.com$/, '')
+  : undefined;
+
 export default {
   expo: {
     name: "SnackTrack",
@@ -21,8 +26,10 @@ export default {
       [
         "@react-native-google-signin/google-signin",
         {
-          // Build URL scheme from unique iOS client ID: com.googleusercontent.apps.{uniqueId}
-          iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID}`
+          // Build URL scheme from the iOS client ID's unique portion.
+          iosUrlScheme: iosClientIdUniquePart
+            ? `com.googleusercontent.apps.${iosClientIdUniquePart}`
+            : undefined
         }
       ],
       "expo-apple-authentication"

@@ -487,6 +487,34 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     clearAnalyticsCache(); // Also clear from AsyncStorage
   };
 
+  const resetReceiptData = () => {
+    if (!state.user) return;
+
+    const emptyAnalytics: UserSummary = {
+      userId: state.user.id,
+      totalSpent: 0,
+      totalReceipts: 0,
+      averageOrderValue: 0,
+      topRestaurants: [],
+      monthlyBreakdown: [],
+      refundedReceipts: 0,
+      dataQuality: {
+        issues: [],
+        recommendations: [],
+      },
+    };
+
+    dispatch({
+      type: 'UPDATE_USER_DATA',
+      payload: {
+        totalSpent: 0,
+        receiptCount: 0,
+      },
+    });
+    dispatch({ type: 'SET_ANALYTICS', payload: emptyAnalytics });
+    clearAnalyticsCache();
+  };
+
   const markEmailVerified = () => {
     if (!state.user) return;
     dispatch({
@@ -616,6 +644,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     loadAnalytics,
     setAnalytics,
     clearAnalytics,
+    resetReceiptData,
     clearError,
     markEmailVerified,
   };

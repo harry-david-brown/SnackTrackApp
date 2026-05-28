@@ -131,6 +131,12 @@ export interface DeleteAccountResponse {
   message: string;
 }
 
+export interface DeleteReceiptsResponse {
+  success: boolean;
+  message: string;
+  deletedCount?: number;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
