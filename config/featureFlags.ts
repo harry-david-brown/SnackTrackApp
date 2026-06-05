@@ -66,7 +66,7 @@ function calculateShowDevFeatures(): boolean {
   
   // Auto mode: show in dev builds and internal preview builds
   const appEnv = getAppEnv();
-  return __DEV__ || appEnv === 'development' || appEnv === 'preview';
+  return __DEV__ || appEnv === 'development';
 }
 
 // Cache the result since it won't change during runtime
@@ -103,7 +103,7 @@ export function showDevFeatures(): boolean {
 export const featureFlags = {
   /** Show Google OAuth login button */
   get showGoogleAuth() {
-	return showDevFeatures();
+	return true;
   },
   
   /** Show Apple Sign In button */
@@ -113,7 +113,7 @@ export const featureFlags = {
   
   /** Show Gmail import feature */
   get showGmailImport() {
-	return showDevFeatures();
+	return true;
   },
   
   /** Show Reset Onboarding button in profile */
