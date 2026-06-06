@@ -17,7 +17,6 @@ import { useRouter } from 'expo-router';
 import { showAlert } from '../../utils/alerts';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import { getConfig } from '../../config/env';
@@ -126,33 +125,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   // Expo Auth Session for Web
   // Conditionally construct config - use web client ID as fallback for iOS if iosClientId is missing
-  const isExpoGo = Constants.appOwnership === 'expo';
-  const redirectUri = isExpoGo
-    ? 'https://auth.expo.io/@snacktrack/snack-track'
-    : makeRedirectUri({ native: 'com.snacktrack.app:/oauth2redirect' });
-
   const googleAuthConfig: {
     clientId: string;
     iosClientId?: string;
     androidClientId?: string;
-    redirectUri: string;
   } = {
     clientId: config.gmailWebClientId || '',
-    redirectUri,
   };
   
-  // When using the Expo proxy (Expo Go), only the web client ID should be used.
-  // Passing androidClientId causes Google to use the Android OAuth client which
-  // only accepts package-name redirect URIs, not https://auth.expo.io/...
-  if (!isExpoGo) {
-    if (Platform.OS === 'ios') {
-      googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
-    } else if (config.gmailIosClientId) {
-      googleAuthConfig.iosClientId = config.gmailIosClientId;
-    }
-    if (config.gmailAndroidClientId) {
-      googleAuthConfig.androidClientId = config.gmailAndroidClientId;
-    }
+  // expo-auth-session requires iosClientId on iOS, so use web client ID as fallback if missing
+  if (Platform.OS === 'ios') {
+    googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
+  } else if (config.gmailIosClientId) {
+    googleAuthConfig.iosClientId = config.gmailIosClientId;
+  }
+  
+  if (config.gmailAndroidClientId) {
+    googleAuthConfig.androidClientId = config.gmailAndroidClientId;
   }
   
   const [, response, promptAsync] = Google.useIdTokenAuthRequest(googleAuthConfig);
