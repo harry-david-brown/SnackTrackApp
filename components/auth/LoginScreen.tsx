@@ -8,12 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  LayoutAnimation,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import PasswordResetModal from './PasswordResetModal';
-import { useRouter } from 'expo-router';
 import { showAlert } from '../../utils/alerts';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -102,11 +103,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(true); // Default to registration
+  const [isRegistering, setIsRegistering] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [authMethod, setAuthMethod] = useState<'oauth' | 'email'>('oauth');
+  const [displayedAuthMethod, setDisplayedAuthMethod] = useState<'oauth' | 'email'>('oauth');
+  const authPanelOverlayOpacity = useState(() => new Animated.Value(0))[0];
   const { register, login, loginWithGoogle, loginWithApple, state, clearError } = useUser();
-  const router = useRouter();
   
   // Get config inside component to ensure it's loaded
   const config = getConfig();
@@ -156,7 +160,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
       await loginWithGoogle(idToken);
       onLoginSuccess?.();
-      router.replace('/(tabs)');
     } catch (error: any) {
       // Clear the error from state to prevent the useEffect from showing another alert
       clearError();
@@ -166,16 +169,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [state.user, loginWithGoogle, onLoginSuccess, router, clearError]);
+  }, [state.user, loginWithGoogle, onLoginSuccess, clearError]);
 
-  // Show error alert when state.error changes
+  // Show inline error when auth state reports a manual auth failure
   useEffect(() => {
     if (state.error && !state.isLoading) {
-      const title = isRegistering ? 'Registration Failed' : 'Login Failed';
-      showAlert(title, state.error);
-      clearError();
+      setFormError(state.error);
     }
-  }, [state.error, state.isLoading, isRegistering, clearError]);
+  }, [state.error, state.isLoading]);
 
   // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
@@ -231,28 +232,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   const handleSubmit = async () => {
+    setFormError(null);
+    clearError();
+
     // Validate email
     if (!email.trim()) {
-      showAlert('Error', 'Please enter your email address');
+      setFormError('Enter your email address to continue.');
       return;
     }
 
     if (!validateEmail(email)) {
-      showAlert('Error', 'Please enter a valid email address');
+      setFormError('Enter a valid email address.');
       return;
     }
 
     // Validate password
     if (!password) {
-      showAlert('Error', 'Please enter your password');
+      setFormError(isRegistering ? 'Create a password to continue.' : 'Enter your password to continue.');
       return;
     }
 
     if (isRegistering) {
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
-        const message = passwordValidation.errors.map(e => '• ' + e).join('\n');
-        showAlert('Invalid Password', message);
+        const message = passwordValidation.errors.join(', ');
+        setFormError(`Password must include ${message}.`);
         return;
       }
     }
@@ -262,12 +266,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       
       if (isRegistering) {
         await register(email.trim().toLowerCase(), password);
-        // Tutorial will be shown automatically by app/index.tsx since onboarding is not complete
+        onLoginSuccess?.();
       } else {
         await login(email.trim().toLowerCase(), password);
-        // Email verification is optional - proceed to app regardless
-          onLoginSuccess?.();
-          router.replace('/(tabs)');
+        onLoginSuccess?.();
       }
     } catch {
       // Error is already set in state by UserContext
@@ -279,6 +281,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const handleGoogleLogin = async () => {
     try {
+      setFormError(null);
+      clearError();
       setIsLoading(true);
 
       // Use expo-auth-session for web OR when native module isn't available (Expo Go)
@@ -316,6 +320,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const handleAppleLogin = async () => {
     try {
+      setFormError(null);
+      clearError();
       setIsLoading(true);
 
       const credential = await AppleAuthentication.signInAsync({
@@ -404,9 +410,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
       await loginWithApple(credential.identityToken, userData);
       
-      // Navigate to main app
       onLoginSuccess?.();
-      router.replace('/(tabs)');
     } catch (error: any) {
       setIsLoading(false);
       
@@ -515,11 +519,53 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   const openPasswordReset = () => {
+    setFormError(null);
     setShowPasswordReset(true);
   };
 
   const closePasswordReset = () => {
     setShowPasswordReset(false);
+  };
+
+  const handleSetRegistering = (nextValue: boolean) => {
+    setIsRegistering(nextValue);
+    setFormError(null);
+    clearError();
+  };
+
+  const hasOauthOptions = showGoogleAuth || (showAppleAuth && isAppleSignInAvailable);
+
+  useEffect(() => {
+    if (!hasOauthOptions) {
+      setAuthMethod('email');
+      setDisplayedAuthMethod('email');
+    } else if (authMethod !== 'oauth' && authMethod !== 'email') {
+      setAuthMethod('oauth');
+      setDisplayedAuthMethod('oauth');
+    }
+  }, [hasOauthOptions, authMethod]);
+
+  const handleAuthMethodChange = (nextMethod: 'oauth' | 'email') => {
+    if (nextMethod === authMethod) return;
+
+    setFormError(null);
+    clearError();
+
+    Animated.timing(authPanelOverlayOpacity, {
+      toValue: 1,
+      duration: 90,
+      useNativeDriver: true,
+    }).start(() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setAuthMethod(nextMethod);
+      setDisplayedAuthMethod(nextMethod);
+
+      Animated.timing(authPanelOverlayOpacity, {
+        toValue: 0,
+        duration: 130,
+        useNativeDriver: true,
+      }).start();
+    });
   };
 
   return (
@@ -528,7 +574,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
           bounces={true}
@@ -538,112 +584,49 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <View style={styles.header}>
               <Text style={styles.title}>🥡 SnackTrack</Text>
               <Text style={styles.subtitle}>
-                Track your food spending and discover amazing insights
+                Sign in to import receipts and start seeing your delivery spending more clearly.
               </Text>
             </View>
 
-            {/* Login/Register Toggle */}
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleButton, isRegistering && styles.toggleButtonActive]}
-                onPress={() => setIsRegistering(true)}
-              >
-                <Text style={[styles.toggleText, isRegistering && styles.toggleTextActive]}>
-                  Sign Up
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, !isRegistering && styles.toggleButtonActive]}
-                onPress={() => setIsRegistering(false)}
-              >
-                <Text style={[styles.toggleText, !isRegistering && styles.toggleTextActive]}>
-                  Sign In
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Login Form */}
             <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={24} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email address"
-                  placeholderTextColor="#999"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="password"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons 
-                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={24} 
-                    color="#666" 
-                  />
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, isRegistering && styles.toggleButtonActive]}
+                  onPress={() => handleSetRegistering(true)}
+                >
+                  <Text style={[styles.toggleText, isRegistering && styles.toggleTextActive]}>
+                    Sign Up
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, !isRegistering && styles.toggleButtonActive]}
+                  onPress={() => handleSetRegistering(false)}
+                >
+                  <Text style={[styles.toggleText, !isRegistering && styles.toggleTextActive]}>
+                    Sign In
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {isRegistering && (
-                <View style={styles.passwordRequirements}>
-                  <Text style={styles.passwordRequirementsTitle}>Password must have:</Text>
-                  <Text style={styles.passwordRequirement}>• At least 8 characters</Text>
-                  <Text style={styles.passwordRequirement}>• At least 1 uppercase letter</Text>
-                  <Text style={styles.passwordRequirement}>• At least 1 number</Text>
-                </View>
-              )}
-
-              {!isRegistering && (
-                <TouchableOpacity onPress={openPasswordReset}>
-                  <Text style={styles.forgotPassword}>Forgot password?</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={isLoading || state.isLoading}
-              >
-                {isLoading || state.isLoading ? (
-                  <Text style={styles.loginButtonText}>
-                    {isRegistering ? 'Creating Account...' : 'Signing In...'}
+              <View style={styles.authPanelContainer}>
+              {displayedAuthMethod === 'oauth' && hasOauthOptions && (
+                <View style={styles.authPanel}>
+                  <Text style={styles.oauthTitle}>Fastest way to get started</Text>
+                  <Text style={styles.oauthSubtitle}>
+                    Try to use{' '}
+                    <Text style={styles.oauthSubtitleEmphasis}>
+                      the same email you use for your delivery apps
+                    </Text>{' '}
+                    to make importing easier later.
                   </Text>
-                ) : (
-                  <Text style={styles.loginButtonText}>
-                    {isRegistering ? 'Create Account' : 'Sign In'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Divider & Social Sign In Buttons (Dev Only) */}
-              {(showGoogleAuth || (showAppleAuth && isAppleSignInAvailable)) && (
-                <>
-                  <View style={styles.dividerContainer}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>OR</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
 
                   {showAppleAuth && isAppleSignInAvailable && (
                     <AppleAuthentication.AppleAuthenticationButton
-                      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                      buttonType={
+                        isRegistering
+                          ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                          : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                      }
                       buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                       cornerRadius={8}
                       style={styles.appleButton}
@@ -658,21 +641,152 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       disabled={isLoading || state.isLoading}
                     >
                       <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
-                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                      <Text style={styles.googleButtonText}>
+                        {isRegistering ? 'Sign up with Google' : 'Continue with Google'}
+                      </Text>
                     </TouchableOpacity>
                   )}
-                </>
+
+                  <View style={styles.infoContainer}>
+                    <Text style={styles.infoText}>
+                      {isRegistering
+                        ? 'You can always connect an inbox or import receipts after your account is ready.'
+                        : 'After signing in, you will continue into your import and insights flow.'}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.methodSwapLink}
+                      onPress={() => handleAuthMethodChange('email')}
+                    >
+                      <Text style={styles.methodSwapLinkText}>
+                        {isRegistering ? 'Create account with email instead' : 'Sign in with email instead'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
 
-              {/* Info */}
-              <View style={styles.infoContainer}>
-                <Text style={styles.infoText}>
-                  {isRegistering 
-                    ? "We'll use your email to create your account and securely save your spending data."
-                    : "Sign in to access your spending insights and analytics."
-                  }
-                </Text>
+              {(displayedAuthMethod === 'email' || !hasOauthOptions) && (
+                <View style={styles.authPanel}>
+                  <Text style={styles.manualIntro}>
+                    {isRegistering
+                      ? 'Create an account with the email you use for your delivery apps if you can.'
+                      : 'Use the email tied to your account to pick up where you left off.'}
+                  </Text>
+
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="mail-outline" size={24} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your email address"
+                      placeholderTextColor="#999"
+                      value={email}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="email"
+                      onChangeText={(value) => {
+                        setEmail(value);
+                        if (formError) setFormError(null);
+                        if (state.error) clearError();
+                      }}
+                    />
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your password"
+                      placeholderTextColor="#999"
+                      value={password}
+                      onChangeText={(value) => {
+                        setPassword(value);
+                        if (formError) setFormError(null);
+                        if (state.error) clearError();
+                      }}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="password"
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                      <Ionicons
+                        name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                        size={24}
+                        color="#666"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {isRegistering && (
+                    <View style={styles.passwordRequirements}>
+                      <Text style={styles.passwordRequirementsTitle}>Choose a password with:</Text>
+                      <Text style={styles.passwordRequirement}>
+                        8+ characters, 1 uppercase letter, and 1 number
+                      </Text>
+                    </View>
+                  )}
+
+                  {formError && (
+                    <View style={styles.errorContainer}>
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={18}
+                        color="#b42318"
+                        style={styles.errorIcon}
+                      />
+                      <Text style={styles.errorText}>{formError}</Text>
+                    </View>
+                  )}
+
+                  {!isRegistering && (
+                    <TouchableOpacity onPress={openPasswordReset}>
+                      <Text style={styles.forgotPassword}>Forgot password?</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={isLoading || state.isLoading}
+                  >
+                    {isLoading || state.isLoading ? (
+                      <Text style={styles.loginButtonText}>
+                        {isRegistering ? 'Creating Account...' : 'Signing In...'}
+                      </Text>
+                    ) : (
+                      <Text style={styles.loginButtonText}>
+                        {isRegistering ? 'Create Account' : 'Sign In'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.infoContainer}>
+                    <Text style={styles.infoText}>
+                      {isRegistering
+                        ? 'You can always connect an inbox or import receipts after your account is ready.'
+                        : 'After signing in, you will continue into your import and insights flow.'}
+                    </Text>
+                    {hasOauthOptions && (
+                      <TouchableOpacity
+                        style={styles.methodSwapLink}
+                        onPress={() => handleAuthMethodChange('oauth')}
+                      >
+                        <Text style={styles.methodSwapLinkText}>Use Google / Apple instead</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.authPanelOverlay,
+                    { opacity: authPanelOverlayOpacity },
+                  ]}
+                />
               </View>
+
             </View>
           </View>
         </ScrollView>
@@ -697,11 +811,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingVertical: 24,
   },
   content: {
-    flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    paddingTop: 40,
+    paddingBottom: 32,
   },
   header: {
     alignItems: 'center',
@@ -754,6 +869,55 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 32,
   },
+  authPanel: {
+    width: '100%',
+  },
+  authPanelContainer: {
+    position: 'relative',
+  },
+  authPanelOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f8f9fa',
+  },
+  oauthSection: {
+    marginBottom: 20,
+  },
+  oauthTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 6,
+  },
+  oauthSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  oauthSubtitleEmphasis: {
+    color: '#1d4ed8',
+    fontWeight: '700',
+  },
+  manualIntro: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  manualToggleButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    backgroundColor: '#fff',
+  },
+  manualToggleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -786,7 +950,28 @@ const styles = StyleSheet.create({
   passwordRequirement: {
     fontSize: 13,
     color: '#666',
-    marginBottom: 4,
+    lineHeight: 18,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fef3f2',
+    borderWidth: 1,
+    borderColor: '#fecdca',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  errorIcon: {
+    marginRight: 8,
+    marginTop: 1,
+  },
+  errorText: {
+    flex: 1,
+    color: '#b42318',
+    fontSize: 14,
+    lineHeight: 20,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -826,12 +1011,22 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     marginTop: 16,
+    alignItems: 'center',
   },
   infoText: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  methodSwapLink: {
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  methodSwapLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
   },
   dividerContainer: {
     flexDirection: 'row',
