@@ -1,272 +1,182 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  ScrollView,
-  Animated,
-} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
-const { width } = Dimensions.get('window');
-
-interface OnboardingSlide {
-  title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  gradient: string[];
-}
-
-const slides: OnboardingSlide[] = [
-  {
-    title: 'Ready to Face the Truth?',
-    description: 'Your Uber Eats spending is about to shock you. Brace yourself.',
-    icon: 'flame',
-    gradient: ['#ff6b6b', '#ee5a6f'],
-  },
-  {
-    title: 'Upload Your CSV, Get Roasted',
-    description: 'Import your Uber Eats data and watch us turn your shame into beautiful graphics',
-    icon: 'rocket',
-    gradient: ['#f093fb', '#f5576c'],
-  },
-  {
-    title: 'Join Thousands Getting Roasted',
-    description: 'See exactly how much damage you have done. Compare your shame with friends.',
-    icon: 'people',
-    gradient: ['#4facfe', '#00f2fe'],
-  },
-  {
-    title: 'Let Us See the Damage',
-    description: 'Time to confront your food delivery addiction. Ready?',
-    icon: 'warning',
-    gradient: ['#43e97b', '#38f9d7'],
-  },
-];
-
 interface OnboardingScreenProps {
   onComplete: () => void;
 }
 
+const highlights = [
+  {
+    icon: 'mail-open-outline' as const,
+    title: 'Start fast',
+    description: 'Import receipts in minutes and get to your first insight quickly.',
+  },
+  {
+    icon: 'bar-chart-outline' as const,
+    title: 'See the patterns',
+    description: 'Understand where your delivery spending goes over time.',
+  },
+  {
+    icon: 'document-attach-outline' as const,
+    title: 'Go deeper later',
+    description: 'Upload a full export when you want more complete historical detail.',
+  },
+];
+
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
   const insets = useSafeAreaInsets();
-
-  const handleNext = () => {
-    if (currentIndex < slides.length - 1) {
-      const nextIndex = currentIndex + 1;
-      
-      // Fade out
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start(() => {
-        // Change slide
-        setCurrentIndex(nextIndex);
-        scrollViewRef.current?.scrollTo({
-          x: nextIndex * width,
-          animated: false,
-        });
-        
-        // Fade in
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }).start();
-      });
-    } else {
-      onComplete();
-    }
-  };
-
-  const handleSkip = () => {
-    onComplete();
-  };
-
-  const handleDotPress = (index: number) => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 150,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentIndex(index);
-      scrollViewRef.current?.scrollTo({
-        x: index * width,
-        animated: false,
-      });
-      
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-    });
-  };
-
-  const currentSlide = slides[currentIndex];
-  const isLastSlide = currentIndex === slides.length - 1;
 
   return (
     <LinearGradient
-      colors={currentSlide.gradient as any}
-      style={StyleSheet.absoluteFillObject}
+      colors={['#0f172a', '#153a5b', '#2a6f97']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
     >
-      <StatusBar hidden />
-      {/* Skip Button */}
-      {!isLastSlide && (
-        <TouchableOpacity style={[styles.skipButton, { top: insets.top + 10 }]} onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      )}
+      <StatusBar style="light" />
 
-      {/* Content */}
-      <Animated.View style={[styles.content, { opacity: fadeAnim, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          {/* Icon */}
-          <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name={currentSlide.icon} size={80} color="white" />
+      <View
+        style={[
+          styles.content,
+          {
+            paddingTop: insets.top + 24,
+            paddingBottom: insets.bottom + 24,
+          },
+        ]}
+      >
+        <View style={styles.hero}>
+          <View style={styles.badge}>
+            <Ionicons name="receipt-outline" size={18} color="#dbeafe" />
+            <Text style={styles.badgeText}>SnackTrack</Text>
+          </View>
+
+          <Text style={styles.title}>See where your food delivery money actually goes</Text>
+          <Text style={styles.subtitle}>
+            Import your receipts, spot spending patterns, and turn everyday orders into useful
+            insights.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          {highlights.map((item) => (
+            <View key={item.title} style={styles.highlightRow}>
+              <View style={styles.iconWrap}>
+                <Ionicons name={item.icon} size={20} color="#0f4c81" />
+              </View>
+              <View style={styles.highlightText}>
+                <Text style={styles.highlightTitle}>{item.title}</Text>
+                <Text style={styles.highlightDescription}>{item.description}</Text>
+              </View>
             </View>
-          </View>
+          ))}
+        </View>
 
-          {/* Text */}
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>{currentSlide.title}</Text>
-            <Text style={styles.description}>{currentSlide.description}</Text>
-          </View>
-
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {slides.map((_, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => handleDotPress(index)}
-                style={styles.dotTouchable}
-              >
-                <View
-                  style={[
-                    styles.dot,
-                    index === currentIndex && styles.dotActive,
-                  ]}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Action Button */}
-          <TouchableOpacity style={styles.button} onPress={handleNext}>
-            <Text style={styles.buttonText}>
-              {isLastSlide ? "Let's Get Started!" : 'Next'}
-            </Text>
-            {!isLastSlide && (
-              <Ionicons name="arrow-forward" size={20} color="white" style={styles.buttonIcon} />
-            )}
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.primaryButton} onPress={onComplete}>
+            <Text style={styles.primaryButtonText}>Get Started</Text>
+            <Ionicons name="arrow-forward" size={18} color="#0f172a" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  skipButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 100,
-    padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 8,
-  },
-  skipText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  container: {
+    flex: 1,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
   },
-  iconContainer: {
-    marginBottom: 60,
+  hero: {
+    marginTop: 12,
   },
-  iconCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  badge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 24,
   },
-  textContainer: {
-    marginBottom: 80,
-    alignItems: 'center',
+  badgeText: {
+    color: '#dbeafe',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
+    color: '#f8fafc',
+    fontSize: 36,
+    fontWeight: '800',
+    lineHeight: 42,
     marginBottom: 16,
   },
-  description: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 26,
+  subtitle: {
+    color: 'rgba(248, 250, 252, 0.88)',
+    fontSize: 17,
+    lineHeight: 25,
+    maxWidth: 540,
   },
-  pagination: {
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderRadius: 24,
+    padding: 20,
+    gap: 18,
+  },
+  highlightRow: {
     flexDirection: 'row',
-    marginBottom: 40,
+    alignItems: 'flex-start',
   },
-  dotTouchable: {
-    padding: 8,
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#e0f2fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    marginHorizontal: 4,
+  highlightText: {
+    flex: 1,
   },
-  dotActive: {
-    backgroundColor: 'white',
-    width: 24,
+  highlightTitle: {
+    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  button: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 48,
-    paddingVertical: 16,
-    borderRadius: 30,
+  highlightDescription: {
+    color: '#475569',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  actions: {
+    gap: 12,
+  },
+  primaryButton: {
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: '#f8fafc',
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-    minWidth: 200,
     justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  buttonIcon: {
-    marginLeft: 8,
+  primaryButtonText: {
+    color: '#0f172a',
+    fontSize: 17,
+    fontWeight: '800',
   },
 });
-

@@ -11,11 +11,11 @@
         "buildConfiguration": "Debug"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://snacktrackapi-preview.up.railway.app",
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
         "EXPO_PUBLIC_APP_ENV": "development",
-        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "340407880465-5p166du04l67h82qqpds5m64641impmr.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "186929700833-guu59c6rdbpih04a9nrrr14lc2rsmunu.apps.googleusercontent.com",
         "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "186929700833-bg857r3na2jeq524bca2i33be4jvp471.apps.googleusercontent.com"
       }
     },
     "preview": {
