@@ -79,21 +79,20 @@ export default function UploadScreen() {
   };
 
   const handleLoaderComplete = async () => {
-    if (!state.user) {
-      setShowLoader(false);
-      router.push('/(tabs)/wrapped-journey');
-      return;
-    }
-
     try {
+      if (!state.user) {
+        router.replace('/(tabs)/wrapped-journey');
+        return;
+      }
+
       const summary = await analyticsApi.getUserSummary(state.user.id, true);
       setGlobalAnalytics(summary);
+      router.replace('/(tabs)/wrapped-journey');
     } catch (error) {
-      console.warn('Failed to refresh analytics after upload:', error);
+      console.error('Failed to complete import flow:', error);
+    } finally {
+      setShowLoader(false);
     }
-
-    setShowLoader(false);
-    router.push('/(tabs)/wrapped-journey');
   };
 
   const handleUploadError = (_error: string) => {
