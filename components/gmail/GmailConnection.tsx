@@ -9,6 +9,8 @@ import { getConfig } from '../../config/env';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+
 
 // Lazy load Google Sign-In module only when needed and on native platforms
 let GoogleSigninModule: any = null;
@@ -141,25 +143,38 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSucces
 
   // Expo Auth Session for Web and Expo Go Fallback
   // Conditionally construct config - use web client ID as fallback for iOS if iosClientId is missing
+  // In Expo Go, Linking.createURL() produces exp://IP:PORT which Google rejects.
+  // Constants.appOwnership === 'expo' is the reliable Expo Go detector.
+  // Native builds use the app package scheme directly.
+  const isExpoGo = Constants.appOwnership === 'expo';
+  const redirectUri = isExpoGo
+    ? 'https://auth.expo.io/@snacktrack/snack-track'
+    : makeRedirectUri({ native: 'com.snacktrack.app:/oauth2redirect' });
+
   const googleAuthConfig: {
     clientId: string;
     iosClientId?: string;
     androidClientId?: string;
     scopes: string[];
+    redirectUri: string;
   } = {
     clientId: config.gmailWebClientId || '',
     scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+    redirectUri,
   };
   
-  // expo-auth-session requires iosClientId on iOS, so use web client ID as fallback if missing
-  if (Platform.OS === 'ios') {
-    googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
-  } else if (config.gmailIosClientId) {
-    googleAuthConfig.iosClientId = config.gmailIosClientId;
-  }
-  
-  if (config.gmailAndroidClientId) {
-    googleAuthConfig.androidClientId = config.gmailAndroidClientId;
+  // When using the Expo proxy (Expo Go), only the web client ID should be used.
+  // Passing androidClientId causes Google to use the Android OAuth client which
+  // only accepts package-name redirect URIs, not https://auth.expo.io/...
+  if (!isExpoGo) {
+    if (Platform.OS === 'ios') {
+      googleAuthConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
+    } else if (config.gmailIosClientId) {
+      googleAuthConfig.iosClientId = config.gmailIosClientId;
+    }
+    if (config.gmailAndroidClientId) {
+      googleAuthConfig.androidClientId = config.gmailAndroidClientId;
+    }
   }
   
   const [, response, promptAsync] = Google.useAuthRequest(googleAuthConfig);
