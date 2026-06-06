@@ -263,14 +263,14 @@ export default function ReceiptsScreen() {
       <Ionicons name="receipt-outline" size={80} color="#ccc" />
       <Text style={styles.emptyTitle}>No receipts yet</Text>
       <Text style={styles.emptyText}>
-        Upload your delivery app data or connect Gmail to see your receipts here
+        Connect Gmail to start importing receipts, or upload a full export for deeper history
       </Text>
       <TouchableOpacity 
         style={styles.uploadButton}
         onPress={() => router.push('/(tabs)/upload')}
       >
         <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-        <Text style={styles.uploadButtonText}>Upload Data</Text>
+        <Text style={styles.uploadButtonText}>Import Receipts</Text>
       </TouchableOpacity>
     </View>
   );
@@ -600,4 +600,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

@@ -345,7 +345,7 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/upload')}
           >
             <Ionicons name="cloud-upload-outline" size={24} color="#666" />
-            <Text style={styles.menuText}>Upload Data</Text>
+            <Text style={styles.menuText}>Import Receipts</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
           
@@ -445,13 +445,14 @@ export default function ProfileScreen() {
             
             <ScrollView style={styles.helpModalBody}>
               <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>📋 How to Upload Your Data</Text>
+                <Text style={styles.helpSectionTitle}>📋 Import Options</Text>
                 <Text style={styles.helpSectionText}>
-                  1. Open the Uber Eats app or website{'\n'}
-                  2. Go to Account → Privacy → Download Your Data{'\n'}
-                  3. Request your data download{'\n'}
-                  4. Wait for the email (usually 2-3 hours){'\n'}
-                  5. Download the ZIP file and upload it here
+                  Fastest start:{'\n'}
+                  1. Go to the Import Receipts screen{'\n'}
+                  2. Tap the Gmail button{'\n'}
+                  3. Connect the inbox tied to your delivery apps{'\n'}
+                  4. SnackTrack will connect Gmail and start importing automatically{'\n\n'}
+                  Want deeper history? You can also request an Uber Eats export, download the ZIP file, and upload it from the same screen.
                 </Text>
               </View>
 
@@ -459,10 +460,13 @@ export default function ProfileScreen() {
                 <Text style={styles.helpSectionTitle}>❓ Frequently Asked Questions</Text>
                 <Text style={styles.helpSectionText}>
                   <Text style={styles.helpQuestion}>Q: How long does it take to process my data?</Text>{'\n'}
-                  A: Usually just a few seconds after upload.{'\n\n'}
+                  A: Gmail imports usually start right away after connection. Full export uploads usually process within a few seconds after upload.{'\n\n'}
                   
                   <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
                   A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
+
+                  <Text style={styles.helpQuestion}>Q: Which import method should I use?</Text>{'\n'}
+                  A: Start with Gmail if you want the fastest setup. Use a full export if you already have one or want more complete historical coverage.{'\n\n'}
                   
                   <Text style={styles.helpQuestion}>Q: Can I delete my account?</Text>{'\n'}
                   A: Yes, you can delete your account directly from the Account Deletion section below.

@@ -20,7 +20,6 @@ export default function UploadScreen() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
-  const hasProcessedOAuthParam = useRef(false);
   const hasAutoImportedFromParamRef = useRef(false);
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
@@ -39,22 +38,6 @@ export default function UploadScreen() {
   });
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
-
-  useEffect(() => {
-    if (showGmailFeature && params.openGmail === 'true' && !hasProcessedOAuthParam.current) {
-      hasProcessedOAuthParam.current = true;
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('openGmail');
-        window.history.replaceState({}, '', url.pathname);
-      } else {
-        setTimeout(() => {
-          router.replace('/(tabs)/upload');
-        }, 500);
-      }
-    }
-  }, [params.openGmail, showGmailFeature]);
 
   useEffect(() => {
     if (

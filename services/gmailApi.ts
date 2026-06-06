@@ -22,15 +22,6 @@ export interface GmailImportResponse {
   errors: string[];
 }
 
-export interface GmailExchangeTokenResponse {
-  success: boolean;
-  message: string;
-  connected: boolean;
-  connectionMode?: 'temporary' | 'offline';
-  expiresAt?: string | null;
-  scopes?: string[];
-}
-
 export interface GmailAuthUrlResponse {
   success: boolean;
   authUrl: string;
@@ -41,24 +32,6 @@ let activeImportPromise: Promise<GmailImportResponse> | null = null;
 export const gmailApi = {
   getAuthUrl: async (redirectUri: string): Promise<GmailAuthUrlResponse> => {
     const response = await api.post('/gmail/auth-url', { redirectUri });
-    return response.data;
-  },
-
-  /**
-   * Exchange OAuth access token for backend tokens
-   * @param accessToken - OAuth access token from Google
-   * @param refreshToken - OAuth refresh token from Google (optional)
-   */
-  exchangeToken: async (accessToken: string, refreshToken?: string): Promise<GmailExchangeTokenResponse> => {
-    const response = await api.post('/gmail/exchange-token', { 
-      accessToken,
-      refreshToken
-    });
-    
-    if (__DEV__) {
-      console.log(`✅ Gmail token exchange successful`, { hasRefreshToken: !!refreshToken });
-    }
-    
     return response.data;
   },
 

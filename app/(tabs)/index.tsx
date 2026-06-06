@@ -199,8 +199,8 @@ export default function DashboardScreen() {
               <View style={styles.actionButtonContent}>
                 <Ionicons name="cloud-upload" size={24} color="white" />
                 <View style={styles.actionButtonText}>
-                  <Text style={styles.actionButtonTitle}>Upload Uber Data</Text>
-                  <Text style={styles.actionButtonSubtitle}>Import your order history</Text>
+                  <Text style={styles.actionButtonTitle}>Import Receipts</Text>
+                  <Text style={styles.actionButtonSubtitle}>Connect Gmail or upload a full export</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -233,7 +233,7 @@ export default function DashboardScreen() {
                 <Ionicons name="restaurant-outline" size={48} color="#ccc" />
                 <Text style={styles.emptyStateTitle}>No receipts yet</Text>
                 <Text style={styles.emptyStateSubtitle}>
-                  Upload your CSV file to start tracking your food spending
+                  Connect Gmail to get started fast, or upload a full export for deeper history
                 </Text>
               </View>
             )}

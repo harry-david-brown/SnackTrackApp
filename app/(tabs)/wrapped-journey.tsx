@@ -132,11 +132,11 @@ export default function WrappedJourneyScreen() {
         <Ionicons name="images-outline" size={64} color="#667eea" style={styles.emptyIcon} />
         <Text style={styles.emptyTitle}>Your Wrapped Journey Awaits</Text>
         <Text style={styles.emptySubtitle}>
-          Upload your Uber Eats order history to unlock a personalized recap of your year in delivery.
+          Import receipts with Gmail to unlock your first recap fast, or upload a full export for deeper history.
         </Text>
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/(tabs)/upload')}>
           <Ionicons name="cloud-upload-outline" size={20} color="white" />
-          <Text style={styles.emptyButtonText}>Upload Receipts</Text>
+          <Text style={styles.emptyButtonText}>Import Receipts</Text>
         </TouchableOpacity>
       </View>
     );
@@ -217,4 +217,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
-

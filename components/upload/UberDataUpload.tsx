@@ -72,7 +72,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     
     // Check file extension - accept both CSV and ZIP
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.zip')) {
-      showAlert('Wrong file!', 'Please select your Uber user data.');
+      showAlert('Wrong file!', 'Please select a delivery export file in ZIP or CSV format.');
       return false;
     }
 
@@ -281,7 +281,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         <View style={styles.uploadButtonContent}>
           <Ionicons name="cloud-upload" size={24} color="white" />
           <Text style={styles.uploadButtonText}>
-            {uploadState.isUploading ? 'Uploading...' : 'Choose ZIP File'}
+            {uploadState.isUploading ? 'Uploading...' : 'Choose Export File'}
           </Text>
         </View>
       </TouchableOpacity>

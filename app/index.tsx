@@ -73,7 +73,7 @@ export default function HomeScreen() {
     if (
       !hasImportedData
     ) {
-      router.replace('/(tabs)/upload?openGmail=true');
+      router.replace('/(tabs)/upload');
       return;
     }
 
