@@ -9,6 +9,7 @@ export default function OAuthCallback() {
     const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
     const error = typeof params.error === 'string' ? params.error : undefined;
     const autoImportGmail = typeof params.autoImportGmail === 'string' ? params.autoImportGmail : undefined;
+    const autoImportFlowId = autoImportGmail ? `${Date.now()}` : undefined;
 
     router.replace({
       pathname: '/(tabs)/upload',
@@ -16,6 +17,7 @@ export default function OAuthCallback() {
         ...(gmail ? { gmail } : {}),
         ...(error ? { error } : {}),
         ...(autoImportGmail ? { autoImportGmail } : {}),
+        ...(autoImportFlowId ? { autoImportFlowId } : {}),
       },
     });
   }, [params]);

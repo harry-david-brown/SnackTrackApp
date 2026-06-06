@@ -16,20 +16,22 @@ import { useGmailImport } from '@hooks/useGmailImport';
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const params = useLocalSearchParams();
+  const shouldAutoImportFromParam = params.autoImportGmail === 'true';
+  const autoImportFlowId = typeof params.autoImportFlowId === 'string' ? params.autoImportFlowId : null;
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
   const { pendingCount, isSyncing } = useOfflineSync();
-  const hasAutoImportedFromParamRef = useRef(false);
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
   const isFirstImport = totalImportedReceipts === 0;
   const {
     connectionStatus,
     isChecking: isGmailStatusChecking,
-    isPrimaryActionInProgress: isGmailPrimaryActionInProgress,
+    primaryFlowState,
     connectAndImportGmail,
     importReceipts,
+    resumeAutoImport,
     refreshConnectionStatus,
   } = useGmailImport({
     onImportSuccess: () => {
@@ -38,41 +40,30 @@ export default function UploadScreen() {
   });
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
+  const hasTriggeredAutoImport = useRef(false);
 
   useEffect(() => {
-    if (
-      !showGmailFeature ||
-      params.autoImportGmail !== 'true' ||
-      hasAutoImportedFromParamRef.current ||
-      isGmailStatusChecking
-    ) {
+    if (!showGmailFeature || !shouldAutoImportFromParam || !autoImportFlowId) {
       return;
     }
 
-    if (!connectionStatus.connected || !canImportFromGmail) {
+    if (isGmailStatusChecking) {
       return;
     }
 
-    hasAutoImportedFromParamRef.current = true;
-
-    void importReceipts();
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('autoImportGmail');
-      window.history.replaceState({}, '', url.pathname);
-    } else {
-      setTimeout(() => {
-        router.replace('/(tabs)/upload');
-      }, 500);
+    // Only trigger auto-import once per component mount
+    if (hasTriggeredAutoImport.current) {
+      return;
     }
+
+    hasTriggeredAutoImport.current = true;
+    void resumeAutoImport(autoImportFlowId);
   }, [
-    connectionStatus.connected,
-    canImportFromGmail,
-    importReceipts,
     isGmailStatusChecking,
-    params.autoImportGmail,
     showGmailFeature,
+    shouldAutoImportFromParam,
+    autoImportFlowId,
+    resumeAutoImport,
   ]);
 
   useEffect(() => {
@@ -115,7 +106,7 @@ export default function UploadScreen() {
   };
 
   const handlePrimaryGmailAction = async () => {
-    if (isGmailStatusChecking) {
+    if (isGmailStatusChecking || primaryFlowState !== 'idle') {
       return;
     }
 
@@ -128,7 +119,11 @@ export default function UploadScreen() {
   };
 
   const gmailButtonLabel = (() => {
-    if (isGmailPrimaryActionInProgress) {
+    if (primaryFlowState === 'connecting') {
+      return 'Connecting Gmail...';
+    }
+
+    if (primaryFlowState === 'preparing_import' || primaryFlowState === 'importing') {
       return 'Importing receipts...';
     }
 
@@ -226,7 +221,7 @@ export default function UploadScreen() {
                 style={styles.gmailButton}
                 onPress={handlePrimaryGmailAction}
                 activeOpacity={0.85}
-                disabled={isGmailPrimaryActionInProgress || isGmailStatusChecking}
+                disabled={primaryFlowState !== 'idle' || isGmailStatusChecking}
               >
                 <Ionicons name="logo-google" size={20} color="#fff" />
                 <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
@@ -236,7 +231,7 @@ export default function UploadScreen() {
                 <TouchableOpacity
                   style={styles.manageLink}
                   onPress={() => setShowGmailModal(true)}
-                  disabled={isGmailPrimaryActionInProgress}
+                  disabled={primaryFlowState !== 'idle'}
                 >
                   <Text style={styles.manageLinkText}>Manage Gmail connection</Text>
                 </TouchableOpacity>
