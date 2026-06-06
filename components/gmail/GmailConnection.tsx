@@ -6,16 +6,21 @@ import { useGmailImport } from '../../hooks/useGmailImport';
 interface GmailConnectionProps {
   onImportSuccess?: () => void;
   onClose?: () => void;
+  onDisconnectSuccess?: () => void;
 }
 
-export const GmailConnection: React.FC<GmailConnectionProps> = ({ onImportSuccess, onClose }) => {
+export const GmailConnection: React.FC<GmailConnectionProps> = ({
+  onImportSuccess,
+  onClose,
+  onDisconnectSuccess,
+}) => {
   const {
     connectionStatus,
     isLoading,
     isChecking,
     disconnectGmail,
     formatExpiry,
-  } = useGmailImport({ onImportSuccess });
+  } = useGmailImport({ onImportSuccess, onDisconnectSuccess });
 
   const isConnected = connectionStatus.connected;
   const needsReconnect = connectionStatus.needsReconnect;

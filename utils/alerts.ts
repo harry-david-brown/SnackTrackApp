@@ -1,21 +1,56 @@
 import { Alert, Platform } from 'react-native';
 
+const normalizeAlertMessage = (message?: unknown): string | undefined => {
+  if (message == null) {
+    return undefined;
+  }
+
+  if (typeof message === 'string') {
+    return message;
+  }
+
+  if (message instanceof Error) {
+    return message.message || 'An unexpected error occurred.';
+  }
+
+  if (typeof message === 'object') {
+    const candidateMessage =
+      'message' in message && typeof (message as { message?: unknown }).message === 'string'
+        ? (message as { message: string }).message
+        : undefined;
+
+    if (candidateMessage) {
+      return candidateMessage;
+    }
+
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return 'An unexpected error occurred.';
+    }
+  }
+
+  return String(message);
+};
+
 /**
  * Cross-platform alert utility
  * Uses native Alert.alert() on mobile and window.alert() on web
  */
-export const showAlert = (title: string, message?: string, buttons?: any[]) => {
+export const showAlert = (title: string, message?: unknown, buttons?: any[]) => {
+  const normalizedMessage = normalizeAlertMessage(message);
+
   if (Platform.OS === 'web') {
     // On web, use browser's native alert
     // Note: buttons are not supported in web alerts
-    alert(message ? `${title}: ${message}` : title);
+    alert(normalizedMessage ? `${title}: ${normalizedMessage}` : title);
   } else {
     // On native platforms, use React Native's Alert
     // Only pass buttons if defined to avoid undefined being passed as third argument
     if (buttons !== undefined) {
-      Alert.alert(title, message, buttons);
+      Alert.alert(title, normalizedMessage, buttons);
     } else {
-      Alert.alert(title, message);
+      Alert.alert(title, normalizedMessage);
     }
   }
 };
@@ -54,4 +89,3 @@ export const showConfirm = (
     }
   });
 };
-

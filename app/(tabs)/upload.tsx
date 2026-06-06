@@ -27,11 +27,11 @@ export default function UploadScreen() {
   const isFirstImport = totalImportedReceipts === 0;
   const {
     connectionStatus,
-    isLoading: isGmailConnecting,
-    isImporting: isGmailImporting,
     isChecking: isGmailStatusChecking,
+    isPrimaryActionInProgress: isGmailPrimaryActionInProgress,
     connectAndImportGmail,
     importReceipts,
+    refreshConnectionStatus,
   } = useGmailImport({
     onImportSuccess: () => {
       setShowLoader(true);
@@ -92,6 +92,14 @@ export default function UploadScreen() {
     showGmailFeature,
   ]);
 
+  useEffect(() => {
+    if (!showGmailFeature || !showGmailModal) {
+      return;
+    }
+
+    void refreshConnectionStatus();
+  }, [refreshConnectionStatus, showGmailFeature, showGmailModal]);
+
   const handleUploadSuccess = async (_receiptsCount: number) => {
     setShowLoader(true);
   };
@@ -137,12 +145,8 @@ export default function UploadScreen() {
   };
 
   const gmailButtonLabel = (() => {
-    if (isGmailImporting) {
+    if (isGmailPrimaryActionInProgress) {
       return 'Importing receipts...';
-    }
-
-    if (isGmailConnecting) {
-      return connectionStatus.connected ? 'Reconnecting Gmail...' : 'Connecting Gmail...';
     }
 
     if (connectionStatus.connected && canImportFromGmail) {
@@ -239,7 +243,7 @@ export default function UploadScreen() {
                 style={styles.gmailButton}
                 onPress={handlePrimaryGmailAction}
                 activeOpacity={0.85}
-                disabled={isGmailConnecting || isGmailImporting || isGmailStatusChecking}
+                disabled={isGmailPrimaryActionInProgress || isGmailStatusChecking}
               >
                 <Ionicons name="logo-google" size={20} color="#fff" />
                 <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
@@ -249,7 +253,7 @@ export default function UploadScreen() {
                 <TouchableOpacity
                   style={styles.manageLink}
                   onPress={() => setShowGmailModal(true)}
-                  disabled={isGmailConnecting || isGmailImporting}
+                  disabled={isGmailPrimaryActionInProgress}
                 >
                   <Text style={styles.manageLinkText}>Manage Gmail connection</Text>
                 </TouchableOpacity>
@@ -332,6 +336,10 @@ export default function UploadScreen() {
             <ScrollView style={styles.modalContent}>
               <GmailConnection
                 onImportSuccess={handleGmailImportSuccess}
+                onDisconnectSuccess={() => {
+                  setShowGmailModal(false);
+                  void refreshConnectionStatus();
+                }}
                 onClose={() => setShowGmailModal(false)}
               />
             </ScrollView>

@@ -31,7 +31,19 @@ export interface GmailExchangeTokenResponse {
   scopes?: string[];
 }
 
+export interface GmailAuthUrlResponse {
+  success: boolean;
+  authUrl: string;
+}
+
+let activeImportPromise: Promise<GmailImportResponse> | null = null;
+
 export const gmailApi = {
+  getAuthUrl: async (redirectUri: string): Promise<GmailAuthUrlResponse> => {
+    const response = await api.post('/gmail/auth-url', { redirectUri });
+    return response.data;
+  },
+
   /**
    * Exchange OAuth access token for backend tokens
    * @param accessToken - OAuth access token from Google
@@ -64,10 +76,19 @@ export const gmailApi = {
    * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (): Promise<GmailImportResponse> => {
-    const response = await api.post('/gmail/import', {}, {
+    if (activeImportPromise) {
+      return activeImportPromise;
+    }
+
+    activeImportPromise = api.post('/gmail/import', {}, {
       timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
-    });
-    return response.data;
+    })
+      .then((response) => response.data)
+      .finally(() => {
+        activeImportPromise = null;
+      });
+
+    return activeImportPromise;
   },
 
   /**

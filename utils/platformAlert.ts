@@ -6,6 +6,39 @@ export interface AlertButton {
   style?: 'default' | 'cancel' | 'destructive';
 }
 
+const normalizeAlertMessage = (message?: unknown): string | undefined => {
+  if (message == null) {
+    return undefined;
+  }
+
+  if (typeof message === 'string') {
+    return message;
+  }
+
+  if (message instanceof Error) {
+    return message.message || 'An unexpected error occurred.';
+  }
+
+  if (typeof message === 'object') {
+    const candidateMessage =
+      'message' in message && typeof (message as { message?: unknown }).message === 'string'
+        ? (message as { message: string }).message
+        : undefined;
+
+    if (candidateMessage) {
+      return candidateMessage;
+    }
+
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return 'An unexpected error occurred.';
+    }
+  }
+
+  return String(message);
+};
+
 /**
  * Platform-aware alert that works on both web and mobile
  * On web: Uses native browser confirm/alert
@@ -13,26 +46,28 @@ export interface AlertButton {
  */
 export const showAlert = (
   title: string,
-  message?: string,
+  message?: unknown,
   buttons?: AlertButton[]
 ) => {
+  const normalizedMessage = normalizeAlertMessage(message);
+
   if (Platform.OS === 'web') {
     // Web implementation using native browser dialogs
     if (!buttons || buttons.length === 0) {
       // Simple alert
-      window.alert(`${title}${message ? '\n\n' + message : ''}`);
+      window.alert(`${title}${normalizedMessage ? '\n\n' + normalizedMessage : ''}`);
       return;
     }
 
     if (buttons.length === 1) {
       // Single button alert
-      window.alert(`${title}${message ? '\n\n' + message : ''}`);
+      window.alert(`${title}${normalizedMessage ? '\n\n' + normalizedMessage : ''}`);
       buttons[0].onPress?.();
       return;
     }
 
     // Multiple buttons - use confirm dialog
-    const confirmMessage = `${title}${message ? '\n\n' + message : ''}\n\n${buttons
+    const confirmMessage = `${title}${normalizedMessage ? '\n\n' + normalizedMessage : ''}\n\n${buttons
       .filter(b => b.style !== 'cancel')
       .map(b => b.text)
       .join(' / ')}`;
@@ -50,7 +85,7 @@ export const showAlert = (
     }
   } else {
     // Mobile implementation using React Native Alert
-    Alert.alert(title, message, buttons);
+    Alert.alert(title, normalizedMessage, buttons);
   }
 };
 
@@ -114,4 +149,3 @@ export const showSimpleAlert = (title: string, message?: string, onPress?: () =>
     },
   ]);
 };
-

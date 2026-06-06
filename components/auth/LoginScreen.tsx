@@ -22,6 +22,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import { getConfig } from '../../config/env';
 import { featureFlags } from '../../config/featureFlags';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 // Initialize WebBrowser for auth
 WebBrowser.maybeCompleteAuthSession();
@@ -165,7 +166,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       clearError();
       
       console.error('Google Login Error:', error);
-      showAlert('Login Failed', error.message || 'Failed to verify Google token');
+      showAlert('Login Failed', getErrorMessage(error) || 'Failed to verify Google token');
     } finally {
       setIsLoading(false);
     }
@@ -313,7 +314,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         console.log('ℹ️ Configured Web Client ID:', config.gmailWebClientId);
         console.log('ℹ️ Configured iOS Client ID:', config.gmailIosClientId);
         console.log('ℹ️ Configured Android Client ID:', config.gmailAndroidClientId);
-        showAlert('Login Failed', error.message || 'Failed to sign in with Google');
+        showAlert('Login Failed', getErrorMessage(error) || 'Failed to sign in with Google');
       }
     }
   };
