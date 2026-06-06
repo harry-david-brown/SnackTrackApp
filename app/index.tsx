@@ -6,13 +6,19 @@ import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { LoginScreen } from '../components/auth/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
-import UberDataTutorial from '../components/upload/UberDataTutorial';
 
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasCheckedOnboardingRef = useRef(false);
+  const hasNavigatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!state.isAuthenticated) {
+      hasNavigatedRef.current = false;
+    }
+  }, [state.isAuthenticated]);
 
 
   useEffect(() => {
@@ -46,63 +52,46 @@ export default function HomeScreen() {
     }
   }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading, onboardingLoading, showOnboarding]);
 
-  // Separate effect to handle navigation after onboarding completion
   useEffect(() => {
-    // Only navigate if user is authenticated AND onboarding is complete AND onboarding is not showing
-    // AND analytics are loaded (or at least finished loading) to prevent dashboard pop-in
-    // AND onboarding is not loading (to prevent navigation during onboarding check for new users)
-    // IMPORTANT: For new registrations, hasCompletedOnboarding will be false until tutorial completes
-    // So this ensures tutorial always shows before navigation
-    if (
-      state.isAuthenticated && 
-      state.user && 
-      hasCompletedOnboarding && 
-      !showOnboarding &&
-      !state.analyticsLoading && // Wait for analytics to finish loading
-      !onboardingLoading // Wait for onboarding check to finish (prevents race condition)
-    ) {
-      router.replace('/(tabs)');
+    if (!state.isAuthenticated || !state.user || showOnboarding || onboardingLoading) {
+      return;
     }
-  }, [state.isAuthenticated, state.user, hasCompletedOnboarding, showOnboarding, state.analyticsLoading, onboardingLoading]);
 
+    if (state.analyticsLoading) {
+      return;
+    }
+
+    if (hasNavigatedRef.current) {
+      return;
+    }
+
+    const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user.receiptCount ?? 0;
+    const hasImportedData = totalImportedReceipts > 0;
+
+    hasNavigatedRef.current = true;
+
+    if (
+      !hasImportedData
+    ) {
+      router.replace('/(tabs)/upload?openGmail=true');
+      return;
+    }
+
+    router.replace('/(tabs)');
+  }, [
+    state.isAuthenticated,
+    state.user,
+    state.analytics,
+    state.analyticsLoading,
+    showOnboarding,
+    onboardingLoading,
+  ]);
 
   const handleOnboardingComplete = async () => {
-    // Don't mark onboarding as complete yet - wait until tutorial is done
-    // Just hide the onboarding screen to show the login screen
+    await completeOnboarding();
     setShowOnboarding(false);
   };
 
-  const handleTutorialComplete = async () => {
-    try {
-      await completeOnboarding();
-      
-      // Wait a tick for state to propagate, then navigate
-      // The navigation effect should handle this, but we'll also try direct navigation as fallback
-      setTimeout(() => {
-        if (state.isAuthenticated && state.user) {
-          router.replace('/(tabs)');
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
-    }
-  };
-
-  // Show tutorial if user is authenticated but hasn't completed onboarding (new registration)
-  // Check this FIRST before loading screens, as new users need to see tutorial
-  // BUT: Wait for onboarding to finish loading if we just got a new userId (to avoid race condition)
-  const justRegistered = state.isAuthenticated && state.user && onboardingLoading;
-  const shouldShowTutorial = state.isAuthenticated && state.user && !hasCompletedOnboarding && !onboardingLoading;
-
-  // If user just registered and onboarding is still loading, wait for it to finish
-  if (justRegistered) {
-    // Fall through to loading screen check below
-  } else if (shouldShowTutorial) {
-    return <UberDataTutorial onComplete={handleTutorialComplete} />;
-  }
-
-  // Show loading screen while checking authentication, onboarding status, or loading analytics
-  // But NOT if we're about to show tutorial (checked above)
   const isLoading = state.isLoading || onboardingLoading || (state.isAuthenticated && state.user && state.analyticsLoading);
 
   if (isLoading) {

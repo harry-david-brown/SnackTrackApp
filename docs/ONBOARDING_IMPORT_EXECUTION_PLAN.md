@@ -69,6 +69,15 @@ Replace the current onboarding logic with a simpler activation path.
 - whether users land directly in email import or on an import hub
 - when the export upsell appears
 
+### Phase 1 Decisions
+
+- Keep the onboarding intro, but reduce it to a single value-prop screen
+- Keep authentication before import selection
+- Route authenticated users with no imported receipt data directly into the email-first import experience
+- Use the existing upload route as the Phase 1 post-auth destination, with Gmail import opened first when possible
+- Route authenticated users who already have imported data into the main app experience
+- Move the full export flow out of the required first-run path and keep it as a secondary option
+
 ## 2. Audit the Current Experience
 
 ### Goal

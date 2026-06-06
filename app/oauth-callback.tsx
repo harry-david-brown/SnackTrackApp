@@ -42,11 +42,10 @@ export default function OAuthCallback() {
 
       if (result.success) {
         console.log('✅ Gmail connected successfully');
-        showSimpleAlert('Success', 'Gmail connected successfully! You can now import your receipts.');
-        // Navigate to upload screen with Gmail modal open
+        showSimpleAlert('Success', 'Gmail connected successfully. Importing your receipts next.');
         router.replace({
           pathname: '/(tabs)/upload',
-          params: { openGmail: 'true' }
+          params: { autoImportGmail: 'true' }
         });
       } else {
         console.error('❌ Token exchange failed');
@@ -86,4 +85,3 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
-
