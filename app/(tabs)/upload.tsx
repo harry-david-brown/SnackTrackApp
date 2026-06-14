@@ -1,5 +1,16 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { LayoutChangeEvent, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  LayoutChangeEvent,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,11 +22,21 @@ import WrappedJourneyLoader from '../../components/wrapped/WrappedJourneyLoader'
 import { useOfflineSync } from '@hooks/useOfflineSync';
 import { GmailConnection } from '@/components';
 import { featureFlags } from '@config/featureFlags';
-import { useGmailImport } from '@hooks/useGmailImport';
+import { type GmailPrimaryFlowState, useGmailImport } from '@hooks/useGmailImport';
 import { useExportUpsell } from '@hooks/useExportUpsell';
 import { FadeInView } from '@components/ui/FadeInView';
 
 type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
+
+const GMAIL_IMPORT_MESSAGES = [
+  'This can take up to 1-2 minutes depending on your gluttony.',
+  'Questioning every late-night delivery choice with professional courtesy.',
+  'Sorting tacos from therapy purchases.',
+  'Teaching Gmail what counts as dinner.',
+  'Looking for receipts and trying not to judge the sauce math.',
+  'Counting fries with unnecessary precision.',
+  'Separating real meals from side-quest snacks.',
+];
 
 interface ImportTaskCardProps {
   id: ImportTaskId;
@@ -94,6 +115,105 @@ function ImportTaskCard({
   );
 }
 
+interface GmailImportLoadingModalProps {
+  flowState: GmailPrimaryFlowState;
+  visible: boolean;
+}
+
+function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModalProps) {
+  const [messageIndex, setMessageIndex] = useState(0);
+  const cardScale = useRef(new Animated.Value(0.92)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const messageOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      setMessageIndex(0);
+      cardScale.setValue(0.92);
+      cardOpacity.setValue(0);
+      messageOpacity.setValue(1);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.spring(cardScale, {
+        toValue: 1,
+        friction: 7,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const messageTimer = setInterval(() => {
+      Animated.timing(messageOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }).start(() => {
+        setMessageIndex((current) => (current + 1) % GMAIL_IMPORT_MESSAGES.length);
+        Animated.timing(messageOpacity, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 3200);
+
+    return () => {
+      clearInterval(messageTimer);
+    };
+  }, [cardOpacity, cardScale, messageOpacity, visible]);
+
+  const statusText = flowState === 'preparing_import'
+    ? 'Warming up the inbox...'
+    : 'Importing receipt evidence...';
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => undefined}
+    >
+      <View style={styles.loadingModalOverlay}>
+        <Animated.View
+          style={[
+            styles.loadingModalCard,
+            {
+              opacity: cardOpacity,
+              transform: [{ scale: cardScale }],
+            },
+          ]}
+        >
+          <View style={styles.loadingIconWrap}>
+            <ActivityIndicator size="large" color="#0f4c81" />
+          </View>
+
+          <Text style={styles.loadingModalTitle}>Importing from Gmail</Text>
+          <Text style={styles.loadingModalStatus}>{statusText}</Text>
+
+          <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>
+            {GMAIL_IMPORT_MESSAGES[messageIndex]}
+          </Animated.Text>
+
+          <View style={styles.loadingModalFooter}>
+            <Ionicons name="time-outline" size={16} color="#64748b" />
+            <Text style={styles.loadingModalFooterText}>
+              Keep this open while SnackTrack does the inbox archaeology.
+            </Text>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const params = useLocalSearchParams();
@@ -128,6 +248,9 @@ export default function UploadScreen() {
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
   const hasConnectedEmail = connectionStatus.connected;
   const hasImportedDeliveryData = totalImportedReceipts > 0;
+  const showGmailImportLoadingModal = showGmailFeature
+    && !showLoader
+    && (primaryFlowState === 'preparing_import' || primaryFlowState === 'importing');
   const hasTriggeredAutoImport = useRef(false);
   const hasHandledExportFocus = useRef(false);
   const hasAppliedInitialTask = useRef(false);
@@ -517,6 +640,11 @@ export default function UploadScreen() {
         </Modal>
       )}
 
+      <GmailImportLoadingModal
+        visible={showGmailImportLoadingModal}
+        flowState={primaryFlowState}
+      />
+
       {showLoader && <WrappedJourneyLoader onComplete={handleLoaderComplete} />}
     </SafeAreaView>
   );
@@ -748,5 +876,74 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+  },
+  loadingModalOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.62)',
+    padding: 24,
+  },
+  loadingModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 12,
+  },
+  loadingIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e0f2fe',
+    marginBottom: 18,
+  },
+  loadingModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  loadingModalStatus: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f4c81',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  loadingModalMessage: {
+    minHeight: 56,
+    fontSize: 16,
+    color: '#334155',
+    lineHeight: 24,
+    textAlign: 'center',
+    marginTop: 18,
+  },
+  loadingModalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  loadingModalFooterText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#64748b',
+    marginLeft: 6,
   },
 });
