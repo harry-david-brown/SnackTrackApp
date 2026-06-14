@@ -2,9 +2,10 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useGmailImport } from '../../hooks/useGmailImport';
+import { type GmailImportResponse } from '../../services/gmailApi';
 
 interface GmailConnectionProps {
-  onImportSuccess?: () => void;
+  onImportSuccess?: (result: GmailImportResponse) => void;
   onClose?: () => void;
   onDisconnectSuccess?: () => void;
 }

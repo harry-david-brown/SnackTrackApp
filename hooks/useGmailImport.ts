@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { gmailApi, GmailConnectionStatus } from '../services/gmailApi';
+import { gmailApi, GmailConnectionStatus, type GmailImportResponse } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
@@ -24,7 +24,7 @@ const setPrimaryFlowState = (nextState: GmailPrimaryFlowState) => {
 };
 
 interface UseGmailImportOptions {
-  onImportSuccess?: () => void;
+  onImportSuccess?: (result: GmailImportResponse) => void;
   onDisconnectSuccess?: () => void;
 }
 
@@ -101,17 +101,12 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
           }
         }
 
-        showSimpleAlert(
-          'Import Complete',
-          `Successfully imported ${result.totalReceiptsImported} receipt${result.totalReceiptsImported !== 1 ? 's' : ''} ($${result.totalAmount.toFixed(2)})`,
-          () => {
-            try {
-              onImportSuccess?.();
-            } catch (error) {
-              console.error('Error in onImportSuccess callback:', error);
-            }
-          }
-        );
+        try {
+          onImportSuccess?.(result);
+        } catch (error) {
+          console.error('Error in onImportSuccess callback:', error);
+        }
+
         return true;
       }
 

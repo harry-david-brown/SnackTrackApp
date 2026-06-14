@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -25,6 +25,7 @@ import { featureFlags } from '@config/featureFlags';
 import { type GmailPrimaryFlowState, useGmailImport } from '@hooks/useGmailImport';
 import { useExportUpsell } from '@hooks/useExportUpsell';
 import { FadeInView } from '@components/ui/FadeInView';
+import { type GmailImportResponse } from '@services/gmailApi';
 
 type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
 
@@ -117,14 +118,16 @@ function ImportTaskCard({
 
 interface GmailImportLoadingModalProps {
   flowState: GmailPrimaryFlowState;
+  importResult: GmailImportResponse | null;
   visible: boolean;
 }
 
-function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModalProps) {
+function GmailImportLoadingModal({ flowState, importResult, visible }: GmailImportLoadingModalProps) {
   const [messageIndex, setMessageIndex] = useState(0);
   const cardScale = useRef(new Animated.Value(0.92)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const messageOpacity = useRef(new Animated.Value(1)).current;
+  const successScale = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
     if (!visible) {
@@ -132,6 +135,7 @@ function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModal
       cardScale.setValue(0.92);
       cardOpacity.setValue(0);
       messageOpacity.setValue(1);
+      successScale.setValue(0.7);
       return;
     }
 
@@ -148,6 +152,17 @@ function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModal
         useNativeDriver: true,
       }),
     ]).start();
+
+    if (importResult) {
+      successScale.setValue(0.7);
+      Animated.spring(successScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 95,
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
 
     const messageTimer = setInterval(() => {
       Animated.timing(messageOpacity, {
@@ -167,11 +182,12 @@ function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModal
     return () => {
       clearInterval(messageTimer);
     };
-  }, [cardOpacity, cardScale, messageOpacity, visible]);
+  }, [cardOpacity, cardScale, importResult, messageOpacity, successScale, visible]);
 
   const statusText = flowState === 'preparing_import'
     ? 'Warming up the inbox...'
     : 'Importing receipt evidence...';
+  const importedReceiptCount = importResult?.totalReceiptsImported ?? 0;
 
   return (
     <Modal
@@ -191,23 +207,47 @@ function GmailImportLoadingModal({ flowState, visible }: GmailImportLoadingModal
             },
           ]}
         >
-          <View style={styles.loadingIconWrap}>
-            <ActivityIndicator size="large" color="#0f4c81" />
-          </View>
+          {importResult ? (
+            <>
+              <Animated.View
+                style={[
+                  styles.successIconWrap,
+                  {
+                    transform: [{ scale: successScale }],
+                  },
+                ]}
+              >
+                <Ionicons name="checkmark" size={38} color="#ffffff" />
+              </Animated.View>
 
-          <Text style={styles.loadingModalTitle}>Importing from Gmail</Text>
-          <Text style={styles.loadingModalStatus}>{statusText}</Text>
+              <Text style={styles.loadingModalTitle}>
+                {importedReceiptCount} receipt{importedReceiptCount === 1 ? '' : 's'} found
+              </Text>
+              <Text style={styles.loadingModalSuccessText}>
+                Receipt evidence secured. Preparing your summary...
+              </Text>
+            </>
+          ) : (
+            <>
+              <View style={styles.loadingIconWrap}>
+                <ActivityIndicator size="large" color="#0f4c81" />
+              </View>
 
-          <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>
-            {GMAIL_IMPORT_MESSAGES[messageIndex]}
-          </Animated.Text>
+              <Text style={styles.loadingModalTitle}>Importing from Gmail</Text>
+              <Text style={styles.loadingModalStatus}>{statusText}</Text>
 
-          <View style={styles.loadingModalFooter}>
-            <Ionicons name="time-outline" size={16} color="#64748b" />
-            <Text style={styles.loadingModalFooterText}>
-              Keep this open while SnackTrack does the inbox archaeology.
-            </Text>
-          </View>
+              <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>
+                {GMAIL_IMPORT_MESSAGES[messageIndex]}
+              </Animated.Text>
+
+              <View style={styles.loadingModalFooter}>
+                <Ionicons name="time-outline" size={16} color="#64748b" />
+                <Text style={styles.loadingModalFooterText}>
+                  Keep this open while SnackTrack does the inbox archaeology.
+                </Text>
+              </View>
+            </>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -226,6 +266,7 @@ export default function UploadScreen() {
   const [showGmailModal, setShowGmailModal] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<ImportTaskId | null>(null);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
+  const [gmailImportResult, setGmailImportResult] = useState<GmailImportResponse | null>(null);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
@@ -239,8 +280,9 @@ export default function UploadScreen() {
     resumeAutoImport,
     refreshConnectionStatus,
   } = useGmailImport({
-    onImportSuccess: () => {
-      setShowLoader(true);
+    onImportSuccess: (result) => {
+      setShowGmailModal(false);
+      setGmailImportResult(result);
     },
   });
   const { hasCompletedExport, isLoading: isExportUpsellLoading, markCompleted } = useExportUpsell(state.user?.id);
@@ -250,7 +292,7 @@ export default function UploadScreen() {
   const hasImportedDeliveryData = totalImportedReceipts > 0;
   const showGmailImportLoadingModal = showGmailFeature
     && !showLoader
-    && (primaryFlowState === 'preparing_import' || primaryFlowState === 'importing');
+    && (gmailImportResult !== null || primaryFlowState === 'preparing_import' || primaryFlowState === 'importing');
   const hasTriggeredAutoImport = useRef(false);
   const hasHandledExportFocus = useRef(false);
   const hasAppliedInitialTask = useRef(false);
@@ -357,7 +399,7 @@ export default function UploadScreen() {
     setShowLoader(true);
   };
 
-  const handleLoaderComplete = async () => {
+  const handleLoaderComplete = useCallback(async () => {
     try {
       if (!state.user) {
         router.replace('/(tabs)/wrapped-journey');
@@ -372,15 +414,32 @@ export default function UploadScreen() {
     } finally {
       setShowLoader(false);
     }
-  };
+  }, [setGlobalAnalytics, state.user]);
+
+  useEffect(() => {
+    if (!gmailImportResult) {
+      return;
+    }
+
+    const summaryTimer = setTimeout(() => {
+      void (async () => {
+        await handleLoaderComplete();
+        setGmailImportResult(null);
+      })();
+    }, 1000);
+
+    return () => {
+      clearTimeout(summaryTimer);
+    };
+  }, [gmailImportResult, handleLoaderComplete]);
 
   const handleUploadError = (_error: string) => {
     // Error is already shown inside the upload UI.
   };
 
-  const handleGmailImportSuccess = async () => {
+  const handleGmailImportSuccess = async (result: GmailImportResponse) => {
     setShowGmailModal(false);
-    setShowLoader(true);
+    setGmailImportResult(result);
   };
 
   const handleTaskPress = (taskId: ImportTaskId) => {
@@ -643,6 +702,7 @@ export default function UploadScreen() {
       <GmailImportLoadingModal
         visible={showGmailImportLoadingModal}
         flowState={primaryFlowState}
+        importResult={gmailImportResult}
       />
 
       {showLoader && <WrappedJourneyLoader onComplete={handleLoaderComplete} />}
@@ -910,6 +970,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0f2fe',
     marginBottom: 18,
   },
+  successIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16a34a',
+    marginBottom: 18,
+  },
   loadingModalTitle: {
     fontSize: 22,
     fontWeight: '800',
@@ -930,6 +999,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 18,
+  },
+  loadingModalSuccessText: {
+    fontSize: 16,
+    color: '#334155',
+    lineHeight: 24,
+    textAlign: 'center',
+    marginTop: 12,
   },
   loadingModalFooter: {
     flexDirection: 'row',
