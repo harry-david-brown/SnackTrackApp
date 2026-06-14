@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
 import { SlideInView } from '../../components/ui/SlideInView';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useExportUpsell } from '../../hooks/useExportUpsell';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
@@ -15,6 +16,13 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const initialLoadDoneRef = useRef(false);
+  const {
+    upsellState,
+    shouldShowDashboardCard,
+    markSeen,
+    markClicked,
+    dismiss,
+  } = useExportUpsell(state.user?.id);
   
   // Use analytics from context instead of local state
   const analytics = state.analytics;
@@ -46,6 +54,14 @@ export default function DashboardScreen() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.user, state.analytics])
   );
+
+  useEffect(() => {
+    if (!shouldShowDashboardCard || upsellState.dashboardSeenAt) {
+      return;
+    }
+
+    void markSeen('dashboard');
+  }, [markSeen, shouldShowDashboardCard, upsellState.dashboardSeenAt]);
 
 
 
@@ -159,7 +175,7 @@ export default function DashboardScreen() {
             )}
           </View>
           
-          {/* Stats Cards */}
+	          {/* Stats Cards */}
           <View style={styles.statsContainer}>
             <SlideInView direction="left" delay={100}>
             <View style={styles.card}>
@@ -186,9 +202,76 @@ export default function DashboardScreen() {
               <Text style={styles.cardSubtext}>Orders tracked</Text>
             </View>
             </SlideInView>
-          </View>
+	          </View>
 
-          {/* Quick Actions */}
+            {shouldShowDashboardCard && (
+              <View style={styles.exportUpsellCard}>
+                <View style={styles.exportUpsellHeader}>
+                  <View style={styles.exportUpsellBadge}>
+                    <Ionicons name="sparkles-outline" size={14} color="#0f4c81" />
+                    <Text style={styles.exportUpsellBadgeText}>Upgrade your import</Text>
+                  </View>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss export upgrade"
+                    onPress={() => {
+                      void dismiss();
+                    }}
+                    style={styles.exportUpsellDismiss}
+                  >
+                    <Ionicons name="close" size={18} color="#64748b" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.exportUpsellTitle}>Add your full export for deeper history</Text>
+                <Text style={styles.exportUpsellBody}>
+                  Gmail got you started fast. Upload your full Uber Eats or DoorDash export to backfill older orders and strengthen long-range trends.
+                </Text>
+                <View style={styles.exportUpsellPoints}>
+                  <View style={styles.exportUpsellPointRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+                    <Text style={styles.exportUpsellPointText}>Fill in older orders your inbox missed</Text>
+                  </View>
+                  <View style={styles.exportUpsellPointRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+                    <Text style={styles.exportUpsellPointText}>Get a fuller year-over-year spending picture</Text>
+                  </View>
+                </View>
+                <View style={styles.exportUpsellActions}>
+                  <TouchableOpacity
+                    style={styles.exportUpsellPrimary}
+                    onPress={() => {
+                      void markClicked();
+                      router.push({
+                        pathname: '/(tabs)/upload',
+                        params: {
+                          focus: 'export',
+                        },
+                      });
+                    }}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={18} color="white" />
+                    <Text style={styles.exportUpsellPrimaryText}>Upload Full Export</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.exportUpsellSecondary}
+                    onPress={() => {
+                      void markClicked();
+                      router.push({
+                        pathname: '/(tabs)/upload',
+                        params: {
+                          focus: 'export',
+                          showExportTutorial: 'true',
+                        },
+                      });
+                    }}
+                  >
+                    <Text style={styles.exportUpsellSecondaryText}>How it works</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+	          {/* Quick Actions */}
           <View style={styles.actionsContainer}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             
@@ -281,6 +364,110 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 32,
+  },
+  exportUpsellCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    shadowColor: '#0f172a',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  exportUpsellHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  exportUpsellBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  exportUpsellBadgeText: {
+    color: '#0f4c81',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  exportUpsellDismiss: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  exportUpsellTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+  },
+  exportUpsellBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#475569',
+    marginBottom: 16,
+  },
+  exportUpsellPoints: {
+    gap: 10,
+    marginBottom: 18,
+  },
+  exportUpsellPointRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  exportUpsellPointText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  exportUpsellActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  exportUpsellPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#0f4c81',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  exportUpsellPrimaryText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  exportUpsellSecondary: {
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+  },
+  exportUpsellSecondaryText: {
+    color: '#0f4c81',
+    fontSize: 14,
+    fontWeight: '700',
   },
   card: {
     flex: 1,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LayoutChangeEvent, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,19 +12,24 @@ import { useOfflineSync } from '@hooks/useOfflineSync';
 import { GmailConnection } from '@/components';
 import { featureFlags } from '@config/featureFlags';
 import { useGmailImport } from '@hooks/useGmailImport';
+import { useExportUpsell } from '@hooks/useExportUpsell';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const params = useLocalSearchParams();
   const shouldAutoImportFromParam = params.autoImportGmail === 'true';
   const autoImportFlowId = typeof params.autoImportFlowId === 'string' ? params.autoImportFlowId : null;
+  const shouldShowExportTutorialFromParam = params.showExportTutorial === 'true';
+  const shouldFocusExport = params.focus === 'export';
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
+  const [exportSectionY, setExportSectionY] = useState<number | null>(null);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
   const isFirstImport = totalImportedReceipts === 0;
+  const scrollViewRef = useRef<ScrollView>(null);
   const {
     connectionStatus,
     isChecking: isGmailStatusChecking,
@@ -38,9 +43,11 @@ export default function UploadScreen() {
       setShowLoader(true);
     },
   });
+  const { markCompleted } = useExportUpsell(state.user?.id);
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
   const hasTriggeredAutoImport = useRef(false);
+  const hasHandledExportFocus = useRef(false);
 
   useEffect(() => {
     if (!showGmailFeature || !shouldAutoImportFromParam || !autoImportFlowId) {
@@ -74,7 +81,29 @@ export default function UploadScreen() {
     void refreshConnectionStatus();
   }, [refreshConnectionStatus, showGmailFeature, showGmailModal]);
 
+  useEffect(() => {
+    if (!shouldFocusExport || exportSectionY === null || hasHandledExportFocus.current) {
+      return;
+    }
+
+    hasHandledExportFocus.current = true;
+
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, exportSectionY - 16),
+        animated: true,
+      });
+    });
+
+    if (shouldShowExportTutorialFromParam) {
+      setTimeout(() => {
+        setShowTutorial(true);
+      }, 300);
+    }
+  }, [exportSectionY, shouldFocusExport, shouldShowExportTutorialFromParam]);
+
   const handleUploadSuccess = async (_receiptsCount: number) => {
+    await markCompleted();
     setShowLoader(true);
   };
 
@@ -117,6 +146,10 @@ export default function UploadScreen() {
     await connectAndImportGmail();
   };
 
+  const handleExportSectionLayout = (event: LayoutChangeEvent) => {
+    setExportSectionY(event.nativeEvent.layout.y);
+  };
+
   const gmailButtonLabel = (() => {
     if (primaryFlowState === 'connecting') {
       return 'Connecting Gmail...';
@@ -151,6 +184,7 @@ export default function UploadScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
@@ -248,7 +282,7 @@ export default function UploadScreen() {
             </View>
           )}
 
-          <View style={styles.secondarySection}>
+          <View style={styles.secondarySection} onLayout={handleExportSectionLayout}>
             <Text style={styles.secondaryEyebrow}>Need a more complete import?</Text>
             <Text style={styles.secondaryTitle}>Upload a full export</Text>
             <Text style={styles.secondarySubtitle}>

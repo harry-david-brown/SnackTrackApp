@@ -17,19 +17,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as Linking from 'expo-linking';
 import { UserSummary } from '../../types/api';
 import { getDeterministicMessage } from '../../utils/wrappedMessages';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { featureFlags } from '../../config/featureFlags';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-// HelloFresh Affiliate Configuration
-const HELLOFRESH_CONFIG = {
-  affiliateUrl: 'https://www.hellofresh.com/pages/plans?c=SNACKTRACK&utm_source=snacktrack&utm_medium=app',
-  mealPricePerServing: 9.99, // Average HelloFresh meal price per serving
-};
 
 // Responsive story safe zones
 const SAFE_TOP = Math.round(screenHeight * 0.09);   // keep clear of IG chrome
@@ -97,14 +89,21 @@ export const STORY_GRADIENTS = {
 interface WrappedShareJourneyProps {
   analytics: UserSummary;
   onClose: () => void;
+  showExportUpsell?: boolean;
+  onExportUpsellSeen?: () => void;
+  onExportUpgrade?: () => void;
+  onExportTutorial?: () => void;
+  onDismissExportUpsell?: () => void;
 }
 
 interface Slide {
+  id?: string;
   gradient: keyof typeof STORY_GRADIENTS;
   emoji: string;
   image?: any; // For logo images
   content: React.ReactNode;
   backgroundType?: 'default' | 'animated';
+  shareTargetIndex?: number;
 }
 
 const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
@@ -256,7 +255,15 @@ const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default function WrappedShareJourney({ analytics, onClose }: WrappedShareJourneyProps) {
+export default function WrappedShareJourney({
+  analytics,
+  onClose,
+  showExportUpsell = false,
+  onExportUpsellSeen,
+  onExportUpgrade,
+  onExportTutorial,
+  onDismissExportUpsell,
+}: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -288,46 +295,6 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }, []);
-
-  const handleAffiliateClick = useCallback(async () => {
-    try {
-      // Track affiliate click (you can add analytics here)
-      const canOpen = await Linking.canOpenURL(HELLOFRESH_CONFIG.affiliateUrl);
-      if (canOpen) {
-        await Linking.openURL(HELLOFRESH_CONFIG.affiliateUrl);
-      }
-    } catch {
-      // Silently fail - affiliate link is optional
-    }
-  }, []);
-
-  // Calculate annual savings for HelloFresh slide
-  const calculateAnnualSavings = useCallback(() => {
-    // Use monthly breakdown if available, otherwise estimate from total
-    if (analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0) {
-      // Calculate average monthly spending
-      const avgMonthlySpent = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length;
-      const avgMonthlyOrders = analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length;
-
-      // Assume 1 meal per order for delivery
-      const avgMonthlyMeals = avgMonthlyOrders;
-      const avgCostPerMeal = avgMonthlyMeals > 0 ? avgMonthlySpent / avgMonthlyMeals : analytics.averageOrderValue;
-
-      // Calculate savings per meal
-      const savingsPerMeal = Math.max(0, avgCostPerMeal - HELLOFRESH_CONFIG.mealPricePerServing);
-
-      // Project to annual (12 months)
-      const annualSavings = savingsPerMeal * avgMonthlyMeals * 12;
-      return { annualSavings, savingsPerMeal };
-    } else {
-      // Fallback: use total data
-      const avgCostPerMeal = analytics.averageOrderValue;
-      const savingsPerMeal = Math.max(0, avgCostPerMeal - HELLOFRESH_CONFIG.mealPricePerServing);
-      // Estimate: assume 1 meal per order
-      const annualSavings = savingsPerMeal * analytics.totalReceipts;
-      return { annualSavings, savingsPerMeal };
-    }
-  }, [analytics]);
 
   // Build slides dynamically based on available data
   // Memoized to prevent recalculation on every render
@@ -837,44 +804,56 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
       ),
     });
 
-    // HelloFresh Affiliate Slide - Final slide (only shown if feature flag is enabled)
-    if (featureFlags.showHelloFresh) {
-    const savings = calculateAnnualSavings();
-    // Calculate average cost per meal for comparison
-    const avgCostPerMeal = analytics.monthlyBreakdown && analytics.monthlyBreakdown.length > 0
-      ? (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.totalSpent, 0) / analytics.monthlyBreakdown.length) /
-        (analytics.monthlyBreakdown.reduce((sum, month) => sum + month.receiptCount, 0) / analytics.monthlyBreakdown.length)
-      : analytics.averageOrderValue;
+    if (showExportUpsell) {
+      const summarySlideIndex = slides.length - 1;
 
-    slides.push({
-      gradient: 'hellofresh',
-      emoji: '🍽️', // Fallback if image fails
-      image: require('../../assets/hellofresh-logo.png'),
-      content: (
-        <>
-          <Text style={[styles.slideTitle, { marginBottom: 32, marginTop: -32 }]}>Why not try HelloFresh?</Text>
-          <View style={[styles.savingsHighlight]}>
-            <Text style={styles.savingsLabel}>This year you would have saved</Text>
-            <Text style={styles.savingsAmount} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(savings.annualSavings)}</Text>
-          </View>
-          <View style={[styles.detailBox]}>
-            <Text style={styles.detailText}>Your avg order: {formatCurrency(avgCostPerMeal)}</Text>
-            <Text style={styles.detailText}>HelloFresh meal: {formatCurrency(HELLOFRESH_CONFIG.mealPricePerServing)}</Text>
-            <Text style={styles.detailText}>You would have saved {formatCurrency(savings.savingsPerMeal)} per meal</Text>
-          </View>
-          <TouchableOpacity style={styles.affiliateButton} onPress={handleAffiliateClick}>
-            <Text style={styles.affiliateButtonText}>Try HelloFresh</Text>
-            <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
-          </TouchableOpacity>
-        </>
-      ),
-    });
+      slides.push({
+        id: 'export-upsell',
+        gradient: 'hellofresh',
+        emoji: '📦',
+        shareTargetIndex: summarySlideIndex,
+        content: (
+          <>
+            <Text style={[styles.slideTitle, styles.exportSlideTitle]}>Unlock your full delivery history</Text>
+            <View style={styles.savingsHighlight}>
+              <Text style={styles.savingsLabel}>You&apos;re already live with Gmail</Text>
+              <Text style={styles.exportUpsellHeadline}>Add your full export for deeper history, fuller trends, and better long-term insights.</Text>
+            </View>
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Fill in older orders that never hit your inbox.</Text>
+              <Text style={styles.detailText}>Strengthen yearly spending and restaurant trend analysis.</Text>
+              <Text style={styles.detailText}>Keep Gmail for speed, then use export for completeness.</Text>
+            </View>
+            <View style={styles.exportActionStack}>
+              <TouchableOpacity style={styles.affiliateButton} onPress={onExportUpgrade}>
+                <Text style={styles.affiliateButtonText}>Upload Full Export</Text>
+                <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exportSecondaryButton} onPress={onExportTutorial}>
+                <Ionicons name="information-circle-outline" size={18} color="white" />
+                <Text style={styles.exportSecondaryButtonText}>See how to request it</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exportDismissButton} onPress={onDismissExportUpsell}>
+                <Text style={styles.exportDismissButtonText}>Maybe later</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ),
+      });
     }
 
     return slides;
-  }, [analytics, wrapped, formatCurrency, formatDate, calculateAnnualSavings, handleAffiliateClick]);
+  }, [analytics, wrapped, formatCurrency, formatDate, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]);
 
   const slides = useMemo(() => buildSlides(), [buildSlides]);
+
+  React.useEffect(() => {
+    const activeSlide = slides[currentSlide];
+
+    if (activeSlide?.id === 'export-upsell') {
+      onExportUpsellSeen?.();
+    }
+  }, [currentSlide, onExportUpsellSeen, slides]);
 
   // Ensure slides are available before rendering
   if (!slides || slides.length === 0) {
@@ -888,7 +867,8 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
 
   const handleShare = async () => {
     try {
-      const ref = viewShotRefs.current[currentSlide];
+      const targetIndex = slides[currentSlide]?.shareTargetIndex ?? currentSlide;
+      const ref = viewShotRefs.current[targetIndex];
       if (!ref) return;
 
       const uri = await ref.capture?.();
@@ -952,7 +932,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
               <AnimatedBackground>
                 <View style={[
                   styles.slideContent,
-                  slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
+                  slide.id === 'export-upsell' && styles.slideContentPromo
                 ]}>
                   {slide.image ? (
                     <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
@@ -994,7 +974,7 @@ export default function WrappedShareJourney({ analytics, onClose }: WrappedShare
               >
                 <View style={[
                   styles.slideContent,
-                  slide.gradient === 'hellofresh' && styles.slideContentHelloFresh
+                  slide.id === 'export-upsell' && styles.slideContentPromo
                 ]}>
                   {slide.image ? (
                     <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
@@ -1120,7 +1100,7 @@ const styles = StyleSheet.create({
     paddingBottom: SAFE_BOTTOM + 100, // Extra padding to account for controls
     paddingHorizontal: SAFE_SIDE,
   },
-  slideContentHelloFresh: {
+  slideContentPromo: {
     paddingTop: SAFE_TOP, // Less top padding to bring content up for content-heavy slide
   },
   frame: {
@@ -1313,6 +1293,24 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     marginBottom: 8,
   },
+  exportSlideTitle: {
+    marginBottom: 28,
+    marginTop: -12,
+  },
+  exportUpsellHeadline: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '800',
+    color: 'white',
+    textAlign: 'center',
+    maxWidth: Math.min(480, screenWidth * 0.82),
+  },
+  exportActionStack: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
   affiliateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1337,11 +1335,31 @@ const styles = StyleSheet.create({
   affiliateButtonIcon: {
     color: '#333',
   },
-  affiliateSubtext: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-    fontWeight: '500',
+  exportSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+  },
+  exportSecondaryButtonText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  exportDismissButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  exportDismissButtonText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.86)',
+    fontWeight: '600',
   },
   bentoContainer: {
     width: '100%',

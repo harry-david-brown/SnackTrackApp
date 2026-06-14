@@ -6,6 +6,7 @@ import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import { getCachedAnalytics } from '../../utils/offlineCache';
+import { useExportUpsell } from '../../hooks/useExportUpsell';
 
 // Lazy load WrappedShareJourney component for code splitting
 const WrappedShareJourney = lazy(() => import('../../components/wrapped/WrappedShareJourney'));
@@ -15,6 +16,12 @@ const hasWrappedData = (summary: UserSummary | null | undefined): summary is Use
 
 export default function WrappedJourneyScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
+  const {
+    shouldShowWrappedSlide,
+    markSeen,
+    markClicked,
+    dismiss,
+  } = useExportUpsell(state.user?.id);
 
   const initialAnalytics = useMemo(
     () => (hasWrappedData(state.analytics) ? state.analytics : null),
@@ -159,6 +166,33 @@ export default function WrappedJourneyScreen() {
       <WrappedShareJourney
         key={loadTimestamp}
         analytics={analytics}
+        showExportUpsell={shouldShowWrappedSlide}
+        onExportUpsellSeen={() => {
+          void markSeen('wrapped');
+        }}
+        onExportUpgrade={() => {
+          void markClicked();
+          router.push({
+            pathname: '/(tabs)/upload',
+            params: {
+              focus: 'export',
+            },
+          });
+        }}
+        onExportTutorial={() => {
+          void markClicked();
+          router.push({
+            pathname: '/(tabs)/upload',
+            params: {
+              focus: 'export',
+              showExportTutorial: 'true',
+            },
+          });
+        }}
+        onDismissExportUpsell={() => {
+          void dismiss();
+          router.replace('/(tabs)');
+        }}
         onClose={() => router.replace('/(tabs)')}
       />
     </Suspense>
