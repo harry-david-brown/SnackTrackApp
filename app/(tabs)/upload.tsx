@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,85 @@ import { useGmailImport } from '@hooks/useGmailImport';
 import { useExportUpsell } from '@hooks/useExportUpsell';
 import { FadeInView } from '@components/ui/FadeInView';
 
+type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
+
+interface ImportTaskCardProps {
+  id: ImportTaskId;
+  title: string;
+  description: string;
+  iconName: keyof typeof Ionicons.glyphMap;
+  statusLabel: string;
+  statusTone: 'complete' | 'recommended' | 'optional';
+  isComplete: boolean;
+  isOpen: boolean;
+  onPress: (id: ImportTaskId) => void;
+  children: ReactNode;
+}
+
+function ImportTaskCard({
+  id,
+  title,
+  description,
+  iconName,
+  statusLabel,
+  statusTone,
+  isComplete,
+  isOpen,
+  onPress,
+  children,
+}: ImportTaskCardProps) {
+  const statusBadgeStyle = {
+    complete: styles.taskStatusBadgeComplete,
+    recommended: styles.taskStatusBadgeRecommended,
+    optional: styles.taskStatusBadgeOptional,
+  }[statusTone];
+  const statusTextStyle = {
+    complete: styles.taskStatusTextComplete,
+    recommended: styles.taskStatusTextRecommended,
+    optional: styles.taskStatusTextOptional,
+  }[statusTone];
+
+  return (
+    <View style={[styles.taskCard, isOpen && styles.taskCardOpen]}>
+      <TouchableOpacity
+        style={styles.taskCardHeader}
+        onPress={() => onPress(id)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.taskIcon}>
+          <Ionicons
+            name={isComplete ? 'checkmark-circle' : iconName}
+            size={24}
+            color={isComplete ? '#16a34a' : '#0f4c81'}
+          />
+        </View>
+        <View style={styles.taskHeaderText}>
+          <View style={styles.taskTitleRow}>
+            <Text style={styles.taskTitle}>{title}</Text>
+            <View style={[styles.taskStatusBadge, statusBadgeStyle]}>
+              <Text style={[styles.taskStatusText, statusTextStyle]}>
+                {statusLabel}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.taskDescription}>{description}</Text>
+        </View>
+        <Ionicons
+          name={isOpen ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color="#94a3b8"
+        />
+      </TouchableOpacity>
+
+      {isOpen && (
+        <FadeInView duration={250} style={styles.taskContent}>
+          {children}
+        </FadeInView>
+      )}
+    </View>
+  );
+}
+
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const params = useLocalSearchParams();
@@ -25,18 +104,17 @@ export default function UploadScreen() {
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
-  const [isExportSectionExpanded, setIsExportSectionExpanded] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<ImportTaskId | null>(null);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
-  const isFirstImport = totalImportedReceipts === 0;
   const scrollViewRef = useRef<ScrollView>(null);
   const {
     connectionStatus,
     isChecking: isGmailStatusChecking,
     primaryFlowState,
-    connectAndImportGmail,
+    connectGmail,
     importReceipts,
     resumeAutoImport,
     refreshConnectionStatus,
@@ -45,11 +123,14 @@ export default function UploadScreen() {
       setShowLoader(true);
     },
   });
-  const { markCompleted } = useExportUpsell(state.user?.id);
+  const { hasCompletedExport, isLoading: isExportUpsellLoading, markCompleted } = useExportUpsell(state.user?.id);
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
+  const hasConnectedEmail = connectionStatus.connected;
+  const hasImportedDeliveryData = totalImportedReceipts > 0;
   const hasTriggeredAutoImport = useRef(false);
   const hasHandledExportFocus = useRef(false);
+  const hasAppliedInitialTask = useRef(false);
 
   useEffect(() => {
     if (!showGmailFeature || !shouldAutoImportFromParam || !autoImportFlowId) {
@@ -105,10 +186,48 @@ export default function UploadScreen() {
   }, [exportSectionY, shouldFocusExport, shouldShowExportTutorialFromParam]);
 
   useEffect(() => {
-    if (shouldFocusExport || shouldShowExportTutorialFromParam) {
-      setIsExportSectionExpanded(true);
+    if (hasAppliedInitialTask.current || isGmailStatusChecking || isExportUpsellLoading) {
+      return;
     }
-  }, [shouldFocusExport, shouldShowExportTutorialFromParam]);
+
+    hasAppliedInitialTask.current = true;
+
+    if (shouldFocusExport || shouldShowExportTutorialFromParam) {
+      setActiveTaskId('uber_export');
+      return;
+    }
+
+    if (!showGmailFeature) {
+      setActiveTaskId(hasCompletedExport ? null : 'uber_export');
+      return;
+    }
+
+    if (!hasConnectedEmail) {
+      setActiveTaskId('connect_email');
+      return;
+    }
+
+    if (!hasImportedDeliveryData) {
+      setActiveTaskId('gmail_import');
+      return;
+    }
+
+    if (!hasCompletedExport) {
+      setActiveTaskId('uber_export');
+      return;
+    }
+
+    setActiveTaskId(null);
+  }, [
+    hasCompletedExport,
+    hasConnectedEmail,
+    hasImportedDeliveryData,
+    isExportUpsellLoading,
+    isGmailStatusChecking,
+    shouldFocusExport,
+    shouldShowExportTutorialFromParam,
+    showGmailFeature,
+  ]);
 
   const handleUploadSuccess = async (_receiptsCount: number) => {
     await markCompleted();
@@ -141,17 +260,31 @@ export default function UploadScreen() {
     setShowLoader(true);
   };
 
+  const handleTaskPress = (taskId: ImportTaskId) => {
+    setActiveTaskId(current => current === taskId ? null : taskId);
+  };
+
+  const handleConnectEmail = async () => {
+    if (isGmailStatusChecking || primaryFlowState !== 'idle') {
+      return;
+    }
+
+    const didConnect = await connectGmail();
+    if (didConnect) {
+      setActiveTaskId('gmail_import');
+    }
+  };
+
   const handlePrimaryGmailAction = async () => {
     if (isGmailStatusChecking || primaryFlowState !== 'idle') {
       return;
     }
 
-    if (connectionStatus.connected && canImportFromGmail) {
-      await importReceipts();
+    if (!connectionStatus.connected || !canImportFromGmail) {
       return;
     }
 
-    await connectAndImportGmail();
+    await importReceipts();
   };
 
   const handleExportSectionLayout = (event: LayoutChangeEvent) => {
@@ -168,7 +301,7 @@ export default function UploadScreen() {
     }
 
     if (connectionStatus.connected && canImportFromGmail) {
-      return 'Import from Gmail';
+      return hasImportedDeliveryData ? 'Re-import from Gmail' : 'Import from Gmail';
     }
 
     if (needsReconnectForImport) {
@@ -211,72 +344,105 @@ export default function UploadScreen() {
           )}
 
           <View style={styles.header}>
-            <View style={styles.headerBadge}>
-              <Ionicons name="sparkles-outline" size={16} color="#0f4c81" />
-              <Text style={styles.headerBadgeText}>
-                {isFirstImport ? 'Recommended first step' : 'Recommended quick import'}
-              </Text>
-            </View>
-            <Text style={styles.title}>
-              {isFirstImport ? 'Start with Gmail' : 'Import more from Gmail'}
-            </Text>
+            <Text style={styles.title}>Build your SnackTrack history</Text>
             <Text style={styles.subtitle}>
-              {isFirstImport
-                ? 'Import your delivery receipts in minutes.'
-                : 'Pull in more delivery receipts automatically.'}
+              Start with email, then add an optional Uber export for more complete insights.
             </Text>
           </View>
 
-          {showGmailFeature && (
-            <View style={styles.primaryCard}>
-              <View style={styles.primaryCardIcon}>
-                <Ionicons name="mail-open-outline" size={28} color="#0f4c81" />
-              </View>
-              <Text style={styles.primaryCardTitle}>Import from Gmail</Text>
-              <Text style={styles.primaryCardSubtitle}>
-                The fastest way to get your first insights.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.gmailButton}
-                onPress={handlePrimaryGmailAction}
-                activeOpacity={0.85}
-                disabled={primaryFlowState !== 'idle' || isGmailStatusChecking}
+          <View style={styles.taskList}>
+            {showGmailFeature && (
+              <>
+                <ImportTaskCard
+                  id="connect_email"
+                  title="Connect email"
+                  description="Connect Gmail so SnackTrack can find delivery receipts."
+                  iconName="mail-outline"
+                  statusLabel={hasConnectedEmail ? 'Complete' : 'Recommended'}
+                  statusTone={hasConnectedEmail ? 'complete' : 'recommended'}
+                  isComplete={hasConnectedEmail}
+                isOpen={activeTaskId === 'connect_email'}
+                onPress={handleTaskPress}
               >
-                <Ionicons name="logo-google" size={20} color="#fff" />
-                <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
-              </TouchableOpacity>
+                  {!hasConnectedEmail && (
+                    <TouchableOpacity
+                      style={styles.gmailButton}
+                      onPress={handleConnectEmail}
+                      activeOpacity={0.85}
+                      disabled={primaryFlowState !== 'idle' || isGmailStatusChecking}
+                    >
+                      <Ionicons name="logo-google" size={20} color="#fff" />
+                      <Text style={styles.gmailButtonText}>Connect Gmail</Text>
+                    </TouchableOpacity>
+                  )}
 
-              <Text style={styles.privacyNote}>
-                We only use your receipt data to generate your personal spending insights.
-              </Text>
+                  <Text style={styles.taskHelperText}>
+                    {hasConnectedEmail
+                      ? 'Gmail is connected. You can manage the connection below if needed.'
+                      : 'We only use your receipt data to generate your personal spending insights.'}
+                  </Text>
 
-              {connectionStatus.connected && (
-                <TouchableOpacity
-                  style={styles.manageLink}
-                  onPress={() => setShowGmailModal(true)}
-                  disabled={primaryFlowState !== 'idle'}
+                  {hasConnectedEmail && (
+                    <TouchableOpacity
+                      style={styles.manageLink}
+                      onPress={() => setShowGmailModal(true)}
+                      disabled={primaryFlowState !== 'idle'}
+                    >
+                      <Text style={styles.manageLinkText}>Manage Gmail connection</Text>
+                    </TouchableOpacity>
+                  )}
+                </ImportTaskCard>
+
+                <ImportTaskCard
+                  id="gmail_import"
+                  title="Import delivery data"
+                  description="Pull delivery receipts from your connected Gmail account."
+                  iconName="download-outline"
+                  statusLabel={hasImportedDeliveryData ? 'Complete' : hasConnectedEmail ? 'Recommended' : 'Connect email first'}
+                  statusTone={hasImportedDeliveryData ? 'complete' : 'recommended'}
+                  isComplete={hasImportedDeliveryData}
+                  isOpen={activeTaskId === 'gmail_import'}
+                  onPress={handleTaskPress}
                 >
-                  <Text style={styles.manageLinkText}>Manage Gmail connection</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+                  <TouchableOpacity
+                    style={[
+                      styles.gmailButton,
+                      !hasConnectedEmail && styles.disabledButton,
+                    ]}
+                    onPress={handlePrimaryGmailAction}
+                    activeOpacity={0.85}
+                    disabled={!hasConnectedEmail || !canImportFromGmail || primaryFlowState !== 'idle' || isGmailStatusChecking}
+                  >
+                    <Ionicons name="logo-google" size={20} color="#fff" />
+                    <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
+                  </TouchableOpacity>
 
-          <View style={styles.secondarySection} onLayout={handleExportSectionLayout}>
-            <TouchableOpacity
-              style={styles.secondaryToggle}
-              onPress={() => setIsExportSectionExpanded(prev => !prev)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.secondaryToggleText}>
-                {isExportSectionExpanded ? 'Hide other ways to import' : 'Other ways to import'}
-              </Text>
-            </TouchableOpacity>
+                  {!hasConnectedEmail ? (
+                    <Text style={styles.taskHelperText}>
+                      Connect Gmail first, then come back here to import your receipt history.
+                    </Text>
+                  ) : needsReconnectForImport && (
+                    <Text style={styles.taskHelperText}>
+                      Gmail needs attention before importing. Manage your Gmail connection from the email task.
+                    </Text>
+                  )}
+                </ImportTaskCard>
+              </>
+            )}
 
-            {isExportSectionExpanded && (
-              <FadeInView style={styles.secondaryContent}>
-                <Text style={styles.secondarySubtitle}>
+            <View onLayout={handleExportSectionLayout}>
+              <ImportTaskCard
+                id="uber_export"
+                title="Import via Uber"
+                description="Optional: upload your Uber export for a more complete history."
+                iconName="cloud-upload-outline"
+                statusLabel={hasCompletedExport ? 'Complete' : hasImportedDeliveryData ? 'Optional next step' : 'Optional'}
+                statusTone={hasCompletedExport ? 'complete' : 'optional'}
+                isComplete={hasCompletedExport}
+                isOpen={activeTaskId === 'uber_export'}
+                onPress={handleTaskPress}
+              >
+                <Text style={styles.taskHelperText}>
                   Already have a delivery data export? Upload it here.
                 </Text>
 
@@ -305,8 +471,8 @@ export default function UploadScreen() {
                     <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                   </TouchableOpacity>
                 </View>
-              </FadeInView>
-            )}
+              </ImportTaskCard>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -373,22 +539,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 20,
   },
-  headerBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e0f2fe',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 14,
-  },
-  headerBadgeText: {
-    color: '#0f4c81',
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 6,
-  },
   title: {
     fontSize: 28,
     fontWeight: '800',
@@ -400,11 +550,12 @@ const styles = StyleSheet.create({
     color: '#475569',
     lineHeight: 24,
   },
-  primaryCard: {
+  taskList: {
+    gap: 14,
+  },
+  taskCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 22,
-    marginBottom: 20,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -414,26 +565,77 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  primaryCardIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+  taskCardOpen: {
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  taskCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+  },
+  taskIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#e0f2fe',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginRight: 12,
   },
-  primaryCardTitle: {
-    fontSize: 24,
+  taskHeaderText: {
+    flex: 1,
+    marginRight: 10,
+  },
+  taskTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  taskTitle: {
+    fontSize: 17,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 8,
   },
-  primaryCardSubtitle: {
-    fontSize: 16,
-    color: '#475569',
-    lineHeight: 23,
-    marginBottom: 18,
+  taskDescription: {
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 20,
+  },
+  taskStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  taskStatusBadgeComplete: {
+    backgroundColor: '#dcfce7',
+  },
+  taskStatusBadgeRecommended: {
+    backgroundColor: '#e0f2fe',
+  },
+  taskStatusBadgeOptional: {
+    backgroundColor: '#f1f5f9',
+  },
+  taskStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  taskStatusTextComplete: {
+    color: '#15803d',
+  },
+  taskStatusTextRecommended: {
+    color: '#0f4c81',
+  },
+  taskStatusTextOptional: {
+    color: '#64748b',
+  },
+  taskContent: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    padding: 16,
+    paddingTop: 14,
   },
   gmailButton: {
     flexDirection: 'row',
@@ -444,18 +646,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
   },
+  disabledButton: {
+    opacity: 0.55,
+  },
   gmailButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
     marginLeft: 8,
-  },
-  privacyNote: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 19,
-    marginTop: 12,
-    textAlign: 'center',
   },
   manageLink: {
     alignSelf: 'center',
@@ -466,39 +664,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#475569',
   },
-  secondarySection: {
-    marginBottom: 20,
-  },
-  secondaryToggle: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  secondaryToggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  secondaryContent: {
-    marginTop: 10,
-  },
-  secondarySubtitle: {
-    fontSize: 15,
+  taskHelperText: {
+    fontSize: 13,
     color: '#475569',
-    lineHeight: 22,
-    marginBottom: 14,
+    lineHeight: 19,
+    marginTop: 12,
   },
   exportCard: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    marginTop: 14,
   },
   exportHeader: {
     flexDirection: 'row',

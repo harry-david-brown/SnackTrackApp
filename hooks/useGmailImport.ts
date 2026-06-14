@@ -161,7 +161,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     return latestStatus;
   }, [refreshConnectionStatus]);
 
-  const connectGmailInternal = useCallback(async (): Promise<GmailConnectionStatus | null> => {
+  const connectGmailInternal = useCallback(async (autoImportGmail = true): Promise<GmailConnectionStatus | null> => {
     try {
       setIsLoading(true);
       setPrimaryFlowState('connecting');
@@ -171,7 +171,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         path: 'oauth-callback',
       });
 
-      const { authUrl } = await gmailApi.getAuthUrl(redirectUri);
+      const { authUrl } = await gmailApi.getAuthUrl(redirectUri, autoImportGmail);
       const authResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (authResult.type !== 'success' || !authResult.url) {
@@ -244,7 +244,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
   const connectGmail = useCallback(async () => {
     return runPrimaryFlow(async () => {
-      const readyStatus = await connectGmailInternal();
+      const readyStatus = await connectGmailInternal(false);
 
       if (!readyStatus) {
         return false;
@@ -255,9 +255,11 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     });
   }, [connectGmailInternal, runPrimaryFlow]);
 
+  // Not used by the current Upload checklist. Kept for future one-step flows
+  // where connecting Gmail should immediately run an import.
   const connectAndImportGmail = useCallback(async () => {
     return runPrimaryFlow(async () => {
-      const readyStatus = await connectGmailInternal();
+      const readyStatus = await connectGmailInternal(true);
 
       if (!readyStatus) {
         return false;

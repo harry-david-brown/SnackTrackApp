@@ -30,8 +30,8 @@ export interface GmailAuthUrlResponse {
 let activeImportPromise: Promise<GmailImportResponse> | null = null;
 
 export const gmailApi = {
-  getAuthUrl: async (redirectUri: string): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post('/gmail/auth-url', { redirectUri });
+  getAuthUrl: async (redirectUri: string, autoImportGmail = true): Promise<GmailAuthUrlResponse> => {
+    const response = await api.post('/gmail/auth-url', { redirectUri, autoImportGmail });
     return response.data;
   },
 
