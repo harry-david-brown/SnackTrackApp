@@ -13,6 +13,7 @@ import { GmailConnection } from '@/components';
 import { featureFlags } from '@config/featureFlags';
 import { useGmailImport } from '@hooks/useGmailImport';
 import { useExportUpsell } from '@hooks/useExportUpsell';
+import { FadeInView } from '@components/ui/FadeInView';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
@@ -24,6 +25,7 @@ export default function UploadScreen() {
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
+  const [isExportSectionExpanded, setIsExportSectionExpanded] = useState(false);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
@@ -101,6 +103,12 @@ export default function UploadScreen() {
       }, 300);
     }
   }, [exportSectionY, shouldFocusExport, shouldShowExportTutorialFromParam]);
+
+  useEffect(() => {
+    if (shouldFocusExport || shouldShowExportTutorialFromParam) {
+      setIsExportSectionExpanded(true);
+    }
+  }, [shouldFocusExport, shouldShowExportTutorialFromParam]);
 
   const handleUploadSuccess = async (_receiptsCount: number) => {
     await markCompleted();
@@ -210,12 +218,12 @@ export default function UploadScreen() {
               </Text>
             </View>
             <Text style={styles.title}>
-              {isFirstImport ? 'Start with your inbox' : 'Import more delivery receipts'}
+              {isFirstImport ? 'Start with Gmail' : 'Import more from Gmail'}
             </Text>
             <Text style={styles.subtitle}>
               {isFirstImport
-                ? 'Connect Gmail to pull in receipts quickly and get to your first insights faster.'
-                : 'Connect Gmail for a quick import, or upload a full export when you want deeper historical coverage.'}
+                ? 'Import your delivery receipts in minutes.'
+                : 'Pull in more delivery receipts automatically.'}
             </Text>
           </View>
 
@@ -226,29 +234,8 @@ export default function UploadScreen() {
               </View>
               <Text style={styles.primaryCardTitle}>Import from Gmail</Text>
               <Text style={styles.primaryCardSubtitle}>
-                Use the inbox tied to your delivery apps to import receipts in minutes.
+                The fastest way to get your first insights.
               </Text>
-
-              <View style={styles.primaryBenefitList}>
-                <View style={styles.primaryBenefitRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-                  <Text style={styles.primaryBenefitText}>
-                    Fastest way to get to your first insights
-                  </Text>
-                </View>
-                <View style={styles.primaryBenefitRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-                  <Text style={styles.primaryBenefitText}>
-                    No ZIP file or support request needed
-                  </Text>
-                </View>
-                <View style={styles.primaryBenefitRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-                  <Text style={styles.primaryBenefitText}>
-                    You can upload a full export later for deeper history
-                  </Text>
-                </View>
-              </View>
 
               <TouchableOpacity
                 style={styles.gmailButton}
@@ -260,6 +247,10 @@ export default function UploadScreen() {
                 <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
               </TouchableOpacity>
 
+              <Text style={styles.privacyNote}>
+                We only use your receipt data to generate your personal spending insights.
+              </Text>
+
               {connectionStatus.connected && (
                 <TouchableOpacity
                   style={styles.manageLink}
@@ -269,51 +260,53 @@ export default function UploadScreen() {
                   <Text style={styles.manageLinkText}>Manage Gmail connection</Text>
                 </TouchableOpacity>
               )}
-
-              <View style={styles.privacyCard}>
-                <Ionicons name="shield-checkmark" size={22} color="#0f4c81" />
-                <View style={styles.privacyContent}>
-                  <Text style={styles.privacyTitle}>Your data stays protected</Text>
-                  <Text style={styles.privacyText}>
-                    One tap connects Gmail and starts your import automatically. We only use your receipt data to generate your personal spending insights.
-                  </Text>
-                </View>
-              </View>
             </View>
           )}
 
           <View style={styles.secondarySection} onLayout={handleExportSectionLayout}>
-            <Text style={styles.secondaryEyebrow}>Need a more complete import?</Text>
-            <Text style={styles.secondaryTitle}>Upload a full export</Text>
-            <Text style={styles.secondarySubtitle}>
-              Best when you already have an Uber Eats export ZIP and want deeper historical detail.
-            </Text>
+            <TouchableOpacity
+              style={styles.secondaryToggle}
+              onPress={() => setIsExportSectionExpanded(prev => !prev)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryToggleText}>
+                {isExportSectionExpanded ? 'Hide other ways to import' : 'Other ways to import'}
+              </Text>
+            </TouchableOpacity>
 
-            <View style={styles.exportCard}>
-              <View style={styles.exportHeader}>
-                <Ionicons name="cloud-upload-outline" size={28} color="#007AFF" />
-                <View style={styles.exportHeaderText}>
-                  <Text style={styles.exportTitle}>Have an export already?</Text>
-                  <Text style={styles.exportSubtitle}>
-                    Upload it here, or review the tutorial first if you need help requesting it.
-                  </Text>
+            {isExportSectionExpanded && (
+              <FadeInView style={styles.secondaryContent}>
+                <Text style={styles.secondarySubtitle}>
+                  Already have a delivery data export? Upload it here.
+                </Text>
+
+                <View style={styles.exportCard}>
+                  <View style={styles.exportHeader}>
+                    <Ionicons name="cloud-upload-outline" size={28} color="#007AFF" />
+                    <View style={styles.exportHeaderText}>
+                      <Text style={styles.exportTitle}>Have an export file?</Text>
+                      <Text style={styles.exportSubtitle}>
+                        Upload it now, or review the tutorial if you need help requesting one.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <UberDataUpload
+                    onUploadSuccess={handleUploadSuccess}
+                    onUploadError={handleUploadError}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.tutorialButton}
+                    onPress={() => setShowTutorial(true)}
+                  >
+                    <Ionicons name="information-circle-outline" size={20} color="#475569" />
+                    <Text style={styles.tutorialButtonText}>How to request your Uber export</Text>
+                    <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                  </TouchableOpacity>
                 </View>
-              </View>
-
-              <UberDataUpload
-                onUploadSuccess={handleUploadSuccess}
-                onUploadError={handleUploadError}
-              />
-
-              <TouchableOpacity
-                style={styles.tutorialButton}
-                onPress={() => setShowTutorial(true)}
-              >
-                <Ionicons name="information-circle-outline" size={20} color="#475569" />
-                <Text style={styles.tutorialButtonText}>How to request your Uber export</Text>
-                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
+              </FadeInView>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -442,21 +435,6 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginBottom: 18,
   },
-  primaryBenefitList: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  primaryBenefitRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  primaryBenefitText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#334155',
-    lineHeight: 21,
-    marginLeft: 10,
-  },
   gmailButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -472,6 +450,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 8,
   },
+  privacyNote: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 19,
+    marginTop: 12,
+    textAlign: 'center',
+  },
   manageLink: {
     alignSelf: 'center',
     paddingVertical: 12,
@@ -481,45 +466,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#475569',
   },
-  privacyCard: {
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 18,
-  },
-  privacyContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  privacyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 6,
-    color: '#0f4c81',
-  },
-  privacyText: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
-  },
   secondarySection: {
     marginBottom: 20,
   },
-  secondaryEyebrow: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 6,
+  secondaryToggle: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
   },
-  secondaryTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 8,
+  secondaryToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  secondaryContent: {
+    marginTop: 10,
   },
   secondarySubtitle: {
     fontSize: 15,
