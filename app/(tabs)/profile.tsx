@@ -7,9 +7,10 @@ import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
 import UberDataTutorial from '../../components/upload/UberDataTutorial';
 import EmailVerificationBanner from '../../components/auth/EmailVerificationBanner';
+import { HelpSupportModal } from '../../components/profile/HelpSupportModal';
+import { CurrencySelectorModal } from '../../components/profile/CurrencySelectorModal';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 import { featureFlags } from '../../config/featureFlags';
 import { authApi } from '../../services/authApi';
@@ -20,7 +21,6 @@ export default function ProfileScreen() {
   const { state, logout, resetReceiptData } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const navigation = useNavigation();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
@@ -62,26 +62,9 @@ export default function ProfileScreen() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
+            // Navigation after logout is handled by the Redirect guard in
+            // app/(tabs)/_layout.tsx.
             await logout();
-
-            // Navigate to root route using parent navigator (Stack level)
-            // We need to navigate at the Stack level, not the tabs level
-            setTimeout(() => {
-              try {
-                // Get the parent navigator (Stack) and navigate to index
-                const parent = navigation.getParent();
-                if (parent) {
-                  // Navigate to index route at Stack level
-                  // @ts-ignore - Expo Router navigation types
-                  parent.navigate('index');
-                } else {
-                  // Fallback to router - but this might not work from tabs
-                  router.replace('/');
-                }
-              } catch {
-                // Navigation failed silently
-              }
-            }, 200);
           },
         },
       ]
@@ -222,38 +205,16 @@ export default function ProfileScreen() {
       // Close the Help & Support modal
       setShowHelpSupport(false);
 
-      // Success - logout first
+      // Success - clearing auth state triggers the tabs-layout Redirect
+      // back to the login screen.
       await logout();
 
-      // Navigate to root route using parent navigator (Stack level)
-      // We need to navigate at the Stack level, not the tabs level
-      // Use a small delay to ensure logout state has propagated
-      setTimeout(() => {
-        try {
-          // Get the parent navigator (Stack) and navigate to index
-          const parent = navigation.getParent();
-          if (parent) {
-            // Navigate to index route at Stack level
-            // @ts-ignore - Expo Router navigation types
-            parent.navigate('index');
-          } else {
-            // Fallback to router - but this might not work from tabs
-            router.replace('/');
-          }
-        } catch {
-          // Navigation failed silently
-        }
-      }, 200);
-
-      // Show success alert after navigation
-      setTimeout(() => {
-        Alert.alert(
-          'Account Deleted',
-          'Your account has been permanently deleted.',
-          [{ text: 'OK' }],
-          { cancelable: false }
-        );
-      }, 500);
+      Alert.alert(
+        'Account Deleted',
+        'Your account has been permanently deleted.',
+        [{ text: 'OK' }],
+        { cancelable: false }
+      );
     } catch (error: any) {
 
       let errorMessage = 'Failed to delete account. Please try again.';
@@ -424,141 +385,21 @@ export default function ProfileScreen() {
         <UberDataTutorial onComplete={() => setShowTutorial(false)} />
       </Modal>
 
-      {/* Help & Support Modal */}
-      <Modal
+      <HelpSupportModal
         visible={showHelpSupport}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowHelpSupport(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.helpModalContent}>
-            <View style={styles.helpModalHeader}>
-              <Text style={styles.helpModalTitle}>Help & Support</Text>
-              <TouchableOpacity
-                onPress={() => setShowHelpSupport(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#6F756E" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.helpModalBody}>
-              <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>📋 Import Options</Text>
-                <Text style={styles.helpSectionText}>
-                  Fastest start:{'\n'}
-                  1. Go to the Import Receipts screen{'\n'}
-                  2. Tap the Gmail button{'\n'}
-                  3. Connect the inbox tied to your delivery apps{'\n'}
-                  4. SnackTrack will connect Gmail and start importing automatically{'\n\n'}
-                  Want deeper history? You can also request an Uber Eats export, download the ZIP file, and upload it from the same screen.
-                </Text>
-              </View>
+        onClose={() => setShowHelpSupport(false)}
+        onPrivacyPolicy={handlePrivacyPolicy}
+        onDeleteAccount={handleDeleteAccount}
+        isDeleting={isDeleting}
+      />
 
-              <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>❓ Frequently Asked Questions</Text>
-                <Text style={styles.helpSectionText}>
-                  <Text style={styles.helpQuestion}>Q: How long does it take to process my data?</Text>{'\n'}
-                  A: Gmail imports usually start right away after connection. Full export uploads usually process within a few seconds after upload.{'\n\n'}
-                  
-                  <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
-                  A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
-
-                  <Text style={styles.helpQuestion}>Q: Which import method should I use?</Text>{'\n'}
-                  A: Start with Gmail if you want the fastest setup. Use a full export if you already have one or want more complete historical coverage.{'\n\n'}
-                  
-                  <Text style={styles.helpQuestion}>Q: Can I delete my account?</Text>{'\n'}
-                  A: Yes, you can delete your account directly from the Account Deletion section below.
-                </Text>
-              </View>
-
-              <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>📧 Contact Us</Text>
-                <Text style={styles.helpSectionText}>
-                  Need help? Reach out to us:{'\n'}
-                  Email: hello@getsnacktrack.com
-                </Text>
-              </View>
-
-              <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>🔒 Privacy Policy</Text>
-                <TouchableOpacity onPress={handlePrivacyPolicy} style={styles.privacyLink}>
-                  <Text style={styles.privacyLinkText}>View Privacy Policy</Text>
-                  <Ionicons name="open-outline" size={20} color="#1F4E3A" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>🗑️ Account Deletion</Text>
-                <TouchableOpacity
-                  onPress={handleDeleteAccount}
-                  style={styles.deleteAccountButton}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? (
-                    <ActivityIndicator size="small" color="#D14343" />
-                  ) : (
-                    <>
-                      <Text style={styles.deleteAccountButtonText}>Delete My Account</Text>
-                      <Ionicons name="trash-outline" size={20} color="#D14343" />
-                    </>
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.deleteAccountWarning}>
-                  This will permanently delete all your data. This action cannot be undone.
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Currency Selector Modal */}
-      <Modal
+      <CurrencySelectorModal
         visible={showCurrencySelector}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCurrencySelector(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.helpModalContent}>
-            <View style={styles.helpModalHeader}>
-              <Text style={styles.helpModalTitle}>Select Currency</Text>
-              <TouchableOpacity
-                onPress={() => setShowCurrencySelector(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#6F756E" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.helpModalBody}>
-              {Object.values(SUPPORTED_CURRENCIES).map((curr) => (
-                <TouchableOpacity
-                  key={curr.code}
-                  style={[
-                    styles.currencyItem,
-                    currency === curr.code && styles.currencyItemSelected,
-                  ]}
-                  onPress={() => handleCurrencySelect(curr.code)}
-                >
-                  <View style={styles.currencyItemContent}>
-                    <Text style={styles.currencySymbol}>{curr.symbol}</Text>
-                    <View style={styles.currencyInfo}>
-                      <Text style={styles.currencyCode}>{curr.code}</Text>
-                      <Text style={styles.currencyName}>{curr.name}</Text>
-                    </View>
-                  </View>
-                  {currency === curr.code && (
-                    <Ionicons name="checkmark-circle" size={24} color="#1F4E3A" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        currency={currency}
+        onSelect={handleCurrencySelect}
+        onClose={() => setShowCurrencySelector(false)}
+      />
+
     </SafeAreaView>
   );
 }
@@ -684,42 +525,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginRight: 8,
   },
-  currencyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  currencyItemSelected: {
-    backgroundColor: '#F7FAF7',
-  },
-  currencyItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  currencySymbol: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#222222',
-    marginRight: 16,
-    width: 40,
-  },
-  currencyInfo: {
-    flex: 1,
-  },
-  currencyCode: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-    marginBottom: 2,
-  },
-  currencyName: {
-    fontSize: 14,
-    color: '#6F756E',
-  },
   appInfo: {
     alignItems: 'center',
     padding: 20,
@@ -728,90 +533,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginBottom: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  helpModalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingBottom: 20,
-  },
-  helpModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  helpModalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222222',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  helpModalBody: {
-    padding: 20,
-  },
-  helpSection: {
-    marginBottom: 24,
-  },
-  helpSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#222222',
-    marginBottom: 12,
-  },
-  helpSectionText: {
-    fontSize: 15,
-    color: '#6F756E',
-    lineHeight: 22,
-  },
-  helpQuestion: {
-    fontWeight: '600',
-    color: '#222222',
-  },
-  privacyLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: '#F7FAF7',
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  privacyLinkText: {
-    fontSize: 15,
-    color: '#1F4E3A',
-    fontWeight: '500',
-  },
-  deleteAccountButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: '#fff5f5',
-    borderRadius: 8,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#ffebee',
-  },
-  deleteAccountButtonText: {
-    fontSize: 15,
-    color: '#D14343',
-    fontWeight: '500',
-  },
-  deleteAccountWarning: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 8,
-    fontStyle: 'italic',
   },
 });

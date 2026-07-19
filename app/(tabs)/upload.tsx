@@ -1,7 +1,5 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
   LayoutChangeEvent,
   Modal,
   Platform,
@@ -22,241 +20,14 @@ import WrappedJourneyLoader from '../../components/wrapped/WrappedJourneyLoader'
 import { useOfflineSync } from '@hooks/useOfflineSync';
 import { GmailConnection } from '@/components';
 import { featureFlags } from '@config/featureFlags';
-import { type GmailPrimaryFlowState, useGmailImport } from '@hooks/useGmailImport';
+import { useGmailImport } from '@hooks/useGmailImport';
 import { useExportUpsell } from '@hooks/useExportUpsell';
-import { FadeInView } from '@components/ui/FadeInView';
 import { type GmailImportResponse } from '@services/gmailApi';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
-
-type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
-
-const GMAIL_IMPORT_MESSAGES = [
-  'This can take up to 1-2 minutes depending on your gluttony.',
-  'Questioning every late-night delivery choice with professional courtesy.',
-  'Sorting tacos from therapy purchases.',
-  'Teaching Gmail what counts as dinner.',
-  'Looking for receipts and trying not to judge the sauce math.',
-  'Counting fries with unnecessary precision.',
-  'Separating real meals from side-quest snacks.',
-];
-
-interface ImportTaskCardProps {
-  id: ImportTaskId;
-  title: string;
-  description: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  statusLabel: string;
-  statusTone: 'complete' | 'recommended' | 'optional';
-  isComplete: boolean;
-  isOpen: boolean;
-  onPress: (id: ImportTaskId) => void;
-  children: ReactNode;
-}
-
-function ImportTaskCard({
-  id,
-  title,
-  description,
-  iconName,
-  statusLabel,
-  statusTone,
-  isComplete,
-  isOpen,
-  onPress,
-  children,
-}: ImportTaskCardProps) {
-  const statusBadgeStyle = {
-    complete: styles.taskStatusBadgeComplete,
-    recommended: styles.taskStatusBadgeRecommended,
-    optional: styles.taskStatusBadgeOptional,
-  }[statusTone];
-  const statusTextStyle = {
-    complete: styles.taskStatusTextComplete,
-    recommended: styles.taskStatusTextRecommended,
-    optional: styles.taskStatusTextOptional,
-  }[statusTone];
-
-  return (
-    <View style={[styles.taskCard, isOpen && styles.taskCardOpen]}>
-      <TouchableOpacity
-        style={styles.taskCardHeader}
-        onPress={() => onPress(id)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.taskIcon}>
-          <Ionicons
-            name={isComplete ? 'checkmark-circle' : iconName}
-            size={24}
-            color={isComplete ? '#2E7D4F' : '#1F4E3A'}
-          />
-        </View>
-        <View style={styles.taskHeaderText}>
-          <View style={styles.taskTitleRow}>
-            <Text style={styles.taskTitle}>{title}</Text>
-            <View style={[styles.taskStatusBadge, statusBadgeStyle]}>
-              <Text style={[styles.taskStatusText, statusTextStyle]}>
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.taskDescription}>{description}</Text>
-        </View>
-        <Ionicons
-          name={isOpen ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color="#94a3b8"
-        />
-      </TouchableOpacity>
-
-      {isOpen && (
-        <FadeInView duration={250} style={styles.taskContent}>
-          {children}
-        </FadeInView>
-      )}
-    </View>
-  );
-}
-
-interface GmailImportLoadingModalProps {
-  flowState: GmailPrimaryFlowState;
-  importResult: GmailImportResponse | null;
-  visible: boolean;
-}
-
-function GmailImportLoadingModal({ flowState, importResult, visible }: GmailImportLoadingModalProps) {
-  const [messageIndex, setMessageIndex] = useState(0);
-  const cardScale = useRef(new Animated.Value(0.92)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
-  const messageOpacity = useRef(new Animated.Value(1)).current;
-  const successScale = useRef(new Animated.Value(0.7)).current;
-
-  useEffect(() => {
-    if (!visible) {
-      setMessageIndex(0);
-      cardScale.setValue(0.92);
-      cardOpacity.setValue(0);
-      messageOpacity.setValue(1);
-      successScale.setValue(0.7);
-      return;
-    }
-
-    Animated.parallel([
-      Animated.spring(cardScale, {
-        toValue: 1,
-        friction: 7,
-        tension: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardOpacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    if (importResult) {
-      successScale.setValue(0.7);
-      Animated.spring(successScale, {
-        toValue: 1,
-        friction: 5,
-        tension: 95,
-        useNativeDriver: true,
-      }).start();
-      return;
-    }
-
-    const messageTimer = setInterval(() => {
-      Animated.timing(messageOpacity, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }).start(() => {
-        setMessageIndex((current) => (current + 1) % GMAIL_IMPORT_MESSAGES.length);
-        Animated.timing(messageOpacity, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 3200);
-
-    return () => {
-      clearInterval(messageTimer);
-    };
-  }, [cardOpacity, cardScale, importResult, messageOpacity, successScale, visible]);
-
-  const statusText = flowState === 'preparing_import'
-    ? 'Warming up the inbox...'
-    : 'Importing receipt evidence...';
-  const importedReceiptCount = importResult?.totalReceiptsImported ?? 0;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={() => undefined}
-    >
-      <View style={styles.loadingModalOverlay}>
-        <Animated.View
-          style={[
-            styles.loadingModalCard,
-            {
-              opacity: cardOpacity,
-              transform: [{ scale: cardScale }],
-            },
-          ]}
-        >
-          {importResult ? (
-            <>
-              {/* MASCOT: import success — arms-up celebration */}
-              <Animated.View
-                style={[
-                  styles.successMascotWrap,
-                  {
-                    transform: [{ scale: successScale }],
-                  },
-                ]}
-              >
-                <MascotPlaceholder pose="celebrate" size={96} />
-              </Animated.View>
-
-              <Text style={styles.loadingModalTitle}>
-                {importedReceiptCount} receipt{importedReceiptCount === 1 ? '' : 's'} found
-              </Text>
-              <Text style={styles.loadingModalSuccessText}>
-                Receipt evidence secured. Preparing your summary...
-              </Text>
-            </>
-          ) : (
-            <>
-              {/* MASCOT: import in progress — hand-on-chin thinking */}
-              <View style={styles.loadingIconWrap}>
-                <MascotPlaceholder pose="thinking" size={96} />
-                <ActivityIndicator size="small" color="#1F4E3A" style={styles.loadingSpinnerBelowMascot} />
-              </View>
-
-              <Text style={styles.loadingModalTitle}>Importing from Gmail</Text>
-              <Text style={styles.loadingModalStatus}>{statusText}</Text>
-
-              <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>
-                {GMAIL_IMPORT_MESSAGES[messageIndex]}
-              </Animated.Text>
-
-              <View style={styles.loadingModalFooter}>
-                <Ionicons name="time-outline" size={16} color="#6F756E" />
-                <Text style={styles.loadingModalFooterText}>
-                  Keep this open while SnackTrack does the inbox archaeology.
-                </Text>
-              </View>
-            </>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-}
+import {
+  GmailImportLoadingModal,
+  type GmailConnectPhase,
+} from '@components/gmail/GmailImportLoadingModal';
+import { ImportTaskCard, type ImportTaskId } from '@components/upload/ImportTaskCard';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
@@ -271,6 +42,8 @@ export default function UploadScreen() {
   const [activeTaskId, setActiveTaskId] = useState<ImportTaskId | null>(null);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
   const [gmailImportResult, setGmailImportResult] = useState<GmailImportResponse | null>(null);
+  const [gmailConnectPhase, setGmailConnectPhase] = useState<GmailConnectPhase>('idle');
+  const connectSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
@@ -296,10 +69,21 @@ export default function UploadScreen() {
   const hasImportedDeliveryData = totalImportedReceipts > 0;
   const showGmailImportLoadingModal = showGmailFeature
     && !showLoader
-    && (gmailImportResult !== null || primaryFlowState === 'preparing_import' || primaryFlowState === 'importing');
+    && (gmailImportResult !== null
+      || gmailConnectPhase !== 'idle'
+      || primaryFlowState === 'preparing_import'
+      || primaryFlowState === 'importing');
   const hasTriggeredAutoImport = useRef(false);
   const hasHandledExportFocus = useRef(false);
   const hasAppliedInitialTask = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (connectSuccessTimerRef.current) {
+        clearTimeout(connectSuccessTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!showGmailFeature || !shouldAutoImportFromParam || !autoImportFlowId) {
@@ -455,9 +239,24 @@ export default function UploadScreen() {
       return;
     }
 
+    // Keep the mascot modal mounted across the whole connect flow (connecting
+    // → connected) so there's no visibility gap when the hook resets to idle.
+    if (connectSuccessTimerRef.current) {
+      clearTimeout(connectSuccessTimerRef.current);
+      connectSuccessTimerRef.current = null;
+    }
+    setGmailConnectPhase('connecting');
+
     const didConnect = await connectGmail();
     if (didConnect) {
       setActiveTaskId('gmail_import');
+      setGmailConnectPhase('connected');
+      connectSuccessTimerRef.current = setTimeout(() => {
+        setGmailConnectPhase('idle');
+        connectSuccessTimerRef.current = null;
+      }, 2200);
+    } else {
+      setGmailConnectPhase('idle');
     }
   };
 
@@ -707,6 +506,7 @@ export default function UploadScreen() {
         visible={showGmailImportLoadingModal}
         flowState={primaryFlowState}
         importResult={gmailImportResult}
+        connectPhase={gmailConnectPhase}
       />
 
       {showLoader && <WrappedJourneyLoader onComplete={handleLoaderComplete} />}
@@ -744,90 +544,6 @@ const styles = StyleSheet.create({
   },
   taskList: {
     gap: 14,
-  },
-  taskCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  taskCardOpen: {
-    borderWidth: 1,
-    borderColor: '#E9F5E2',
-  },
-  taskCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-  },
-  taskIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#E9F5E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  taskHeaderText: {
-    flex: 1,
-    marginRight: 10,
-  },
-  taskTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 4,
-  },
-  taskTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#222222',
-  },
-  taskDescription: {
-    fontSize: 14,
-    color: '#6F756E',
-    lineHeight: 20,
-  },
-  taskStatusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  taskStatusBadgeComplete: {
-    backgroundColor: '#dcfce7',
-  },
-  taskStatusBadgeRecommended: {
-    backgroundColor: '#E9F5E2',
-  },
-  taskStatusBadgeOptional: {
-    backgroundColor: '#f1f5f9',
-  },
-  taskStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  taskStatusTextComplete: {
-    color: '#15803d',
-  },
-  taskStatusTextRecommended: {
-    color: '#1F4E3A',
-  },
-  taskStatusTextOptional: {
-    color: '#6F756E',
-  },
-  taskContent: {
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    padding: 16,
-    paddingTop: 14,
   },
   gmailButton: {
     flexDirection: 'row',
@@ -940,89 +656,5 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
-  },
-  loadingModalOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.62)',
-    padding: 24,
-  },
-  loadingModalCard: {
-    width: '100%',
-    maxWidth: 360,
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 12,
-  },
-  loadingIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E9F5E2',
-    marginBottom: 18,
-  },
-  successMascotWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  loadingSpinnerBelowMascot: {
-    marginTop: 10,
-  },
-  loadingModalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#222222',
-    textAlign: 'center',
-  },
-  loadingModalStatus: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F4E3A',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  loadingModalMessage: {
-    minHeight: 56,
-    fontSize: 16,
-    color: '#6F756E',
-    lineHeight: 24,
-    textAlign: 'center',
-    marginTop: 18,
-  },
-  loadingModalSuccessText: {
-    fontSize: 16,
-    color: '#6F756E',
-    lineHeight: 24,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  loadingModalFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FAF8F4',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 4,
-  },
-  loadingModalFooterText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#6F756E',
-    marginLeft: 6,
   },
 });

@@ -245,7 +245,9 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         return false;
       }
 
-      showSimpleAlert('Success', 'Gmail connected successfully.');
+      // Success is confirmed visually by the mascot loading modal on the
+      // Upload screen (connect-success beat), so no native alert here — a
+      // native alert would pop over and tear down the mascot modal.
       return true;
     });
   }, [connectGmailInternal, runPrimaryFlow]);

@@ -1,98 +1,31 @@
-import { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { LoginScreen } from '../components/auth/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
 
+/**
+ * Entry route. Everything here is derived directly from auth/onboarding
+ * state — no imperative navigation:
+ *   loading      → spinner
+ *   authed       → redirect into tabs (upload first if no data yet)
+ *   first launch → onboarding
+ *   otherwise    → login
+ * The reverse direction (signed out while inside tabs) is handled by the
+ * Redirect guard in app/(tabs)/_layout.tsx.
+ */
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const hasCheckedOnboardingRef = useRef(false);
-  const hasNavigatedRef = useRef(false);
 
-  useEffect(() => {
-    if (!state.isAuthenticated) {
-      hasNavigatedRef.current = false;
-    }
-  }, [state.isAuthenticated]);
-
-
-  useEffect(() => {
-    // Wait for both contexts to finish loading before checking onboarding
-    if (state.isLoading || onboardingLoading) {
-      return;
-    }
-
-    // Initial check: decide whether to show onboarding
-    if (!hasCheckedOnboardingRef.current) {
-      hasCheckedOnboardingRef.current = true;
-      
-      // Show onboarding on first launch if not completed yet
-      if (!hasCompletedOnboarding && !state.isAuthenticated) {
-        setShowOnboarding(true);
-      } else {
-        setShowOnboarding(false);
-      }
-      return;
-    }
-
-    // After initial check, handle state changes:
-    // 1. Hide onboarding if it gets completed
-    if (hasCompletedOnboarding && showOnboarding) {
-      setShowOnboarding(false);
-    }
-    
-    // 2. Hide onboarding if user becomes authenticated
-    if (state.isAuthenticated && showOnboarding) {
-      setShowOnboarding(false);
-    }
-  }, [hasCompletedOnboarding, state.isAuthenticated, state.isLoading, onboardingLoading, showOnboarding]);
-
-  useEffect(() => {
-    if (!state.isAuthenticated || !state.user || showOnboarding || onboardingLoading) {
-      return;
-    }
-
-    if (state.analyticsLoading) {
-      return;
-    }
-
-    if (hasNavigatedRef.current) {
-      return;
-    }
-
-    const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user.receiptCount ?? 0;
-    const hasImportedData = totalImportedReceipts > 0;
-
-    hasNavigatedRef.current = true;
-
-    if (
-      !hasImportedData
-    ) {
-      router.replace('/(tabs)/upload');
-      return;
-    }
-
-    router.replace('/(tabs)');
-  }, [
-    state.isAuthenticated,
-    state.user,
-    state.analytics,
-    state.analyticsLoading,
-    showOnboarding,
-    onboardingLoading,
-  ]);
-
-  const handleOnboardingComplete = async () => {
-    await completeOnboarding();
-    setShowOnboarding(false);
-  };
-
-  const isLoading = state.isLoading || onboardingLoading || (state.isAuthenticated && state.user && state.analyticsLoading);
+  // Wait for auth + onboarding hydration, and — when authenticated — for the
+  // analytics probe that decides whether to land on Upload or Dashboard.
+  const isLoading =
+    state.isLoading ||
+    onboardingLoading ||
+    (state.isAuthenticated && Boolean(state.user) && state.analyticsLoading);
 
   if (isLoading) {
     return (
@@ -104,12 +37,15 @@ export default function HomeScreen() {
     );
   }
 
-  // Show onboarding on first launch
-  if (showOnboarding) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  if (state.isAuthenticated && state.user) {
+    const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user.receiptCount ?? 0;
+    return <Redirect href={totalImportedReceipts > 0 ? '/(tabs)' : '/(tabs)/upload'} />;
   }
 
-  // Show login screen if not authenticated
+  if (!hasCompletedOnboarding) {
+    return <OnboardingScreen onComplete={completeOnboarding} />;
+  }
+
   return <LoginScreen />;
 }
 

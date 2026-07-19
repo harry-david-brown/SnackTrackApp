@@ -19,6 +19,8 @@ export { default as ChartContainer } from './charts/ChartContainer';
 // Upload components
 export { UberDataUpload } from './upload/UberDataUpload';
 export { default as UberDataTutorial } from './upload/UberDataTutorial';
+export { ImportTaskCard } from './upload/ImportTaskCard';
+export type { ImportTaskId } from './upload/ImportTaskCard';
 
 // Wrapped components
 export { default as WrappedShareJourney } from './wrapped/WrappedShareJourney';
@@ -41,8 +43,14 @@ export { SlideInView } from './ui/SlideInView';
 export { MascotPlaceholder } from './mascot/MascotPlaceholder';
 export type { MascotPose } from './mascot/MascotPlaceholder';
 
-// Gmail component
+// Gmail components
 export { GmailConnection } from './gmail/GmailConnection';
+export { GmailImportLoadingModal } from './gmail/GmailImportLoadingModal';
+export type { GmailConnectPhase } from './gmail/GmailImportLoadingModal';
+
+// Profile components
+export { HelpSupportModal } from './profile/HelpSupportModal';
+export { CurrencySelectorModal } from './profile/CurrencySelectorModal';
 
 // Other components (kept at root for now)
 export { default as InsightsPanel } from './InsightsPanel';

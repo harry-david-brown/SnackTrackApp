@@ -64,7 +64,7 @@ export default function WrappedJourneyScreen() {
       setLoadTimestamp(Date.now());
       setIsLoading(false);
       fetchingWrappedRef.current = null;
-      setTimeout(() => setIsFullyReady(true), 100);
+      setIsFullyReady(true);
       return;
     }
 
@@ -98,7 +98,7 @@ export default function WrappedJourneyScreen() {
           setAnalytics(wrappedSummary);
           setGlobalAnalytics(wrappedSummary);
           setLoadTimestamp(Date.now());
-          setTimeout(() => setIsFullyReady(true), 100);
+          setIsFullyReady(true);
         } else {
           setAnalytics(null);
           setIsFullyReady(true);

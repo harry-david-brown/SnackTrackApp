@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, InteractionManager, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
@@ -7,14 +7,13 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
 import { SlideInView } from '../../components/ui/SlideInView';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useExportUpsell } from '../../hooks/useExportUpsell';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
   const { formatCurrency } = useCurrency();
-  const navigation = useNavigation();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const initialLoadDoneRef = useRef(false);
   const {
@@ -66,72 +65,16 @@ export default function DashboardScreen() {
 
 
 
+  // Navigation after logout is handled declaratively by the Redirect guard
+  // in app/(tabs)/_layout.tsx — clearing auth state is all that's needed here.
   const handleLogout = async () => {
     try {
       await logout();
-
-      // Navigate to root route using parent navigator (Stack level)
-      // We need to navigate at the Stack level, not the tabs level
-      setTimeout(() => {
-        try {
-          // Get the parent navigator (Stack) and navigate to index
-          const parent = navigation.getParent();
-          if (parent) {
-            // Navigate to index route at Stack level
-            // @ts-ignore - Expo Router navigation types
-            parent.navigate('index');
-          } else {
-            // Fallback to router - but this might not work from tabs
-            router.replace('/');
-          }
-        } catch {
-          // Navigation failed silently
-        }
-      }, 200);
     } catch {
-      // Force navigation even if logout fails
-      setTimeout(() => {
-        try {
-          const parent = navigation.getParent();
-          if (parent) {
-            // @ts-ignore - Expo Router navigation types
-            parent.navigate('index');
-          } else {
-            router.replace('/');
-          }
-        } catch {
-          // Navigation failed silently
-        }
-      }, 200);
+      // Even if the API call fails, local auth state is cleared and the
+      // tabs layout redirects to the login screen.
     }
   };
-
-  // If user logs out while on this screen, navigate to login
-  useEffect(() => {
-    if (!state.user && !state.isLoading) {
-      // Defer navigation until after all interactions are complete
-      // This ensures the router is fully mounted before attempting navigation
-      const interactionHandle = InteractionManager.runAfterInteractions(() => {
-        try {
-          router.replace('/');
-        } catch {
-          // If navigation fails, router isn't ready yet - try again after a short delay
-          setTimeout(() => {
-            try {
-              router.replace('/');
-            } catch (retryError) {
-              // If it still fails, ignore - user might be navigating away anyway
-              console.warn('Navigation to login screen failed:', retryError);
-            }
-          }, 200);
-        }
-      });
-      
-      return () => {
-        interactionHandle.cancel();
-      };
-    }
-  }, [state.user, state.isLoading]);
 
   if (!state.user) {
     // Return loading state instead of null to prevent navigation errors

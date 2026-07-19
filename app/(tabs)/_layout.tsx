@@ -1,9 +1,18 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { featureFlags } from '../../config/featureFlags';
+import { useUser } from '../../contexts/UserContext';
 
 export default function TabLayout() {
+  const { state } = useUser();
   const showDevTabs = featureFlags.showTestErrors;
+
+  // Declarative auth gate: any time the user is signed out (including after
+  // logout from any tab), this layout redirects to the login/onboarding root.
+  // Screens inside the tabs never need to navigate on logout themselves.
+  if (!state.isLoading && !state.isAuthenticated) {
+    return <Redirect href="/" />;
+  }
 
   return (
     <Tabs

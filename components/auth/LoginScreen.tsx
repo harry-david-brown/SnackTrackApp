@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,81 +19,21 @@ import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import Constants from 'expo-constants';
 import { getConfig } from '../../config/env';
 import { featureFlags } from '../../config/featureFlags';
 import { getErrorMessage } from '../../utils/errorUtils';
+import {
+  checkNativeGoogleSignIn,
+  isNativeGoogleSignInAvailable,
+  getGoogleSignin,
+  getGoogleStatusCodes,
+} from './nativeGoogleSignIn';
+import { validateEmail, validatePassword } from './authValidation';
+import { decodeAppleTokenClaims, describeAppleSignInError } from './appleAuthErrors';
+import { styles } from './loginStyles';
 
 // Initialize WebBrowser for auth
 WebBrowser.maybeCompleteAuthSession();
-
-// Dynamic Google Signin variables for native module (dev builds only)
-let GoogleSignin: any = null;
-let statusCodes: any = null;
-let nativeGoogleSignInAvailable = false;
-let nativeModuleChecked = false;
-
-// Check if native Google Sign-In is available (only in development builds, not Expo Go)
-// This is called lazily, not at module load time, to avoid crashes in Expo Go
-const checkNativeGoogleSignIn = () => {
-  if (nativeModuleChecked) {
-    return nativeGoogleSignInAvailable;
-  }
-  
-  nativeModuleChecked = true;
-  
-  if (Platform.OS === 'web') {
-    nativeGoogleSignInAvailable = false;
-    return false;
-  }
-
-  // Check if we're in Expo Go - if so, skip native module check entirely
-  // Constants.executionEnvironment is 'storeClient' in Expo Go, 'standalone' in production builds
-  const executionEnvironment = Constants.executionEnvironment;
-  if (executionEnvironment === 'storeClient') {
-    // We're in Expo Go - native modules won't be available
-    nativeGoogleSignInAvailable = false;
-    return false;
-  }
-
-  // Only try to load native module if we're in a development build (not Expo Go)
-  try {
-    // Try to require the module - this will work in development builds
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const googleSigninModule = require('@react-native-google-signin/google-signin');
-    GoogleSignin = googleSigninModule.GoogleSignin;
-    statusCodes = googleSigninModule.statusCodes;
-
-    // Configure only if loaded successfully and config is available
-    if (GoogleSignin) {
-      try {
-        const config = getConfig();
-        if (config.gmailWebClientId) {
-          GoogleSignin.configure({
-            webClientId: config.gmailWebClientId,
-            iosClientId: config.gmailIosClientId,
-            offlineAccess: true,
-          });
-          nativeGoogleSignInAvailable = true;
-          return true;
-        }
-      } catch {
-        // Config might not be ready yet - that's okay, we'll use expo-auth-session
-        if (__DEV__) {
-          console.log('Config not ready for Google Sign-In, using expo-auth-session fallback');
-        }
-      }
-    }
-  } catch {
-    // Native module not available - use expo-auth-session fallback
-    if (__DEV__) {
-      console.log('Native Google Sign-In not available, using expo-auth-session fallback');
-    }
-  }
-  
-  nativeGoogleSignInAvailable = false;
-  return false;
-};
 
 interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -183,8 +122,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   // Handle expo-auth-session Sign-In Response (web + native fallback in Expo Go)
   useEffect(() => {
     // Only handle response if we're using expo-auth-session (web or Expo Go fallback)
-    // nativeGoogleSignInAvailable is a module-level variable, checked at runtime
-    if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
+    // Native availability is a module-level flag in nativeGoogleSignIn, checked at runtime
+    if (Platform.OS === 'web' || !isNativeGoogleSignInAvailable()) {
       if (response?.type === 'success') {
         // parsing the response to find the idToken
         // Sometimes it comes in authentication.idToken, sometimes in params.id_token
@@ -209,29 +148,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
      
   }, [response, performGoogleLogin]);
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
-    const errors: string[] = [];
-    
-    if (password.length < 8) {
-      errors.push('At least 8 characters');
-    }
-    if (!/[A-Z]/.test(password)) {
-      errors.push('At least 1 uppercase letter');
-    }
-    if (!/[0-9]/.test(password)) {
-      errors.push('At least 1 number');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
-  };
 
   const handleSubmit = async () => {
     setFormError(null);
@@ -288,11 +204,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       setIsLoading(true);
 
       // Use expo-auth-session for web OR when native module isn't available (Expo Go)
-      if (Platform.OS === 'web' || !nativeGoogleSignInAvailable) {
+      if (Platform.OS === 'web' || !isNativeGoogleSignInAvailable()) {
         await promptAsync();
         // The effect will handle the response
       } else {
         // Native (Android/iOS) Flow - only for development builds with native modules
+        const GoogleSignin = getGoogleSignin();
         await GoogleSignin.hasPlayServices();
         const response = await GoogleSignin.signIn();
 
@@ -304,6 +221,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       }
     } catch (error: any) {
       setIsLoading(false);
+      const statusCodes = getGoogleStatusCodes();
       if (statusCodes && error.code === statusCodes.SIGN_IN_CANCELLED) {
         // user cancelled the login flow
       } else if (statusCodes && error.code === statusCodes.IN_PROGRESS) {
@@ -320,6 +238,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+
   const handleAppleLogin = async () => {
     try {
       setFormError(null);
@@ -332,67 +251,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      
+
       // Decode JWT payload to see claims (for debugging and validation)
-      let tokenClaims: any = null;
-      if (credential.identityToken) {
-        try {
-          const parts = credential.identityToken.split('.');
-          if (parts.length === 3) {
-            const payload = parts[1];
-            // Add padding if needed for base64 decoding
-            const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
-            // Use global atob or Buffer for base64 decoding
-            const decodedPayload = typeof atob !== 'undefined' 
-              ? atob(paddedPayload)
-              : Buffer.from(paddedPayload, 'base64').toString('utf-8');
-            tokenClaims = JSON.parse(decodedPayload);
-          }
-        } catch (e) {
-          // Ignore decode errors - token might be in different format
-          if (__DEV__) {
-            console.warn('Could not decode Apple identity token:', e);
-          }
-        }
-      }
-      
-      // Log credential details for debugging
+      const tokenClaims = decodeAppleTokenClaims(credential.identityToken);
+
       if (__DEV__) {
         console.log('🍎 Apple Sign-In credential received:', {
           hasIdentityToken: !!credential.identityToken,
-          identityTokenLength: credential.identityToken?.length,
           hasEmail: !!credential.email,
           hasFullName: !!credential.fullName,
-          user: credential.user, // Apple user ID (stable identifier)
-          tokenClaims: tokenClaims ? {
-            sub: tokenClaims.sub, // Apple user ID (same as credential.user)
-            email: tokenClaims.email,
-            email_verified: tokenClaims.email_verified,
-            iss: tokenClaims.iss, // Should be "https://appleid.apple.com"
-            aud: tokenClaims.aud, // Should be your Apple Client ID
-            exp: tokenClaims.exp, // Expiration timestamp
-            iat: tokenClaims.iat, // Issued at timestamp
-          } : null,
+          user: credential.user,
+          tokenClaims,
         });
+        const now = Math.floor(Date.now() / 1000);
+        if (tokenClaims?.exp && tokenClaims.exp < now) {
+          console.warn('⚠️ Apple token is expired. This should not happen as tokens are fresh.');
+        }
       }
-      
+
       // identityToken is the JWT we need to verify on the backend
       if (!credential.identityToken) {
         throw new Error('No identity token obtained from Apple. Please try again.');
       }
 
       // Validate token format (basic JWT structure check)
-      const tokenParts = credential.identityToken.split('.');
-      if (tokenParts.length !== 3) {
+      if (credential.identityToken.split('.').length !== 3) {
         throw new Error('Invalid token format received from Apple. Please try again.');
-      }
-
-      // Check token expiration if we decoded it
-      if (__DEV__ && tokenClaims) {
-        const now = Math.floor(Date.now() / 1000);
-        if (tokenClaims.exp && tokenClaims.exp < now) {
-          console.warn('⚠️ Apple token is expired. This should not happen as tokens are fresh.');
-        }
       }
 
       // Prepare user data (only available on first sign-in)
@@ -405,118 +289,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         } : undefined,
       } : undefined;
 
-      // Log if email is missing (expected on subsequent sign-ins)
-      if (__DEV__ && !credential.email && tokenClaims?.email) {
-        console.log('ℹ️ Email not in credential but present in token (subsequent sign-in)');
-      }
-
       await loginWithApple(credential.identityToken, userData);
-      
+
       onLoginSuccess?.();
     } catch (error: any) {
       setIsLoading(false);
-      
-      // Log detailed error information for debugging
+
       if (__DEV__) {
         console.log("🍎 APPLE ERROR", error?.code, error?.message, error);
       }
-      
-      // Handle user cancellation - don't show error
-      if (error.code === 'ERR_REQUEST_CANCELED' || error.code === 'ERR_CANCELED') {
-        if (__DEV__) {
-          console.log('ℹ️ User cancelled Apple Sign-In');
-        }
+
+      const outcome = describeAppleSignInError(error, state.error);
+      if (outcome.kind === 'silent') {
         return;
       }
-      
-      // Handle Apple Sign-In not available (shouldn't happen if button is shown)
-      if (error.code === 'ERR_NOT_AVAILABLE' || error.message?.includes('not available')) {
-        showAlert(
-          'Apple Sign-In Unavailable',
-          'Apple Sign-In is not available on this device. Please use email/password or Google Sign-In.'
-        );
-        return;
+
+      if (outcome.clearContextError) {
+        console.error('Apple Sign-In Error', error);
+        // Clear the error from state to prevent the useEffect from showing another alert
+        clearError();
       }
-      
-      // Handle network errors
-      if (!error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network'))) {
-        showAlert(
-          'Connection Error',
-          'Unable to connect to the server. Please check your internet connection and try again.'
-        );
-        return;
-      }
-      
-      console.error('Apple Sign-In Error', error);
-      
-      // Clear the error from state to prevent the useEffect from showing another alert
-      clearError();
-      
-      // Extract user-friendly error message
-      let errorMessage = 'Failed to sign in with Apple. Please try again.';
-      
-      if (error.response?.data) {
-        const errorData = error.response.data.error || error.response.data;
-        
-        // Check for specific error messages we can make user-friendly
-        if (errorData.message) {
-          const msg = errorData.message.toLowerCase();
-          
-          // Backend configuration errors
-          if (msg.includes('audience invalid') || msg.includes('jwt audience invalid')) {
-            errorMessage = 'Apple Sign-In configuration issue. This is a development/testing issue. Please contact support or try a development build.';
-            if (__DEV__) {
-              console.error('🔧 Backend needs to accept both "com.snacktrack.mobile" and "host.exp.Exponent" audiences. See docs/APPLE_SIGNIN_BACKEND_FIX.md');
-            }
-          } else if (msg.includes('not configured') || msg.includes('apple sign in not configured')) {
-            errorMessage = 'Apple Sign In is not configured on the server. Please contact support.';
-          } 
-          // Token validation errors
-          else if (msg.includes('invalid') && (msg.includes('token') || msg.includes('signature'))) {
-            errorMessage = 'Authentication failed. The token could not be verified. Please try signing in again.';
-          } else if (msg.includes('expired') || msg.includes('exp')) {
-            errorMessage = 'Your sign-in session expired. Please try again.';
-          }
-          // User data errors
-          else if (msg.includes('email not provided') || msg.includes('email required')) {
-            errorMessage = 'Unable to get your email from Apple. Please try again or use a different sign-in method.';
-          } 
-          // Generic authentication failures
-          else if (msg.includes('authentication failed') || msg.includes('verification failed')) {
-            errorMessage = 'Unable to verify your Apple ID. Please try again.';
-          } 
-          // Server errors
-          else if (error.response.status >= 500) {
-            errorMessage = 'Server error occurred. Please try again in a moment.';
-          }
-          // Use the backend message if it's user-friendly
-          else {
-            errorMessage = errorData.message || errorMessage;
-          }
-        } else if (error.response.status === 401) {
-          errorMessage = 'Authentication failed. Please try signing in again.';
-        } else if (error.response.status === 403) {
-          errorMessage = 'Access denied. Please contact support.';
-        } else if (error.response.status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-      } else if (error.message) {
-        // Handle frontend errors
-        if (error.message.includes('No identity token')) {
-          errorMessage = 'Unable to get authentication token from Apple. Please try again.';
-        } else if (error.message.includes('Invalid token format')) {
-          errorMessage = 'Invalid authentication token received. Please try again.';
-        } else if (error.message === 'SESSION_EXPIRED') {
-          errorMessage = 'Your session has expired. Please try again.';
-        } else {
-          errorMessage = error.message;
-        }
-      } else if (state.error) {
-        // Use error from UserContext if available
-        errorMessage = state.error;
-      }
-      
-      showAlert('Sign In Failed', errorMessage);
+
+      showAlert(outcome.title, outcome.message);
     }
   };
 
@@ -806,284 +600,3 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF8F4',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingVertical: 24,
-  },
-  content: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 32,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  mascotLogoWrap: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#222222',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6F756E',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#1F4E3A',
-  },
-  toggleText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6F756E',
-  },
-  toggleTextActive: {
-    color: 'white',
-  },
-  form: {
-    marginBottom: 32,
-  },
-  authPanel: {
-    width: '100%',
-  },
-  authPanelContainer: {
-    position: 'relative',
-  },
-  authPanelOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FAF8F4',
-  },
-  oauthSection: {
-    marginBottom: 20,
-  },
-  oauthTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-    marginBottom: 6,
-  },
-  oauthSubtitle: {
-    fontSize: 14,
-    color: '#6F756E',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  oauthSubtitleEmphasis: {
-    color: '#1d4ed8',
-    fontWeight: '700',
-  },
-  manualIntro: {
-    fontSize: 14,
-    color: '#6F756E',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  manualToggleButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#fff',
-  },
-  manualToggleText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2563eb',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  passwordRequirements: {
-    backgroundColor: '#FAF8F4',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  passwordRequirementsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222222',
-    marginBottom: 8,
-  },
-  passwordRequirement: {
-    fontSize: 13,
-    color: '#6F756E',
-    lineHeight: 18,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fef3f2',
-    borderWidth: 1,
-    borderColor: '#fecdca',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  errorIcon: {
-    marginRight: 8,
-    marginTop: 1,
-  },
-  errorText: {
-    flex: 1,
-    color: '#b42318',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-    fontWeight: '600',
-    color: '#1F4E3A',
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#222222',
-  },
-  loginButton: {
-    backgroundColor: '#1F4E3A',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  loginButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  infoContainer: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#6F756E',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  methodSwapLink: {
-    marginTop: 12,
-    paddingVertical: 4,
-  },
-  methodSwapLinkText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2563eb',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#999',
-    fontWeight: '600',
-  },
-  appleButton: {
-    width: '100%',
-    height: 50,
-    marginBottom: 12,
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  googleIcon: {
-    marginRight: 12,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-  },
-});
-
-export default LoginScreen;
