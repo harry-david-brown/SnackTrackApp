@@ -37,6 +37,10 @@ export { LoadingSpinner } from './ui/LoadingSpinner';
 export { FadeInView } from './ui/FadeInView';
 export { SlideInView } from './ui/SlideInView';
 
+// Mascot
+export { MascotPlaceholder } from './mascot/MascotPlaceholder';
+export type { MascotPose } from './mascot/MascotPlaceholder';
+
 // Gmail component
 export { GmailConnection } from './gmail/GmailConnection';
 

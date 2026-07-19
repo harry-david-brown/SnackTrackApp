@@ -13,7 +13,7 @@ export default function SimpleChart({ title, subtitle, data, maxValue }: SimpleC
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#007AFF', '#5856D6']}
+        colors={['#1F4E3A', '#2E7D4F']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

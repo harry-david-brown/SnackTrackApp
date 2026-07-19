@@ -369,7 +369,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
                   styles.selectorText, 
                   platform === 'uber' && [
                     styles.selectorTextActive,
-                    { color: '#667eea' }
+                    { color: '#2E7D4F' }
                   ]
                 ]}>
                   UberEats
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   stepNumberText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#2E7D4F',
   },
   instructionText: {
     flex: 1,

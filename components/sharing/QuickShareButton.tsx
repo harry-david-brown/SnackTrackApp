@@ -50,20 +50,20 @@ export default function QuickShareButton({
     switch (variant) {
       case 'secondary':
         return {
-          colors: ['#34C759', '#30A46C'],
+          colors: ['#58C26D', '#30A46C'],
           textColor: 'white',
           iconColor: 'white',
         };
       case 'outline':
         return {
           colors: ['transparent', 'transparent'],
-          textColor: '#007AFF',
-          iconColor: '#007AFF',
-          borderColor: '#007AFF',
+          textColor: '#1F4E3A',
+          iconColor: '#1F4E3A',
+          borderColor: '#1F4E3A',
         };
       default: // primary
         return {
-          colors: ['#007AFF', '#5856D6'],
+          colors: ['#1F4E3A', '#2E7D4F'],
           textColor: 'white',
           iconColor: 'white',
         };

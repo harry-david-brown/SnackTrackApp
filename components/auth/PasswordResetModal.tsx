@@ -192,7 +192,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               Enter the email you use for SnackTrack and we&apos;ll send you a secure reset code.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />
+              <Ionicons name="mail-outline" size={20} color="#6F756E" style={styles.icon} />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -221,7 +221,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               We sent a 6-digit code to {email}. Enter it below to continue.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="key-outline" size={20} color="#666" style={styles.icon} pointerEvents="none" />
+              <Ionicons name="key-outline" size={20} color="#6F756E" style={styles.icon} pointerEvents="none" />
               <TextInput
                 ref={codeInputRef}
                 value={code}
@@ -267,7 +267,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               Make sure your password is strong and unique. You’ll use it next time you sign in.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} pointerEvents="none" />
+              <Ionicons name="lock-closed-outline" size={20} color="#6F756E" style={styles.icon} pointerEvents="none" />
               <TextInput
                 key={`new-password-${step}`}
                 value={newPassword}
@@ -285,7 +285,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               />
             </View>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} pointerEvents="none" />
+              <Ionicons name="lock-closed-outline" size={20} color="#6F756E" style={styles.icon} pointerEvents="none" />
               <TextInput
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: '#555',
+    color: '#6F756E',
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     color: '#111',
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     borderColor: '#d0d7de',
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: '#1F4E3A',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 13,
-    color: '#666',
+    color: '#6F756E',
     marginBottom: 8,
   },
   closeButton: {

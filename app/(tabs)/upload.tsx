@@ -26,6 +26,7 @@ import { type GmailPrimaryFlowState, useGmailImport } from '@hooks/useGmailImpor
 import { useExportUpsell } from '@hooks/useExportUpsell';
 import { FadeInView } from '@components/ui/FadeInView';
 import { type GmailImportResponse } from '@services/gmailApi';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
 
@@ -86,7 +87,7 @@ function ImportTaskCard({
           <Ionicons
             name={isComplete ? 'checkmark-circle' : iconName}
             size={24}
-            color={isComplete ? '#16a34a' : '#0f4c81'}
+            color={isComplete ? '#2E7D4F' : '#1F4E3A'}
           />
         </View>
         <View style={styles.taskHeaderText}>
@@ -209,15 +210,16 @@ function GmailImportLoadingModal({ flowState, importResult, visible }: GmailImpo
         >
           {importResult ? (
             <>
+              {/* MASCOT: import success — arms-up celebration */}
               <Animated.View
                 style={[
-                  styles.successIconWrap,
+                  styles.successMascotWrap,
                   {
                     transform: [{ scale: successScale }],
                   },
                 ]}
               >
-                <Ionicons name="checkmark" size={38} color="#ffffff" />
+                <MascotPlaceholder pose="celebrate" size={96} />
               </Animated.View>
 
               <Text style={styles.loadingModalTitle}>
@@ -229,8 +231,10 @@ function GmailImportLoadingModal({ flowState, importResult, visible }: GmailImpo
             </>
           ) : (
             <>
+              {/* MASCOT: import in progress — hand-on-chin thinking */}
               <View style={styles.loadingIconWrap}>
-                <ActivityIndicator size="large" color="#0f4c81" />
+                <MascotPlaceholder pose="thinking" size={96} />
+                <ActivityIndicator size="small" color="#1F4E3A" style={styles.loadingSpinnerBelowMascot} />
               </View>
 
               <Text style={styles.loadingModalTitle}>Importing from Gmail</Text>
@@ -241,7 +245,7 @@ function GmailImportLoadingModal({ flowState, importResult, visible }: GmailImpo
               </Animated.Text>
 
               <View style={styles.loadingModalFooter}>
-                <Ionicons name="time-outline" size={16} color="#64748b" />
+                <Ionicons name="time-outline" size={16} color="#6F756E" />
                 <Text style={styles.loadingModalFooterText}>
                   Keep this open while SnackTrack does the inbox archaeology.
                 </Text>
@@ -630,7 +634,7 @@ export default function UploadScreen() {
 
                 <View style={styles.exportCard}>
                   <View style={styles.exportHeader}>
-                    <Ionicons name="cloud-upload-outline" size={28} color="#007AFF" />
+                    <Ionicons name="cloud-upload-outline" size={28} color="#1F4E3A" />
                     <View style={styles.exportHeaderText}>
                       <Text style={styles.exportTitle}>Have an export file?</Text>
                       <Text style={styles.exportSubtitle}>
@@ -648,7 +652,7 @@ export default function UploadScreen() {
                     style={styles.tutorialButton}
                     onPress={() => setShowTutorial(true)}
                   >
-                    <Ionicons name="information-circle-outline" size={20} color="#475569" />
+                    <Ionicons name="information-circle-outline" size={20} color="#6F756E" />
                     <Text style={styles.tutorialButtonText}>How to request your Uber export</Text>
                     <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                   </TouchableOpacity>
@@ -682,7 +686,7 @@ export default function UploadScreen() {
                 onPress={() => setShowGmailModal(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={28} color="#666" />
+                <Ionicons name="close" size={28} color="#6F756E" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
@@ -713,7 +717,7 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   scrollView: {
     flex: 1,
@@ -730,12 +734,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#222222',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#475569',
+    color: '#6F756E',
     lineHeight: 24,
   },
   taskList: {
@@ -755,7 +759,7 @@ const styles = StyleSheet.create({
   },
   taskCardOpen: {
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: '#E9F5E2',
   },
   taskCardHeader: {
     flexDirection: 'row',
@@ -766,7 +770,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#E9F5E2',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -785,11 +789,11 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#222222',
   },
   taskDescription: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F756E',
     lineHeight: 20,
   },
   taskStatusBadge: {
@@ -801,7 +805,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dcfce7',
   },
   taskStatusBadgeRecommended: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#E9F5E2',
   },
   taskStatusBadgeOptional: {
     backgroundColor: '#f1f5f9',
@@ -814,10 +818,10 @@ const styles = StyleSheet.create({
     color: '#15803d',
   },
   taskStatusTextRecommended: {
-    color: '#0f4c81',
+    color: '#1F4E3A',
   },
   taskStatusTextOptional: {
-    color: '#64748b',
+    color: '#6F756E',
   },
   taskContent: {
     borderTopWidth: 1,
@@ -829,7 +833,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f4c81',
+    backgroundColor: '#1F4E3A',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -850,11 +854,11 @@ const styles = StyleSheet.create({
   manageLinkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
+    color: '#6F756E',
   },
   taskHelperText: {
     fontSize: 13,
-    color: '#475569',
+    color: '#6F756E',
     lineHeight: 19,
     marginTop: 12,
   },
@@ -873,12 +877,12 @@ const styles = StyleSheet.create({
   exportTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#222222',
     marginBottom: 4,
   },
   exportSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F756E',
     lineHeight: 20,
   },
   tutorialButton: {
@@ -892,7 +896,7 @@ const styles = StyleSheet.create({
   tutorialButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#334155',
+    color: '#6F756E',
     marginLeft: 12,
   },
   pendingBanner: {
@@ -914,7 +918,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -928,7 +932,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
   },
   closeButton: {
     padding: 4,
@@ -967,42 +971,41 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#E9F5E2',
     marginBottom: 18,
   },
-  successIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  successMascotWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#16a34a',
     marginBottom: 18,
+  },
+  loadingSpinnerBelowMascot: {
+    marginTop: 10,
   },
   loadingModalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#222222',
     textAlign: 'center',
   },
   loadingModalStatus: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0f4c81',
+    color: '#1F4E3A',
     textAlign: 'center',
     marginTop: 8,
   },
   loadingModalMessage: {
     minHeight: 56,
     fontSize: 16,
-    color: '#334155',
+    color: '#6F756E',
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 18,
   },
   loadingModalSuccessText: {
     fontSize: 16,
-    color: '#334155',
+    color: '#6F756E',
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 12,
@@ -1010,7 +1013,7 @@ const styles = StyleSheet.create({
   loadingModalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F4',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1019,7 +1022,7 @@ const styles = StyleSheet.create({
   loadingModalFooterText: {
     flex: 1,
     fontSize: 12,
-    color: '#64748b',
+    color: '#6F756E',
     marginLeft: 6,
   },
 });

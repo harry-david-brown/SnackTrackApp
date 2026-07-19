@@ -134,7 +134,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
             We sent a 6-digit verification code to {email}. Enter it below to verify your email address.
           </Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="keypad-outline" size={20} color="#666" style={styles.icon} />
+            <Ionicons name="keypad-outline" size={20} color="#6F756E" style={styles.icon} />
             <TextInput
               value={code}
               onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: '#555',
+    color: '#6F756E',
     marginBottom: 24,
     lineHeight: 22,
   },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#58C26D',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: '#1F4E3A',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipButtonText: {
-    color: '#666',
+    color: '#6F756E',
     fontSize: 15,
     fontWeight: '500',
   },

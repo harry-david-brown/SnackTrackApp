@@ -287,7 +287,7 @@ function TestErrorsScreen() {
           
           {data && !error && !isLoading && (
             <View style={styles.successContainer}>
-              <Ionicons name="checkmark-circle" size={24} color="#34C759" />
+              <Ionicons name="checkmark-circle" size={24} color="#58C26D" />
               <Text style={styles.successText}>
                 {data.message || 'Operation completed successfully!'}
               </Text>
@@ -403,7 +403,7 @@ function TestErrorsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   header: {
     padding: 20,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   stateTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 12,
   },
   stateItem: {
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   stateText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
   },
   successContainer: {
     flexDirection: 'row',
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   testTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 12,
   },
   testButton: {
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   successButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#58C26D',
   },
   errorButton: {
     backgroundColor: '#FF6B6B',
@@ -534,12 +534,12 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 12,
   },
   instructionsText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 20,
     marginBottom: 8,
   },

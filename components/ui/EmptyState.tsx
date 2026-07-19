@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MascotPlaceholder, MascotPose } from '../mascot/MascotPlaceholder';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -8,6 +9,11 @@ interface EmptyStateProps {
   message: string;
   actionText?: string;
   onAction?: () => void;
+  /**
+   * Mascot pose shown instead of the icon. Empty states are a designated
+   * mascot "guide" surface; pass null to fall back to the plain icon.
+   */
+  mascotPose?: MascotPose | null;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -16,13 +22,18 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   message,
   actionText,
   onAction,
+  mascotPose = 'pointing',
 }) => {
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={64} color="#007AFF" />
+        {mascotPose ? (
+          <MascotPlaceholder pose={mascotPose} size={120} />
+        ) : (
+          <Ionicons name={icon} size={64} color="#1F4E3A" />
+        )}
       </View>
-      
+
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
 
@@ -48,22 +59,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   actionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   actionText: {
     color: 'white',

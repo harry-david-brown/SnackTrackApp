@@ -42,7 +42,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
     <>
       <View style={styles.banner}>
         <View style={styles.content}>
-          <Ionicons name="mail-outline" size={20} color="#007AFF" style={styles.icon} />
+          <Ionicons name="mail-outline" size={20} color="#1F4E3A" style={styles.icon} />
           <View style={styles.textContainer}>
             <Text style={styles.title}>Verify your email</Text>
             <Text style={styles.subtitle}>
@@ -61,7 +61,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
             style={styles.dismissButton}
             onPress={handleDismiss}
           >
-            <Ionicons name="close" size={18} color="#666" />
+            <Ionicons name="close" size={18} color="#6F756E" />
           </TouchableOpacity>
         </View>
       </View>
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: '#1F4E3A',
     padding: 16,
     marginHorizontal: 16,
     marginTop: 16,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: '#555',
+    color: '#6F756E',
     lineHeight: 18,
   },
   actions: {
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   verifyButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,

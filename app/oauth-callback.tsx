@@ -24,7 +24,7 @@ export default function OAuthCallback() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#4CAF50" />
+      <ActivityIndicator size="large" color="#58C26D" />
       <Text style={styles.text}>Completing Gmail connection...</Text>
     </View>
   );
@@ -40,6 +40,6 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
   },
 });

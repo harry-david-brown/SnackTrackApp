@@ -31,7 +31,7 @@ export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   if (showWhenConnected && isConnected && isInternetReachable) {
     return (
       <View style={styles.connectedContainer}>
-        <Ionicons name="wifi" size={16} color="#34C759" />
+        <Ionicons name="wifi" size={16} color="#58C26D" />
         <Text style={styles.connectedText}>Connected</Text>
       </View>
     );

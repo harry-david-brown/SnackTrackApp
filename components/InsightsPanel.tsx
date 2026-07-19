@@ -42,7 +42,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     } else if (avgOrderValue < 15) {
       insights.push({
         icon: 'wallet-outline',
-        iconColor: '#34C759',
+        iconColor: '#58C26D',
         title: 'Smart Spender',
         description: `Great job keeping your average order at ${formatCurrency(avgOrderValue)}! You're making every dollar count.`,
         type: 'pattern',
@@ -54,7 +54,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (totalOrders > 100) {
       insights.push({
         icon: 'restaurant-outline',
-        iconColor: '#007AFF',
+        iconColor: '#1F4E3A',
         title: 'Foodie Status',
         description: `Wow! ${totalOrders} orders shows you're a true food enthusiast. That's dedication!`,
         type: 'achievement',
@@ -83,7 +83,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (uniqueCategories.size >= 4) {
       insights.push({
         icon: 'globe-outline',
-        iconColor: '#5856D6',
+        iconColor: '#2E7D4F',
         title: 'Culinary Explorer',
         description: `You've tried ${uniqueCategories.size} different food categories! Your taste buds are adventurous.`,
         type: 'achievement',
@@ -135,7 +135,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
                 ? ['#FFD700', '#FFA500']
                 : insight.type === 'suggestion'
                 ? ['#FF6B6B', '#FF8E8E']
-                : ['#007AFF', '#5856D6']
+                : ['#1F4E3A', '#2E7D4F']
             }
             style={styles.insightGradient}
             start={{ x: 0, y: 0 }}
@@ -172,18 +172,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginBottom: 16,
   },
   emptyContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
   },
   insightCard: {

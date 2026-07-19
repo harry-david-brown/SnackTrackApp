@@ -33,15 +33,13 @@ function RestaurantBreakdownChart({
       return null;
     }
 
+    // Design-system chart palette: highest → lowest value, neutral last
     const colors = [
-      '#FF6B6B', // Red
-      '#4ECDC4', // Teal
-      '#45B7D1', // Blue
-      '#96CEB4', // Green
-      '#FECA57', // Yellow
-      '#FF9FF3', // Pink
-      '#54A0FF', // Light Blue
-      '#5F27CD', // Purple
+      '#1F4E3A',
+      '#2E7D4F',
+      '#5EA15D',
+      '#88C34A',
+      '#D8E2D7',
     ];
 
     return {
@@ -49,7 +47,7 @@ function RestaurantBreakdownChart({
         name: restaurant.name.split(' ')[0], // Shorten names for chart
         population: restaurant.totalSpent,
         color: colors[index % colors.length],
-        legendFontColor: '#333',
+        legendFontColor: '#222222',
         legendFontSize: 12,
       })),
       fullData: topRestaurants, // Keep full data for details
@@ -73,7 +71,7 @@ function RestaurantBreakdownChart({
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
@@ -86,7 +84,7 @@ function RestaurantBreakdownChart({
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#FF6B6B', '#FECA57']}
+        colors={['#1F4E3A', '#2E7D4F']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -141,7 +139,7 @@ function RestaurantBreakdownChart({
       {selectedSegment !== null && (
         <View style={styles.detailsContainer}>
           <View style={styles.detailsHeader}>
-            <Ionicons name="restaurant" size={20} color="#007AFF" />
+            <Ionicons name="restaurant" size={20} color="#1F4E3A" />
             <Text style={styles.detailsTitle}>Restaurant Details</Text>
           </View>
           <View style={styles.detailsContent}>
@@ -193,12 +191,12 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
   },
   legendContainer: {
     backgroundColor: 'white',
@@ -214,7 +212,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   legendItemSelected: {
-    backgroundColor: '#f8f9ff',
+    backgroundColor: '#F7FAF7',
     borderRadius: 8,
     paddingHorizontal: 12,
   },
@@ -235,12 +233,12 @@ const styles = StyleSheet.create({
   legendName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 2,
   },
   legendAmount: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
   },
   legendStats: {
     alignItems: 'flex-end',
@@ -248,15 +246,15 @@ const styles = StyleSheet.create({
   legendPercentage: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#1F4E3A',
     marginBottom: 2,
   },
   legendOrders: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
   },
   detailsContainer: {
-    backgroundColor: '#f8f9ff',
+    backgroundColor: '#F7FAF7',
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -268,7 +266,7 @@ const styles = StyleSheet.create({
   detailsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginLeft: 8,
   },
   detailsContent: {
@@ -281,12 +279,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
   },
 });
 

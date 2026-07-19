@@ -6,6 +6,7 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../../types/api';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 
 interface ShareableGraphicsProps {
   analytics: UserSummary;
@@ -75,12 +76,14 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         style={styles.graphicContainer}
       >
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={['#1F4E3A', '#2E7D4F']}
           style={styles.graphicBackground}
         >
           {/* Header */}
           <View style={styles.graphicHeader}>
-            <Text style={styles.graphicTitle}>🥡 SnackTrack Analytics</Text>
+            {/* MASCOT: share-card brand mark — sunglasses, outline variant */}
+            <MascotPlaceholder pose="sunglasses" size={64} variant="outline" hideLabel />
+            <Text style={styles.graphicTitle}>SnackTrack Analytics</Text>
             <Text style={styles.graphicSubtitle}>Your food spending insights</Text>
           </View>
 
@@ -120,7 +123,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
       {/* Share Button */}
       <TouchableOpacity style={styles.shareButton} onPress={captureAndShare}>
         <LinearGradient
-          colors={['#007AFF', '#5856D6']}
+          colors={['#1F4E3A', '#2E7D4F']}
           style={styles.shareButtonGradient}
         >
           <Ionicons name="share-outline" size={24} color="white" />

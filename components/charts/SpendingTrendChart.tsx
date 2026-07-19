@@ -138,7 +138,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     labels,
     datasets: [{
       data: animatedData,
-      color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+      color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
       strokeWidth: 3,
     }],
   };
@@ -148,7 +148,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
@@ -156,12 +156,12 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     propsForDots: {
       r: '6',
       strokeWidth: '2',
-      stroke: '#007AFF',
+      stroke: '#1F4E3A',
       fill: '#ffffff',
     },
     propsForBackgroundLines: {
       strokeDasharray: '5,5',
-      stroke: '#e0e0e0',
+      stroke: '#EAE8E2',
       strokeWidth: 1,
     },
   };
@@ -169,7 +169,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#007AFF', '#5856D6']}
+        colors={['#1F4E3A', '#2E7D4F']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -233,12 +233,12 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     marginBottom: 8,
   },
   emptySubtext: {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -266,6 +266,6 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
   },
 });

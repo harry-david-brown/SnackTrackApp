@@ -32,7 +32,7 @@ const getErrorColor = (type: ErrorType): string => {
     case 'validation':
       return '#FF6B6B';
     case 'server':
-      return '#FF3B30';
+      return '#D14343';
     default:
       return '#FF6B6B';
   }
@@ -76,7 +76,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
 
         {onDismiss && (
           <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={20} color="#666" />
+            <Ionicons name="close" size={20} color="#6F756E" />
           </TouchableOpacity>
         )}
       </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EAE8E2',
     borderLeftWidth: 4,
     marginVertical: 8,
     shadowColor: '#000',
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 20,
   },
   dismissButton: {

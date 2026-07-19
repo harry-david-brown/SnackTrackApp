@@ -45,7 +45,7 @@ export default function ChartContainer({
         </View>
         {shareable && (
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={20} color="#007AFF" />
+            <Ionicons name="share-outline" size={20} color="#1F4E3A" />
           </TouchableOpacity>
         )}
       </View>
@@ -85,11 +85,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     marginTop: 2,
   },
   shareButton: {

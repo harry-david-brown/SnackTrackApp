@@ -1,0 +1,100 @@
+# SnackTrack Design System — Green Forest Theme (v1.0)
+
+The mascot (buff dumpling) is the centerpiece of the brand; the UI supports it
+rather than competes with it. Tokens live in `constants/theme.ts` — import from
+there instead of hardcoding hex values in new code.
+
+## Brand colors
+
+| Token | Hex | Use |
+|---|---|---|
+| Primary | `#1F4E3A` | Navigation, headers, active icons, primary buttons, logo, graph highlights |
+| Primary hover | `#285B46` | Primary button hover |
+| Primary pressed | `#163C2D` | Primary button pressed |
+| Secondary | `#2E7D4F` | Hover states, secondary buttons, icons, progress bars, graphs |
+| Accent | `#73B84A` | CTAs, budget remaining, highlights, streaks — avoid overusing |
+| Success | `#58C26D` | Success states ONLY (messages, checkmarks, goals achieved) |
+
+## Mascot colors (artwork only)
+
+| Token | Hex | Use |
+|---|---|---|
+| Dumpling highlight | `#FFE8C6` | Mascot skin only |
+| Dumpling shadow | `#F6D9A8` | Mascot shadows only |
+| Outline | `#333333` | Mascot outlines; sparingly for illustrations |
+
+## Neutrals
+
+| Token | Hex | Use |
+|---|---|---|
+| Background | `#FAF8F4` | Default app background |
+| Surface | `#FFFFFF` | Cards, sheets, dialogs |
+| Divider | `#EAE8E2` | Borders, separators, table lines |
+| Primary text | `#222222` | Headings, dollar amounts, nav labels |
+| Secondary text | `#6F756E` | Labels, captions, dates, metadata |
+
+## Chart palette (highest → neutral)
+
+`#1F4E3A` → `#2E7D4F` → `#5EA15D` → `#88C34A` → `#D8E2D7` (unused portions)
+
+## Components
+
+- **Primary button**: bg `#1F4E3A`, white text. Hover `#285B46`, pressed `#163C2D`.
+- **Secondary button**: white bg, `#2E7D4F` border, `#1F4E3A` text.
+- **Chips**: active `#E9F5E2` bg / `#1F4E3A` text; inactive `#F3F3F3` / `#666666`.
+- **Progress**: fill `#2E7D4F`, track `#E5E5E5`.
+- **Toggles**: on `#58C26D`, off `#D5D5D5`, white knob. Checkbox checked `#2E7D4F`.
+- **Alerts**: success `#F1FAEF` bg / `#58C26D` border+icon; info `#F7FAF7` / `#2E7D4F`.
+
+## Corner radius
+
+Cards 24 · Buttons 16 · Inputs 14 · Charts 24 · FAB 999
+
+## Shadows
+
+- Cards: `0 6px 18px rgba(0,0,0,0.06)`
+- Buttons: `0 3px 10px rgba(31,78,58,0.18)`
+- FAB: `0 8px 24px rgba(31,78,58,0.22)`
+
+## Mascot usage
+
+The mascot should celebrate milestones, react to budgets, comment on spending,
+congratulate streaks, and appear in onboarding. Avoid placing it on every
+screen — it is a reward and guide, not persistent decoration.
+
+While final art is in production, `components/mascot/MascotPlaceholder.tsx`
+marks every mascot position with its required pose. The `MascotPose` type in
+that file is the canonical list of poses to commission. Current placements:
+
+| Surface | Pose | Variant |
+|---|---|---|
+| Onboarding hero | `flex` | outline (on gradient) |
+| Login header (logo) | `neutral` | filled |
+| Dashboard header (logo) | `neutral` | filled, no label |
+| Dashboard export-upsell card | `prop-receipt` | filled |
+| Empty states (`EmptyState`, wrapped empty) | `pointing` | filled |
+| Gmail import modal — importing | `thinking` | filled |
+| Gmail import modal — success | `celebrate` | filled |
+| Wrapped loader | `thinking` | outline |
+| Wrapped: opening slide | `wave` | outline |
+| Wrapped: The Damage | `shocked` | outline |
+| Wrapped: 3am Regret | `sleepy` | outline |
+| Wrapped: Serial Orderer | `sheepish` | outline |
+| Wrapped: Coffee Addiction | `prop-coffee` | outline |
+| Wrapped: Investment You Didn't Make | `prop-piggy-bank` | outline |
+| Wrapped: closing slide | `celebrate` | outline |
+| Wrapped: All Time Stats | `flex` | outline |
+| Wrapped: archetype reveal | `sunglasses` | outline |
+| Crash screen (`ErrorBoundary`) | `sad` | filled |
+| Share graphic header | `sunglasses` | outline, no label |
+
+Third-party brand colors (Uber `#06C167`, DoorDash `#FF3000`) are intentionally
+kept for provider-specific buttons and tutorials.
+
+## Overall feel
+
+Combine the cleanliness of Apple Wallet, Headspace, Duolingo, Spotify Wrapped,
+and Monarch Money while remaining unmistakably SnackTrack: greens, warm
+neutrals, and the dumpling. Wrapped slide gradients intentionally stay vivid
+and multi-colored for share appeal — the mascot outline variant carries the
+brand there.

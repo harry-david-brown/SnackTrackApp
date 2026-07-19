@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -58,12 +59,16 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#6E61FF', '#B960FF', '#9E3EFF']}
+        colors={['#1F4E3A', '#2E7D4F', '#73B84A']}
         locations={[0, 0.52, 1]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
+        {/* MASCOT: wrapped drumroll — thinking pose, outline variant on gradient */}
+        <View style={styles.mascotWrap}>
+          <MascotPlaceholder pose="thinking" size={110} variant="outline" />
+        </View>
         <Animated.View style={[styles.spinner, { transform: [{ rotate: spin }] }]}>
           <View style={styles.spinnerInner} />
         </Animated.View>
@@ -94,6 +99,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  mascotWrap: {
+    marginBottom: 24,
   },
   spinner: {
     width: 80,

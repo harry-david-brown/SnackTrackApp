@@ -1,15 +1,15 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  ScrollView,
-  Platform,
+  Pressable,
   Image,
   Animated,
   Easing,
+  PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,8 +17,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { UserSummary } from '../../types/api';
 import { getDeterministicMessage } from '../../utils/wrappedMessages';
+import { getArchetype } from '../../utils/wrappedArchetype';
+import { MascotPlaceholder, MascotPose } from '../mascot/MascotPlaceholder';
 import { useCurrency } from '../../contexts/CurrencyContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -100,11 +104,77 @@ interface Slide {
   id?: string;
   gradient: keyof typeof STORY_GRADIENTS;
   emoji: string;
+  /** When set, the mascot (outline variant) replaces the emoji as the slide's hero. */
+  mascotPose?: MascotPose;
   image?: any; // For logo images
   content: React.ReactNode;
   backgroundType?: 'default' | 'animated';
   shareTargetIndex?: number;
+  confetti?: boolean;
 }
+
+const STORY_SLIDE_DURATION = 6500;
+const COUNT_UP_DURATION = 1100;
+
+/**
+ * Animated count-up for hero stats — the number ticks from 0 to its final
+ * value when the slide mounts, giving each reveal a "drumroll" feel.
+ * Falls back to the exact final value once the animation settles, so any
+ * screenshot taken after the reveal captures the correct number.
+ */
+const AnimatedCount = ({
+  value,
+  format,
+  style,
+  numberOfLines,
+  adjustsFontSizeToFit,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  style?: any;
+  numberOfLines?: number;
+  adjustsFontSizeToFit?: boolean;
+}) => {
+  const fmt = useCallback(
+    (n: number) => (format ? format(n) : String(Math.round(n))),
+    [format]
+  );
+  const [text, setText] = useState(() => fmt(value));
+
+  useEffect(() => {
+    // Lightweight stepped count-up: ~22fps via setTimeout (no Animated value,
+    // no per-frame listener) and we only re-render when the formatted string
+    // actually changes. Keeps the JS thread free so taps stay responsive.
+    const start = Date.now();
+    let last = '';
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - start) / COUNT_UP_DURATION);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      const next = fmt(value * eased);
+      if (next !== last) {
+        last = next;
+        setText(next);
+      }
+      if (t < 1) {
+        timer = setTimeout(tick, 45);
+      } else {
+        setText(fmt(value)); // snap to exact final value
+      }
+    };
+
+    setText(fmt(0));
+    tick();
+    return () => clearTimeout(timer);
+  }, [value, fmt]);
+
+  return (
+    <Text style={style} numberOfLines={numberOfLines} adjustsFontSizeToFit={adjustsFontSizeToFit}>
+      {text}
+    </Text>
+  );
+};
 
 const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;
@@ -147,8 +217,13 @@ const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
 
   const scale = animatedValue.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [1.3, 1.8, 1.3],
+    outputRange: [1.05, 1.25, 1.05],
   });
+
+  // Smaller overlay layers = far less GPU overdraw (big perf win on this slide),
+  // while the offset keeps the screen fully covered through the motion.
+  const LAYER_SIZE = 1.7;
+  const LAYER_OFFSET = 0.35;
 
   const rotate = animatedValue.interpolate({
     inputRange: [0, 1],
@@ -175,10 +250,10 @@ const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
         style={[
           {
             position: 'absolute',
-            width: screenWidth * 2.5,
-            height: screenHeight * 2.5,
-            left: -screenWidth * 0.75,
-            top: -screenHeight * 0.75,
+            width: screenWidth * LAYER_SIZE,
+            height: screenHeight * LAYER_SIZE,
+            left: -screenWidth * LAYER_OFFSET,
+            top: -screenHeight * LAYER_OFFSET,
             opacity: 0.7,
             transform: [
               { translateY: translate1 },
@@ -202,14 +277,14 @@ const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
         style={[
           {
             position: 'absolute',
-            width: screenWidth * 2.5,
-            height: screenHeight * 2.5,
-            left: -screenWidth * 0.75,
-            top: -screenHeight * 0.75,
+            width: screenWidth * LAYER_SIZE,
+            height: screenHeight * LAYER_SIZE,
+            left: -screenWidth * LAYER_OFFSET,
+            top: -screenHeight * LAYER_OFFSET,
             opacity: 0.6,
             transform: [
               { translateY: translate2 },
-              { scale: 1.5 },
+              { scale: 1.2 },
               { rotate: rotateRev },
             ],
           },
@@ -228,10 +303,10 @@ const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
         style={[
           {
             position: 'absolute',
-            width: screenWidth * 2.5,
-            height: screenHeight * 2.5,
-            left: -screenWidth * 0.75,
-            top: -screenHeight * 0.75,
+            width: screenWidth * LAYER_SIZE,
+            height: screenHeight * LAYER_SIZE,
+            left: -screenWidth * LAYER_OFFSET,
+            top: -screenHeight * LAYER_OFFSET,
             opacity: 0.5,
             transform: [
               { scale: scale },
@@ -267,8 +342,16 @@ export default function WrappedShareJourney({
   const insets = useSafeAreaInsets();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isReady, setIsReady] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const slideOpacity = useRef(new Animated.Value(0)).current;
+  const slideTranslateY = useRef(new Animated.Value(28)).current;
+  const slideTranslateX = useRef(new Animated.Value(0)).current;
+  const slideScale = useRef(new Animated.Value(0.97)).current;
+  const slideRotate = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+  // +1 = moving forward, -1 = going back. Drives the entrance direction.
+  const directionRef = useRef<1 | -1>(1);
   const viewShotRefs = useRef<(ViewShot | null)[]>([]);
 
   const wrapped = analytics.wrappedAnalytics;
@@ -276,15 +359,6 @@ export default function WrappedShareJourney({
   // Reset to first slide when component mounts
   React.useEffect(() => {
     setCurrentSlide(0);
-    setIsReady(false);
-
-    // Force scroll to first slide immediately
-    const timer = setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
-      setIsReady(true);
-    }, 50);
-
-    return () => clearTimeout(timer);
   }, []); // Only run on mount
 
   const formatCurrency = useCallback((amount: number) => {
@@ -305,6 +379,8 @@ export default function WrappedShareJourney({
     slides.push({
       gradient: 'amethyst',
       emoji: '🎊',
+      mascotPose: 'wave',
+      confetti: true,
       content: (
         <>
           <Text style={styles.title}>Your SnackTrack</Text>
@@ -318,10 +394,11 @@ export default function WrappedShareJourney({
     slides.push({
       gradient: 'flamingo',
       emoji: '😱',
+      mascotPose: 'shocked',
       content: (
         <>
           <Text style={styles.slideTitle}>The Damage</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(analytics.totalSpent)}</Text>
+          <AnimatedCount value={analytics.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
           <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
           <Spacer h={6} />
           <Text style={styles.roastText}>{totalDamageMessage}</Text>
@@ -340,7 +417,7 @@ export default function WrappedShareJourney({
           <>
             <Spacer h={20} />
             <Text style={styles.slideTitle}>This Year</Text>
-            <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+            <AnimatedCount value={data.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
             <Text style={styles.bigNumberLabel}>spent this year</Text>
             <Spacer h={6} />
             <Text style={styles.roastText}>{spentThisYearMessage}</Text>
@@ -356,10 +433,11 @@ export default function WrappedShareJourney({
       slides.push({
         gradient: 'tangerine',
         emoji: '🌙',
+        mascotPose: 'sleepy',
         content: (
         <>
           <Text style={styles.slideTitle}>3am Regret</Text>
-          <Text style={styles.bigNumber}>{data.count}</Text>
+          <AnimatedCount value={data.count} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>orders between midnight-6am</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -381,7 +459,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Laziest Day</Text>
-          <Text style={styles.bigNumber}>{data.orderCount}</Text>
+          <AnimatedCount value={data.orderCount} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>orders in one day</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -400,10 +478,11 @@ export default function WrappedShareJourney({
       slides.push({
         gradient: 'ember',
         emoji: '🔥',
+        mascotPose: 'sheepish',
         content: (
         <>
           <Text style={styles.slideTitle}>Serial Orderer</Text>
-          <Text style={styles.bigNumber}>{data.days}</Text>
+          <AnimatedCount value={data.days} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>consecutive days ordering</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -425,7 +504,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Chain Dependency</Text>
-          <Text style={styles.bigNumber}>{data.percentage}%</Text>
+          <AnimatedCount value={data.percentage} format={(n) => `${Math.round(n)}%`} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>of orders were {data.worstOffender}</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -447,7 +526,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Couldn&apos;t Go Get It</Text>
-          <Text style={styles.bigNumber}>{data.count}</Text>
+          <AnimatedCount value={data.count} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>single-item orders</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -470,7 +549,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Bougie Moment</Text>
-          <Text style={styles.bigNumber}>{formatCurrency(data.amount)}</Text>
+          <AnimatedCount value={data.amount} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
           <Text style={styles.bigNumberLabel}>most expensive order</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -489,10 +568,11 @@ export default function WrappedShareJourney({
       slides.push({
         gradient: 'mint',
         emoji: '☕',
+        mascotPose: 'prop-coffee',
         content: (
         <>
           <Text style={styles.slideTitle}>Coffee Addiction</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.totalSpent)}</Text>
+          <AnimatedCount value={data.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
           <Text style={styles.bigNumberLabel}>spent on coffee</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -514,7 +594,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Night Owl Badge</Text>
-          <Text style={styles.bigNumber}>{data.percentage}%</Text>
+          <AnimatedCount value={data.percentage} format={(n) => `${Math.round(n)}%`} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -559,7 +639,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>Could Have Bought</Text>
-          <Text style={styles.bigNumber}>{selectedComparison.quantity}</Text>
+          <AnimatedCount value={selectedComparison.quantity} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -578,10 +658,11 @@ export default function WrappedShareJourney({
       slides.push({
         gradient: 'ember',
         emoji: '📈',
+        mascotPose: 'prop-piggy-bank',
         content: (
         <>
           <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
-          <Text style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(data.wouldBeWorth)}</Text>
+          <AnimatedCount value={data.wouldBeWorth} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
           <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -604,7 +685,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>The Delivery Tax</Text>
-          <Text style={styles.bigNumber}>{formatCurrency(data.averageDeliveryFeePerMeal)}</Text>
+          <AnimatedCount value={data.averageDeliveryFeePerMeal} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
           <Text style={styles.bigNumberLabel}>extra per meal</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -691,7 +772,7 @@ export default function WrappedShareJourney({
         content: (
         <>
           <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
-          <Text style={styles.bigNumber}>{isWeekendMore ? data.weekendOrders : data.weekdayOrders}</Text>
+          <AnimatedCount value={isWeekendMore ? data.weekendOrders : data.weekdayOrders} style={styles.bigNumber} />
           <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
           <Spacer h={6} />
           <View style={styles.detailBox}>
@@ -708,6 +789,8 @@ export default function WrappedShareJourney({
     slides.push({
       gradient: 'amethyst',
       emoji: '✨',
+      mascotPose: 'celebrate',
+      confetti: true,
       content: (
         <>
           <Text style={styles.title}>That&apos;s Your Year</Text>
@@ -722,6 +805,8 @@ export default function WrappedShareJourney({
     slides.push({
       gradient: 'flamingo',
       emoji: '🏆',
+      mascotPose: 'flex',
+      confetti: true,
       content: (
         <>
           <Text style={styles.title}>All Time Stats</Text>
@@ -732,11 +817,37 @@ export default function WrappedShareJourney({
       ),
     });
 
+    // Personality Archetype - the climactic, most-shareable reveal
+    const archetype = getArchetype(analytics, formatCurrency);
+    slides.push({
+      gradient: archetype.gradient,
+      emoji: archetype.emoji,
+      mascotPose: 'sunglasses',
+      confetti: true,
+      content: (
+        <>
+          <Text style={styles.archetypeKicker}>Your food personality is</Text>
+          <Text style={styles.archetypeName} numberOfLines={2} adjustsFontSizeToFit>{archetype.name}</Text>
+          <Text style={styles.archetypeTagline}>{archetype.tagline}</Text>
+          <View style={styles.archetypeTraits}>
+            {archetype.traits.map((trait, i) => (
+              <View key={i} style={styles.archetypeTraitRow}>
+                <Text style={styles.archetypeTraitEmoji}>{trait.emoji}</Text>
+                <Text style={styles.archetypeTraitLabel} numberOfLines={1}>{trait.label}</Text>
+                <Text style={styles.archetypeTraitValue} numberOfLines={1}>{trait.value}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ),
+    });
+
     // Your Summary - Bento Box Grid Style
     slides.push({
       gradient: 'amethyst',
       backgroundType: 'animated',
       emoji: '🎯',
+      confetti: true,
       content: (
         <>
           <Text style={styles.slideTitle}>Your Summary</Text>
@@ -827,7 +938,7 @@ export default function WrappedShareJourney({
             <View style={styles.exportActionStack}>
               <TouchableOpacity style={styles.affiliateButton} onPress={onExportUpgrade}>
                 <Text style={styles.affiliateButtonText}>Upload Full Export</Text>
-                <Ionicons name="arrow-forward" size={20} color="#333" style={styles.affiliateButtonIcon} />
+                <Ionicons name="arrow-forward" size={20} color="#222222" style={styles.affiliateButtonIcon} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.exportSecondaryButton} onPress={onExportTutorial}>
                 <Ionicons name="information-circle-outline" size={18} color="white" />
@@ -846,29 +957,203 @@ export default function WrappedShareJourney({
   }, [analytics, wrapped, formatCurrency, formatDate, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]);
 
   const slides = useMemo(() => buildSlides(), [buildSlides]);
+  const activeSlide = slides[currentSlide];
+  const shareTargetIndex = activeSlide?.shareTargetIndex ?? currentSlide;
+  const shareTargetSlide = slides[shareTargetIndex];
+  const shouldAutoAdvance = currentSlide < slides.length - 1 && activeSlide?.id !== 'export-upsell';
 
   React.useEffect(() => {
-    const activeSlide = slides[currentSlide];
+    if (currentSlide > slides.length - 1) {
+      setCurrentSlide(Math.max(0, slides.length - 1));
+    }
+  }, [currentSlide, slides.length]);
 
+  React.useEffect(() => {
     if (activeSlide?.id === 'export-upsell') {
       onExportUpsellSeen?.();
     }
-  }, [currentSlide, onExportUpsellSeen, slides]);
+  }, [activeSlide, onExportUpsellSeen]);
+
+  // useLayoutEffect so the off-screen reset happens BEFORE the new slide paints.
+  // Otherwise the slide briefly renders at the previous slide's resting values
+  // (in place, fully visible) and only then jumps to its start — the flash that
+  // reads as "it goes to the current slide before animating".
+  useLayoutEffect(() => {
+    progressAnim.stopAnimation();
+    progressAnim.setValue(0);
+
+    // Haptic punch on every slide change — celebratory slides get a heavier
+    // success buzz, the rest get a light tap synced to the entrance.
+    if (activeSlide?.confetti) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+
+    const direction = directionRef.current;
+
+    // Always start hidden + reset rotation; per-branch sets the offset.
+    slideOpacity.setValue(0);
+    slideRotate.setValue(0);
+
+    if (direction === -1) {
+      // Going BACK — natural reverse: slide in from the left. Consistent so the
+      // gesture always reads as "backward" rather than a random forward entrance.
+      slideTranslateX.setValue(-screenWidth * 0.9);
+      slideTranslateY.setValue(0);
+      slideScale.setValue(0.94);
+      Animated.parallel([
+        Animated.timing(slideOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.spring(slideTranslateX, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }),
+        Animated.spring(slideScale, { toValue: 1, friction: 8, tension: 90, useNativeDriver: true }),
+      ]).start();
+      return;
+    }
+
+    // Going FORWARD — cycle through 4 distinct "crazy" entrances.
+    const animType = currentSlide % 4;
+
+    if (animType === 0) {
+      // Spring rise from below
+      slideTranslateY.setValue(60);
+      slideTranslateX.setValue(0);
+      slideScale.setValue(0.88);
+      Animated.parallel([
+        Animated.timing(slideOpacity, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.spring(slideTranslateY, { toValue: 0, friction: 6, tension: 100, useNativeDriver: true }),
+        Animated.spring(slideScale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
+      ]).start();
+    } else if (animType === 1) {
+      // Zoom blast — scale from huge
+      slideTranslateY.setValue(0);
+      slideTranslateX.setValue(0);
+      slideScale.setValue(1.55);
+      Animated.parallel([
+        Animated.timing(slideOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(slideScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
+      ]).start();
+    } else if (animType === 2) {
+      // Slide in from right
+      slideTranslateY.setValue(0);
+      slideTranslateX.setValue(screenWidth * 0.9);
+      slideScale.setValue(0.92);
+      Animated.parallel([
+        Animated.timing(slideOpacity, { toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.spring(slideTranslateX, { toValue: 0, friction: 7, tension: 100, useNativeDriver: true }),
+        Animated.spring(slideScale, { toValue: 1, friction: 7, tension: 100, useNativeDriver: true }),
+      ]).start();
+    } else {
+      // Drop from top with spin
+      slideTranslateY.setValue(-screenHeight * 0.35);
+      slideTranslateX.setValue(0);
+      slideScale.setValue(0.7);
+      slideRotate.setValue(0.08);
+      Animated.parallel([
+        Animated.timing(slideOpacity, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.spring(slideTranslateY, { toValue: 0, friction: 5, tension: 80, useNativeDriver: true }),
+        Animated.spring(slideScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+        Animated.spring(slideRotate, { toValue: 0, friction: 6, tension: 90, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [currentSlide, activeSlide, progressAnim, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
+
+  React.useEffect(() => {
+    if (!shouldAutoAdvance) {
+      progressAnim.stopAnimation();
+      progressAnim.setValue(currentSlide === slides.length - 1 ? 1 : 0);
+      return;
+    }
+
+    if (isPaused) {
+      progressAnim.stopAnimation();
+      return;
+    }
+
+    let animation: Animated.CompositeAnimation | null = null;
+
+    progressAnim.stopAnimation((value) => {
+      const remainingDuration = Math.max(300, STORY_SLIDE_DURATION * (1 - value));
+      animation = Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: remainingDuration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      });
+
+      animation.start(({ finished }) => {
+        if (finished) {
+          directionRef.current = 1; // auto-advance always moves forward
+          setCurrentSlide((current) => Math.min(current + 1, slides.length - 1));
+        }
+      });
+    });
+
+    return () => {
+      animation?.stop();
+    };
+  }, [currentSlide, isPaused, progressAnim, shouldAutoAdvance, slides.length]);
+
+  // Swipe-down-to-dismiss (Stories/Wrapped convention). Capture-phase responder
+  // only claims clearly-vertical downward drags, so left/right tap navigation
+  // and hold-to-pause keep working untouched.
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_evt, gesture) =>
+        gesture.dy > 12 && gesture.dy > Math.abs(gesture.dx) * 1.5,
+      onPanResponderGrant: () => {
+        setIsPaused(true);
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        dragY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        setIsPaused(false);
+        if (gesture.dy > 140 || gesture.vy > 0.8) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          Animated.timing(dragY, {
+            toValue: screenHeight,
+            duration: 220,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }).start(() => onClose());
+        } else {
+          Animated.spring(dragY, {
+            toValue: 0,
+            friction: 8,
+            tension: 90,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        setIsPaused(false);
+        Animated.spring(dragY, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }).start();
+      },
+    })
+  ).current;
+
+  // Container shrinks/fades slightly as you drag down — the rubber-band cue
+  // that the sheet is dismissible.
+  const dragScale = dragY.interpolate({
+    inputRange: [0, screenHeight],
+    outputRange: [1, 0.85],
+    extrapolate: 'clamp',
+  });
+  const dragOpacity = dragY.interpolate({
+    inputRange: [0, screenHeight * 0.5],
+    outputRange: [1, 0.4],
+    extrapolate: 'clamp',
+  });
 
   // Ensure slides are available before rendering
   if (!slides || slides.length === 0) {
     return null;
   }
 
-  const handleScroll = (event: any) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
-    setCurrentSlide(slideIndex);
-  };
-
   const handleShare = async () => {
     try {
-      const targetIndex = slides[currentSlide]?.shareTargetIndex ?? currentSlide;
-      const ref = viewShotRefs.current[targetIndex];
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      const ref = viewShotRefs.current[shareTargetIndex];
       if (!ref) return;
 
       const uri = await ref.capture?.();
@@ -884,172 +1169,208 @@ export default function WrappedShareJourney({
   };
 
   const goToNext = () => {
-    if (currentSlide < slides.length - 1) {
-      scrollViewRef.current?.scrollTo({
-        x: (currentSlide + 1) * screenWidth,
-        animated: true,
-      });
-    }
+    directionRef.current = 1;
+    setCurrentSlide((current) => {
+      if (current >= slides.length - 1) {
+        return current;
+      }
+
+      progressAnim.setValue(0);
+      return current + 1;
+    });
   };
 
   const goToPrevious = () => {
-    if (currentSlide > 0) {
-      scrollViewRef.current?.scrollTo({
-        x: (currentSlide - 1) * screenWidth,
-        animated: true,
-      });
-    }
+    directionRef.current = -1;
+    setCurrentSlide((current) => {
+      if (current <= 0) {
+        return current;
+      }
+
+      progressAnim.setValue(0);
+      return current - 1;
+    });
   };
+
+  const renderSlideInner = (slide: Slide, animatedContent = false) => {
+    const content = (
+      <Animated.View
+        style={[
+          styles.slideContent,
+          slide.id === 'export-upsell' && styles.slideContentPromo,
+          animatedContent && {
+            opacity: slideOpacity,
+            transform: [
+              { translateX: slideTranslateX },
+              { translateY: slideTranslateY },
+              { scale: slideScale },
+              {
+                rotate: slideRotate.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '30deg'],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        {slide.image ? (
+          <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
+        ) : slide.mascotPose ? (
+          /* MASCOT: slide hero — pose varies per slide theme */
+          <View style={styles.mascotHero}>
+            <MascotPlaceholder pose={slide.mascotPose} size={104} variant="outline" />
+          </View>
+        ) : (
+          <Text style={styles.emoji}>{slide.emoji}</Text>
+        )}
+        <View style={styles.frame}>
+          {slide.content}
+        </View>
+      </Animated.View>
+    );
+
+    const watermark = (
+      <View style={[styles.watermarkCorner, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]} pointerEvents="none">
+        <Text style={styles.watermarkText}>@snacktrack</Text>
+      </View>
+    );
+
+    if (slide.backgroundType === 'animated') {
+      return (
+        <AnimatedBackground>
+          {content}
+          {watermark}
+        </AnimatedBackground>
+      );
+    }
+
+    return (
+      <LinearGradient
+        colors={STORY_GRADIENTS[slide.gradient].colors}
+        locations={STORY_GRADIENTS[slide.gradient].locations}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        {content}
+        {watermark}
+      </LinearGradient>
+    );
+  };
+
+  // Drive the active segment with a left-anchored scaleX on the native driver,
+  // so the per-frame progress animation never touches the JS thread.
+  const activeProgressScaleX = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      {/* Close Button */}
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Ionicons name="close" size={32} color="white" />
-      </TouchableOpacity>
 
-      {/* Slides */}
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        bounces={false}
-        style={{ backgroundColor: 'transparent', flex: 1 }}
-        contentContainerStyle={{ backgroundColor: 'transparent' }}
+      {/* Slide layer — drags down to dismiss, taps left/right to navigate */}
+      <Animated.View
+        style={[
+          styles.dragLayer,
+          { opacity: dragOpacity, transform: [{ translateY: dragY }, { scale: dragScale }] },
+        ]}
+        {...panResponder.panHandlers}
       >
-        {slides.map((slide, index) => (
+        {activeSlide && (
           <ViewShot
-            key={index}
-            ref={(ref) => { viewShotRefs.current[index] = ref; }}
+            key={currentSlide}
+            ref={(ref) => { viewShotRefs.current[currentSlide] = ref; }}
             options={{ format: 'png', quality: 1.0 }}
             style={styles.slideContainer}
           >
-            {slide.backgroundType === 'animated' ? (
-              <AnimatedBackground>
-                <View style={[
-                  styles.slideContent,
-                  slide.id === 'export-upsell' && styles.slideContentPromo
-                ]}>
-                  {slide.image ? (
-                    <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.emoji}>{slide.emoji}</Text>
-                  )}
-                  <View style={styles.frame}>
-                    {slide.content}
-                  </View>
-                </View>
-
-                {/* Watermark Footer - positioned above progress bar */}
-                <View style={{
-                  position: 'absolute',
-                  bottom: SAFE_BOTTOM + 8,
-                  left: 0,
-                  right: 0,
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                }}>
-                  <Text style={{
-                    color: 'white',
-                    opacity: 1,
-                    fontWeight: '800',
-                    fontSize: 15,
-                    letterSpacing: 0.5,
-                  }}>
-                    @snacktrack
-                  </Text>
-                </View>
-              </AnimatedBackground>
-            ) : (
-              <LinearGradient
-                colors={STORY_GRADIENTS[slide.gradient].colors}
-                locations={STORY_GRADIENTS[slide.gradient].locations}
-                style={styles.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={[
-                  styles.slideContent,
-                  slide.id === 'export-upsell' && styles.slideContentPromo
-                ]}>
-                  {slide.image ? (
-                    <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.emoji}>{slide.emoji}</Text>
-                  )}
-                  <View style={styles.frame}>
-                    {slide.content}
-                  </View>
-                </View>
-
-                {/* Watermark Footer */}
-                <View style={{
-                  position: 'absolute',
-                  bottom: SAFE_BOTTOM + 8,
-                  left: 0,
-                  right: 0,
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                }}>
-                  <Text style={{
-                    color: 'white',
-                    opacity: 1,
-                    fontWeight: '800',
-                    fontSize: 15,
-                    letterSpacing: 0.5,
-                  }}>
-                    @snacktrack
-                  </Text>
-                </View>
-              </LinearGradient>
-            )}
+            {renderSlideInner(activeSlide, true)}
           </ViewShot>
-        ))}
-      </ScrollView>
+        )}
 
-      {/* Navigation Controls - only show when ready */}
-      {isReady && (
-        <View style={[styles.controls, { paddingBottom: Math.max(36, insets.bottom) }]}>
-        <View style={styles.pagination}>
-          {slides.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.paginationDot,
-                index === currentSlide && styles.paginationDotActive,
-              ]}
+        {shareTargetSlide && shareTargetIndex !== currentSlide && (
+          <ViewShot
+            ref={(ref) => { viewShotRefs.current[shareTargetIndex] = ref; }}
+            options={{ format: 'png', quality: 1.0 }}
+            style={styles.hiddenShareShot}
+          >
+            {renderSlideInner(shareTargetSlide)}
+          </ViewShot>
+        )}
+
+        {activeSlide?.id !== 'export-upsell' && (
+          <>
+            <Pressable
+              style={[styles.tapZone, styles.tapZoneLeft]}
+              onPress={goToPrevious}
+              onPressIn={() => setIsPaused(true)}
+              onPressOut={() => setIsPaused(false)}
             />
-          ))}
-        </View>
+            <Pressable
+              style={[styles.tapZone, styles.tapZoneRight]}
+              onPress={goToNext}
+              onPressIn={() => setIsPaused(true)}
+              onPressOut={() => setIsPaused(false)}
+            />
+          </>
+        )}
+      </Animated.View>
 
-        <View style={styles.buttonRow}>
-          {currentSlide > 0 ? (
-            <TouchableOpacity style={styles.navButton} onPress={goToPrevious}>
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.navButton} />
-          )}
-
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-social" size={20} color="white" />
-            <Text style={styles.shareText}>Share</Text>
-          </TouchableOpacity>
-
-          {currentSlide < slides.length - 1 ? (
-            <TouchableOpacity style={styles.navButton} onPress={goToNext}>
-              <Ionicons name="arrow-forward" size={24} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.navButton} />
-          )}
-        </View>
+      {/* Celebratory confetti — decorative overlay, never blocks touches */}
+      {activeSlide?.confetti && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <ConfettiCannon
+            key={`confetti-${currentSlide}`}
+            count={70}
+            origin={{ x: screenWidth / 2, y: -20 }}
+            autoStart
+            fadeOut
+            explosionSpeed={420}
+            fallSpeed={2800}
+          />
         </View>
       )}
+
+      {/* Fixed chrome — stays put while the slide drags */}
+      <View style={[styles.progressRail, { paddingTop: Math.max(12, insets.top + 8) }]}>
+        {slides.map((_, index) => (
+          <View key={index} style={styles.progressSegment}>
+            <View
+              style={[
+                styles.progressFill,
+                index < currentSlide && styles.progressFillComplete,
+              ]}
+            />
+            {index === currentSlide && (
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  styles.progressFillActive,
+                  { transform: [{ scaleX: activeProgressScaleX }] },
+                ]}
+              />
+            )}
+          </View>
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.iconButton, styles.closeButton, { top: Math.max(44, insets.top + 16) }]}
+        onPress={onClose}
+        hitSlop={8}
+      >
+        <Ionicons name="close" size={26} color="white" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.iconButton, styles.shareIconButton, { top: Math.max(44, insets.top + 16) }]}
+        onPress={handleShare}
+        hitSlop={8}
+      >
+        <Ionicons name="share-outline" size={22} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -1072,16 +1393,67 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     overflow: 'hidden',
   },
-  closeButton: {
+  dragLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  iconButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    right: 20,
     zIndex: 100,
-    padding: 8,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+  },
+  closeButton: {
+    left: 16,
+  },
+  shareIconButton: {
+    right: 16,
+  },
+  progressRail: {
+    position: 'absolute',
+    top: 0,
+    left: 12,
+    right: 12,
+    zIndex: 100,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 3,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  progressFill: {
+    height: '100%',
+    width: 0,
+    borderRadius: 999,
+    backgroundColor: 'white',
+  },
+  progressFillComplete: {
+    width: '100%',
+  },
+  progressFillActive: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    width: '100%',
+    transformOrigin: 'left',
   },
   slideContainer: {
+    width: screenWidth,
+    height: screenHeight,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  hiddenShareShot: {
+    position: 'absolute',
+    left: -screenWidth * 2,
+    top: 0,
     width: screenWidth,
     height: screenHeight,
     overflow: 'hidden',
@@ -1097,7 +1469,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: SAFE_TOP + Math.round(screenHeight * 0.05), // Add 5% more space to center content better
-    paddingBottom: SAFE_BOTTOM + 100, // Extra padding to account for controls
+    paddingBottom: SAFE_BOTTOM + 48, // Clears the corner watermark; arrows/bar removed
     paddingHorizontal: SAFE_SIDE,
   },
   slideContentPromo: {
@@ -1108,12 +1480,43 @@ const styles = StyleSheet.create({
     maxWidth: Math.min(560, screenWidth * 0.9), // comfortable reading width
     alignItems: 'center',
   },
+  watermarkCorner: {
+    position: 'absolute',
+    left: SAFE_SIDE,
+    // `bottom` is set inline from safe-area insets
+  },
+  watermarkText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  tapZone: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    zIndex: 40,
+  },
+  tapZoneLeft: {
+    left: 0,
+    width: '35%',
+  },
+  tapZoneRight: {
+    right: 0,
+    width: '35%',
+  },
   emoji: {
     fontSize: EMOJI_SIZE,
     marginBottom: 20,
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
+  },
+  mascotHero: {
+    marginBottom: 20,
   },
   title: {
     fontSize: TITLE_SIZE,
@@ -1207,59 +1610,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,
   },
-  controls: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  pagination: {
-    flexDirection: 'row',
-    marginBottom: 14,
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    marginHorizontal: 4,
-  },
-  paginationDotActive: {
-    backgroundColor: 'white',
-    width: 20,
-    height: 8,
-    borderRadius: 4,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  navButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
-    gap: 8,
-  },
-  shareText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   logoImage: {
     width: EMOJI_SIZE * 1.2,
     height: EMOJI_SIZE * 1.2,
@@ -1327,13 +1677,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   affiliateButtonText: {
-    color: '#333',
+    color: '#222222',
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   affiliateButtonIcon: {
-    color: '#333',
+    color: '#222222',
   },
   exportSecondaryButton: {
     flexDirection: 'row',
@@ -1417,5 +1767,71 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  archetypeKicker: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  archetypeName: {
+    fontSize: Math.min(52, Math.max(40, Math.round(screenWidth * 0.13))),
+    fontWeight: '900',
+    color: 'white',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 12,
+  },
+  archetypeTagline: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.95)',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 12,
+    maxWidth: Math.min(480, screenWidth * 0.85),
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  },
+  archetypeTraits: {
+    width: '100%',
+    maxWidth: Math.min(420, screenWidth * 0.86),
+    gap: 10,
+  },
+  archetypeTraitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  archetypeTraitEmoji: {
+    fontSize: 22,
+  },
+  archetypeTraitLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  archetypeTraitValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: 'white',
+    maxWidth: '45%',
+    textAlign: 'right',
   },
 });

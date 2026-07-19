@@ -7,6 +7,7 @@ import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
 import { getCachedAnalytics } from '../../utils/offlineCache';
 import { useExportUpsell } from '../../hooks/useExportUpsell';
+import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
 
 // Lazy load WrappedShareJourney component for code splitting
 const WrappedShareJourney = lazy(() => import('../../components/wrapped/WrappedShareJourney'));
@@ -128,7 +129,7 @@ export default function WrappedJourneyScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#2E7D4F" />
       </View>
     );
   }
@@ -136,7 +137,10 @@ export default function WrappedJourneyScreen() {
   if (!hasWrappedData(analytics)) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="images-outline" size={64} color="#667eea" style={styles.emptyIcon} />
+        {/* MASCOT: empty-state guide — pointing toward the import CTA */}
+        <View style={styles.emptyIcon}>
+          <MascotPlaceholder pose="pointing" size={120} />
+        </View>
         <Text style={styles.emptyTitle}>Your Wrapped Journey Awaits</Text>
         <Text style={styles.emptySubtitle}>
           Import receipts with Gmail to unlock your first recap fast, or upload a full export for deeper history.
@@ -152,7 +156,7 @@ export default function WrappedJourneyScreen() {
   if (!isFullyReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#2E7D4F" />
       </View>
     );
   }
@@ -160,7 +164,7 @@ export default function WrappedJourneyScreen() {
   return (
     <Suspense fallback={
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color="#2E7D4F" />
       </View>
     }>
       <WrappedShareJourney
@@ -204,14 +208,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#667eea',
+    backgroundColor: '#2E7D4F',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    backgroundColor: '#f5f6ff',
+    backgroundColor: '#FAF8F4',
   },
   emptyIcon: {
     marginBottom: 24,
@@ -219,13 +223,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#333',
+    color: '#222222',
     textAlign: 'center',
     marginBottom: 12,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#555',
+    color: '#6F756E',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -234,11 +238,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#667eea',
+    backgroundColor: '#2E7D4F',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 30,
-    shadowColor: 'rgba(102, 126, 234, 0.4)',
+    shadowColor: 'rgba(46, 125, 79, 0.4)',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 12,

@@ -15,6 +15,7 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../../types/api';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 
 interface SocialShareModalProps {
   visible: boolean;
@@ -99,11 +100,13 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
 
   const renderSummaryTemplate = () => (
     <LinearGradient
-      colors={['#667eea', '#764ba2']}
+      colors={['#1F4E3A', '#2E7D4F']}
       style={styles.templateContainer}
     >
       <View style={styles.templateHeader}>
-        <Text style={styles.templateTitle}>🥡 SnackTrack Analytics</Text>
+        {/* MASCOT: share-template brand mark — sunglasses, outline variant */}
+        <MascotPlaceholder pose="sunglasses" size={64} variant="outline" hideLabel />
+        <Text style={styles.templateTitle}>SnackTrack Analytics</Text>
         <Text style={styles.templateSubtitle}>Your food spending insights</Text>
       </View>
 
@@ -233,7 +236,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Share Your Analytics</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#666" />
+            <Ionicons name="close" size={24} color="#6F756E" />
           </TouchableOpacity>
         </View>
 
@@ -257,7 +260,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
           onPress={() => captureAndShare('summary')}
         >
           <LinearGradient
-            colors={['#007AFF', '#5856D6']}
+            colors={['#1F4E3A', '#2E7D4F']}
             style={styles.shareButtonGradient}
           >
             <Ionicons name="share-outline" size={24} color="white" />
@@ -272,7 +275,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -282,12 +285,12 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#EAE8E2',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
   },
   closeButton: {
     padding: 8,
@@ -304,19 +307,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 12,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EAE8E2',
   },
   templateButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
+    borderColor: '#1F4E3A',
   },
   templateButtonText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: '#6F756E',
   },
   templateButtonTextActive: {
     color: 'white',

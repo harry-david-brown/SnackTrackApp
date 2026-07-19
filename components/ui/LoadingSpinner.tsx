@@ -10,7 +10,7 @@ interface LoadingSpinnerProps {
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'large',
-  color = '#007AFF',
+  color = '#1F4E3A',
   text,
   overlay = false,
 }) => {
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
   },
 });

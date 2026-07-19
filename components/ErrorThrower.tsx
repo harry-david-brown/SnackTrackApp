@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 20,
     marginBottom: 16,
   },

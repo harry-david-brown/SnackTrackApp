@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import PasswordResetModal from './PasswordResetModal';
 import { showAlert } from '../../utils/alerts';
+import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -583,7 +584,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>🥡 SnackTrack</Text>
+              {/* MASCOT: brand mark — neutral crossed-arms bust */}
+              <View style={styles.mascotLogoWrap}>
+                <MascotPlaceholder pose="neutral" size={96} />
+              </View>
+              <Text style={styles.title}>SnackTrack</Text>
               <Text style={styles.subtitle}>
                 Sign in to import receipts and start seeing your delivery spending more clearly.
               </Text>
@@ -641,7 +646,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       onPress={handleGoogleLogin}
                       disabled={isLoading || state.isLoading}
                     >
-                      <Ionicons name="logo-google" size={24} color="#333" style={styles.googleIcon} />
+                      <Ionicons name="logo-google" size={24} color="#222222" style={styles.googleIcon} />
                       <Text style={styles.googleButtonText}>
                         {isRegistering ? 'Sign up with Google' : 'Continue with Google'}
                       </Text>
@@ -675,7 +680,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   </Text>
 
                   <View style={styles.inputContainer}>
-                    <Ionicons name="mail-outline" size={24} color="#666" style={styles.inputIcon} />
+                    <Ionicons name="mail-outline" size={24} color="#6F756E" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your email address"
@@ -694,7 +699,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.inputIcon} />
+                    <Ionicons name="lock-closed-outline" size={24} color="#6F756E" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your password"
@@ -714,7 +719,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       <Ionicons
                         name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                         size={24}
-                        color="#666"
+                        color="#6F756E"
                       />
                     </TouchableOpacity>
                   </View>
@@ -805,7 +810,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -823,15 +828,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
+  mascotLogoWrap: {
+    marginBottom: 16,
+  },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -857,12 +865,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
   },
   toggleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: '#6F756E',
   },
   toggleTextActive: {
     color: 'white',
@@ -878,7 +886,7 @@ const styles = StyleSheet.create({
   },
   authPanelOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   oauthSection: {
     marginBottom: 20,
@@ -886,12 +894,12 @@ const styles = StyleSheet.create({
   oauthTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
+    color: '#222222',
     marginBottom: 6,
   },
   oauthSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -901,7 +909,7 @@ const styles = StyleSheet.create({
   },
   manualIntro: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -937,7 +945,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   passwordRequirements: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -945,12 +953,12 @@ const styles = StyleSheet.create({
   passwordRequirementsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 8,
   },
   passwordRequirement: {
     fontSize: 13,
-    color: '#666',
+    color: '#6F756E',
     lineHeight: 18,
   },
   errorContainer: {
@@ -978,7 +986,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginBottom: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#1F4E3A',
   },
   inputIcon: {
     marginRight: 12,
@@ -986,10 +994,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: '#222222',
   },
   loginButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1016,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1074,7 +1082,7 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
   },
 });
 

@@ -108,14 +108,14 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
     },
     propsForBackgroundLines: {
       strokeDasharray: '5,5',
-      stroke: '#e0e0e0',
+      stroke: '#EAE8E2',
       strokeWidth: 1,
     },
   };
@@ -126,7 +126,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#4ECDC4', '#45B7D1']}
+        colors={['#2E7D4F', '#5EA15D']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -207,12 +207,12 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
   },
   categoriesContainer: {
     backgroundColor: 'white',
@@ -234,12 +234,12 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 2,
   },
   categoryOrders: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
   },
   categoryStats: {
     alignItems: 'flex-end',
@@ -247,12 +247,12 @@ const styles = StyleSheet.create({
   categoryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginBottom: 2,
   },
   categoryPercentage: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#1F4E3A',
     fontWeight: '600',
   },
   progressBar: {

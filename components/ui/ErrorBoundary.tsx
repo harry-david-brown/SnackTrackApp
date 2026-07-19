@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureException } from '../../utils/sentry';
+import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 
 interface Props {
   children: ReactNode;
@@ -48,8 +49,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* MASCOT: crash screen — sad/apologetic pose */}
             <View style={styles.iconContainer}>
-              <Ionicons name="warning" size={64} color="#FF6B6B" />
+              <MascotPlaceholder pose="sad" size={120} />
             </View>
             
             <Text style={styles.title}>Oops! Something went wrong</Text>
@@ -87,7 +89,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   scrollContent: {
     flexGrow: 1,
@@ -101,13 +103,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     textAlign: 'center',
     marginBottom: 16,
   },
   message: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -115,7 +117,7 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
@@ -132,18 +134,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EAE8E2',
     width: '100%',
   },
   debugTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
     marginBottom: 8,
   },
   debugText: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
     fontFamily: 'monospace',
   },
 });

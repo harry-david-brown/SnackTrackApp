@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { MascotPlaceholder } from './mascot/MascotPlaceholder';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -32,7 +33,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   return (
     <LinearGradient
-      colors={['#0f172a', '#153a5b', '#2a6f97']}
+      colors={['#0E2A1F', '#1F4E3A', '#2E7D4F']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -50,8 +51,13 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       >
         <View style={styles.hero}>
           <View style={styles.badge}>
-            <Ionicons name="receipt-outline" size={18} color="#dbeafe" />
+            <Ionicons name="receipt-outline" size={18} color="#E9F5E2" />
             <Text style={styles.badgeText}>SnackTrack</Text>
+          </View>
+
+          {/* MASCOT: hero greeting — double-bicep flex, sticker-outline variant */}
+          <View style={styles.mascotWrap}>
+            <MascotPlaceholder pose="flex" size={140} variant="outline" />
           </View>
 
           <Text style={styles.title}>See where your food delivery money actually goes</Text>
@@ -65,7 +71,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           {highlights.map((item) => (
             <View key={item.title} style={styles.highlightRow}>
               <View style={styles.iconWrap}>
-                <Ionicons name={item.icon} size={20} color="#0f4c81" />
+                <Ionicons name={item.icon} size={20} color="#1F4E3A" />
               </View>
               <View style={styles.highlightText}>
                 <Text style={styles.highlightTitle}>{item.title}</Text>
@@ -78,7 +84,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.primaryButton} onPress={onComplete}>
             <Text style={styles.primaryButtonText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={18} color="#0f172a" />
+            <Ionicons name="arrow-forward" size={18} color="#222222" />
           </TouchableOpacity>
         </View>
       </View>
@@ -98,6 +104,10 @@ const styles = StyleSheet.create({
   hero: {
     marginTop: 12,
   },
+  mascotWrap: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   badge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -110,13 +120,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   badgeText: {
-    color: '#dbeafe',
+    color: '#E9F5E2',
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   title: {
-    color: '#f8fafc',
+    color: '#FAF8F4',
     fontSize: 36,
     fontWeight: '800',
     lineHeight: 42,
@@ -142,7 +152,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#E9F5E2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -151,13 +161,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlightTitle: {
-    color: '#0f172a',
+    color: '#222222',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   highlightDescription: {
-    color: '#475569',
+    color: '#6F756E',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -167,7 +177,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 56,
     borderRadius: 18,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F4',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -175,7 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   primaryButtonText: {
-    color: '#0f172a',
+    color: '#222222',
     fontSize: 17,
     fontWeight: '800',
   },

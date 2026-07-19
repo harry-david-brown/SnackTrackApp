@@ -143,11 +143,11 @@ export default function ReceiptsScreen() {
         case 'doordash':
           return '#FF3000'; // DoorDash red
       default:
-        return '#666';
+        return '#6F756E';
     }
     }
     // Fallback to dataSource colors
-    return receipt.dataSource === DataSource.EMAIL ? '#4CAF50' : '#2196F3';
+    return receipt.dataSource === DataSource.EMAIL ? '#58C26D' : '#2196F3';
   };
 
   const toggleExpanded = (receiptId: string) => {
@@ -211,7 +211,7 @@ export default function ReceiptsScreen() {
               <Ionicons 
                 name={isExpanded ? "chevron-up" : "chevron-down"} 
                 size={20} 
-                color="#666" 
+                color="#6F756E" 
               />
             </>
           ) : (
@@ -279,7 +279,7 @@ export default function ReceiptsScreen() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color="#1F4E3A" />
       </View>
     );
   };
@@ -288,7 +288,7 @@ export default function ReceiptsScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#1F4E3A" />
           <Text style={styles.loadingText}>Loading user...</Text>
         </View>
       </SafeAreaView>
@@ -309,7 +309,7 @@ export default function ReceiptsScreen() {
           }} 
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#1F4E3A" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>My Receipts</Text>
@@ -322,12 +322,12 @@ export default function ReceiptsScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#1F4E3A" />
           <Text style={styles.loadingText}>Loading receipts...</Text>
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={60} color="#ff3b30" />
+          <Ionicons name="alert-circle-outline" size={60} color="#D14343" />
           <Text style={styles.errorTitle}>Oops!</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
@@ -350,7 +350,7 @@ export default function ReceiptsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#007AFF"
+              tintColor="#1F4E3A"
             />
           }
           onEndReached={loadMore}
@@ -364,7 +364,7 @@ export default function ReceiptsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
   },
   header: {
     flexDirection: 'row',
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
   },
   errorContainer: {
     flex: 1,
@@ -420,14 +420,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     marginTop: 8,
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#1F4E3A',
     marginBottom: 6,
   },
   sourceBadge: {
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   itemsCountText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: '#6F756E',
   },
   itemsUnavailableText: {
     fontSize: 13,
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#1F4E3A',
     fontWeight: '600',
   },
   emptyContainer: {
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6F756E',
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 24,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F4E3A',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,

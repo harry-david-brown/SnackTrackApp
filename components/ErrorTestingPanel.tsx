@@ -65,7 +65,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
       <View style={styles.header}>
         <Text style={styles.title}>🧪 Error Testing Panel</Text>
         <TouchableOpacity onPress={() => setIsVisible(false)}>
-          <Ionicons name="close" size={24} color="#666" />
+          <Ionicons name="close" size={24} color="#6F756E" />
         </TouchableOpacity>
       </View>
 
@@ -78,7 +78,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               style={styles.testButton}
               onPress={() => handleTestError(test.key)}
             >
-              <Ionicons name={test.icon as any} size={20} color="#007AFF" />
+              <Ionicons name={test.icon as any} size={20} color="#1F4E3A" />
               <Text style={styles.testButtonText}>{test.label}</Text>
             </TouchableOpacity>
           ))}
@@ -155,7 +155,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               );
             }}
           >
-            <Ionicons name="wifi-outline" size={20} color="#007AFF" />
+            <Ionicons name="wifi-outline" size={20} color="#1F4E3A" />
             <Text style={styles.testButtonText}>Network Offline Instructions</Text>
           </TouchableOpacity>
         </View>
@@ -215,13 +215,13 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 50,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    backgroundColor: '#f8f9fa',
+    borderBottomColor: '#EAE8E2',
+    backgroundColor: '#FAF8F4',
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#222222',
   },
   content: {
     flex: 1,
@@ -233,12 +233,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 12,
-    color: '#666',
+    color: '#6F756E',
     marginBottom: 12,
     fontStyle: 'italic',
   },
@@ -253,18 +253,18 @@ const styles = StyleSheet.create({
   testButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FAF8F4',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EAE8E2',
   },
   testButtonText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#333',
+    color: '#222222',
   },
   apiGroup: {
     marginBottom: 16,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   apiLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
+    color: '#6F756E',
     marginBottom: 8,
   },
   apiButtons: {
