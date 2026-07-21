@@ -9,6 +9,8 @@ import {
   Animated,
   Easing,
   PanResponder,
+  Platform,
+  AccessibilityInfo,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -16,19 +18,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { UserSummary } from '../../types/api';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { showAlert } from '../../utils/platformAlert';
 import {
   STORY_GRADIENTS,
   STORY_SLIDE_DURATION,
+  CONFETTI_COLORS,
   SAFE_BOTTOM,
+  SHARE_FRAME_W,
+  SHARE_FRAME_H,
+  EXPORT_W,
+  EXPORT_H,
   screenWidth,
   screenHeight,
 } from './wrappedTheme';
-import { AnimatedBackground } from './WrappedSlideEffects';
+import { AnimatedBackground, HeroGlow, WrappedStaticRenderContext, useReducedMotion } from './WrappedSlideEffects';
 import { buildWrappedSlides, type Slide } from './buildWrappedSlides';
 import { styles } from './wrappedStyles';
 
@@ -56,8 +65,10 @@ export default function WrappedShareJourney({
 }: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
+  const reduceMotion = useReducedMotion();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [confettiVisible, setConfettiVisible] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const slideOpacity = useRef(new Animated.Value(0)).current;
   const slideTranslateY = useRef(new Animated.Value(28)).current;
@@ -67,12 +78,9 @@ export default function WrappedShareJourney({
   const dragY = useRef(new Animated.Value(0)).current;
   // +1 = moving forward, -1 = going back. Drives the entrance direction.
   const directionRef = useRef<1 | -1>(1);
-  const viewShotRefs = useRef<(ViewShot | null)[]>([]);
-
-  // Reset to first slide when component mounts
-  React.useEffect(() => {
-    setCurrentSlide(0);
-  }, []); // Only run on mount
+  // Off-screen share render + captured-image cache (keyed by slide index).
+  const hiddenShareShotRef = useRef<ViewShot | null>(null);
+  const shareUriCache = useRef<Map<number, string>>(new Map());
 
   const formatCurrency = useCallback((amount: number) => {
     return formatCurrencyFromContext(amount);
@@ -80,7 +88,8 @@ export default function WrappedShareJourney({
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    // Device locale — currency formatting already respects it via CurrencyContext.
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }, []);
 
   // Build slides dynamically based on available data
@@ -101,6 +110,10 @@ export default function WrappedShareJourney({
     [analytics, formatCurrency, formatDate, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]
   );
   const activeSlide = slides[currentSlide];
+  // Ref mirror so effects that only care about "which slide index is showing"
+  // don't re-fire when the deck array is rebuilt with identical content.
+  const slidesRef = useRef(slides);
+  slidesRef.current = slides;
   const shareTargetIndex = activeSlide?.shareTargetIndex ?? currentSlide;
   const shareTargetSlide = slides[shareTargetIndex];
   const shouldAutoAdvance = currentSlide < slides.length - 1 && activeSlide?.id !== 'export-upsell';
@@ -111,26 +124,76 @@ export default function WrappedShareJourney({
     }
   }, [currentSlide, slides.length]);
 
+  const activeSlideId = activeSlide?.id;
   React.useEffect(() => {
-    if (activeSlide?.id === 'export-upsell') {
+    if (activeSlideId === 'export-upsell') {
       onExportUpsellSeen?.();
     }
-  }, [activeSlide, onExportUpsellSeen]);
+  }, [activeSlideId, onExportUpsellSeen]);
+
+  // Captured share images go stale if the slide deck is rebuilt.
+  React.useEffect(() => {
+    shareUriCache.current.clear();
+  }, [slides]);
+
+  const captureShareImage = useCallback(async (): Promise<string | null> => {
+    const cached = shareUriCache.current.get(shareTargetIndex);
+    if (cached) {
+      return cached;
+    }
+    const uri = await hiddenShareShotRef.current?.capture?.();
+    if (uri) {
+      shareUriCache.current.set(shareTargetIndex, uri);
+    }
+    return uri ?? null;
+  }, [shareTargetIndex]);
+
+  // Confetti fires per-slide, optionally delayed (the archetype launches it in
+  // sync with the name reveal). Reduced motion skips it entirely.
+  React.useEffect(() => {
+    setConfettiVisible(false);
+    const slide = slidesRef.current[currentSlide];
+    if (!slide?.confetti || reduceMotion) {
+      return;
+    }
+    const delay = slide.confettiDelayMs ?? 0;
+    if (delay === 0) {
+      setConfettiVisible(true);
+      return;
+    }
+    const timer = setTimeout(() => setConfettiVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [currentSlide, reduceMotion]);
+
+  // Pre-warm: capture the off-screen share render shortly after it mounts so
+  // the share sheet opens instantly instead of waiting on a capture round-trip.
+  React.useEffect(() => {
+    if (shareUriCache.current.has(shareTargetIndex)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      captureShareImage().catch(() => {
+        // Best-effort warm-up; a real failure surfaces on the share tap.
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [shareTargetIndex, captureShareImage]);
 
   // useLayoutEffect so the off-screen reset happens BEFORE the new slide paints.
   // Otherwise the slide briefly renders at the previous slide's resting values
   // (in place, fully visible) and only then jumps to its start — the flash that
   // reads as "it goes to the current slide before animating".
   useLayoutEffect(() => {
+    // Read via ref: depending on the slide *object* here re-fired the entrance
+    // whenever the deck was rebuilt without the slide changing.
+    const slide = slidesRef.current[currentSlide];
+
     progressAnim.stopAnimation();
     progressAnim.setValue(0);
 
-    // Haptic punch on every slide change — celebratory slides get a heavier
-    // success buzz, the rest get a light tap synced to the entrance.
-    if (activeSlide?.confetti) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    // Screen readers hear the slide's stat; visuals alone say nothing.
+    if (slide?.a11y) {
+      AccessibilityInfo.announceForAccessibility(slide.a11y);
     }
 
     const direction = directionRef.current;
@@ -138,6 +201,15 @@ export default function WrappedShareJourney({
     // Always start hidden + reset rotation; per-branch sets the offset.
     slideOpacity.setValue(0);
     slideRotate.setValue(0);
+
+    // Reduced motion: plain crossfade, no springs/spins/slides.
+    if (reduceMotion) {
+      slideTranslateX.setValue(0);
+      slideTranslateY.setValue(0);
+      slideScale.setValue(1);
+      Animated.timing(slideOpacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      return;
+    }
 
     if (direction === -1) {
       // Going BACK — natural reverse: slide in from the left. Consistent so the
@@ -198,7 +270,7 @@ export default function WrappedShareJourney({
         Animated.spring(slideRotate, { toValue: 0, friction: 6, tension: 90, useNativeDriver: true }),
       ]).start();
     }
-  }, [currentSlide, activeSlide, progressAnim, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
+  }, [currentSlide, reduceMotion, progressAnim, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
 
   React.useEffect(() => {
     if (!shouldAutoAdvance) {
@@ -215,7 +287,8 @@ export default function WrappedShareJourney({
     let animation: Animated.CompositeAnimation | null = null;
 
     progressAnim.stopAnimation((value) => {
-      const remainingDuration = Math.max(300, STORY_SLIDE_DURATION * (1 - value));
+      const slideDuration = slidesRef.current[currentSlide]?.durationMs ?? STORY_SLIDE_DURATION;
+      const remainingDuration = Math.max(300, slideDuration * (1 - value));
       animation = Animated.timing(progressAnim, {
         toValue: 1,
         duration: remainingDuration,
@@ -294,48 +367,70 @@ export default function WrappedShareJourney({
   }
 
   const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      const ref = viewShotRefs.current[shareTargetIndex];
-      if (!ref) return;
-
-      const uri = await ref.capture?.();
-      if (uri && await Sharing.isAvailableAsync()) {
+      const uri = await captureShareImage();
+      if (!uri) {
+        throw new Error('Share image capture failed');
+      }
+      if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Share your SnackTrack Wrapped',
         });
+      } else {
+        showAlert('Sharing unavailable', "Sharing isn't supported on this device.");
       }
     } catch {
-      // Silently fail - sharing is optional
+      showAlert('Sharing failed', "Couldn't create your share image.", [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Try Again', onPress: () => { void handleShare(); } },
+      ]);
     }
   };
 
-  const goToNext = () => {
-    directionRef.current = 1;
-    setCurrentSlide((current) => {
-      if (current >= slides.length - 1) {
-        return current;
+  const handleSaveToPhotos = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      // writeOnly: iOS "add photos only" permission — we never read the library.
+      const { granted } = await MediaLibrary.requestPermissionsAsync(true);
+      if (!granted) {
+        showAlert('Permission needed', 'Allow photo access to save your Wrapped card.');
+        return;
       }
+      const uri = await captureShareImage();
+      if (!uri) {
+        throw new Error('Share image capture failed');
+      }
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      showAlert('Saved', 'Your Wrapped card is in your Photos.');
+    } catch {
+      showAlert('Save failed', "Couldn't save the image to your Photos.", [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Try Again', onPress: () => { void handleSaveToPhotos(); } },
+      ]);
+    }
+  };
 
-      progressAnim.setValue(0);
-      return current + 1;
-    });
+  // The entrance useLayoutEffect resets progressAnim on every slide change, so
+  // navigation only needs to flip the index. Haptics fire here (user-initiated
+  // taps) rather than on every auto-advance.
+  const goToNext = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    directionRef.current = 1;
+    setCurrentSlide((current) => Math.min(current + 1, slides.length - 1));
   };
 
   const goToPrevious = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     directionRef.current = -1;
-    setCurrentSlide((current) => {
-      if (current <= 0) {
-        return current;
-      }
-
-      progressAnim.setValue(0);
-      return current - 1;
-    });
+    setCurrentSlide((current) => Math.max(current - 1, 0));
   };
 
-  const renderSlideInner = (slide: Slide, animatedContent = false) => {
+  // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
+  // the device screen) for the off-screen capture.
+  const renderSlideInner = (slide: Slide, animatedContent = false, shareFrame = false) => {
     const content = (
       <Animated.View
         style={[
@@ -360,9 +455,11 @@ export default function WrappedShareJourney({
         {slide.image ? (
           <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
         ) : slide.mascotPose ? (
-          /* MASCOT: slide hero — pose varies per slide theme */
+          /* MASCOT: slide hero — pose varies per slide theme; the slide emoji
+             rides along as a small badge instead of a 92px hero. */
           <View style={styles.mascotHero}>
             <MascotPlaceholder pose={slide.mascotPose} size={104} variant="outline" />
+            {slide.emoji ? <Text style={styles.mascotEmojiBadge}>{slide.emoji}</Text> : null}
           </View>
         ) : (
           <Text style={styles.emoji}>{slide.emoji}</Text>
@@ -374,28 +471,50 @@ export default function WrappedShareJourney({
     );
 
     const watermark = (
-      <View style={[styles.watermarkCorner, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]} pointerEvents="none">
-        <Text style={styles.watermarkText}>@snacktrack</Text>
+      <View
+        style={[
+          styles.watermarkCorner,
+          // The export frame has no device safe area — use the story-safe margin.
+          { bottom: shareFrame ? SAFE_BOTTOM : Math.max(SAFE_BOTTOM, insets.bottom + 16) },
+        ]}
+        pointerEvents="none"
+      >
+        <View style={styles.watermarkLockup}>
+          <Image source={require('../../assets/icon.png')} style={styles.watermarkLogo} />
+          <Text style={styles.watermarkText}>@snacktrack</Text>
+        </View>
       </View>
     );
 
+    const glow = slide.glow ? (
+      <View style={styles.glowWrap} pointerEvents="none">
+        <HeroGlow />
+      </View>
+    ) : null;
+
     if (slide.backgroundType === 'animated') {
       return (
-        <AnimatedBackground>
+        <AnimatedBackground
+          width={shareFrame ? SHARE_FRAME_W : screenWidth}
+          height={shareFrame ? SHARE_FRAME_H : screenHeight}
+        >
+          {glow}
           {content}
           {watermark}
         </AnimatedBackground>
       );
     }
 
+    const gradient = STORY_GRADIENTS[slide.gradient];
     return (
       <LinearGradient
-        colors={STORY_GRADIENTS[slide.gradient].colors}
-        locations={STORY_GRADIENTS[slide.gradient].locations}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={gradient.colors}
+        locations={gradient.locations}
+        style={[styles.gradient, shareFrame && { width: SHARE_FRAME_W, height: SHARE_FRAME_H }]}
+        start={gradient.start}
+        end={gradient.end}
       >
+        {glow}
         {content}
         {watermark}
       </LinearGradient>
@@ -423,23 +542,24 @@ export default function WrappedShareJourney({
         {...panResponder.panHandlers}
       >
         {activeSlide && (
-          <ViewShot
-            key={currentSlide}
-            ref={(ref) => { viewShotRefs.current[currentSlide] = ref; }}
-            options={{ format: 'png', quality: 1.0 }}
-            style={styles.slideContainer}
-          >
+          <View key={currentSlide} style={styles.slideContainer}>
             {renderSlideInner(activeSlide, true)}
-          </ViewShot>
+          </View>
         )}
 
-        {shareTargetSlide && shareTargetIndex !== currentSlide && (
+        {/* Off-screen share render: static (no entrance/count-up/nebula motion),
+            fixed 9:16 frame, captured at 1080x1920 — so shares are always
+            correct and crisp regardless of when the user taps share. */}
+        {shareTargetSlide && (
           <ViewShot
-            ref={(ref) => { viewShotRefs.current[shareTargetIndex] = ref; }}
-            options={{ format: 'png', quality: 1.0 }}
+            key={`share-${shareTargetIndex}`}
+            ref={hiddenShareShotRef}
+            options={{ format: 'png', quality: 1.0, width: EXPORT_W, height: EXPORT_H }}
             style={styles.hiddenShareShot}
           >
-            {renderSlideInner(shareTargetSlide)}
+            <WrappedStaticRenderContext.Provider value={true}>
+              {renderSlideInner(shareTargetSlide, false, true)}
+            </WrappedStaticRenderContext.Provider>
           </ViewShot>
         )}
 
@@ -450,24 +570,29 @@ export default function WrappedShareJourney({
               onPress={goToPrevious}
               onPressIn={() => setIsPaused(true)}
               onPressOut={() => setIsPaused(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Previous slide"
             />
             <Pressable
               style={[styles.tapZone, styles.tapZoneRight]}
               onPress={goToNext}
               onPressIn={() => setIsPaused(true)}
               onPressOut={() => setIsPaused(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Next slide"
             />
           </>
         )}
       </Animated.View>
 
       {/* Celebratory confetti — decorative overlay, never blocks touches */}
-      {activeSlide?.confetti && (
+      {confettiVisible && activeSlide?.confetti && (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <ConfettiCannon
             key={`confetti-${currentSlide}`}
             count={70}
             origin={{ x: screenWidth / 2, y: -20 }}
+            colors={CONFETTI_COLORS}
             autoStart
             fadeOut
             explosionSpeed={420}
@@ -503,17 +628,47 @@ export default function WrappedShareJourney({
         style={[styles.iconButton, styles.closeButton, { top: Math.max(44, insets.top + 16) }]}
         onPress={onClose}
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Close Wrapped"
       >
         <Ionicons name="close" size={26} color="white" />
       </TouchableOpacity>
+
+      {/* Explicit share CTA on the most-shareable slides (archetype, summary).
+          Lives in the chrome layer so it never appears in captured images. */}
+      {activeSlide?.showShareCta && (
+        <TouchableOpacity
+          style={[styles.shareCtaButton, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]}
+          onPress={handleShare}
+          accessibilityRole="button"
+          accessibilityLabel="Share this card"
+        >
+          <Ionicons name="share-outline" size={18} color="#222222" />
+          <Text style={styles.shareCtaText}>Share this card</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[styles.iconButton, styles.shareIconButton, { top: Math.max(44, insets.top + 16) }]}
         onPress={handleShare}
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Share this slide"
       >
         <Ionicons name="share-outline" size={22} color="white" />
       </TouchableOpacity>
+
+      {Platform.OS !== 'web' && (
+        <TouchableOpacity
+          style={[styles.iconButton, styles.saveIconButton, { top: Math.max(44, insets.top + 16) }]}
+          onPress={handleSaveToPhotos}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Save this slide to Photos"
+        >
+          <Ionicons name="download-outline" size={22} color="white" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

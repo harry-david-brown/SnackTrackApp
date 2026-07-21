@@ -1,16 +1,13 @@
 import { UserSummary } from '../types/api';
 
-// Gradient keys must match STORY_GRADIENTS in WrappedShareJourney.
+// Gradient keys must match STORY_GRADIENTS in the wrapped event palette.
 export type ArchetypeGradient =
-  | 'amethyst'
-  | 'flamingo'
-  | 'tangerine'
-  | 'lagoon'
-  | 'orchid'
-  | 'mango'
+  | 'forest'
   | 'ember'
-  | 'sunrise'
-  | 'mint';
+  | 'berry'
+  | 'indigo'
+  | 'lagoon'
+  | 'amber';
 
 export interface ArchetypeTrait {
   emoji: string;
@@ -70,7 +67,7 @@ export function getArchetype(
         name: 'The 3AM Gremlin',
         emoji: '🌙',
         tagline: 'The kitchen is closed. Your cravings are not.',
-        gradient: 'orchid',
+        gradient: 'indigo',
         traits: compact([
           lateNight && { emoji: '🌃', label: 'Midnight runs', value: `${lateNight.count}` },
           nightOwl && { emoji: '🦉', label: 'Orders after 10pm', value: `${nightOwl.percentage}%` },
@@ -94,7 +91,7 @@ export function getArchetype(
         name: 'The Loyalist',
         emoji: '💍',
         tagline: `Til death do you part from ${chain.worstOffender}.`,
-        gradient: 'flamingo',
+        gradient: 'berry',
         traits: [
           { emoji: '🏪', label: 'One true love', value: chain.worstOffender },
           { emoji: '📊', label: 'Of all orders', value: `${chain.percentage}%` },
@@ -114,7 +111,7 @@ export function getArchetype(
         name: 'The Caffeine Fiend',
         emoji: '☕',
         tagline: 'Blood type: cold brew.',
-        gradient: 'mango',
+        gradient: 'amber',
         traits: [
           { emoji: '☕', label: 'Coffee runs', value: `${coffee.orderCount}` },
           { emoji: '💸', label: 'Spent on caffeine', value: formatCurrency(coffee.totalSpent) },
@@ -156,7 +153,7 @@ export function getArchetype(
         name: 'The Weekend Warrior',
         emoji: '🎉',
         tagline: 'Mon–Fri responsible. Sat–Sun feral.',
-        gradient: 'sunrise',
+        gradient: 'berry',
         traits: [
           { emoji: '🥳', label: 'Weekend orders', value: `${weekend.weekendOrders}` },
           { emoji: '💰', label: 'Weekend spend', value: formatCurrency(weekend.weekendSpending) },
@@ -196,7 +193,7 @@ export function getArchetype(
         name: 'The Solo Snacker',
         emoji: '🤏',
         tagline: 'One item. Full delivery fee. No regrets.',
-        gradient: 'mint',
+        gradient: 'forest',
         traits: [
           { emoji: '🥡', label: 'Single-item orders', value: `${solo.count}` },
           { emoji: '⭐', label: 'Usual suspect', value: solo.mostCommon },
@@ -214,7 +211,7 @@ export function getArchetype(
       name: 'The Whale',
       emoji: '🐋',
       tagline: 'Single-handedly keeping delivery apps profitable.',
-      gradient: 'amethyst',
+      gradient: 'indigo',
       traits: compact([
         { emoji: '💸', label: 'Total damage', value: formatCurrency(analytics.totalSpent) },
         { emoji: '📦', label: 'Total orders', value: `${analytics.totalReceipts}` },
@@ -238,7 +235,7 @@ export function getArchetype(
     name: 'The Casual Craver',
     emoji: '🍟',
     tagline: 'Balanced. Reasonable. Suspiciously well-adjusted.',
-    gradient: 'tangerine',
+    gradient: 'amber',
     traits: compact([
       { emoji: '📦', label: 'Total orders', value: `${analytics.totalReceipts}` },
       { emoji: '💸', label: 'Total spent', value: formatCurrency(analytics.totalSpent) },

@@ -32,20 +32,20 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
       useNativeDriver: true,
     }).start();
 
-    // After 1.5 seconds, fade to white then complete
+    // Brief drumroll, then fade toward the journey's opening forest gradient
+    // (no white flash between the loader and the first slide).
     const timer = setTimeout(() => {
       Animated.sequence([
-        // Fade loader to white
         Animated.timing(whiteFadeAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 400,
           useNativeDriver: true,
-        }),        // Hold white for a moment
-        Animated.delay(200),
+        }),
+        Animated.delay(120),
       ]).start(() => {
         onComplete();
       });
-    }, 1500);
+    }, 900);
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,7 +147,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'white',
+    // First stop of the wrapped 'forest' gradient — the journey's opening slide.
+    backgroundColor: '#0E2A1F',
   },
 });
 

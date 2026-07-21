@@ -2,10 +2,19 @@
  * Reusable presentation effects for Wrapped slides: count-up numbers,
  * the animated nebula background, and layout spacers.
  */
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Text, View, Animated, Easing, StyleSheet } from 'react-native';
+import React, { useState, useRef, useCallback, useContext, useEffect } from 'react';
+import { Text, View, Animated, Easing, StyleSheet, AccessibilityInfo } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import Svg, { Defs, RadialGradient as SvgRadialGradient, Rect, Stop } from 'react-native-svg';
 import { COUNT_UP_DURATION, screenWidth, screenHeight } from './wrappedTheme';
+
+/**
+ * True inside the off-screen share render. Effects consult this to render
+ * their settled state immediately (final count value, frozen background) so a
+ * ViewShot capture is correct no matter when it fires.
+ */
+export const WrappedStaticRenderContext = React.createContext(false);
 
 /**
  * Animated count-up for hero stats — the number ticks from 0 to its final
@@ -26,6 +35,7 @@ export const AnimatedCount = ({
   numberOfLines?: number;
   adjustsFontSizeToFit?: boolean;
 }) => {
+  const isStaticRender = useContext(WrappedStaticRenderContext);
   const fmt = useCallback(
     (n: number) => (format ? format(n) : String(Math.round(n))),
     [format]
@@ -33,6 +43,10 @@ export const AnimatedCount = ({
   const [text, setText] = useState(() => fmt(value));
 
   useEffect(() => {
+    if (isStaticRender) {
+      setText(fmt(value));
+      return;
+    }
     // Lightweight stepped count-up: ~22fps via setTimeout (no Animated value,
     // no per-frame listener) and we only re-render when the formatted string
     // actually changes. Keeps the JS thread free so taps stay responsive.
@@ -58,7 +72,7 @@ export const AnimatedCount = ({
     setText(fmt(0));
     tick();
     return () => clearTimeout(timer);
-  }, [value, fmt]);
+  }, [value, fmt, isStaticRender]);
 
   return (
     <Text style={style} numberOfLines={numberOfLines} adjustsFontSizeToFit={adjustsFontSizeToFit}>
@@ -67,11 +81,28 @@ export const AnimatedCount = ({
   );
 };
 
-export const AnimatedBackground = ({ children }: { children: React.ReactNode }) => {
+export const AnimatedBackground = ({
+  children,
+  width = screenWidth,
+  height = screenHeight,
+}: {
+  children: React.ReactNode;
+  width?: number;
+  height?: number;
+}) => {
+  const isStaticRender = useContext(WrappedStaticRenderContext);
+  const reduceMotion = useReducedMotion();
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     animatedValue.setValue(0);
+
+    // Static share render: keep the nebula frozen at its resting frame — no
+    // loop to burn GPU on a view that exists only to be screenshotted.
+    // Reduced motion: same freeze, by user preference.
+    if (isStaticRender || reduceMotion) {
+      return;
+    }
 
     const animation = Animated.loop(
       Animated.sequence([
@@ -92,7 +123,7 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
     animation.start();
 
     return () => animation.stop();
-  }, [animatedValue]);
+  }, [animatedValue, isStaticRender, reduceMotion]);
 
   // Movement 1: Diagonally up-left and back
   const translate1 = animatedValue.interpolate({
@@ -127,25 +158,25 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
   });
 
   return (
-    <View style={[{ width: screenWidth, height: screenHeight, overflow: 'hidden' }]}>
-      {/* Background Base - Deep Vivid Purple/Blue */}
+    <View style={[{ width, height, overflow: 'hidden' }]}>
+      {/* Background base — deep forest, matching the brand anchor gradient */}
       <LinearGradient
-        colors={['#2E1E62', '#4B1057', '#C86B33']}
+        colors={['#0B1F16', '#16382A', '#1F4E3A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Moving Overlay 1 - Pink/Orange Nebula */}
+      {/* Moving Overlay 1 - Gold glow */}
       <Animated.View
         style={[
           {
             position: 'absolute',
-            width: screenWidth * LAYER_SIZE,
-            height: screenHeight * LAYER_SIZE,
-            left: -screenWidth * LAYER_OFFSET,
-            top: -screenHeight * LAYER_OFFSET,
-            opacity: 0.7,
+            width: width * LAYER_SIZE,
+            height: height * LAYER_SIZE,
+            left: -width * LAYER_OFFSET,
+            top: -height * LAYER_OFFSET,
+            opacity: 0.55,
             transform: [
               { translateY: translate1 },
               { translateX: translate1 },
@@ -156,23 +187,23 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#FF00CC', 'transparent']}
+          colors={['transparent', '#E8B33C', 'transparent']}
           start={{ x: 0.3, y: 0 }}
           end={{ x: 0.7, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
 
-      {/* Moving Overlay 2 - Cyan/Blue Aqua */}
+      {/* Moving Overlay 2 - Accent-green aurora */}
       <Animated.View
         style={[
           {
             position: 'absolute',
-            width: screenWidth * LAYER_SIZE,
-            height: screenHeight * LAYER_SIZE,
-            left: -screenWidth * LAYER_OFFSET,
-            top: -screenHeight * LAYER_OFFSET,
-            opacity: 0.6,
+            width: width * LAYER_SIZE,
+            height: height * LAYER_SIZE,
+            left: -width * LAYER_OFFSET,
+            top: -height * LAYER_OFFSET,
+            opacity: 0.5,
             transform: [
               { translateY: translate2 },
               { scale: 1.2 },
@@ -182,23 +213,23 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#00FFFF', 'transparent']}
+          colors={['transparent', '#73B84A', 'transparent']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
 
-      {/* Moving Overlay 3 - Gold Light */}
+      {/* Moving Overlay 3 - Mascot-cream light */}
       <Animated.View
         style={[
           {
             position: 'absolute',
-            width: screenWidth * LAYER_SIZE,
-            height: screenHeight * LAYER_SIZE,
-            left: -screenWidth * LAYER_OFFSET,
-            top: -screenHeight * LAYER_OFFSET,
-            opacity: 0.5,
+            width: width * LAYER_SIZE,
+            height: height * LAYER_SIZE,
+            left: -width * LAYER_OFFSET,
+            top: -height * LAYER_OFFSET,
+            opacity: 0.35,
             transform: [
               { scale: scale },
             ],
@@ -206,7 +237,7 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#FFD700', 'transparent']}
+          colors={['transparent', '#FFE8C6', 'transparent']}
           start={{ x: 0.8, y: 0.8 }}
           end={{ x: 0.2, y: 0.2 }}
           style={StyleSheet.absoluteFill}
@@ -218,6 +249,165 @@ export const AnimatedBackground = ({ children }: { children: React.ReactNode }) 
         {children}
       </View>
     </View>
+  );
+};
+
+/**
+ * Soft radial glow rendered behind the hero content on climactic slides
+ * (intro, The Damage, archetype, finale). Pure decoration — no touches.
+ */
+export const HeroGlow = ({
+  size = Math.round(screenWidth * 1.15),
+  color = '#FFFFFF',
+  opacity = 0.22,
+}: {
+  size?: number;
+  color?: string;
+  opacity?: number;
+}) => (
+  <Svg width={size} height={size} pointerEvents="none">
+    <Defs>
+      <SvgRadialGradient id="heroGlow" cx="50%" cy="50%" r="50%">
+        <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
+        <Stop offset="65%" stopColor={color} stopOpacity={opacity * 0.35} />
+        <Stop offset="100%" stopColor={color} stopOpacity={0} />
+      </SvgRadialGradient>
+    </Defs>
+    <Rect width={size} height={size} fill="url(#heroGlow)" />
+  </Svg>
+);
+
+/**
+ * Tracks the OS "reduce motion" setting. Consumers swap springs/spins/confetti
+ * for simple crossfades when it's on.
+ */
+export const useReducedMotion = (): boolean => {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => {
+        if (mounted) {
+          setReduced(value);
+        }
+      })
+      .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  return reduced;
+};
+
+/**
+ * Fades content in (with a small rise) after a delay — used to land the roast
+ * punchline a beat after the hero number. Layout space is reserved from the
+ * start so nothing jumps. Static share renders show it immediately.
+ */
+export const DelayedFadeIn = ({
+  delay = 700,
+  children,
+}: {
+  delay?: number;
+  children: React.ReactNode;
+}) => {
+  const isStaticRender = useContext(WrappedStaticRenderContext);
+  const reduceMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    if (isStaticRender) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [delay, isStaticRender, opacity, translateY]);
+
+  if (isStaticRender) {
+    return <>{children}</>;
+  }
+
+  return (
+    <Animated.View
+      style={{
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        opacity,
+        transform: [{ translateY: reduceMotion ? 0 : translateY }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+};
+
+/**
+ * Two-beat "drumroll" reveal for the archetype: content is invisible (but
+ * space-reserving) for `delay`, then slams in from oversized scale with a
+ * success haptic. Reduced motion gets a plain fade; static renders skip it all.
+ */
+export const DelayedSlam = ({
+  delay = 900,
+  hapticOnReveal = false,
+  onReveal,
+  children,
+}: {
+  delay?: number;
+  hapticOnReveal?: boolean;
+  onReveal?: () => void;
+  children: React.ReactNode;
+}) => {
+  const isStaticRender = useContext(WrappedStaticRenderContext);
+  const reduceMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1.6)).current;
+  const onRevealRef = useRef(onReveal);
+  onRevealRef.current = onReveal;
+
+  useEffect(() => {
+    if (isStaticRender) {
+      opacity.setValue(1);
+      scale.setValue(1);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (hapticOnReveal) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      onRevealRef.current?.();
+      if (reduceMotion) {
+        scale.setValue(1);
+        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        return;
+      }
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 6, tension: 140, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [delay, hapticOnReveal, isStaticRender, reduceMotion, opacity, scale]);
+
+  if (isStaticRender) {
+    return <>{children}</>;
+  }
+
+  return (
+    <Animated.View style={{ alignSelf: 'stretch', alignItems: 'center', opacity, transform: [{ scale }] }}>
+      {children}
+    </Animated.View>
   );
 };
 

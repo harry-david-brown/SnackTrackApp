@@ -32,7 +32,15 @@ export default {
             : undefined
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-media-library",
+        {
+          // Save-only access for "Save to Photos" in the Wrapped share journey.
+          savePhotosPermission: "SnackTrack saves your Wrapped cards to your photo library.",
+          isAccessMediaLocationEnabled: false
+        }
+      ]
     ],
     ios: {
       supportsTablet: false,

@@ -1,7 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  useFonts,
+  Fredoka_500Medium,
+  Fredoka_600SemiBold,
+  Fredoka_700Bold,
+} from '@expo-google-fonts/fredoka';
 import { useUser } from '../../contexts/UserContext';
 import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
@@ -16,6 +22,13 @@ const hasWrappedData = (summary: UserSummary | null | undefined): summary is Use
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
 
 export default function WrappedJourneyScreen() {
+  // Wrapped display typography (Fredoka). Loaded here so the journey never
+  // renders with fallback system fonts.
+  const [fontsLoaded] = useFonts({
+    Fredoka_500Medium,
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+  });
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const {
     shouldShowWrappedSlide,
@@ -126,7 +139,44 @@ export default function WrappedJourneyScreen() {
       });
   }, [state.analytics, state.user, setGlobalAnalytics]);
 
-  if (isLoading) {
+  // Stable handler identities — WrappedShareJourney memoizes its slide deck on
+  // these, and inline arrows were rebuilding it (and re-firing entrance
+  // animations) on every re-render of this screen.
+  const handleExportUpsellSeen = useCallback(() => {
+    void markSeen('wrapped');
+  }, [markSeen]);
+
+  const handleExportUpgrade = useCallback(() => {
+    void markClicked();
+    router.push({
+      pathname: '/(tabs)/upload',
+      params: {
+        focus: 'export',
+      },
+    });
+  }, [markClicked]);
+
+  const handleExportTutorial = useCallback(() => {
+    void markClicked();
+    router.push({
+      pathname: '/(tabs)/upload',
+      params: {
+        focus: 'export',
+        showExportTutorial: 'true',
+      },
+    });
+  }, [markClicked]);
+
+  const handleDismissExportUpsell = useCallback(() => {
+    void dismiss();
+    router.replace('/(tabs)');
+  }, [dismiss]);
+
+  const handleClose = useCallback(() => {
+    router.replace('/(tabs)');
+  }, []);
+
+  if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2E7D4F" />
@@ -171,33 +221,11 @@ export default function WrappedJourneyScreen() {
         key={loadTimestamp}
         analytics={analytics}
         showExportUpsell={shouldShowWrappedSlide}
-        onExportUpsellSeen={() => {
-          void markSeen('wrapped');
-        }}
-        onExportUpgrade={() => {
-          void markClicked();
-          router.push({
-            pathname: '/(tabs)/upload',
-            params: {
-              focus: 'export',
-            },
-          });
-        }}
-        onExportTutorial={() => {
-          void markClicked();
-          router.push({
-            pathname: '/(tabs)/upload',
-            params: {
-              focus: 'export',
-              showExportTutorial: 'true',
-            },
-          });
-        }}
-        onDismissExportUpsell={() => {
-          void dismiss();
-          router.replace('/(tabs)');
-        }}
-        onClose={() => router.replace('/(tabs)')}
+        onExportUpsellSeen={handleExportUpsellSeen}
+        onExportUpgrade={handleExportUpgrade}
+        onExportTutorial={handleExportTutorial}
+        onDismissExportUpsell={handleDismissExportUpsell}
+        onClose={handleClose}
       />
     </Suspense>
   );

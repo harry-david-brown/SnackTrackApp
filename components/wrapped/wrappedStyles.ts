@@ -1,6 +1,7 @@
 /** Styles for the Wrapped share journey (slides, chrome, share frame). */
 import { StyleSheet } from 'react-native';
 import {
+  WRAPPED_FONTS,
   SAFE_TOP,
   SAFE_BOTTOM,
   SAFE_SIDE,
@@ -8,6 +9,8 @@ import {
   BIG_STAT_SIZE,
   TITLE_SIZE,
   SUBTITLE_SIZE,
+  SHARE_FRAME_W,
+  SHARE_FRAME_H,
   screenWidth,
   screenHeight,
 } from './wrappedTheme';
@@ -36,6 +39,34 @@ export const styles = StyleSheet.create({
   },
   shareIconButton: {
     right: 16,
+  },
+  saveIconButton: {
+    right: 64,
+  },
+  // Cream pill anchored bottom-right on the archetype/summary slides — chrome
+  // layer only, never part of the captured share image.
+  shareCtaButton: {
+    position: 'absolute',
+    right: SAFE_SIDE,
+    zIndex: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 232, 198, 0.96)',
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  shareCtaText: {
+    color: '#222222',
+    fontFamily: WRAPPED_FONTS.display,
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
   progressRail: {
     position: 'absolute',
@@ -75,12 +106,14 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },
+  // Off-screen 9:16 render used for every share/save capture — never animated,
+  // so a screenshot is correct no matter when it fires.
   hiddenShareShot: {
     position: 'absolute',
-    left: -screenWidth * 2,
+    left: -SHARE_FRAME_W * 2,
     top: 0,
-    width: screenWidth,
-    height: screenHeight,
+    width: SHARE_FRAME_W,
+    height: SHARE_FRAME_H,
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },
@@ -110,14 +143,21 @@ export const styles = StyleSheet.create({
     left: SAFE_SIDE,
     // `bottom` is set inline from safe-area insets
   },
+  watermarkLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  watermarkLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+  },
   watermarkText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '700',
+    color: 'rgba(255,255,255,0.78)',
+    fontFamily: WRAPPED_FONTS.medium,
     fontSize: 13,
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   tapZone: {
     position: 'absolute',
@@ -125,13 +165,15 @@ export const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 40,
   },
+  // Stories convention: back is the left third, forward is everything else —
+  // no dead zone in the middle.
   tapZoneLeft: {
     left: 0,
     width: '35%',
   },
   tapZoneRight: {
     right: 0,
-    width: '35%',
+    width: '65%',
   },
   emoji: {
     fontSize: EMOJI_SIZE,
@@ -143,21 +185,30 @@ export const styles = StyleSheet.create({
   mascotHero: {
     marginBottom: 20,
   },
+  // Slide emoji demoted from 92px hero to a small badge on the mascot's hip.
+  mascotEmojiBadge: {
+    position: 'absolute',
+    right: -14,
+    bottom: -4,
+    fontSize: 30,
+  },
+  glowWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
     fontSize: TITLE_SIZE,
-    fontWeight: '800',
+    fontFamily: WRAPPED_FONTS.display,
     color: 'white',
     textAlign: 'center',
     marginBottom: 8,
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   subtitle: {
     fontSize: SUBTITLE_SIZE,
-    lineHeight: SUBTITLE_SIZE + 4,
-    fontWeight: '700',
+    lineHeight: SUBTITLE_SIZE + 6,
+    fontFamily: WRAPPED_FONTS.medium,
     color: 'white',
     textAlign: 'center',
     marginBottom: 8,
@@ -171,28 +222,30 @@ export const styles = StyleSheet.create({
   },
   slideTitle: {
     fontSize: 30,
-    fontWeight: '800',
+    fontFamily: WRAPPED_FONTS.display,
     color: 'white',
     textAlign: 'center',
     marginBottom: 18,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
     paddingHorizontal: 16,
-    textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   bigNumber: {
     fontSize: BIG_STAT_SIZE,
-    fontWeight: '900',
+    fontFamily: WRAPPED_FONTS.displayBold,
+    fontVariant: ['tabular-nums'],
     color: 'white',
     textAlign: 'center',
     marginBottom: 6,
     paddingHorizontal: 12,
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
+  },
+  // Oversized, tilted hero number — the "bleed" variant for small-integer
+  // stats (streak days, 3am orders). Not for currency: long strings would clip.
+  bigNumberBleed: {
+    fontSize: Math.round(BIG_STAT_SIZE * 1.45),
+    lineHeight: Math.round(BIG_STAT_SIZE * 1.6),
+    transform: [{ rotate: '-4deg' }],
   },
   bigNumberLabel: {
     fontSize: 18,
@@ -200,9 +253,6 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     letterSpacing: 0.2,
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
   detailBox: {
     backgroundColor: 'rgba(0,0,0,0.25)',
@@ -222,18 +272,22 @@ export const styles = StyleSheet.create({
     marginVertical: 3,
     opacity: 0.95
   },
+  // The roast is the punchline — a tilted mascot-cream sticker so it reads as
+  // its own voice instead of another bold white block.
   roastText: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-    color: 'white',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: WRAPPED_FONTS.medium,
+    color: '#222222',
     textAlign: 'center',
-    marginTop: 12,
-    paddingHorizontal: 16,
-    maxWidth: Math.min(520, screenWidth * 0.9),
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    maxWidth: Math.min(520, screenWidth * 0.88),
+    backgroundColor: 'rgba(255, 232, 198, 0.95)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    transform: [{ rotate: '-1.5deg' }],
   },
   logoImage: {
     width: EMOJI_SIZE * 1.2,
@@ -251,14 +305,11 @@ export const styles = StyleSheet.create({
   },
   savingsAmount: {
     fontSize: BIG_STAT_SIZE,
-    fontWeight: '900',
+    fontFamily: WRAPPED_FONTS.displayBold,
     color: 'white',
     textAlign: 'center',
     marginBottom: 0,
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
   },
   savingsLabel: {
     fontSize: 18,
@@ -378,11 +429,8 @@ export const styles = StyleSheet.create({
   },
   bentoValue: {
     fontSize: 32,
-    fontWeight: '800',
+    fontFamily: WRAPPED_FONTS.display,
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   summaryFooter: {
     fontSize: 14,
@@ -395,7 +443,7 @@ export const styles = StyleSheet.create({
   },
   archetypeKicker: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: WRAPPED_FONTS.medium,
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
     letterSpacing: 1.2,
@@ -404,15 +452,12 @@ export const styles = StyleSheet.create({
   },
   archetypeName: {
     fontSize: Math.min(52, Math.max(40, Math.round(screenWidth * 0.13))),
-    fontWeight: '900',
+    fontFamily: WRAPPED_FONTS.displayBold,
     color: 'white',
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: 12,
     paddingHorizontal: 8,
-    textShadowColor: 'rgba(0,0,0,0.4)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 12,
   },
   archetypeTagline: {
     fontSize: 19,
@@ -423,9 +468,6 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 12,
     maxWidth: Math.min(480, screenWidth * 0.85),
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
   archetypeTraits: {
     width: '100%',

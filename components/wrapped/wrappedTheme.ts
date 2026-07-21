@@ -18,57 +18,89 @@ export const BIG_STAT_SIZE = Math.min(84, Math.max(60, Math.round(screenWidth * 
 export const TITLE_SIZE = Math.min(46, Math.max(38, Math.round(screenWidth * 0.12)));
 export const SUBTITLE_SIZE = Math.min(32, Math.max(26, Math.round(screenWidth * 0.085)));
 
-// Story export size (1080x1920) - reserved for future export functionality
-// const EXPORT_W = 1080;
-// const EXPORT_H = 1920;
+// Story export size — shared images are always rendered at 9:16 and captured
+// at these pixel dimensions, regardless of device screen size/aspect.
+export const EXPORT_W = 1080;
+export const EXPORT_H = 1920;
+
+// Logical layout size for the off-screen share render: full screen width (so
+// all the screenWidth-derived type scales stay correct) at a 9:16 aspect.
+export const SHARE_FRAME_W = screenWidth;
+export const SHARE_FRAME_H = Math.round(screenWidth * (16 / 9));
 
 
-// Curated gradients tuned for share compression
+/**
+ * Wrapped event palette — a SnackTrack "event skin" derived from the Green
+ * Forest brand (docs/design-system.md), not a generic template rainbow.
+ *
+ * Rules:
+ * - Every gradient is a deep jewel tone: white text passes contrast on all of
+ *   them, everywhere, so slides never need per-gradient ink colors.
+ * - `forest` is the brand anchor — intro, finale, and upsell slides wear it so
+ *   shared screenshots are recognizably SnackTrack.
+ * - Color carries the narrative: hot tones (ember/berry) for shame slides,
+ *   cool tones (indigo/lagoon) for flex, warm amber for money/patterns.
+ * - Each gradient has its own axis so the deck doesn't feel like one template.
+ */
 export const STORY_GRADIENTS = {
-  amethyst: {
-    colors: ['#6E61FF', '#B960FF', '#9E3EFF'],
-    locations: [0, 0.52, 1],
+  // Brand anchor — intro, "That's Your Year", upsell.
+  forest: {
+    colors: ['#0E2A1F', '#1F4E3A', '#2E7D4F'],
+    locations: [0, 0.55, 1],
+    start: { x: 0, y: 0 },
+    end: { x: 1, y: 1 },
   },
-  flamingo: {
-    colors: ['#FF6B6B', '#FF7FA0', '#EE5A6F'],
-    locations: [0, 0.52, 1],
+  // Hot: the roast/shame slides.
+  ember: {
+    colors: ['#6E1B10', '#A83220', '#D14E2A'],
+    locations: [0, 0.5, 1],
+    start: { x: 0.5, y: 0 },
+    end: { x: 0.5, y: 1 },
   },
-  sunrise: {
-    colors: ['#FA709A', '#FF9E6E', '#FEE140'],
-    locations: [0, 0.52, 1],
+  berry: {
+    colors: ['#4E152E', '#8C2450', '#B93A66'],
+    locations: [0, 0.5, 1],
+    start: { x: 1, y: 0 },
+    end: { x: 0, y: 1 },
   },
-  tangerine: {
-    colors: ['#FF9966', '#FF7F6A', '#FF5E62'],
-    locations: [0, 0.52, 1],
+  // Cool: the flex slides.
+  indigo: {
+    colors: ['#1F1B4E', '#3A3688', '#5551BC'],
+    locations: [0, 0.5, 1],
+    start: { x: 0, y: 0.1 },
+    end: { x: 1, y: 0.9 },
   },
   lagoon: {
-    colors: ['#4FACFE', '#29D1FE', '#00F2FE'],
-    locations: [0, 0.52, 1],
+    colors: ['#0C333B', '#146068', '#1F8E8A'],
+    locations: [0, 0.5, 1],
+    start: { x: 0, y: 1 },
+    end: { x: 1, y: 0 },
   },
-  orchid: {
-    colors: ['#A18CD1', '#D6A6E3', '#FBC2EB'],
-    locations: [0, 0.52, 1],
+  // Warm: money & patterns.
+  amber: {
+    colors: ['#5C350C', '#9A611A', '#C68A26'],
+    locations: [0, 0.55, 1],
+    start: { x: 0.2, y: 0 },
+    end: { x: 0.8, y: 1 },
   },
-  mango: {
-    colors: ['#FFEAA7', '#FFD890', '#FDCB6E'],
-    locations: [0, 0.52, 1],
-  },
-  ember: {
-    colors: ['#FA8231', '#F99A4A', '#F9B15D'],
-    locations: [0, 0.52, 1],
-  },
-  mint: {
-    colors: ['#C1DFC4', '#D1E7CF', '#DEECDD'],
-    locations: [0, 0.52, 1],
-  },
-  cotton: {
-    colors: ['#A8EDEA', '#D7F1EF', '#FED6E3'],
-    locations: [0, 0.52, 1],
-  },
-  hellofresh: {
-    colors: ['#99CC33', '#85C442', '#6FB04F'],
-    locations: [0, 0.52, 1],
-  },
+} as const;
+
+/** Confetti tuned to the brand — greens, gold, and mascot cream. */
+export const CONFETTI_COLORS = ['#73B84A', '#58C26D', '#F0C25C', '#FFE8C6', '#FFFFFF'];
+
+/** Accent colors for the summary bento values (on dark glass cards). */
+export const BENTO_ACCENTS = {
+  spend: '#FFE8C6', // mascot cream
+  orders: '#F0C25C', // gold
+  topSpot: '#8FD0C0', // lagoon tint
+  faveMeal: '#A9D98B', // accent-green tint
+} as const;
+
+/** Display font families (Fredoka, loaded via expo-font in wrapped-journey). */
+export const WRAPPED_FONTS = {
+  display: 'Fredoka_600SemiBold',
+  displayBold: 'Fredoka_700Bold',
+  medium: 'Fredoka_500Medium',
 } as const;
 
 export const STORY_SLIDE_DURATION = 6500;
