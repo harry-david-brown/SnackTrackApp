@@ -8,7 +8,7 @@
 
 Turn the existing slideshow into a clearly labeled **lifetime delivery audit** that:
 
-- uses the user's complete imported receipt history;
+- uses all receipt data currently available to SnackTrack;
 - **states its actual data coverage rather than implying total omniscience**;
 - tells a coherent story from lifetime totals to habits to personality;
 - feels specific, audacious, and polarizing enough to prompt conversation and sharing;
@@ -20,10 +20,10 @@ Turn the existing slideshow into a clearly labeled **lifetime delivery audit** t
 
 | Question | Decision |
 |---|---|
-| Data-coverage framing | **State the real window.** Cold open names actual coverage ("312 orders. Since March 2023."). Copy says "what you've imported", never "complete history" — **unless** the user has completed a full export, in which case the language upgrades to completeness. Coverage-aware, not fixed. |
+| Data-coverage framing | **State the real window.** Cold open names actual coverage ("312 imported orders. March 2023–July 2026."). Copy always describes the data in SnackTrack; an export expands the stated coverage but never upgrades it to a claim of completeness. |
 | Feature name | **"The Lifetime Damage"**, but the displayed title is **tiered by lifetime spend** (see Phase 1). Baseline/product name stays "The Lifetime Damage". |
 | Category taxonomy | **Split** `extreme-moment` and `pattern` into separate categories → **10-slide deck**. Within each category, pick the candidate that is *most shocking for that user's data*. |
-| Percentiles | **Keep them.** Never display the sample size. Pill stays hidden below the minimum-pool gate. |
+| Percentiles | **Keep and expand them, but gate them conservatively.** Never display a percentile until its qualifying production cohort contains at least 100 users. Preserve the system for future restaurant, menu-item, timing, and behavioral comparisons. |
 | Tone targets | **Add a `tone` tag** to messages so the 45/25/20/10 distribution is measurable and CI-enforceable. |
 | Archetype exit | **"Done" button that doubles as the post-deck offer transition** — the promo becomes a user choice, not an interruption. |
 | Repeat value | **Track repeat-view metrics**; keep yearly deferred. Known tradeoff, measured before committing to yearly. |
@@ -31,7 +31,7 @@ Turn the existing slideshow into a clearly labeled **lifetime delivery audit** t
 ## Success criteria
 
 - [ ] No visible copy implies that the lifetime deck covers only the current year.
-- [ ] No visible copy claims complete history for users whose import is known to be partial.
+- [ ] No visible copy claims that SnackTrack's data is exhaustive or extends beyond the stated imported coverage window.
 - [ ] Every statistic in the deck is either lifetime-scoped or explicitly labeled otherwise.
 - [ ] A rich-data deck contains no more than **10** slides before any post-deck promotion.
 - [ ] Optional slides are selected by editorial category, not by one global intensity ranking.
@@ -102,12 +102,13 @@ Slides 3–8 are conditional. A sparse deck should collapse cleanly without disp
 
 ### Coverage-aware framing
 
-The export upsell exists because Gmail imports miss older orders. The deck must not claim completeness the data doesn't support.
+The export upsell exists because Gmail imports miss older orders. Neither Gmail nor an uploaded provider export proves that SnackTrack contains every delivery order the user has ever made.
 
 - [ ] Derive a **coverage descriptor** from the receipt set: earliest receipt date and total order count.
-- [ ] Cold open states real coverage — e.g. `312 orders. Since March 2023.` — rather than claiming a complete history.
+- [ ] Cold open states real coverage — e.g. `312 imported orders. March 2023–July 2026.` — rather than claiming an exhaustive history.
 - [ ] Use "what you've imported" phrasing wherever scope is described.
-- [ ] **When the user has completed a full export**, upgrade the language to completeness framing ("your complete delivery history").
+- [ ] When an export has been uploaded, acknowledge the stronger source without claiming completeness — e.g. `Includes your uploaded Uber export.`
+- [ ] Treat `hasCompletedExport` as an export/upsell state only, not as proof that the user's historical coverage is exhaustive.
 - [ ] Expose the coverage state so copy, a11y, and share images all agree.
 - [ ] Re-check the deck after an import completes so the framing updates rather than going stale.
 
@@ -202,7 +203,7 @@ type SlideCategory =
 - [ ] Do not show multiple slides whose primary punchline is the same lifetime spending total.
 - [ ] Avoid a Chain Dependency slide immediately followed by a Top 5 dominated by the same chain.
 - [ ] Avoid a Coffee Addiction slide when it is supported by too few orders to feel like a real pattern.
-- [ ] Avoid a percentile pill when the comparison pool is too small to be credible.
+- [ ] Avoid a percentile pill when its cohort fails the eligibility rules in Phase 7 (single source of truth for the threshold).
 
 ### Selection tests (land with this phase, not Phase 9)
 
@@ -312,22 +313,49 @@ Cutting `This Year`, the reveal-setup totals, and unselected slides orphans a lo
 
 ## Phase 7 — Analytics and credibility
 
-- [ ] Confirm every lifetime slide uses the complete intended receipt dataset.
+- [ ] Confirm every lifetime slide uses all applicable receipt data currently available to SnackTrack.
 - [ ] Document which providers or receipt types are excluded from each metric.
 - [ ] Define minimum sample sizes for coffee, chain, timing, and other inferred habits.
 - [ ] Confirm Top 5 aggregation normalizes restaurant naming consistently.
 - [ ] Confirm the timeline communicates that it displays recent months while the headline totals remain lifetime.
-- [ ] Confirm imported historical gaps do not produce claims that imply complete coverage (see Phase 1 coverage framing).
+- [ ] Confirm imported historical gaps do not produce claims that imply exhaustive coverage (see Phase 1 coverage framing).
 
 ### Percentiles
 
-Keeping percentiles; the pool gate does the credibility work silently.
+Keeping percentiles because they have strong potential beyond broad spend and order counts—for example, restaurant loyalty, specific menu items, ordering times, delivery-fee behavior, and other recognizable habits. The cohort gate does the credibility work silently.
+
+#### Display rules
 
 - [ ] Keep percentile pills in the lifetime deck.
 - [ ] **Never display the sample size** — surfacing "of 8 users" advertises that the comparison is meaningless.
-- [ ] Keep the pill hidden entirely when the pool is below `PERCENTILE_MIN_SAMPLE` (currently 5 in `WrappedAnalyticsService`).
-- [ ] Revisit the threshold as the user base grows; raising it only ever hides the pill, never breaks it.
+- [ ] Raise `PERCENTILE_MIN_SAMPLE` from 5 to **100 qualifying production users** before displaying any percentile.
+- [ ] Return no percentile when the selected metric's qualifying cohort contains fewer than 100 users.
+- [ ] Gate every percentile metric independently; a sufficiently large spending cohort must not automatically enable a thin menu-item cohort.
+- [ ] Add minimum occurrence rules for specific-item percentiles so one accidental purchase cannot create a ranking.
+- [ ] Define stable metric identifiers and cohort rules so new restaurant, menu-item, timing, and behavioral percentiles can be added without changing slide rendering.
+- [ ] Revisit the threshold and cohort definitions as the user base and available metrics grow; changing them should only hide or reveal pills, never break the deck.
+
+#### Cohort eligibility
+
+- [ ] Exclude seed, test, staff, and otherwise non-production accounts from percentile cohorts.
+- [ ] **Add an account-type / internal flag to `users`** — no such column exists today (schema is `id, email, password, email_verified, gmail_*, timezone, created_at, updated_at`), so "exclude non-production accounts" is currently unimplementable.
+- [ ] Backfill the flag for existing accounts and filter every cohort query on it.
+- [ ] Continue requiring each cohort member to meet the metric's minimum data requirements.
 - [ ] Remove the dev seed users (`wrapped-seed-*@example.dev`) before any coverage measurement — cleanup SQL is in `docs/wrapped-slideshow-improvements.md`.
+
+#### Computation strategy
+
+The expanded metric set cannot be computed per request. `calculatePercentiles` today runs a full `GROUP BY user_id` over the entire `receipts` table with window functions on **every** Wrapped request — acceptable at small scale, but restaurant-, item-, and timing-level percentiles multiply it, and item-level requires unnesting the `items` JSONB across every user's full history.
+
+- [ ] Decide where cohort statistics are computed: materialized view, scheduled aggregation job, or summary table.
+- [ ] Move percentile reads off the per-request path so the Wrapped endpoint reads precomputed stats only.
+- [ ] Define refresh cadence and acceptable staleness for cohort statistics.
+- [ ] Confirm cohort computation cost scales with the number of metrics, not with request volume.
+
+#### Validation and privacy
+
+- [ ] Provide a staging cohort or internal override so the ≥100 path can be exercised before the production base reaches 100 — its first real render should not be its first test.
+- [ ] Cohort statistics are **aggregate-only**: a percentile must never expose another user's receipts, items, restaurants, or identity.
 
 ## Phase 8 — Future yearly readiness
 
@@ -355,7 +383,10 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 - [ ] Test that the share card includes lifetime scope.
 - [ ] Test that all accessibility announcements match visible scope.
 - [ ] Test the spend-tier title resolver at every threshold boundary.
-- [ ] Test coverage framing switches to completeness only after a full export.
+- [ ] Test that export coverage framing acknowledges the export without ever claiming exhaustive history.
+- [ ] Test that every percentile remains hidden with 99 or fewer qualifying production users and appears at 100.
+- [ ] Test that percentile cohorts exclude seed/test accounts and apply metric-specific eligibility rules.
+- [ ] Test that percentile reads come from precomputed cohort statistics rather than per-request aggregation.
 - [ ] Test the tone distribution stays within target tolerance.
 - [ ] Add a prohibited-copy regression test for retired medicalized, body-shaming, and financial-status phrases.
 
@@ -418,7 +449,7 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 
 - **Repeat engagement.** A lifetime deck lacks the annual ritual that makes yearly Wrapped inherently re-playable. Accepted for launch; measured via repeat-view metrics above.
 - **Content left on the floor.** One slide per category means several strong candidates go unused per deck. Mitigated by picking the most shocking candidate per user, so unused slides still surface for *someone*.
-- **Percentile credibility.** Pills stay hidden until the pool is large enough, so early users will rarely see them.
+- **Percentiles ship invisible.** With a 100-qualifying-user gate, *no* user sees a percentile until the production base reaches 100 per metric. This is deliberate, but it means the feature is built and released without being visible — plan for it rather than treating it as a bug report.
 
 ## Definition of done
 
