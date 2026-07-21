@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
@@ -21,8 +22,10 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+    // Required for react-native-gesture-handler gestures (Wrapped drag-to-dismiss).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
         <CurrencyProvider>
           <UserProvider>
             <OnboardingProvider>
@@ -61,7 +64,8 @@ export default function RootLayout() {
             </OnboardingProvider>
           </UserProvider>
         </CurrencyProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }

@@ -1,6 +1,6 @@
 # Wrapped Slideshow Improvement Plan
 
-> Status: **Phases 1–3 complete** · Created 2026-07-20 · Phases 1–3 landed 2026-07-20
+> Status: **Phases 1–4 complete** · Created 2026-07-20 · Phases 1–4 landed 2026-07-20
 > Scope: full pass — correctness fixes, design overhaul, Reanimated port, new creative slides, share pipeline.
 
 Source review covered:
@@ -82,10 +82,10 @@ Goal: the deck reads as a **SnackTrack event skin**, not a generic template. See
 
 Reanimated 4 + gesture-handler are already installed but unused here.
 
-- [ ] **Port drag-to-dismiss** from PanResponder + `Animated.setValue` (JS thread, stutters under load) to gesture-handler + Reanimated worklets.
-- [ ] **Port entrance/progress animations** to Reanimated (shared values, UI-thread).
-- [ ] **Drop `key={currentSlide}` on the ViewShot** — forces full slide-tree remount every transition; layout effect already resets values.
-- [ ] Profile the nebula slide on low-end Android after retheme; don't add more `backgroundType: 'animated'` slides without checking overdraw.
+- [x] **Port drag-to-dismiss** from PanResponder + `Animated.setValue` (JS thread, stutters under load) to gesture-handler + Reanimated worklets. (`GestureHandlerRootView` added at the app root in `app/_layout.tsx`.)
+- [x] **Port entrance/progress animations** to Reanimated (shared values, UI-thread).
+- [x] **Drop `key={currentSlide}` on the slide container** — the key moved from the full slide tree down to the inner content view, so gradient/glow/watermark shells stay mounted across transitions while per-slide effects (count-ups, staged reveals) still restart.
+- [ ] *(manual QA)* Profile the nebula slide on low-end Android after retheme; don't add more `backgroundType: 'animated'` slides without checking overdraw.
 
 ## Phase 5 — Creative additions
 

@@ -6,9 +6,6 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
-  Animated,
-  Easing,
-  PanResponder,
   Platform,
   AccessibilityInfo,
 } from 'react-native';
@@ -21,6 +18,18 @@ import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  cancelAnimation,
+  interpolate,
+  Extrapolation,
+  Easing,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { UserSummary } from '../../types/api';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -69,13 +78,18 @@ export default function WrappedShareJourney({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [confettiVisible, setConfettiVisible] = useState(false);
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const slideOpacity = useRef(new Animated.Value(0)).current;
-  const slideTranslateY = useRef(new Animated.Value(28)).current;
-  const slideTranslateX = useRef(new Animated.Value(0)).current;
-  const slideScale = useRef(new Animated.Value(0.97)).current;
-  const slideRotate = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
+
+  // All animation state lives in Reanimated shared values, so entrances, the
+  // progress bar, and the dismiss gesture run entirely on the UI thread.
+  const progress = useSharedValue(0);
+  const slideOpacity = useSharedValue(0);
+  const slideTranslateX = useSharedValue(0);
+  const slideTranslateY = useSharedValue(28);
+  const slideScale = useSharedValue(0.97);
+  const slideRotate = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const isDismissing = useSharedValue(false);
+
   // +1 = moving forward, -1 = going back. Drives the entrance direction.
   const directionRef = useRef<1 | -1>(1);
   // Off-screen share render + captured-image cache (keyed by slide index).
@@ -91,9 +105,6 @@ export default function WrappedShareJourney({
     // Device locale — currency formatting already respects it via CurrencyContext.
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }, []);
-
-  // Build slides dynamically based on available data
-  // Memoized to prevent recalculation on every render
 
   // Slide content is defined in buildWrappedSlides — pure data in, slides out.
   const slides = useMemo(
@@ -188,8 +199,8 @@ export default function WrappedShareJourney({
     // whenever the deck was rebuilt without the slide changing.
     const slide = slidesRef.current[currentSlide];
 
-    progressAnim.stopAnimation();
-    progressAnim.setValue(0);
+    cancelAnimation(progress);
+    progress.value = 0;
 
     // Screen readers hear the slide's stat; visuals alone say nothing.
     if (slide?.a11y) {
@@ -199,29 +210,27 @@ export default function WrappedShareJourney({
     const direction = directionRef.current;
 
     // Always start hidden + reset rotation; per-branch sets the offset.
-    slideOpacity.setValue(0);
-    slideRotate.setValue(0);
+    slideOpacity.value = 0;
+    slideRotate.value = 0;
 
     // Reduced motion: plain crossfade, no springs/spins/slides.
     if (reduceMotion) {
-      slideTranslateX.setValue(0);
-      slideTranslateY.setValue(0);
-      slideScale.setValue(1);
-      Animated.timing(slideOpacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      slideTranslateX.value = 0;
+      slideTranslateY.value = 0;
+      slideScale.value = 1;
+      slideOpacity.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) });
       return;
     }
 
     if (direction === -1) {
       // Going BACK — natural reverse: slide in from the left. Consistent so the
       // gesture always reads as "backward" rather than a random forward entrance.
-      slideTranslateX.setValue(-screenWidth * 0.9);
-      slideTranslateY.setValue(0);
-      slideScale.setValue(0.94);
-      Animated.parallel([
-        Animated.timing(slideOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(slideTranslateX, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }),
-        Animated.spring(slideScale, { toValue: 1, friction: 8, tension: 90, useNativeDriver: true }),
-      ]).start();
+      slideTranslateX.value = -screenWidth * 0.9;
+      slideTranslateY.value = 0;
+      slideScale.value = 0.94;
+      slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      slideTranslateX.value = withSpring(0, { damping: 25, stiffness: 410 });
+      slideScale.value = withSpring(1, { damping: 25, stiffness: 410 });
       return;
     }
 
@@ -230,136 +239,157 @@ export default function WrappedShareJourney({
 
     if (animType === 0) {
       // Spring rise from below
-      slideTranslateY.setValue(60);
-      slideTranslateX.setValue(0);
-      slideScale.setValue(0.88);
-      Animated.parallel([
-        Animated.timing(slideOpacity, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(slideTranslateY, { toValue: 0, friction: 6, tension: 100, useNativeDriver: true }),
-        Animated.spring(slideScale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
-      ]).start();
+      slideTranslateY.value = 60;
+      slideTranslateX.value = 0;
+      slideScale.value = 0.88;
+      slideOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
+      slideTranslateY.value = withSpring(0, { damping: 19, stiffness: 445 });
+      slideScale.value = withSpring(1, { damping: 19, stiffness: 410 });
     } else if (animType === 1) {
       // Zoom blast — scale from huge
-      slideTranslateY.setValue(0);
-      slideTranslateX.setValue(0);
-      slideScale.setValue(1.55);
-      Animated.parallel([
-        Animated.timing(slideOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.spring(slideScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
-      ]).start();
+      slideTranslateY.value = 0;
+      slideTranslateX.value = 0;
+      slideScale.value = 1.55;
+      slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
+      slideScale.value = withSpring(1, { damping: 16, stiffness: 520 });
     } else if (animType === 2) {
       // Slide in from right
-      slideTranslateY.setValue(0);
-      slideTranslateX.setValue(screenWidth * 0.9);
-      slideScale.setValue(0.92);
-      Animated.parallel([
-        Animated.timing(slideOpacity, { toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(slideTranslateX, { toValue: 0, friction: 7, tension: 100, useNativeDriver: true }),
-        Animated.spring(slideScale, { toValue: 1, friction: 7, tension: 100, useNativeDriver: true }),
-      ]).start();
+      slideTranslateY.value = 0;
+      slideTranslateX.value = screenWidth * 0.9;
+      slideScale.value = 0.92;
+      slideOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
+      slideTranslateX.value = withSpring(0, { damping: 22, stiffness: 445 });
+      slideScale.value = withSpring(1, { damping: 22, stiffness: 445 });
     } else {
       // Drop from top with spin
-      slideTranslateY.setValue(-screenHeight * 0.35);
-      slideTranslateX.setValue(0);
-      slideScale.setValue(0.7);
-      slideRotate.setValue(0.08);
-      Animated.parallel([
-        Animated.timing(slideOpacity, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(slideTranslateY, { toValue: 0, friction: 5, tension: 80, useNativeDriver: true }),
-        Animated.spring(slideScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
-        Animated.spring(slideRotate, { toValue: 0, friction: 6, tension: 90, useNativeDriver: true }),
-      ]).start();
+      slideTranslateY.value = -screenHeight * 0.35;
+      slideTranslateX.value = 0;
+      slideScale.value = 0.7;
+      slideRotate.value = 0.08;
+      slideOpacity.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.cubic) });
+      slideTranslateY.value = withSpring(0, { damping: 16, stiffness: 375 });
+      slideScale.value = withSpring(1, { damping: 16, stiffness: 375 });
+      slideRotate.value = withSpring(0, { damping: 19, stiffness: 410 });
     }
-  }, [currentSlide, reduceMotion, progressAnim, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
+  }, [currentSlide, reduceMotion, progress, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
+
+  // Armed with the slide it was scheduled for: the timing callback completes on
+  // the UI thread and can land on the JS queue just after a user navigation —
+  // without the guard, tapping "back" flashed the previous slide and then this
+  // stale advance shoved the deck forward again.
+  const autoAdvance = useCallback((fromSlide: number) => {
+    setCurrentSlide((current) => {
+      if (current !== fromSlide) {
+        return current; // user already navigated; this advance is stale
+      }
+      directionRef.current = 1; // auto-advance always moves forward
+      return Math.min(current + 1, slidesRef.current.length - 1);
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!shouldAutoAdvance) {
-      progressAnim.stopAnimation();
-      progressAnim.setValue(currentSlide === slides.length - 1 ? 1 : 0);
+      cancelAnimation(progress);
+      progress.value = currentSlide === slides.length - 1 ? 1 : 0;
       return;
     }
 
     if (isPaused) {
-      progressAnim.stopAnimation();
+      cancelAnimation(progress);
       return;
     }
 
-    let animation: Animated.CompositeAnimation | null = null;
-
-    progressAnim.stopAnimation((value) => {
-      const slideDuration = slidesRef.current[currentSlide]?.durationMs ?? STORY_SLIDE_DURATION;
-      const remainingDuration = Math.max(300, slideDuration * (1 - value));
-      animation = Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: remainingDuration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      });
-
-      animation.start(({ finished }) => {
-        if (finished) {
-          directionRef.current = 1; // auto-advance always moves forward
-          setCurrentSlide((current) => Math.min(current + 1, slides.length - 1));
-        }
-      });
+    // Resume from wherever the bar stopped (pause keeps partial progress).
+    const slideDuration = slidesRef.current[currentSlide]?.durationMs ?? STORY_SLIDE_DURATION;
+    const remainingDuration = Math.max(300, slideDuration * (1 - progress.value));
+    const armedSlide = currentSlide;
+    progress.value = withTiming(1, { duration: remainingDuration, easing: Easing.linear }, (finished) => {
+      'worklet';
+      if (finished) {
+        runOnJS(autoAdvance)(armedSlide);
+      }
     });
 
-    return () => {
-      animation?.stop();
-    };
-  }, [currentSlide, isPaused, progressAnim, shouldAutoAdvance, slides.length]);
+    return () => cancelAnimation(progress);
+  }, [currentSlide, isPaused, progress, shouldAutoAdvance, slides.length, autoAdvance]);
 
-  // Swipe-down-to-dismiss (Stories/Wrapped convention). Capture-phase responder
-  // only claims clearly-vertical downward drags, so left/right tap navigation
-  // and hold-to-pause keep working untouched.
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_evt, gesture) =>
-        gesture.dy > 12 && gesture.dy > Math.abs(gesture.dx) * 1.5,
-      onPanResponderGrant: () => {
-        setIsPaused(true);
-      },
-      onPanResponderMove: (_evt, gesture) => {
-        dragY.setValue(Math.max(0, gesture.dy));
-      },
-      onPanResponderRelease: (_evt, gesture) => {
-        setIsPaused(false);
-        if (gesture.dy > 140 || gesture.vy > 0.8) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-          Animated.timing(dragY, {
-            toValue: screenHeight,
-            duration: 220,
-            easing: Easing.in(Easing.cubic),
-            useNativeDriver: true,
-          }).start(() => onClose());
-        } else {
-          Animated.spring(dragY, {
-            toValue: 0,
-            friction: 8,
-            tension: 90,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        setIsPaused(false);
-        Animated.spring(dragY, { toValue: 0, friction: 8, tension: 90, useNativeDriver: true }).start();
-      },
-    })
-  ).current;
+  const setPaused = useCallback((paused: boolean) => setIsPaused(paused), []);
+  const fireLightHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+
+  // Swipe-down-to-dismiss (Stories/Wrapped convention). The pan only activates
+  // on clearly-vertical downward drags — horizontal movement or upward drags
+  // fail it — so tap navigation and hold-to-pause keep working untouched.
+  // Runs as a worklet: drag tracking never touches the JS thread.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(12)
+        .failOffsetX([-24, 24])
+        .failOffsetY(-12)
+        .onStart(() => {
+          'worklet';
+          runOnJS(setPaused)(true);
+        })
+        .onUpdate((event) => {
+          'worklet';
+          dragY.value = Math.max(0, event.translationY);
+        })
+        .onEnd((event) => {
+          'worklet';
+          if (event.translationY > 140 || event.velocityY > 800) {
+            isDismissing.value = true;
+            runOnJS(fireLightHaptic)();
+            dragY.value = withTiming(
+              screenHeight,
+              { duration: 220, easing: Easing.in(Easing.cubic) },
+              (finished) => {
+                if (finished) {
+                  runOnJS(onClose)();
+                }
+              }
+            );
+          } else {
+            dragY.value = withSpring(0, { damping: 25, stiffness: 410 });
+          }
+        })
+        .onFinalize(() => {
+          'worklet';
+          runOnJS(setPaused)(false);
+          // Interrupted mid-drag without a dismiss: rubber-band back.
+          if (!isDismissing.value && dragY.value > 0) {
+            dragY.value = withSpring(0, { damping: 25, stiffness: 410 });
+          }
+        }),
+    [dragY, isDismissing, fireLightHaptic, onClose, setPaused]
+  );
 
   // Container shrinks/fades slightly as you drag down — the rubber-band cue
   // that the sheet is dismissible.
-  const dragScale = dragY.interpolate({
-    inputRange: [0, screenHeight],
-    outputRange: [1, 0.85],
-    extrapolate: 'clamp',
-  });
-  const dragOpacity = dragY.interpolate({
-    inputRange: [0, screenHeight * 0.5],
-    outputRange: [1, 0.4],
-    extrapolate: 'clamp',
-  });
+  const dragAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(dragY.value, [0, screenHeight * 0.5], [1, 0.4], Extrapolation.CLAMP),
+    transform: [
+      { translateY: dragY.value },
+      { scale: interpolate(dragY.value, [0, screenHeight], [1, 0.85], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const slideAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: slideOpacity.value,
+    transform: [
+      { translateX: slideTranslateX.value },
+      { translateY: slideTranslateY.value },
+      { scale: slideScale.value },
+      { rotate: `${slideRotate.value * 30}deg` },
+    ],
+  }));
+
+  // Left-anchored scaleX (transformOrigin in the static style) — the per-frame
+  // progress animation lives on the UI thread.
+  const activeProgressStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: progress.value }],
+  }));
 
   // Ensure slides are available before rendering
   if (!slides || slides.length === 0) {
@@ -413,7 +443,7 @@ export default function WrappedShareJourney({
     }
   };
 
-  // The entrance useLayoutEffect resets progressAnim on every slide change, so
+  // The entrance useLayoutEffect resets progress on every slide change, so
   // navigation only needs to flip the index. Haptics fire here (user-initiated
   // taps) rather than on every auto-advance.
   const goToNext = () => {
@@ -431,27 +461,8 @@ export default function WrappedShareJourney({
   // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
   // the device screen) for the off-screen capture.
   const renderSlideInner = (slide: Slide, animatedContent = false, shareFrame = false) => {
-    const content = (
-      <Animated.View
-        style={[
-          styles.slideContent,
-          slide.id === 'export-upsell' && styles.slideContentPromo,
-          animatedContent && {
-            opacity: slideOpacity,
-            transform: [
-              { translateX: slideTranslateX },
-              { translateY: slideTranslateY },
-              { scale: slideScale },
-              {
-                rotate: slideRotate.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0deg', '30deg'],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+    const inner = (
+      <>
         {slide.image ? (
           <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
         ) : slide.mascotPose ? (
@@ -467,7 +478,27 @@ export default function WrappedShareJourney({
         <View style={styles.frame}>
           {slide.content}
         </View>
-      </Animated.View>
+      </>
+    );
+
+    // The live slide keys its *content* by index so per-slide effects
+    // (count-ups, staged reveals) restart on every transition, while the
+    // gradient/glow/watermark shells stay mounted across slides.
+    const content = animatedContent ? (
+      <Reanimated.View
+        key={currentSlide}
+        style={[
+          styles.slideContent,
+          slide.id === 'export-upsell' && styles.slideContentPromo,
+          slideAnimatedStyle,
+        ]}
+      >
+        {inner}
+      </Reanimated.View>
+    ) : (
+      <View style={[styles.slideContent, slide.id === 'export-upsell' && styles.slideContentPromo]}>
+        {inner}
+      </View>
     );
 
     const watermark = (
@@ -521,69 +552,57 @@ export default function WrappedShareJourney({
     );
   };
 
-  // Drive the active segment with a left-anchored scaleX on the native driver,
-  // so the per-frame progress animation never touches the JS thread.
-  const activeProgressScaleX = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
       {/* Slide layer — drags down to dismiss, taps left/right to navigate */}
-      <Animated.View
-        style={[
-          styles.dragLayer,
-          { opacity: dragOpacity, transform: [{ translateY: dragY }, { scale: dragScale }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        {activeSlide && (
-          <View key={currentSlide} style={styles.slideContainer}>
-            {renderSlideInner(activeSlide, true)}
-          </View>
-        )}
+      <GestureDetector gesture={panGesture}>
+        <Reanimated.View style={[styles.dragLayer, dragAnimatedStyle]}>
+          {activeSlide && (
+            <View style={styles.slideContainer}>
+              {renderSlideInner(activeSlide, true)}
+            </View>
+          )}
 
-        {/* Off-screen share render: static (no entrance/count-up/nebula motion),
-            fixed 9:16 frame, captured at 1080x1920 — so shares are always
-            correct and crisp regardless of when the user taps share. */}
-        {shareTargetSlide && (
-          <ViewShot
-            key={`share-${shareTargetIndex}`}
-            ref={hiddenShareShotRef}
-            options={{ format: 'png', quality: 1.0, width: EXPORT_W, height: EXPORT_H }}
-            style={styles.hiddenShareShot}
-          >
-            <WrappedStaticRenderContext.Provider value={true}>
-              {renderSlideInner(shareTargetSlide, false, true)}
-            </WrappedStaticRenderContext.Provider>
-          </ViewShot>
-        )}
+          {/* Off-screen share render: static (no entrance/count-up/nebula motion),
+              fixed 9:16 frame, captured at 1080x1920 — so shares are always
+              correct and crisp regardless of when the user taps share. */}
+          {shareTargetSlide && (
+            <ViewShot
+              key={`share-${shareTargetIndex}`}
+              ref={hiddenShareShotRef}
+              options={{ format: 'png', quality: 1.0, width: EXPORT_W, height: EXPORT_H }}
+              style={styles.hiddenShareShot}
+            >
+              <WrappedStaticRenderContext.Provider value={true}>
+                {renderSlideInner(shareTargetSlide, false, true)}
+              </WrappedStaticRenderContext.Provider>
+            </ViewShot>
+          )}
 
-        {activeSlide?.id !== 'export-upsell' && (
-          <>
-            <Pressable
-              style={[styles.tapZone, styles.tapZoneLeft]}
-              onPress={goToPrevious}
-              onPressIn={() => setIsPaused(true)}
-              onPressOut={() => setIsPaused(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Previous slide"
-            />
-            <Pressable
-              style={[styles.tapZone, styles.tapZoneRight]}
-              onPress={goToNext}
-              onPressIn={() => setIsPaused(true)}
-              onPressOut={() => setIsPaused(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Next slide"
-            />
-          </>
-        )}
-      </Animated.View>
+          {activeSlide?.id !== 'export-upsell' && (
+            <>
+              <Pressable
+                style={[styles.tapZone, styles.tapZoneLeft]}
+                onPress={goToPrevious}
+                onPressIn={() => setIsPaused(true)}
+                onPressOut={() => setIsPaused(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous slide"
+              />
+              <Pressable
+                style={[styles.tapZone, styles.tapZoneRight]}
+                onPress={goToNext}
+                onPressIn={() => setIsPaused(true)}
+                onPressOut={() => setIsPaused(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Next slide"
+              />
+            </>
+          )}
+        </Reanimated.View>
+      </GestureDetector>
 
       {/* Celebratory confetti — decorative overlay, never blocks touches */}
       {confettiVisible && activeSlide?.confetti && (
@@ -612,11 +631,11 @@ export default function WrappedShareJourney({
               ]}
             />
             {index === currentSlide && (
-              <Animated.View
+              <Reanimated.View
                 style={[
                   styles.progressFill,
                   styles.progressFillActive,
-                  { transform: [{ scaleX: activeProgressScaleX }] },
+                  activeProgressStyle,
                 ]}
               />
             )}
