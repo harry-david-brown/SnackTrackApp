@@ -92,6 +92,18 @@ export default function WrappedShareJourney({
 
   // +1 = moving forward, -1 = going back. Drives the entrance direction.
   const directionRef = useRef<1 | -1>(1);
+  // Monotonic navigation token, bumped on every slide change (tap, drag, or
+  // auto-advance). An auto-advance timer captures the token when armed and
+  // only fires if it still matches — so a stale advance whose completion lands
+  // just after the user navigates is rejected, even when navigation returns to
+  // the same index the advance was armed on (the last-slide "back" case).
+  const navGenRef = useRef(0);
+  // Nav generation the progress timer was last armed for. Same gen on re-arm
+  // means "resuming this slide after a pause" (partial progress kept); a new
+  // gen means a fresh slide (full duration). Tracked JS-side because reading
+  // progress.value in the same commit as a reset write can return the stale
+  // pre-reset value (the write lands on the UI runtime asynchronously).
+  const armedGenRef = useRef(-1);
   // Off-screen share render + captured-image cache (keyed by slide index).
   const hiddenShareShotRef = useRef<ViewShot | null>(null);
   const shareUriCache = useRef<Map<number, string>>(new Map());
@@ -131,6 +143,7 @@ export default function WrappedShareJourney({
 
   React.useEffect(() => {
     if (currentSlide > slides.length - 1) {
+      navGenRef.current += 1;
       setCurrentSlide(Math.max(0, slides.length - 1));
     }
   }, [currentSlide, slides.length]);
@@ -273,18 +286,16 @@ export default function WrappedShareJourney({
     }
   }, [currentSlide, reduceMotion, progress, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
 
-  // Armed with the slide it was scheduled for: the timing callback completes on
-  // the UI thread and can land on the JS queue just after a user navigation —
-  // without the guard, tapping "back" flashed the previous slide and then this
-  // stale advance shoved the deck forward again.
-  const autoAdvance = useCallback((fromSlide: number) => {
-    setCurrentSlide((current) => {
-      if (current !== fromSlide) {
-        return current; // user already navigated; this advance is stale
-      }
-      directionRef.current = 1; // auto-advance always moves forward
-      return Math.min(current + 1, slidesRef.current.length - 1);
-    });
+  // Fires when a slide's auto-advance timer completes. Rejected if the deck has
+  // moved on since the timer was armed (compared by nav token, not index, so a
+  // return to the same index still invalidates the earlier visit's advance).
+  const autoAdvance = useCallback((armedGen: number) => {
+    if (armedGen !== navGenRef.current) {
+      return; // user (or another advance) navigated first — stale
+    }
+    navGenRef.current += 1;
+    directionRef.current = 1; // auto-advance always moves forward
+    setCurrentSlide((current) => Math.min(current + 1, slidesRef.current.length - 1));
   }, []);
 
   React.useEffect(() => {
@@ -299,14 +310,24 @@ export default function WrappedShareJourney({
       return;
     }
 
-    // Resume from wherever the bar stopped (pause keeps partial progress).
     const slideDuration = slidesRef.current[currentSlide]?.durationMs ?? STORY_SLIDE_DURATION;
-    const remainingDuration = Math.max(300, slideDuration * (1 - progress.value));
-    const armedSlide = currentSlide;
+    // Fresh slide → full duration. Re-arming for the same visit (released a
+    // hold-to-pause) → resume from the paused fraction. Never infer this from
+    // progress.value alone: right after a slide change its JS read can still
+    // report the previous slide's parked value (e.g. 1 on the final slide),
+    // which collapsed the duration to the 300ms floor when navigating back.
+    const isResume = armedGenRef.current === navGenRef.current;
+    const startFraction = isResume ? progress.value : 0;
+    if (!isResume) {
+      progress.value = 0;
+    }
+    armedGenRef.current = navGenRef.current;
+    const remainingDuration = Math.max(300, slideDuration * (1 - startFraction));
+    const armedGen = navGenRef.current;
     progress.value = withTiming(1, { duration: remainingDuration, easing: Easing.linear }, (finished) => {
       'worklet';
       if (finished) {
-        runOnJS(autoAdvance)(armedSlide);
+        runOnJS(autoAdvance)(armedGen);
       }
     });
 
@@ -448,12 +469,14 @@ export default function WrappedShareJourney({
   // taps) rather than on every auto-advance.
   const goToNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    navGenRef.current += 1;
     directionRef.current = 1;
     setCurrentSlide((current) => Math.min(current + 1, slides.length - 1));
   };
 
   const goToPrevious = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    navGenRef.current += 1;
     directionRef.current = -1;
     setCurrentSlide((current) => Math.max(current - 1, 0));
   };
