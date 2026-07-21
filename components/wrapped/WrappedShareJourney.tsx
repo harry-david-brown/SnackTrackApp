@@ -48,6 +48,7 @@ import {
 } from './wrappedTheme';
 import { AnimatedBackground, HeroGlow, WrappedStaticRenderContext, useReducedMotion } from './WrappedSlideEffects';
 import { buildWrappedSlides, type Slide } from './buildWrappedSlides';
+import { useWrappedAudio } from './useWrappedAudio';
 import { styles } from './wrappedStyles';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
@@ -56,6 +57,8 @@ export { STORY_GRADIENTS } from './wrappedTheme';
 interface WrappedShareJourneyProps {
   analytics: UserSummary;
   onClose: () => void;
+  /** First name for personalized cards; omitted until the API exposes one. */
+  userName?: string;
   showExportUpsell?: boolean;
   onExportUpsellSeen?: () => void;
   onExportUpgrade?: () => void;
@@ -66,6 +69,7 @@ interface WrappedShareJourneyProps {
 export default function WrappedShareJourney({
   analytics,
   onClose,
+  userName,
   showExportUpsell = false,
   onExportUpsellSeen,
   onExportUpgrade,
@@ -75,6 +79,7 @@ export default function WrappedShareJourney({
   const insets = useSafeAreaInsets();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const reduceMotion = useReducedMotion();
+  const { isMuted, toggleMuted } = useWrappedAudio();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [confettiVisible, setConfettiVisible] = useState(false);
@@ -125,12 +130,13 @@ export default function WrappedShareJourney({
         analytics,
         formatCurrency,
         formatDate,
+        userName,
         showExportUpsell,
         onExportUpgrade,
         onExportTutorial,
         onDismissExportUpsell,
       }),
-    [analytics, formatCurrency, formatDate, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]
+    [analytics, formatCurrency, formatDate, userName, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]
   );
   const activeSlide = slides[currentSlide];
   // Ref mirror so effects that only care about "which slide index is showing"
@@ -486,7 +492,7 @@ export default function WrappedShareJourney({
   const renderSlideInner = (slide: Slide, animatedContent = false, shareFrame = false) => {
     const inner = (
       <>
-        {slide.image ? (
+        {slide.hideHero ? null : slide.image ? (
           <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
         ) : slide.mascotPose ? (
           /* MASCOT: slide hero — pose varies per slide theme; the slide emoji
@@ -711,6 +717,16 @@ export default function WrappedShareJourney({
           <Ionicons name="download-outline" size={22} color="white" />
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity
+        style={[styles.iconButton, styles.muteIconButton, { top: Math.max(44, insets.top + 16) }]}
+        onPress={toggleMuted}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={isMuted ? 'Unmute music' : 'Mute music'}
+      >
+        <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }

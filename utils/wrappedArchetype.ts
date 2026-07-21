@@ -26,6 +26,13 @@ export interface Archetype {
 
 type CurrencyFormatter = (amount: number) => string;
 
+/**
+ * Total distinct personalities a user can land on (all candidates plus The
+ * Casual Craver fallback) — surfaced as "1 of N food personalities" on the
+ * archetype card. Keep in sync when adding archetypes.
+ */
+export const ARCHETYPE_COUNT = 9;
+
 interface Candidate {
   intensity: number;
   build: () => Archetype;

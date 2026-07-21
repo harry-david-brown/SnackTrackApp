@@ -5,7 +5,10 @@
  *
  * Deck shape (max MAX_DECK_SIZE slides):
  *   intro → The Damage → optional stats (escalating by intensity) →
- *   That's Your Year → archetype (climax, only confetti) → summary → upsell?
+ *   Top 5 Spots → That's Your Year → archetype (climax + share card) → upsell?
+ *
+ * The archetype card closes the deck: it's the shareable artifact, so it carries
+ * the all-time spend headline as well as the personality reveal.
  *
  * Optional stat slides each carry an `intensity` score (0–100, normalized the
  * same way as utils/wrappedArchetype.ts). When there are more candidates than
@@ -17,10 +20,11 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserSummary } from '../../types/api';
 import { getDeterministicMessage } from '../../utils/wrappedMessages';
-import { getArchetype } from '../../utils/wrappedArchetype';
+import { getArchetype, ARCHETYPE_COUNT } from '../../utils/wrappedArchetype';
 import { MascotPose } from '../mascot/MascotPlaceholder';
-import { STORY_GRADIENTS, BENTO_ACCENTS } from './wrappedTheme';
+import { STORY_GRADIENTS } from './wrappedTheme';
 import { AnimatedCount, DelayedFadeIn, DelayedSlam, Spacer } from './WrappedSlideEffects';
+import { MonthlySpendChart } from './MonthlySpendChart';
 import { styles } from './wrappedStyles';
 
 export interface Slide {
@@ -29,6 +33,9 @@ export interface Slide {
   emoji: string;
   /** When set, the mascot (outline variant) replaces the emoji as the slide's hero. */
   mascotPose?: MascotPose;
+  /** Suppress the hero image entirely (mascot/emoji) — for slides whose body IS
+   *  the hero, e.g. the month-by-month chart, which needs the vertical room. */
+  hideHero?: boolean;
   image?: any; // For logo images
   content: React.ReactNode;
   backgroundType?: 'default' | 'animated';
@@ -50,6 +57,9 @@ export interface BuildWrappedSlidesParams {
   analytics: UserSummary;
   formatCurrency: (amount: number) => string;
   formatDate: (dateString: string) => string;
+  /** First name for personalized cards ("Sam's 2025 Wrapped"). The API's User
+   *  has no name field yet, so this only lights up once the backend adds one. */
+  userName?: string;
   showExportUpsell?: boolean;
   onExportUpgrade?: () => void;
   onExportTutorial?: () => void;
@@ -76,6 +86,7 @@ export function buildWrappedSlides({
   analytics,
   formatCurrency,
   formatDate,
+  userName,
   showExportUpsell = false,
   onExportUpgrade,
   onExportTutorial,
@@ -84,6 +95,21 @@ export function buildWrappedSlides({
   const wrapped = analytics.wrappedAnalytics;
   // The year this recap covers — from the analytics payload, not hardcoded.
   const wrappedYear = wrapped?.comparative?.spentThisYear?.year ?? new Date().getFullYear();
+  const percentiles = wrapped?.percentiles;
+
+  // "Top X% of eaters" pill — cross-user standing, shown only when the pool was
+  // large enough for the API to return a percentile. Suppressed for unremarkable
+  // middle-of-the-pack standings (top >50% isn't a flex).
+  const percentilePill = (topPercent: number | undefined, noun: string) => {
+    if (topPercent == null || topPercent > 50) {
+      return null;
+    }
+    return (
+      <View style={styles.percentilePill}>
+        <Text style={styles.percentilePillText}>Top {topPercent}% of {noun}</Text>
+      </View>
+    );
+  };
 
   // ---------------------------------------------------------------- core ----
 
@@ -93,27 +119,34 @@ export function buildWrappedSlides({
     mascotPose: 'wave',
     glow: true,
     durationMs: 3500,
-    a11y: "Your SnackTrack Wrapped. Let's see your food delivery history.",
+    a11y: `Your SnackTrack ${wrappedYear} Wrapped. Let's see your food delivery history.`,
     content: (
       <>
-        <Text style={styles.title}>Your SnackTrack</Text>
+        <Text style={styles.wrappedYearTag}>{wrappedYear}</Text>
+        <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
+          Your SnackTrack Wrapped
+        </Text>
         <Text style={styles.introText}>Let&apos;s see your entire food delivery history...</Text>
       </>
     ),
   };
 
   const totalDamageMessage = getDeterministicMessage('totalDamage', analytics, undefined, 0);
+  const spendTop = percentiles?.totalSpent?.topPercent;
   const damage: Slide = {
     gradient: 'ember',
     emoji: '😱',
     mascotPose: 'shocked',
     glow: true,
-    a11y: `The Damage. ${formatCurrency(analytics.totalSpent)} spent on food delivery. ${totalDamageMessage}`,
+    a11y: `The Damage. ${formatCurrency(analytics.totalSpent)} spent on food delivery.${
+      spendTop != null && spendTop <= 50 ? ` Top ${spendTop} percent of spenders.` : ''
+    } ${totalDamageMessage}`,
     content: (
       <>
         <Text style={styles.slideTitle}>The Damage</Text>
         <AnimatedCount value={analytics.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
         <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
+        {percentilePill(spendTop, 'spenders')}
         <Spacer h={6} />
         <DelayedFadeIn delay={ROAST_DELAY_MS}>
           <Text style={styles.roastText}>{totalDamageMessage}</Text>
@@ -304,7 +337,7 @@ export function buildWrappedSlides({
       slide: {
         gradient: 'indigo',
         emoji: '💰',
-        mascotPose: 'trophy',
+        mascotPose: 'flex',
         a11y: `Bougie Moment. Most expensive order: ${formatCurrency(data.amount)} at ${data.restaurant}. ${expensiveMessage}`,
         content: (
           <>
@@ -357,18 +390,22 @@ export function buildWrappedSlides({
   if (wrapped?.flex.nightOwl) {
     const data = wrapped.flex.nightOwl;
     const nightOwlMessage = getDeterministicMessage('nightOwlPercentage', analytics, data.percentage, 8);
+    const owlTop = percentiles?.nightOwl?.topPercent;
     optional.push({
       intensity: clamp100(data.percentage),
       slide: {
         gradient: 'indigo',
         emoji: '🦉',
         mascotPose: 'wink',
-        a11y: `Night Owl Badge. ${Math.round(data.percentage)} percent of orders after 10pm. ${nightOwlMessage}`,
+        a11y: `Night Owl Badge. ${Math.round(data.percentage)} percent of orders after 10pm.${
+          owlTop != null && owlTop <= 50 ? ` Top ${owlTop} percent of night owls.` : ''
+        } ${nightOwlMessage}`,
         content: (
           <>
             <Text style={styles.slideTitle}>Night Owl Badge</Text>
             <AnimatedCount value={data.percentage} format={(n) => `${Math.round(n)}%`} style={styles.bigNumber} />
             <Text style={styles.bigNumberLabel}>orders after 10pm</Text>
+            {percentilePill(owlTop, 'night owls')}
             <Spacer h={6} />
             <View style={styles.detailBox}>
               <Text style={styles.detailText}>{data.count} late-night orders</Text>
@@ -597,19 +634,78 @@ export function buildWrappedSlides({
     });
   }
 
+  // Month-by-month spending chart — one visual slide to break up the
+  // number-title-roast rhythm. Needs at least 3 months to be worth showing.
+  if (analytics.monthlyBreakdown && analytics.monthlyBreakdown.length >= 3) {
+    const months = analytics.monthlyBreakdown.slice(-12);
+    const peak = months.reduce((best, m) => (m.totalSpent > best.totalSpent ? m : best), months[0]);
+    optional.push({
+      intensity: clamp100(months.length * 8),
+      slide: {
+        gradient: 'lagoon',
+        emoji: '📊',
+        hideHero: true, // the chart is the hero — reclaim the mascot's vertical room
+        durationMs: 8000,
+        a11y: `Month by Month. Your peak month cost ${formatCurrency(peak.totalSpent)}.`,
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Month by Month</Text>
+            <Text style={styles.bigNumberLabel}>your year in spending</Text>
+            <MonthlySpendChart data={months} formatCurrency={formatCurrency} />
+            <Spacer h={10} />
+            <View style={styles.detailBox}>
+              <Text style={styles.detailText}>Peak month: {formatCurrency(peak.totalSpent)}</Text>
+            </View>
+          </>
+        ),
+      },
+    });
+  }
+
   // ------------------------------------------------------------- finale ----
 
+  // Top 5 restaurants — the iconic "top artists" moment. Core when the data
+  // supports it (needs at least 3 spots to feel like a ranking).
+  const topSpots = (analytics.topRestaurants ?? []).slice(0, 5);
+  const top5: Slide | null = topSpots.length >= 3
+    ? {
+        gradient: 'indigo',
+        emoji: '🏆',
+        mascotPose: 'trophy',
+        durationMs: 8000,
+        a11y: `Your Top 5 Spots. Number one: ${topSpots[0].name} with ${topSpots[0].count} orders.`,
+        content: (
+          <>
+            <Text style={styles.slideTitle}>Your Top 5 Spots</Text>
+            <View style={styles.topSpotsList}>
+              {topSpots.map((spot, i) => (
+                <View key={`${spot.name}-${i}`} style={styles.topSpotRow}>
+                  <Text style={styles.topSpotRank}>{i + 1}</Text>
+                  <Text style={styles.topSpotName} numberOfLines={1}>{spot.name}</Text>
+                  <Text style={styles.topSpotCount}>{spot.count} orders</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        ),
+      }
+    : null;
+
+  const ordersTop = percentiles?.orderCount?.topPercent;
   const closing: Slide = {
     gradient: 'forest',
     emoji: '✨',
     mascotPose: 'celebrate',
     glow: true,
-    a11y: `That's your year. ${wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders, ${formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent.`,
+    a11y: `That's your year. ${wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders, ${formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent.${
+      ordersTop != null && ordersTop <= 50 ? ` Top ${ordersTop} percent of orderers.` : ''
+    }`,
     content: (
       <>
         <Text style={styles.title}>That&apos;s Your Year</Text>
         <Text style={styles.subtitle}>{wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders</Text>
         <Text style={styles.subtitle}>{formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent</Text>
+        {percentilePill(ordersTop, 'orderers')}
         <Text style={styles.introText}>So... what does that make you?</Text>
       </>
     ),
@@ -627,15 +723,30 @@ export function buildWrappedSlides({
     glow: true,
     durationMs: 9000,
     showShareCta: true,
-    a11y: `Your food personality is ${archetype.name}. ${archetype.tagline}`,
+    a11y: `Your food personality is ${archetype.name}. ${archetype.tagline} ${formatCurrency(analytics.totalSpent)} spent all time across ${analytics.totalReceipts} orders.`,
     content: (
       <>
+        {/* Personalized card header — name lights up once the API provides one */}
+        <Text style={styles.wrappedYearTag}>
+          {userName ? `${userName}'s` : 'Your'} {wrappedYear} Wrapped
+        </Text>
         <Text style={styles.archetypeKicker}>Your food personality is</Text>
         <DelayedSlam delay={ARCHETYPE_REVEAL_DELAY_MS} hapticOnReveal>
           <Text style={styles.archetypeName} numberOfLines={2} adjustsFontSizeToFit>{archetype.name}</Text>
           <Text style={styles.archetypeTagline}>{archetype.tagline}</Text>
+          {/* All-time headline — this is the share card, so the money number is
+              guaranteed here. Only 2 of the 9 archetypes surface it in traits. */}
+          <View style={styles.archetypeHeadline}>
+            <Text style={styles.archetypeHeadlineValue} numberOfLines={1} adjustsFontSizeToFit>
+              {formatCurrency(analytics.totalSpent)}
+            </Text>
+            <Text style={styles.archetypeHeadlineLabel}>
+              all-time · {analytics.totalReceipts} orders
+            </Text>
+          </View>
+          {/* Two flavour traits — the headline above carries the hero stat. */}
           <View style={styles.archetypeTraits}>
-            {archetype.traits.map((trait, i) => (
+            {archetype.traits.slice(0, 2).map((trait, i) => (
               <View key={i} style={styles.archetypeTraitRow}>
                 <Text style={styles.archetypeTraitEmoji}>{trait.emoji}</Text>
                 <Text style={styles.archetypeTraitLabel} numberOfLines={1}>{trait.label}</Text>
@@ -643,86 +754,9 @@ export function buildWrappedSlides({
               </View>
             ))}
           </View>
+          {/* Collection framing — invites comparing personalities with friends */}
+          <Text style={styles.archetypeRarity}>1 of {ARCHETYPE_COUNT} food personalities</Text>
         </DelayedSlam>
-      </>
-    ),
-  };
-
-  // Your Summary — bento grid recap.
-  const summary: Slide = {
-    gradient: 'forest',
-    backgroundType: 'animated',
-    emoji: '🎯',
-    durationMs: 9000,
-    showShareCta: true,
-    a11y: `Your Summary. ${analytics.totalReceipts} total orders, ${formatCurrency(analytics.totalSpent)} total spent.`,
-    content: (
-      <>
-        <Text style={styles.slideTitle}>Your Summary</Text>
-        <View style={styles.bentoContainer}>
-          {/* 1. Total Spent */}
-          <View style={styles.bentoCard}>
-            <View style={styles.bentoHeader}>
-              <Text style={styles.bentoIcon}>💸</Text>
-              <Text style={styles.bentoLabel}>Total Spent</Text>
-            </View>
-            <Text style={[styles.bentoValue, { color: BENTO_ACCENTS.spend }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatCurrency(analytics.totalSpent)}
-            </Text>
-          </View>
-
-          {/* 2. Total Orders */}
-          <View style={styles.bentoCard}>
-            <View style={styles.bentoHeader}>
-              <Text style={styles.bentoIcon}>📦</Text>
-              <Text style={styles.bentoLabel}>Total Orders</Text>
-            </View>
-            <Text style={[styles.bentoValue, { color: BENTO_ACCENTS.orders }]} numberOfLines={1} adjustsFontSizeToFit>
-              {analytics.totalReceipts}
-            </Text>
-          </View>
-
-          {/* 3. Top Restaurant */}
-          {analytics.topRestaurants && analytics.topRestaurants.length > 0 ? (() => {
-            const topSpotName = analytics.topRestaurants[0].name;
-            const fontSize = topSpotName.length < 12 ? 32 : (topSpotName.length < 20 ? 24 : 20);
-            const lineHeight = fontSize * 1.2;
-            return (
-              <View style={styles.bentoCard}>
-                <View style={styles.bentoHeader}>
-                  <Text style={styles.bentoIcon}>🏆</Text>
-                  <Text style={styles.bentoLabel}>Top Spot</Text>
-                </View>
-                <Text style={[styles.bentoValue, { color: BENTO_ACCENTS.topSpot, fontSize, lineHeight }]} numberOfLines={2}>
-                  {topSpotName}
-                </Text>
-              </View>
-            );
-          })() : <View style={styles.bentoCard} />}
-
-          {/* 4. Favorite Meal (proxy from single-item / coffee data — hidden
-              rather than faked when neither source exists) */}
-          {(() => {
-            const faveMealName = wrapped?.shame?.singleItemOrders?.mostCommon || wrapped?.flex?.coffeeAddiction?.mostOrdered;
-            if (!faveMealName) {
-              return <View style={styles.bentoCard} />;
-            }
-            const fontSize = faveMealName.length < 12 ? 32 : (faveMealName.length < 20 ? 24 : 20);
-            const lineHeight = fontSize * 1.2;
-            return (
-              <View style={styles.bentoCard}>
-                <View style={styles.bentoHeader}>
-                  <Text style={styles.bentoIcon}>🍔</Text>
-                  <Text style={styles.bentoLabel}>Fave Meal</Text>
-                </View>
-                <Text style={[styles.bentoValue, { color: BENTO_ACCENTS.faveMeal, fontSize, lineHeight }]} numberOfLines={2}>
-                  {faveMealName}
-                </Text>
-              </View>
-            );
-          })()}
-        </View>
-        <Text style={styles.summaryFooter}>{wrappedYear} Legend Status</Text>
       </>
     ),
   };
@@ -730,7 +764,7 @@ export function buildWrappedSlides({
   // -------------------------------------------------- selection & order ----
 
   // Core slides always play; optional stats compete for the remaining budget.
-  const coreCount = 5 + (showExportUpsell ? 1 : 0);
+  const coreCount = 4 + (top5 ? 1 : 0) + (showExportUpsell ? 1 : 0);
   const budget = Math.max(0, MAX_DECK_SIZE - coreCount);
   const picked = [...optional]
     .sort((a, b) => b.intensity - a.intensity)
@@ -739,16 +773,24 @@ export function buildWrappedSlides({
     .sort((a, b) => a.intensity - b.intensity)
     .map((ranked) => ranked.slide);
 
-  const slides: Slide[] = [intro, damage, ...picked, closing, archetypeSlide, summary];
+  const slides: Slide[] = [
+    intro,
+    damage,
+    ...picked,
+    ...(top5 ? [top5] : []),
+    closing,
+    archetypeSlide,
+  ];
 
   if (showExportUpsell) {
-    const summarySlideIndex = slides.length - 1;
+    // Share the archetype card — the deck's shareable artifact.
+    const shareCardIndex = slides.length - 1;
 
     slides.push({
       id: 'export-upsell',
       gradient: 'forest',
       emoji: '📦',
-      shareTargetIndex: summarySlideIndex,
+      shareTargetIndex: shareCardIndex,
       a11y: 'Unlock your full delivery history. Add your full export for deeper history and better insights.',
       content: (
         <>

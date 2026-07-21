@@ -90,11 +90,11 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
     }
     
     if (analytics.averageOrderValue > 25) {
-      return "You fat fuck :)";
+      return "Big-ticket orders only. No notes.";
     } else if (analytics.averageOrderValue < 25) {
       return "High volume, lots of small orders";
     } else {
-      return "Fuck you";
+      return "Exactly average. Suspiciously precise.";
     }
   };
 

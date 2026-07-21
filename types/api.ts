@@ -179,7 +179,21 @@ export interface CSVImportResponse {
 }
 
 // Wrapped Analytics Types (Spotify Wrapped-style)
+export interface PercentileStanding {
+  /** Share of ranked users strictly below this user, 0–100. */
+  percentile: number;
+  /** "Top X%" framing: 100 − percentile, clamped to [1, 100]. */
+  topPercent: number;
+}
+
 export interface WrappedAnalytics {
+  /** Cross-user standings; omitted when the comparison pool is too small. */
+  percentiles?: {
+    sampleSize: number;
+    totalSpent?: PercentileStanding;
+    orderCount?: PercentileStanding;
+    nightOwl?: PercentileStanding;
+  };
   shame: {
     lateNightOrders?: {
       count: number;

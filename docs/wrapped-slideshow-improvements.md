@@ -1,6 +1,6 @@
 # Wrapped Slideshow Improvement Plan
 
-> Status: **Phases 1–4 complete** · Created 2026-07-20 · Phases 1–4 landed 2026-07-20
+> Status: **All phases (1–6) complete** · Created 2026-07-20 · Phases 1–5 landed 2026-07-20 · Percentiles, Phase 6 + summary-slide cut landed 2026-07-21
 > Scope: full pass — correctness fixes, design overhaul, Reanimated port, new creative slides, share pipeline.
 
 Source review covered:
@@ -67,7 +67,8 @@ Goal: the deck reads as a **SnackTrack event skin**, not a generic template. See
 ## Phase 3 — UX & narrative
 
 - [x] **Trim the deck** (currently up to 19 slides ≈ 2min+) to a hard **cap of 12**. Rank optional slides by signal intensity (reuse the scoring in `utils/wrappedArchetype.ts`), drop the lowest-signal ones once always-shown slides + top-ranked optional slides hit 12.
-- [x] **Fix narrative order**: intro → stats (escalating) → "That's Your Year" → **archetype climax** → summary → upsell. **Cut "All Time Stats"** entirely (duplicates The Damage + summary); confetti reserved for the climax (not 3 consecutive slides).
+- [x] **Fix narrative order**: intro → stats (escalating) → Top 5 Spots → "That's Your Year" → **archetype climax (now the final slide)** → upsell. **Cut "All Time Stats"** and, in a later pass, **cut "Your Summary"** too; confetti reserved for the climax.
+  - *Summary-slide cut (2026-07-21):* the bento grid was an anticlimax after the archetype reveal and 3 of its 4 cards duplicated earlier slides (Total Spent = The Damage, Total Orders = That's Your Year, Top Spot = Top 5 Spots). It also still rendered the retired 92px emoji hero, showed empty placeholder cards when data was missing, and split the share CTA. **Its viral purpose moved onto the archetype card**, which now carries a guaranteed all-time headline (`{spend}` + `· N orders`) — previously only 2 of the 9 archetypes surfaced total spend at all. Traits trimmed to 2 to hold the height budget. Side effects: `coreCount` 5 → 4 so the intensity ranker promotes one more real stat slide, the upsell's `shareTargetIndex` now points at the archetype, and removing the deck's only `backgroundType: 'animated'` slide retires the nebula GPU cost (see Phase 4's open profiling item). Dead bento styles + `BENTO_ACCENTS` deleted.
 - [x] **Archetype drumroll** — two-beat reveal: kicker holds ~1s, then name slams in with confetti + heavy haptic.
 - [x] **Explicit "Share this card" button** on archetype + summary slides (top-right icon alone buries the CTA).
 - [x] **Per-slide durations** — intro ~3s, dense slides (Waiting Time) longer, default 5–6.5s.
@@ -85,23 +86,24 @@ Reanimated 4 + gesture-handler are already installed but unused here.
 - [x] **Port drag-to-dismiss** from PanResponder + `Animated.setValue` (JS thread, stutters under load) to gesture-handler + Reanimated worklets. (`GestureHandlerRootView` added at the app root in `app/_layout.tsx`.)
 - [x] **Port entrance/progress animations** to Reanimated (shared values, UI-thread).
 - [x] **Drop `key={currentSlide}` on the slide container** — the key moved from the full slide tree down to the inner content view, so gradient/glow/watermark shells stay mounted across transitions while per-slide effects (count-ups, staged reveals) still restart.
-- [ ] *(manual QA)* Profile the nebula slide on low-end Android after retheme; don't add more `backgroundType: 'animated'` slides without checking overdraw.
+- [x] ~~Profile the nebula slide on low-end Android~~ — moot: the summary slide was cut (2026-07-21) and it was the only `backgroundType: 'animated'` consumer. `AnimatedBackground` is kept as a generic effect; profile it if a future slide opts in.
 
 ## Phase 5 — Creative additions
 
-- [ ] **Top 5 restaurants slide** (ranked list — the iconic Wrapped format; data exists in `analytics.topRestaurants`).
-- [ ] **Personalized share cards** — first name + year + logo on the archetype card.
-- [ ] **Month-by-month mini chart or spending heatmap slide** (follow `dataviz` conventions; one visual slide breaks the stat monotony).
-- [ ] **Archetype rarity flavor** — "1 of N food personalities" collection framing.
-- [ ] **Percentile framing** ("top 8% of night owls") — *needs backend aggregate support; check API feasibility first.*
-- [ ] **Ambient audio** — Wrapped-style background music bed synced to slide progression, with a mute toggle in the chrome (persist preference). Needs `expo-av`/`expo-audio`; must respect device silent mode and pause on background/close. Source or license music.
+- [x] **Top 5 restaurants slide** — core slide before "That's Your Year" when ≥3 spots exist; glass ranking rows, trophy mascot (Bougie Moment now uses the flex pose).
+- [x] **Personalized share cards** — archetype card now carries a "{Name}'s {year} Wrapped" header + the logo watermark. *Name part is dormant: the API `User` has no name field — `userName` prop is threaded end-to-end and lights up when the backend adds one (falls back to "Your {year} Wrapped").* 
+- [x] **Month-by-month chart slide** — `MonthlySpendChart` (single-series columns, brand chart accent `#88C34A` contrast-validated vs the lagoon surface, peak-only direct label); optional slide, needs ≥3 months.
+- [x] **Archetype rarity flavor** — "1 of 9 food personalities" line under the traits (`ARCHETYPE_COUNT` exported from `wrappedArchetype.ts`).
+- [x] **Percentile framing** ("top 8% of night owls") — **API work done in SnackTrackAPI**: `WrappedAnalyticsService.calculatePercentiles` (one aggregate `PERCENT_RANK` query over all users with ≥3 receipts; omitted when the pool is <5), exposed as `wrappedAnalytics.percentiles` (`totalSpent`/`orderCount`/`nightOwl`, each `{percentile, topPercent}`) and cache-busted via a `-wrapped-v2` key. App: typed in `types/api.ts`, rendered as a cream "Top X% of …" pill (shown only for top ≤50%) on The Damage (spenders), Night Owl (night owls), and That\'s Your Year (orderers), plus screen-reader announcements. Verified end-to-end against the live API (HTTP 200, real user top 1%).
+  - *Dev note:* real DB had a single user, so percentiles were suppressed (pool <5). Seeded 7 synthetic accounts (`wrapped-seed-*@example.dev`) to exercise the pool. **Cleanup SQL:** `DELETE FROM receipts WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'wrapped-seed-%@example.dev'); DELETE FROM users WHERE email LIKE 'wrapped-seed-%@example.dev';`
+- [x] **Ambient audio** — `useWrappedAudio` hook (expo-av): looping bed at 0.45 volume, respects iOS silent switch, pauses on background, unloads on close; mute toggle in chrome with AsyncStorage-persisted preference. *The track (`assets/audio/wrapped-loop.wav`) is a synthesized placeholder loop — swap in a licensed track at the same path when ready.*
 
 ## Phase 6 — Copy pass
 
-- [ ] **De-profanity `utils/wrappedMessages.ts`** — rewrite explicit lines keeping tone ("You think you're better than me, fuck you." → equally bitter, swear-free). Full sweep of all tiers.
-- [ ] Intro copy: "Your SnackTrack" → "Your SnackTrack Wrapped" (or year-branded title).
-- [ ] Review roast tiers against updated deck order so escalation still lands.
-- [ ] Update `__tests__/utils/wrappedMessages.test.ts` for rewritten strings.
+- [x] **De-profanity `utils/wrappedMessages.ts`** — 37 lines rewritten keeping the bite, swear-free ("You think you're better than me, fuck you." → "You think you're better than me. And honestly? You are. Rude."). Case-insensitive sweep of the whole app source is clean. **Also fixed `components/sharing/SocialShareModal.tsx`**, which had "You fat fuck :)" and "Fuck you" rendering onto *shared social images* — body-shaming, not just profanity.
+- [x] Intro copy: now a year kicker + "Your SnackTrack Wrapped" (shared `wrappedYearTag` style, renamed from `archetypeWrappedTag` so the intro and archetype card use one token).
+- [x] Review roast tiers against updated deck order — tier thresholds (18 for `totalDamage`) and all 56 `[X]`/`[time]` placeholders verified intact after the rewrite; escalation unchanged.
+- [x] Update `__tests__/utils/wrappedMessages.test.ts` — no change needed: tests assert structure/determinism and the `'interesting ones'` fallback, never the rewritten strings. All 79 pass.
 
 ## QA checklist (after each phase)
 

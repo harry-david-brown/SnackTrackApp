@@ -43,7 +43,10 @@ export const styles = StyleSheet.create({
   saveIconButton: {
     right: 64,
   },
-  // Cream pill anchored bottom-right on the archetype/summary slides — chrome
+  muteIconButton: {
+    right: 112,
+  },
+  // Cream pill anchored bottom-right on the archetype share card — chrome
   // layer only, never part of the captured share image.
   shareCtaButton: {
     position: 'absolute',
@@ -387,59 +390,79 @@ export const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.86)',
     fontWeight: '600',
   },
-  bentoContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingHorizontal: 0,
-    marginTop: 8,
+  // "Top X% of eaters" cross-user standing — a cream badge that reads as a
+  // brag, sitting just under the hero number.
+  percentilePill: {
+    alignSelf: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 232, 198, 0.95)',
   },
-  bentoCard: {
-    width: '47%',
-    backgroundColor: 'rgba(20, 20, 20, 0.4)',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: 'rgba(0, 0, 0, 0.2)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    minHeight: 120,
-    justifyContent: 'space-between',
-  },
-  bentoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  bentoIcon: {
-    fontSize: 18,
-  },
-  bentoLabel: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  bentoValue: {
-    fontSize: 32,
+  percentilePillText: {
     fontFamily: WRAPPED_FONTS.display,
-    letterSpacing: -0.5,
-  },
-  summaryFooter: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: '#222222',
+    letterSpacing: 0.3,
+  },
+  // Year/ownership kicker — the intro's "{year} Wrapped" and the archetype
+  // card's personalized "Sam's {year} Wrapped" header.
+  wrappedYearTag: {
+    fontSize: 13,
+    fontFamily: WRAPPED_FONTS.medium,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
-    marginTop: 24,
-    fontWeight: '500',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 14,
+  },
+  // Collection framing under the traits ("1 of 9 food personalities").
+  archetypeRarity: {
+    fontSize: 13,
+    fontFamily: WRAPPED_FONTS.medium,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
     letterSpacing: 1,
     textTransform: 'uppercase',
+    marginTop: 18,
+  },
+  // Top 5 restaurants ranking rows (glass style matching archetype traits).
+  topSpotsList: {
+    width: '100%',
+    maxWidth: Math.min(420, screenWidth * 0.86),
+    gap: 10,
+    marginTop: 4,
+  },
+  topSpotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  topSpotRank: {
+    width: 26,
+    fontSize: 22,
+    fontFamily: WRAPPED_FONTS.displayBold,
+    color: '#FFE8C6',
+    textAlign: 'center',
+  },
+  topSpotName: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: WRAPPED_FONTS.display,
+    color: 'white',
+  },
+  topSpotCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.75)',
   },
   archetypeKicker: {
     fontSize: 16,
@@ -459,13 +482,35 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 8,
   },
+  // All-time headline on the archetype share card — the number people screenshot.
+  archetypeHeadline: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  archetypeHeadlineValue: {
+    fontSize: Math.min(46, Math.max(34, Math.round(screenWidth * 0.11))),
+    fontFamily: WRAPPED_FONTS.displayBold,
+    fontVariant: ['tabular-nums'],
+    color: 'white',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    paddingHorizontal: 8,
+  },
+  archetypeHeadlineLabel: {
+    fontSize: 14,
+    fontFamily: WRAPPED_FONTS.medium,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    letterSpacing: 0.4,
+    marginTop: 2,
+  },
   archetypeTagline: {
     fontSize: 19,
     lineHeight: 25,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.95)',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     paddingHorizontal: 12,
     maxWidth: Math.min(480, screenWidth * 0.85),
   },

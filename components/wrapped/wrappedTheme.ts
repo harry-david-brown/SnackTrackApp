@@ -88,14 +88,6 @@ export const STORY_GRADIENTS = {
 /** Confetti tuned to the brand — greens, gold, and mascot cream. */
 export const CONFETTI_COLORS = ['#73B84A', '#58C26D', '#F0C25C', '#FFE8C6', '#FFFFFF'];
 
-/** Accent colors for the summary bento values (on dark glass cards). */
-export const BENTO_ACCENTS = {
-  spend: '#FFE8C6', // mascot cream
-  orders: '#F0C25C', // gold
-  topSpot: '#8FD0C0', // lagoon tint
-  faveMeal: '#A9D98B', // accent-green tint
-} as const;
-
 /** Display font families (Fredoka, loaded via expo-font in wrapped-journey). */
 export const WRAPPED_FONTS = {
   display: 'Fredoka_600SemiBold',
