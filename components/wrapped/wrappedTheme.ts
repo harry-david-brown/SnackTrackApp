@@ -43,7 +43,7 @@ export const SHARE_FRAME_H = Math.round(screenWidth * (16 / 9));
  * - Each gradient has its own axis so the deck doesn't feel like one template.
  */
 export const STORY_GRADIENTS = {
-  // Brand anchor — intro, "That's Your Year", upsell.
+  // Brand anchor — lifetime intro and evidence-review transition.
   forest: {
     colors: ['#0E2A1F', '#1F4E3A', '#2E7D4F'],
     locations: [0, 0.55, 1],

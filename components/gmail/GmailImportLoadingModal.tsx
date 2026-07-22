@@ -8,7 +8,7 @@ import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 const GMAIL_IMPORT_MESSAGES = [
   'This can take up to 1-2 minutes depending on your gluttony.',
   'Questioning every late-night delivery choice with professional courtesy.',
-  'Sorting tacos from therapy purchases.',
+  'Sorting tacos from impulse purchases.',
   'Teaching Gmail what counts as dinner.',
   'Looking for receipts and trying not to judge the sauce math.',
   'Counting fries with unnecessary precision.',

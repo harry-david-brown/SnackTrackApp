@@ -186,7 +186,17 @@ export interface PercentileStanding {
   topPercent: number;
 }
 
+export interface WrappedCoverage {
+  orderCount: number;
+  earliestOrderDate: string | null;
+  latestOrderDate: string | null;
+  dataSources: string[];
+  hasExportData: boolean;
+}
+
 export interface WrappedAnalytics {
+  /** Receipt coverage represented by the payload; absent on legacy caches. */
+  coverage?: WrappedCoverage;
   /** Cross-user standings; omitted when the comparison pool is too small. */
   percentiles?: {
     sampleSize: number;

@@ -49,9 +49,6 @@ export const styles = StyleSheet.create({
   // Cream pill anchored bottom-right on the archetype share card — chrome
   // layer only, never part of the captured share image.
   shareCtaButton: {
-    position: 'absolute',
-    right: SAFE_SIDE,
-    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -67,6 +64,31 @@ export const styles = StyleSheet.create({
   },
   shareCtaText: {
     color: '#222222',
+    fontFamily: WRAPPED_FONTS.display,
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+  finalActionRow: {
+    position: 'absolute',
+    right: SAFE_SIDE,
+    zIndex: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  doneCtaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 26,
+    backgroundColor: 'rgba(30, 30, 30, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  doneCtaText: {
+    color: 'white',
     fontFamily: WRAPPED_FONTS.display,
     fontSize: 15,
     letterSpacing: 0.2,
@@ -222,6 +244,13 @@ export const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     marginTop: 20,
+  },
+  coverageSourceText: {
+    fontSize: 14,
+    fontFamily: WRAPPED_FONTS.medium,
+    color: 'rgba(255, 255, 255, 0.68)',
+    textAlign: 'center',
+    marginTop: 10,
   },
   slideTitle: {
     fontSize: 30,
@@ -389,6 +418,60 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255, 255, 255, 0.86)',
     fontWeight: '600',
+  },
+  offerBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: SAFE_SIDE,
+    paddingBottom: SAFE_BOTTOM,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  offerCard: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 20,
+    borderRadius: 28,
+    backgroundColor: '#173F30',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  offerEyebrow: {
+    fontFamily: WRAPPED_FONTS.medium,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.65)',
+    letterSpacing: 1.4,
+    marginBottom: 10,
+  },
+  offerTitle: {
+    fontFamily: WRAPPED_FONTS.displayBold,
+    fontSize: 28,
+    lineHeight: 33,
+    color: 'white',
+    textAlign: 'center',
+  },
+  offerBody: {
+    maxWidth: 360,
+    marginTop: 10,
+    fontFamily: WRAPPED_FONTS.medium,
+    fontSize: 16,
+    lineHeight: 23,
+    color: 'rgba(255, 255, 255, 0.82)',
+    textAlign: 'center',
+  },
+  offerSecondaryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+  },
+  offerSecondaryButtonText: {
+    fontFamily: WRAPPED_FONTS.display,
+    fontSize: 15,
+    color: 'white',
+  },
+  offerDismissText: {
+    fontFamily: WRAPPED_FONTS.medium,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.64)',
   },
   // "Top X% of eaters" cross-user standing — a cream badge that reads as a
   // brag, sitting just under the hero number.

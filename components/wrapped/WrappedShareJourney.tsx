@@ -8,6 +8,7 @@ import {
   Image,
   Platform,
   AccessibilityInfo,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -83,6 +84,7 @@ export default function WrappedShareJourney({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [confettiVisible, setConfettiVisible] = useState(false);
+  const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
 
   // All animation state lives in Reanimated shared values, so entrances, the
   // progress bar, and the dismiss gesture run entirely on the UI thread.
@@ -131,12 +133,8 @@ export default function WrappedShareJourney({
         formatCurrency,
         formatDate,
         userName,
-        showExportUpsell,
-        onExportUpgrade,
-        onExportTutorial,
-        onDismissExportUpsell,
       }),
-    [analytics, formatCurrency, formatDate, userName, showExportUpsell, onExportUpgrade, onExportTutorial, onDismissExportUpsell]
+    [analytics, formatCurrency, formatDate, userName]
   );
   const activeSlide = slides[currentSlide];
   // Ref mirror so effects that only care about "which slide index is showing"
@@ -145,7 +143,7 @@ export default function WrappedShareJourney({
   slidesRef.current = slides;
   const shareTargetIndex = activeSlide?.shareTargetIndex ?? currentSlide;
   const shareTargetSlide = slides[shareTargetIndex];
-  const shouldAutoAdvance = currentSlide < slides.length - 1 && activeSlide?.id !== 'export-upsell';
+  const shouldAutoAdvance = currentSlide < slides.length - 1;
 
   React.useEffect(() => {
     if (currentSlide > slides.length - 1) {
@@ -154,12 +152,11 @@ export default function WrappedShareJourney({
     }
   }, [currentSlide, slides.length]);
 
-  const activeSlideId = activeSlide?.id;
   React.useEffect(() => {
-    if (activeSlideId === 'export-upsell') {
+    if (showPostDeckOffer) {
       onExportUpsellSeen?.();
     }
-  }, [activeSlideId, onExportUpsellSeen]);
+  }, [showPostDeckOffer, onExportUpsellSeen]);
 
   // Captured share images go stale if the slide deck is rebuilt.
   React.useEffect(() => {
@@ -518,14 +515,13 @@ export default function WrappedShareJourney({
         key={currentSlide}
         style={[
           styles.slideContent,
-          slide.id === 'export-upsell' && styles.slideContentPromo,
           slideAnimatedStyle,
         ]}
       >
         {inner}
       </Reanimated.View>
     ) : (
-      <View style={[styles.slideContent, slide.id === 'export-upsell' && styles.slideContentPromo]}>
+      <View style={styles.slideContent}>
         {inner}
       </View>
     );
@@ -610,26 +606,22 @@ export default function WrappedShareJourney({
             </ViewShot>
           )}
 
-          {activeSlide?.id !== 'export-upsell' && (
-            <>
-              <Pressable
-                style={[styles.tapZone, styles.tapZoneLeft]}
-                onPress={goToPrevious}
-                onPressIn={() => setIsPaused(true)}
-                onPressOut={() => setIsPaused(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous slide"
-              />
-              <Pressable
-                style={[styles.tapZone, styles.tapZoneRight]}
-                onPress={goToNext}
-                onPressIn={() => setIsPaused(true)}
-                onPressOut={() => setIsPaused(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Next slide"
-              />
-            </>
-          )}
+          <Pressable
+            style={[styles.tapZone, styles.tapZoneLeft]}
+            onPress={goToPrevious}
+            onPressIn={() => setIsPaused(true)}
+            onPressOut={() => setIsPaused(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Previous slide"
+          />
+          <Pressable
+            style={[styles.tapZone, styles.tapZoneRight]}
+            onPress={goToNext}
+            onPressIn={() => setIsPaused(true)}
+            onPressOut={() => setIsPaused(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Next slide"
+          />
         </Reanimated.View>
       </GestureDetector>
 
@@ -685,15 +677,26 @@ export default function WrappedShareJourney({
       {/* Explicit share CTA on the most-shareable slides (archetype, summary).
           Lives in the chrome layer so it never appears in captured images. */}
       {activeSlide?.showShareCta && (
-        <TouchableOpacity
-          style={[styles.shareCtaButton, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]}
-          onPress={handleShare}
-          accessibilityRole="button"
-          accessibilityLabel="Share this card"
-        >
-          <Ionicons name="share-outline" size={18} color="#222222" />
-          <Text style={styles.shareCtaText}>Share this card</Text>
-        </TouchableOpacity>
+        <View style={[styles.finalActionRow, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]}>
+          <TouchableOpacity
+            style={styles.shareCtaButton}
+            onPress={handleShare}
+            accessibilityRole="button"
+            accessibilityLabel="Share this card"
+          >
+            <Ionicons name="share-outline" size={18} color="#222222" />
+            <Text style={styles.shareCtaText}>Share</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.doneCtaButton}
+            onPress={() => showExportUpsell ? setShowPostDeckOffer(true) : onClose()}
+            accessibilityRole="button"
+            accessibilityLabel={showExportUpsell ? 'Continue after Wrapped' : 'Finish Wrapped'}
+          >
+            <Text style={styles.doneCtaText}>{showExportUpsell ? 'Continue' : 'Done'}</Text>
+            <Ionicons name="arrow-forward" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
       )}
 
       <TouchableOpacity
@@ -727,6 +730,56 @@ export default function WrappedShareJourney({
       >
         <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color="white" />
       </TouchableOpacity>
+
+      <Modal
+        visible={showPostDeckOffer}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPostDeckOffer(false)}
+      >
+        <View style={styles.offerBackdrop}>
+          <View style={styles.offerCard}>
+            <Text style={styles.offerEyebrow}>WANT TO GO FURTHER?</Text>
+            <Text style={styles.offerTitle}>Expand your imported history</Text>
+            <Text style={styles.offerBody}>
+              Add an Uber export to bring in older orders your inbox may not include.
+            </Text>
+            <View style={styles.exportActionStack}>
+              <TouchableOpacity
+                style={styles.affiliateButton}
+                onPress={() => {
+                  setShowPostDeckOffer(false);
+                  onExportUpgrade?.();
+                }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="cloud-upload-outline" size={20} style={styles.affiliateButtonIcon} />
+                <Text style={styles.affiliateButtonText}>Upload an Export</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.offerSecondaryButton}
+                onPress={() => {
+                  setShowPostDeckOffer(false);
+                  onExportTutorial?.();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.offerSecondaryButtonText}>See how to request it</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.exportDismissButton}
+                onPress={() => {
+                  setShowPostDeckOffer(false);
+                  onDismissExportUpsell?.();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.offerDismissText}>Maybe later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

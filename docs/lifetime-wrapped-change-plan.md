@@ -1,6 +1,6 @@
 # Lifetime Wrapped Change Plan
 
-> Status: **Planned — key decisions locked 2026-07-21**
+> Status: **In progress — first implementation slice landed locally 2026-07-21**
 > Created: 2026-07-21
 > Product direction: Launch a deliberately provocative, lifetime-first Wrapped experience. Add a separate yearly experience later.
 
@@ -30,17 +30,17 @@ Turn the existing slideshow into a clearly labeled **lifetime delivery audit** t
 
 ## Success criteria
 
-- [ ] No visible copy implies that the lifetime deck covers only the current year.
-- [ ] No visible copy claims that SnackTrack's data is exhaustive or extends beyond the stated imported coverage window.
-- [ ] Every statistic in the deck is either lifetime-scoped or explicitly labeled otherwise.
-- [ ] A rich-data deck contains no more than **10** slides before any post-deck promotion.
-- [ ] Optional slides are selected by editorial category, not by one global intensity ranking.
-- [ ] Within each category, the selected slide is the strongest candidate for that user's data.
-- [ ] Closely related slides cannot appear together in the same deck.
-- [ ] The archetype is the final slideshow segment, does not auto-advance, and offers an explicit exit.
-- [ ] Share images clearly identify themselves as lifetime results.
-- [ ] Sparse-data and rich-data users both receive a complete narrative arc.
-- [ ] The message tone distribution is measurable and within target.
+- [x] No visible copy implies that the lifetime deck covers only the current year.
+- [x] No visible copy claims that SnackTrack's data is exhaustive or extends beyond the stated imported coverage window.
+- [x] Every statistic in the deck is either lifetime-scoped or explicitly labeled otherwise.
+- [x] A rich-data deck contains no more than **10** slides before any post-deck promotion.
+- [x] Optional slides are selected by editorial category, not by one global intensity ranking.
+- [x] Within each category, the selected slide is the strongest candidate for that user's data.
+- [x] Closely related slides cannot appear together in the same deck.
+- [x] The archetype is the final slideshow segment, does not auto-advance, and offers an explicit exit.
+- [x] Share images clearly identify themselves as lifetime results.
+- [x] Sparse-data and rich-data users both receive a complete narrative arc.
+- [x] The message tone distribution is measurable and within target.
 - [ ] Existing share, save, navigation, reduced-motion, and accessibility behavior remains functional.
 - [ ] The deck passes the tone, layout, unit, and device QA checklists in this document.
 
@@ -78,7 +78,7 @@ Habit → pattern → extreme escalates deliberately, so the wildest single mome
 | 3 | Financial Perspective | `perspective` | One of Could Have Bought, Missed Investment, Delivery Tax. |
 | 4 | The Damage Over Time | `trend` | Recent monthly trend against the lifetime total; requires sufficient monthly data. |
 | 5 | Your Top 5 Spots | `places` | Lifetime restaurant ranking; requires ≥3 restaurants. Positive/reset beat. |
-| 6 | Signature Habit | `habit` | One of Coffee Addiction, Chain Dependency, Single-Item Orders. |
+| 6 | Signature Habit | `habit` | One of The Caffeine Economy, Chain Dependency, Single-Item Orders. |
 | 7 | Signature Pattern | `pattern` | One of Peak Hunger Hour, Weekend/Weekday Warrior. |
 | 8 | Most Unhinged Moment | `extreme-moment` | One of 3am Regret, Laziest Day, Longest Streak, Bougie Moment. |
 | 9 | The Case Is Closed | `transition` | Short reveal setup; **no repeated totals** or dense details. |
@@ -104,12 +104,12 @@ Slides 3–8 are conditional. A sparse deck should collapse cleanly without disp
 
 The export upsell exists because Gmail imports miss older orders. Neither Gmail nor an uploaded provider export proves that SnackTrack contains every delivery order the user has ever made.
 
-- [ ] Derive a **coverage descriptor** from the receipt set: earliest receipt date and total order count.
-- [ ] Cold open states real coverage — e.g. `312 imported orders. March 2023–July 2026.` — rather than claiming an exhaustive history.
-- [ ] Use "what you've imported" phrasing wherever scope is described.
-- [ ] When an export has been uploaded, acknowledge the stronger source without claiming completeness — e.g. `Includes your uploaded Uber export.`
-- [ ] Treat `hasCompletedExport` as an export/upsell state only, not as proof that the user's historical coverage is exhaustive.
-- [ ] Expose the coverage state so copy, a11y, and share images all agree.
+- [x] Derive a **coverage descriptor** from the receipt set: earliest receipt date and total order count.
+- [x] Cold open states real coverage — e.g. `312 imported orders. March 2023–July 2026.` — rather than claiming an exhaustive history.
+- [x] Use "what you've imported" phrasing wherever scope is described.
+- [x] When an export has been uploaded, acknowledge the stronger source without claiming completeness — e.g. `Includes your uploaded Uber export.`
+- [x] Treat `hasCompletedExport` as an export/upsell state only, not as proof that the user's historical coverage is exhaustive.
+- [x] Expose the coverage state so copy, a11y, and share images all agree.
 - [ ] Re-check the deck after an import completes so the framing updates rather than going stale.
 
 ### Dynamic title (tiered by lifetime spend)
@@ -129,36 +129,36 @@ Deterministic, derived from lifetime spend, reusing the tier thresholds already 
 
 ### Slide copy
 
-- [ ] Remove the current-year badge from the intro.
-- [ ] Replace `Your SnackTrack Wrapped` with the resolved tiered title.
-- [ ] Replace `Let's see your entire food delivery history...` with the coverage-stating cold open.
-- [ ] Remove the optional `This Year` slide from the lifetime deck.
-- [ ] Rename `Month by Month` to `The Damage Over Time` or the approved equivalent.
-- [ ] Replace `your year in spending` with lifetime-compatible language.
-- [ ] Rename `That's Your Year` to `The Case Is Closed` or the approved equivalent.
-- [ ] Remove repeated order and spending totals from the reveal-setup slide.
-- [ ] Replace the reveal setup with a short line such as `We reviewed the evidence. The pattern is undeniable.`
-- [ ] Replace `{year} Wrapped` on the archetype card with `LIFETIME` / `ALL TIME`.
+- [x] Remove the current-year badge from the intro.
+- [x] Replace `Your SnackTrack Wrapped` with the stable baseline title pending approval of tiered variants.
+- [x] Replace `Let's see your entire food delivery history...` with the coverage-stating cold open.
+- [x] Remove the optional `This Year` slide from the lifetime deck.
+- [x] Rename `Month by Month` to `The Damage Over Time` or the approved equivalent.
+- [x] Replace `your year in spending` with lifetime-compatible language.
+- [x] Rename `That's Your Year` to `The Case Is Closed` or the approved equivalent.
+- [x] Remove repeated order and spending totals from the reveal-setup slide.
+- [x] Replace the reveal setup with a short line such as `We reviewed the evidence. The pattern is undeniable.`
+- [x] Replace `{year} Wrapped` on the archetype card with `LIFETIME` / `ALL TIME`.
   - The card currently derives its year from `spentThisYear.year`; with `This Year` cut, **no year source is needed** — the label is scope, not date.
-- [ ] Label the archetype as `Your all-time food personality`.
-- [ ] Update all screen-reader announcements to use the same lifetime framing.
+- [x] Label the archetype as `Your all-time food personality`.
+- [x] Update all screen-reader announcements to use the same lifetime framing.
 
 ### Supporting UI
 
-- [ ] Add a reusable `LIFETIME` / `ALL TIME` scope treatment for relevant live slides.
-- [ ] Ensure the scope treatment is included in captured share images.
+- [x] Add a reusable `LIFETIME` / `ALL TIME` scope treatment for relevant live slides.
+- [x] Ensure the scope treatment is included in captured share images.
 - [ ] Verify the scope treatment remains legible on every story gradient.
-- [ ] Remove `userName + year` assumptions from the share-card header while retaining optional name personalization.
+- [x] Remove `userName + year` assumptions from the share-card header while retaining optional name personalization.
 
 ## Phase 2 — Replace global ranking with editorial selection
 
 ### Slide metadata
 
-- [ ] Give every optional slide a stable `id`.
-- [ ] Add an editorial category to every optional slide.
-- [ ] Add a scope field to the slide model, beginning with `lifetime`.
-- [ ] Preserve an intensity or interest score for selecting within a category.
-- [ ] Add a confidence value or minimum-data rule where a single weak event would produce a misleading slide.
+- [x] Give every optional slide a stable `id`.
+- [x] Add an editorial category to every optional slide.
+- [x] Add a scope field to the slide model, beginning with `lifetime`.
+- [x] Preserve an intensity or interest score for selecting within a category.
+- [x] Add a confidence value or minimum-data rule where a single weak event would produce a misleading slide.
 - [ ] **Separate slide selection from React rendering** so selection rules can be unit tested without inspecting JSX. (`buildWrappedSlides` currently builds JSX inline — split into a pure `selectSlides(analytics) -> SlideSpec[]` and a renderer.)
 
 Suggested types:
@@ -182,28 +182,28 @@ type SlideCategory =
 
 ### Category selection
 
-- [ ] Always include the cold open, lifetime damage, reveal setup, and archetype.
-- [ ] Choose at most one financial-perspective slide.
-- [ ] Choose at most one signature-habit slide.
-- [ ] Choose at most one recurring-pattern slide.
-- [ ] Choose at most one extreme-moment slide.
-- [ ] Within every category, select the candidate **most shocking for that user's data** (highest intensity/confidence), not a fixed default.
-- [ ] Include the spending timeline only when at least three useful months exist.
-- [ ] Include Top 5 only when at least three meaningful restaurant records exist.
-- [ ] Cap the deck at **10** slides before promotions.
-- [ ] Preserve the target category order regardless of each slide's intensity.
-- [ ] Use intensity only to select the strongest candidate within a category.
+- [x] Always include the cold open, lifetime damage, reveal setup, and archetype.
+- [x] Choose at most one financial-perspective slide.
+- [x] Choose at most one signature-habit slide.
+- [x] Choose at most one recurring-pattern slide.
+- [x] Choose at most one extreme-moment slide.
+- [x] Within every category, select the candidate **most shocking for that user's data** (highest intensity/confidence), not a fixed default.
+- [x] Include the spending timeline only when at least three useful months exist.
+- [x] Include Top 5 only when at least three meaningful restaurant records exist.
+- [x] Cap the deck at **10** slides before promotions.
+- [x] Preserve the target category order regardless of each slide's intensity.
+- [x] Use intensity only to select the strongest candidate within a category.
 - [ ] **Recalibrate intensity divisors per category.** Scores only need to be comparable *within* a category now, so the current hand-tuned cross-metric divisors (`count/20`, `days/14`, raw percentages) can be tightened to their own scales.
 
 ### De-duplication rules
 
-- [ ] Do not show both `3am Regret` and `Night Owl Badge`.
-- [ ] Do not show both `Could Have Bought` and `The Investment You Didn't Make`.
-- [ ] Do not show both `Delivery Tax` and `Could Have Bought` (both are "money wasted on overhead"). *Largely covered by the single-`perspective` rule; assert it explicitly.*
+- [x] Do not show both `3am Regret` and `Night Owl Badge`.
+- [x] Do not show both `Could Have Bought` and `The Investment You Didn't Make`.
+- [x] Do not show both `Delivery Tax` and `Could Have Bought` (both are "money wasted on overhead"). *Covered by the single-`perspective` rule.*
 - [ ] Do not show multiple slides whose primary punchline is the same lifetime spending total.
 - [ ] Avoid a Chain Dependency slide immediately followed by a Top 5 dominated by the same chain.
-- [ ] Avoid a Coffee Addiction slide when it is supported by too few orders to feel like a real pattern.
-- [ ] Avoid a percentile pill when its cohort fails the eligibility rules in Phase 7 (single source of truth for the threshold).
+- [x] Avoid a Caffeine Economy slide when it is supported by too few orders to feel like a real pattern.
+- [x] Avoid a percentile pill when its cohort fails the eligibility rules in Phase 7 (single source of truth for the threshold).
 
 ### Selection tests (land with this phase, not Phase 9)
 
@@ -212,35 +212,35 @@ Extracting selection from JSX is only worth it if the tests arrive with it.
 - [ ] Test the exact core lifetime order.
 - [ ] Test a rich dataset produces no more than 10 slides.
 - [ ] Test a sparse dataset still reaches the archetype without empty slides.
-- [ ] Test each editorial category contributes at most one optional slide.
-- [ ] Test all de-duplication pairs.
-- [ ] Test the strongest candidate wins within its category.
-- [ ] Test category order does not change when candidate intensity changes.
+- [x] Test each editorial category contributes at most one optional slide.
+- [x] Test all currently implemented de-duplication pairs.
+- [x] Test the strongest candidate wins within its category.
+- [x] Test category order does not change when candidate intensity changes.
 - [ ] Test the export upsell is absent from the slideshow deck.
 
 ## Phase 3 — Reorder and retime the deck
 
-- [ ] Build the deck using the target narrative order rather than ascending global intensity.
-- [ ] Reduce the intro duration to approximately 2.5–3 seconds.
+- [x] Build the deck using the target narrative order rather than ascending global intensity.
+- [x] Reduce the intro duration to approximately 2.5–3 seconds.
 - [ ] Use approximately 5–6.5 seconds for simple stat slides.
-- [ ] Retain longer durations for the chart and Top 5 where needed.
-- [ ] Keep the reveal setup short enough to function as a drumroll rather than another information slide.
-- [ ] Keep the archetype on screen until the user shares, closes, or taps Done.
-- [ ] Verify that tapping backward and forward preserves the intended chapter order.
-- [ ] Verify the progress rail never contains more than 10 lifetime-story segments.
+- [x] Retain longer durations for the chart and Top 5 where needed.
+- [x] Keep the reveal setup short enough to function as a drumroll rather than another information slide.
+- [x] Keep the archetype on screen until the user shares, closes, or taps Done.
+- [x] Verify that tapping backward and forward preserves the intended chapter order.
+- [x] Verify the progress rail never contains more than 10 lifetime-story segments.
 
 ## Phase 4 — Move promotion outside the emotional climax
 
 The archetype's **Done button doubles as the offer transition**, so the promo reads as a user choice.
 
-- [ ] Remove the export upsell from the slideshow's progress segments.
-- [ ] Stop the archetype from auto-advancing into the export upsell.
-- [ ] Add an explicit **Done / Continue** button to the archetype, below the share CTA.
-- [ ] Tapping Done presents the post-deck offer (sheet or post-deck screen), not another deck slide.
-- [ ] Users who already completed a full export get a plain Done that closes the deck — no offer.
-- [ ] Preserve `markSeen`, `markClicked`, `dismiss`, and completion tracking.
-- [ ] Ensure dismissing the post-deck offer returns the user to the expected tab.
-- [ ] Ensure the X and swipe-down still exit directly without the offer.
+- [x] Remove the export upsell from the slideshow's progress segments.
+- [x] Stop the archetype from auto-advancing into the export upsell.
+- [x] Add an explicit **Done / Continue** button to the archetype alongside the share CTA.
+- [x] Tapping Continue presents the post-deck offer (sheet or post-deck screen), not another deck slide.
+- [x] Users who already completed a full export get a plain Done that closes the deck — no offer.
+- [x] Preserve `markSeen`, `markClicked`, `dismiss`, and completion tracking.
+- [x] Ensure dismissing the post-deck offer returns the user to the expected tab.
+- [x] Ensure the X and swipe-down still exit directly without the offer.
 
 ## Phase 5 — Polarizing copy pass
 
@@ -250,14 +250,14 @@ The archetype's **Done button doubles as the offer transition**, so the promo re
 - [ ] Let the number or repeated action deliver the punchline whenever possible.
 - [ ] Roast choices and receipts rather than appearance, protected identity, health, or presumed financial status.
 - [ ] Balance the deck with moments of disbelief, strange admiration, and celebration.
-- [ ] Make deterministic messages stable for the same underlying dataset.
+- [x] Keep deterministic messages and their tone stable for the same underlying dataset.
 
 ### Tone tagging (makes the distribution enforceable)
 
-- [ ] Add a `tone` field to the message model: `roast | disbelief | impressive | celebration`.
-- [ ] Tag every existing message.
-- [ ] Add a test asserting the distribution is within tolerance of target.
-- [ ] Add a lint/test guard so new messages must carry a tone.
+- [x] Add a `tone` field to the message model: `roast | disbelief | impressive | celebration`.
+- [x] Tag every existing message and expose the selected tone alongside its text.
+- [x] Add a test asserting the distribution is within tolerance of target.
+- [x] Add a test guard so every catalogue entry carries a supported tone.
 
 Target tonal distribution:
 
@@ -271,11 +271,11 @@ Target tonal distribution:
 - [ ] Review every `totalDamage` message tier.
 - [ ] Review every late-night and habit message tier.
 - [ ] Review every financial-comparison message tier.
-- [ ] Review every archetype name, tagline, and trait label.
-- [ ] Remove or rewrite references to personality disorders, therapy, addiction as a diagnosis, being broke, body shame, or a `cry for help`.
+- [x] Review every archetype name, tagline, and trait label; replace the body-coded `The Whale` with `The Delivery Magnate`.
+- [ ] Review medicalized, financial-status, and body-directed lines surgically without flattening the catalogue's shock value, tone, or humor.
 - [ ] Replace generic aggression with data-specific lines where the required values are available.
-- [ ] Verify every placeholder still interpolates correctly.
-- [ ] Verify deterministic selection never returns an empty message.
+- [x] Verify every placeholder still interpolates correctly.
+- [x] Verify deterministic selection never returns an empty message.
 - [ ] Review share-card copy separately because it can leave the app's private context.
 
 Example direction:
@@ -326,10 +326,10 @@ Keeping percentiles because they have strong potential beyond broad spend and or
 
 #### Display rules
 
-- [ ] Keep percentile pills in the lifetime deck.
-- [ ] **Never display the sample size** — surfacing "of 8 users" advertises that the comparison is meaningless.
-- [ ] Raise `PERCENTILE_MIN_SAMPLE` from 5 to **100 qualifying production users** before displaying any percentile.
-- [ ] Return no percentile when the selected metric's qualifying cohort contains fewer than 100 users.
+- [x] Keep percentile pills in the lifetime deck.
+- [x] **Never display the sample size** — surfacing "of 8 users" advertises that the comparison is meaningless.
+- [x] Raise `PERCENTILE_MIN_SAMPLE` from 5 to **100 qualifying users** before displaying any percentile. *(Production-account filtering remains below.)*
+- [x] Return no percentile when the current broad cohort contains fewer than 100 users.
 - [ ] Gate every percentile metric independently; a sufficiently large spending cohort must not automatically enable a thin menu-item cohort.
 - [ ] Add minimum occurrence rules for specific-item percentiles so one accidental purchase cannot create a ranking.
 - [ ] Define stable metric identifiers and cohort rules so new restaurant, menu-item, timing, and behavioral percentiles can be added without changing slide rendering.
@@ -361,13 +361,13 @@ The expanded metric set cannot be computed per request. `calculatePercentiles` t
 
 These tasks establish boundaries now; they do not ship the yearly deck.
 
-- [ ] Introduce the `AnalyticsScope` model at the analytics/deck boundary.
+- [x] Introduce the `AnalyticsScope` model at the analytics/deck boundary.
 - [ ] Make analytics date-window parameters explicit rather than implicit.
 - [ ] Keep lifetime and yearly cache keys separate.
 - [ ] Include scope in request-deduplication keys.
 - [ ] Include scope in share-image cache keys and filenames.
-- [ ] Ensure every slide exposes its scope to copy and accessibility helpers.
-- [ ] Avoid embedding `new Date().getFullYear()` inside lifetime slide construction.
+- [x] Ensure every slide exposes its scope to copy and accessibility helpers.
+- [x] Avoid embedding `new Date().getFullYear()` inside lifetime slide construction.
 - [ ] Add a placeholder product note describing how a future yearly entry point will coexist with the lifetime deck.
 - [ ] Decide whether `spentThisYear` should still be computed server-side while unused by the lifetime deck.
 
@@ -387,8 +387,8 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 - [ ] Test that every percentile remains hidden with 99 or fewer qualifying production users and appears at 100.
 - [ ] Test that percentile cohorts exclude seed/test accounts and apply metric-specific eligibility rules.
 - [ ] Test that percentile reads come from precomputed cohort statistics rather than per-request aggregation.
-- [ ] Test the tone distribution stays within target tolerance.
-- [ ] Add a prohibited-copy regression test for retired medicalized, body-shaming, and financial-status phrases.
+- [x] Test the tone distribution stays within target tolerance.
+- [ ] Decide whether a narrowly scoped prohibited-copy guard can preserve the approved shock-heavy voice.
 
 ### Player behavior
 
@@ -466,6 +466,7 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 ## Primary implementation files
 
 - `components/wrapped/buildWrappedSlides.tsx`
+- `components/wrapped/wrappedSlideSelection.ts`
 - `components/wrapped/WrappedShareJourney.tsx`
 - `components/wrapped/wrappedTheme.ts`
 - `components/wrapped/wrappedStyles.ts`
@@ -477,5 +478,6 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 - `app/(tabs)/wrapped-journey.tsx`
 - `hooks/useExportUpsell.ts`
 - `__tests__/utils/wrappedMessages.test.ts`
+- `__tests__/utils/wrappedSlideSelection.test.ts`
 - `SnackTrackAPI/src/services/analytics/WrappedAnalyticsService.ts`
 - `SnackTrackAPI/src/services/analytics/WrappedAnalyticsTypes.ts`

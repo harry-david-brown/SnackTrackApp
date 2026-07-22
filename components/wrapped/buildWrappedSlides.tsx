@@ -4,20 +4,18 @@
  * copy, poses, and ordering can change without touching the player.
  *
  * Deck shape (max MAX_DECK_SIZE slides):
- *   intro → The Damage → optional stats (escalating by intensity) →
- *   Top 5 Spots → That's Your Year → archetype (climax + share card) → upsell?
+ *   lifetime intro → lifetime damage → one strong candidate per editorial
+ *   category → case closed → lifetime archetype (climax + share card)
  *
  * The archetype card closes the deck: it's the shareable artifact, so it carries
  * the all-time spend headline as well as the personality reveal.
  *
- * Optional stat slides each carry an `intensity` score (0–100, normalized the
- * same way as utils/wrappedArchetype.ts). When there are more candidates than
- * the deck budget, the spiciest win; the survivors play in ascending order so
- * the deck escalates toward the archetype reveal.
+ * Optional stats carry an `intensity` score and category. Selection preserves
+ * a fixed narrative order while choosing the strongest non-conflicting slide
+ * in each category; sparse categories are simply omitted.
  */
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
 import { UserSummary } from '../../types/api';
 import { getDeterministicMessage } from '../../utils/wrappedMessages';
 import { getArchetype, ARCHETYPE_COUNT } from '../../utils/wrappedArchetype';
@@ -26,9 +24,16 @@ import { STORY_GRADIENTS } from './wrappedTheme';
 import { AnimatedCount, DelayedFadeIn, DelayedSlam, Spacer } from './WrappedSlideEffects';
 import { MonthlySpendChart } from './MonthlySpendChart';
 import { styles } from './wrappedStyles';
+import {
+  selectEditorialCandidates,
+  type AnalyticsScope,
+  type SlideCategory,
+} from './wrappedSlideSelection';
 
 export interface Slide {
-  id?: string;
+  id: string;
+  category: SlideCategory;
+  scope: AnalyticsScope;
   gradient: keyof typeof STORY_GRADIENTS;
   emoji: string;
   /** When set, the mascot (outline variant) replaces the emoji as the slide's hero. */
@@ -60,20 +65,19 @@ export interface BuildWrappedSlidesParams {
   /** First name for personalized cards ("Sam's 2025 Wrapped"). The API's User
    *  has no name field yet, so this only lights up once the backend adds one. */
   userName?: string;
-  showExportUpsell?: boolean;
-  onExportUpgrade?: () => void;
-  onExportTutorial?: () => void;
-  onDismissExportUpsell?: () => void;
 }
 
-/** Hard cap on deck length (upsell included) — attention is the budget. */
-export const MAX_DECK_SIZE = 12;
+/** Hard cap on deck length — attention is the budget. */
+export const MAX_DECK_SIZE = 10;
 
 /** Delay before the archetype name slams in (confetti + haptic sync to it). */
 export const ARCHETYPE_REVEAL_DELAY_MS = 900;
 
 interface RankedSlide {
+  id: string;
+  category: SlideCategory;
   intensity: number;
+  confidence?: number;
   slide: Slide;
 }
 
@@ -87,15 +91,20 @@ export function buildWrappedSlides({
   formatCurrency,
   formatDate,
   userName,
-  showExportUpsell = false,
-  onExportUpgrade,
-  onExportTutorial,
-  onDismissExportUpsell,
 }: BuildWrappedSlidesParams): Slide[] {
   const wrapped = analytics.wrappedAnalytics;
-  // The year this recap covers — from the analytics payload, not hardcoded.
-  const wrappedYear = wrapped?.comparative?.spentThisYear?.year ?? new Date().getFullYear();
   const percentiles = wrapped?.percentiles;
+  const lifetimeScope = { kind: 'lifetime' } as const;
+  const coverage = wrapped?.coverage;
+  const importedOrderCount = coverage?.orderCount ?? analytics.totalReceipts;
+  const formatCoverageMonth = (dateString: string) =>
+    new Date(dateString).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const coverageWindow = coverage?.earliestOrderDate && coverage?.latestOrderDate
+    ? `${formatCoverageMonth(coverage.earliestOrderDate)}–${formatCoverageMonth(coverage.latestOrderDate)}`
+    : null;
+  const coverageHeadline = coverageWindow
+    ? `${importedOrderCount} imported orders · ${coverageWindow}`
+    : `${importedOrderCount} imported orders currently in SnackTrack`;
 
   // "Top X% of eaters" pill — cross-user standing, shown only when the pool was
   // large enough for the API to return a percentile. Suppressed for unremarkable
@@ -114,19 +123,25 @@ export function buildWrappedSlides({
   // ---------------------------------------------------------------- core ----
 
   const intro: Slide = {
+    id: 'lifetime-intro',
+    category: 'headline',
+    scope: lifetimeScope,
     gradient: 'forest',
     emoji: '🎊',
     mascotPose: 'wave',
     glow: true,
-    durationMs: 3500,
-    a11y: `Your SnackTrack ${wrappedYear} Wrapped. Let's see your food delivery history.`,
+    durationMs: 3000,
+    a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes an uploaded export.' : ''}`,
     content: (
       <>
-        <Text style={styles.wrappedYearTag}>{wrappedYear}</Text>
+        <Text style={styles.wrappedYearTag}>LIFETIME</Text>
         <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
-          Your SnackTrack Wrapped
+          The Lifetime Damage
         </Text>
-        <Text style={styles.introText}>Let&apos;s see your entire food delivery history...</Text>
+        <Text style={styles.introText}>{coverageHeadline}</Text>
+        {coverage?.hasExportData && (
+          <Text style={styles.coverageSourceText}>Includes your uploaded export</Text>
+        )}
       </>
     ),
   };
@@ -134,18 +149,21 @@ export function buildWrappedSlides({
   const totalDamageMessage = getDeterministicMessage('totalDamage', analytics, undefined, 0);
   const spendTop = percentiles?.totalSpent?.topPercent;
   const damage: Slide = {
+    id: 'lifetime-damage',
+    category: 'headline',
+    scope: lifetimeScope,
     gradient: 'ember',
     emoji: '😱',
     mascotPose: 'shocked',
     glow: true,
-    a11y: `The Damage. ${formatCurrency(analytics.totalSpent)} spent on food delivery.${
+    a11y: `The Lifetime Damage. ${formatCurrency(analytics.totalSpent)} across imported food delivery orders.${
       spendTop != null && spendTop <= 50 ? ` Top ${spendTop} percent of spenders.` : ''
     } ${totalDamageMessage}`,
     content: (
       <>
-        <Text style={styles.slideTitle}>The Damage</Text>
+        <Text style={styles.slideTitle}>The Lifetime Damage</Text>
         <AnimatedCount value={analytics.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
-        <Text style={styles.bigNumberLabel}>spent on food delivery</Text>
+        <Text style={styles.bigNumberLabel}>across your imported orders</Text>
         {percentilePill(spendTop, 'spenders')}
         <Spacer h={6} />
         <DelayedFadeIn delay={ROAST_DELAY_MS}>
@@ -159,37 +177,17 @@ export function buildWrappedSlides({
 
   const optional: RankedSlide[] = [];
 
-  if (wrapped?.comparative?.spentThisYear) {
-    const data = wrapped.comparative.spentThisYear;
-    const spentThisYearMessage = getDeterministicMessage('spentThisYear', analytics, data.totalSpent, 14);
-    optional.push({
-      intensity: clamp100((data.totalSpent / 4000) * 100),
-      slide: {
-        gradient: 'lagoon',
-        emoji: '📅',
-        mascotPose: 'prop-receipt',
-        a11y: `This Year. ${formatCurrency(data.totalSpent)} spent this year. ${spentThisYearMessage}`,
-        content: (
-          <>
-            <Text style={styles.slideTitle}>This Year</Text>
-            <AnimatedCount value={data.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
-            <Text style={styles.bigNumberLabel}>spent this year</Text>
-            <Spacer h={6} />
-            <DelayedFadeIn delay={ROAST_DELAY_MS}>
-              <Text style={styles.roastText}>{spentThisYearMessage}</Text>
-            </DelayedFadeIn>
-          </>
-        ),
-      },
-    });
-  }
-
   if (wrapped?.shame.lateNightOrders) {
     const data = wrapped.shame.lateNightOrders;
     const lateNightMessage = getDeterministicMessage('lateNightOrders', analytics, data.count, 1);
     optional.push({
+      id: 'late-night-orders',
+      category: 'extreme-moment',
       intensity: clamp100((data.count / 20) * 100),
       slide: {
+        id: 'late-night-orders',
+        category: 'extreme-moment',
+        scope: lifetimeScope,
         gradient: 'indigo',
         emoji: '🌙',
         mascotPose: 'sleepy',
@@ -217,8 +215,13 @@ export function buildWrappedSlides({
     const data = wrapped.shame.laziestDay;
     const laziestDayMessage = getDeterministicMessage('laziestDay', analytics, data.orderCount, 2);
     optional.push({
+      id: 'laziest-day',
+      category: 'extreme-moment',
       intensity: clamp100((data.orderCount / 5) * 100),
       slide: {
+        id: 'laziest-day',
+        category: 'extreme-moment',
+        scope: lifetimeScope,
         gradient: 'berry',
         emoji: '😴',
         mascotPose: 'sheepish',
@@ -246,8 +249,13 @@ export function buildWrappedSlides({
     const data = wrapped.shame.longestStreak;
     const streakMessage = getDeterministicMessage('consecutiveDays', analytics, data.days, 3);
     optional.push({
+      id: 'longest-streak',
+      category: 'extreme-moment',
       intensity: clamp100((data.days / 14) * 100),
       slide: {
+        id: 'longest-streak',
+        category: 'extreme-moment',
+        scope: lifetimeScope,
         gradient: 'ember',
         emoji: '🔥',
         mascotPose: 'cheer',
@@ -271,12 +279,17 @@ export function buildWrappedSlides({
     });
   }
 
-  if (wrapped?.shame.chainDependency) {
+  if (wrapped?.shame.chainDependency && wrapped.shame.chainDependency.orderCount >= 3) {
     const data = wrapped.shame.chainDependency;
     const chainMessage = getDeterministicMessage('chainDependency', analytics, data.worstOffender, 4);
     optional.push({
+      id: 'chain-dependency',
+      category: 'habit',
       intensity: clamp100(data.percentage),
       slide: {
+        id: 'chain-dependency',
+        category: 'habit',
+        scope: lifetimeScope,
         gradient: 'berry',
         emoji: '🍔',
         mascotPose: 'wink',
@@ -300,12 +313,17 @@ export function buildWrappedSlides({
     });
   }
 
-  if (wrapped?.shame.singleItemOrders) {
+  if (wrapped?.shame.singleItemOrders && wrapped.shame.singleItemOrders.count >= 3) {
     const data = wrapped.shame.singleItemOrders;
     const singleItemMessage = getDeterministicMessage('singleItemOrders', analytics, data.count, 5);
     optional.push({
+      id: 'single-item-orders',
+      category: 'habit',
       intensity: clamp100((data.count / 30) * 100),
       slide: {
+        id: 'single-item-orders',
+        category: 'habit',
+        scope: lifetimeScope,
         gradient: 'amber',
         emoji: '🤏',
         mascotPose: 'neutral',
@@ -333,8 +351,13 @@ export function buildWrappedSlides({
     const data = wrapped.flex.mostExpensiveOrder;
     const expensiveMessage = getDeterministicMessage('mostExpensiveOrder', analytics, data.amount, 6);
     optional.push({
+      id: 'most-expensive-order',
+      category: 'extreme-moment',
       intensity: clamp100((data.amount / 150) * 100),
       slide: {
+        id: 'most-expensive-order',
+        category: 'extreme-moment',
+        scope: lifetimeScope,
         gradient: 'indigo',
         emoji: '💰',
         mascotPose: 'flex',
@@ -358,19 +381,25 @@ export function buildWrappedSlides({
     });
   }
 
-  if (wrapped?.flex.coffeeAddiction) {
+  if (wrapped?.flex.coffeeAddiction && wrapped.flex.coffeeAddiction.orderCount >= 3) {
     const data = wrapped.flex.coffeeAddiction;
     const coffeeMessage = getDeterministicMessage('coffeeSpending', analytics, data.totalSpent, 7);
     optional.push({
+      id: 'coffee-addiction',
+      category: 'habit',
       intensity: clamp100((data.orderCount / 50) * 100),
+      confidence: Math.min(1, data.orderCount / 3),
       slide: {
+        id: 'coffee-addiction',
+        category: 'habit',
+        scope: lifetimeScope,
         gradient: 'amber',
         emoji: '☕',
         mascotPose: 'prop-coffee',
-        a11y: `Coffee Addiction. ${formatCurrency(data.totalSpent)} spent on coffee. ${coffeeMessage}`,
+        a11y: `The Caffeine Economy. ${formatCurrency(data.totalSpent)} spent on coffee. ${coffeeMessage}`,
         content: (
           <>
-            <Text style={styles.slideTitle}>Coffee Addiction</Text>
+            <Text style={styles.slideTitle}>The Caffeine Economy</Text>
             <AnimatedCount value={data.totalSpent} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
             <Text style={styles.bigNumberLabel}>spent on coffee</Text>
             <Spacer h={6} />
@@ -387,13 +416,18 @@ export function buildWrappedSlides({
     });
   }
 
-  if (wrapped?.flex.nightOwl) {
+  if (wrapped?.flex.nightOwl && wrapped.flex.nightOwl.count >= 3) {
     const data = wrapped.flex.nightOwl;
     const nightOwlMessage = getDeterministicMessage('nightOwlPercentage', analytics, data.percentage, 8);
     const owlTop = percentiles?.nightOwl?.topPercent;
     optional.push({
+      id: 'night-owl',
+      category: 'pattern',
       intensity: clamp100(data.percentage),
       slide: {
+        id: 'night-owl',
+        category: 'pattern',
+        scope: lifetimeScope,
         gradient: 'indigo',
         emoji: '🦉',
         mascotPose: 'wink',
@@ -446,8 +480,13 @@ export function buildWrappedSlides({
 
     const couldHaveBoughtMessage = getDeterministicMessage('couldHaveBought', analytics, undefined, 9);
     optional.push({
+      id: 'could-have-bought',
+      category: 'perspective',
       intensity: clamp100((data.totalSpent / 5000) * 100),
       slide: {
+        id: 'could-have-bought',
+        category: 'perspective',
+        scope: lifetimeScope,
         gradient: 'amber',
         emoji: emoji,
         mascotPose: 'thinking',
@@ -475,8 +514,13 @@ export function buildWrappedSlides({
     const data = wrapped.comparative.missedInvestment;
     const investmentMessage = getDeterministicMessage('missedInvestment', analytics, data.missedGains, 10);
     optional.push({
+      id: 'missed-investment',
+      category: 'perspective',
       intensity: clamp100((data.missedGains / 1500) * 100),
       slide: {
+        id: 'missed-investment',
+        category: 'perspective',
+        scope: lifetimeScope,
         gradient: 'lagoon',
         emoji: '📈',
         mascotPose: 'prop-piggy-bank',
@@ -503,8 +547,13 @@ export function buildWrappedSlides({
     const data = wrapped.comparative.costPerMeal;
     const costPerMealMessage = getDeterministicMessage('costPerMeal', analytics, data.averageDeliveryFeePerMeal, 11);
     optional.push({
+      id: 'delivery-tax',
+      category: 'perspective',
       intensity: clamp100((data.averageDeliveryFeePerMeal / 8) * 100),
       slide: {
+        id: 'delivery-tax',
+        category: 'perspective',
+        scope: lifetimeScope,
         gradient: 'berry',
         emoji: '🏪',
         mascotPose: 'prop-receipt',
@@ -541,8 +590,13 @@ export function buildWrappedSlides({
 
     const waitingTimeMessage = getDeterministicMessage('deliveryWaits', analytics, data.totalMinutes, 14);
     optional.push({
+      id: 'delivery-waits',
+      category: 'perspective',
       intensity: clamp100((data.totalMinutes / 1440) * 100),
       slide: {
+        id: 'delivery-waits',
+        category: 'perspective',
+        scope: lifetimeScope,
         gradient: 'lagoon',
         emoji: '⏱️',
         mascotPose: 'sad',
@@ -573,12 +627,17 @@ export function buildWrappedSlides({
     });
   }
 
-  if (wrapped?.patterns.peakHungerHour) {
+  if (wrapped?.patterns.peakHungerHour && wrapped.patterns.peakHungerHour.orderCount >= 3) {
     const data = wrapped.patterns.peakHungerHour;
     const peakHungerMessage = getDeterministicMessage('peakHungerHour', analytics, data.hour, 12);
     optional.push({
+      id: 'peak-hunger-hour',
+      category: 'pattern',
       intensity: clamp100(data.percentageOfTotal * 2.5),
       slide: {
+        id: 'peak-hunger-hour',
+        category: 'pattern',
+        scope: lifetimeScope,
         gradient: 'amber',
         emoji: '⏰',
         mascotPose: 'prop-salad',
@@ -607,31 +666,38 @@ export function buildWrappedSlides({
     const total = data.weekendSpending + data.weekdaySpending;
     const weekendShare = total > 0 ? data.weekendSpending / total : 0.5;
     const weekendWarriorMessage = getDeterministicMessage('weekendWarrior', analytics, undefined, 13);
-    optional.push({
-      // Interesting only insofar as spending skews away from an even split.
-      intensity: clamp100(Math.abs(weekendShare - 0.5) * 200),
-      slide: {
-        gradient: 'berry',
-        emoji: isWeekendMore ? '🎉' : '💼',
-        mascotPose: 'cheer',
-        a11y: `${isWeekendMore ? 'Weekend' : 'Weekday'} Warrior. ${isWeekendMore ? data.weekendOrders : data.weekdayOrders} ${isWeekendMore ? 'weekend' : 'weekday'} orders. ${weekendWarriorMessage}`,
-        content: (
-          <>
-            <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
-            <AnimatedCount value={isWeekendMore ? data.weekendOrders : data.weekdayOrders} style={styles.bigNumber} />
-            <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
-            <Spacer h={6} />
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
-              <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
-            </View>
-            <DelayedFadeIn delay={ROAST_DELAY_MS}>
-              <Text style={styles.roastText}>{weekendWarriorMessage}</Text>
-            </DelayedFadeIn>
-          </>
-        ),
-      },
-    });
+    if (Math.abs(weekendShare - 0.5) >= 0.1) {
+      optional.push({
+        id: 'weekend-warrior',
+        category: 'pattern',
+        // Interesting only insofar as spending skews away from an even split.
+        intensity: clamp100(Math.abs(weekendShare - 0.5) * 200),
+        slide: {
+          id: 'weekend-warrior',
+          category: 'pattern',
+          scope: lifetimeScope,
+          gradient: 'berry',
+          emoji: isWeekendMore ? '🎉' : '💼',
+          mascotPose: 'cheer',
+          a11y: `${isWeekendMore ? 'Weekend' : 'Weekday'} Warrior. ${isWeekendMore ? data.weekendOrders : data.weekdayOrders} ${isWeekendMore ? 'weekend' : 'weekday'} orders. ${weekendWarriorMessage}`,
+          content: (
+            <>
+              <Text style={styles.slideTitle}>{isWeekendMore ? 'Weekend Warrior' : 'Weekday Warrior'}</Text>
+              <AnimatedCount value={isWeekendMore ? data.weekendOrders : data.weekdayOrders} style={styles.bigNumber} />
+              <Text style={styles.bigNumberLabel}>{isWeekendMore ? 'weekend' : 'weekday'} orders</Text>
+              <Spacer h={6} />
+              <View style={styles.detailBox}>
+                <Text style={styles.detailText}>Weekend: {formatCurrency(data.weekendSpending)}</Text>
+                <Text style={styles.detailText}>Weekday: {formatCurrency(data.weekdaySpending)}</Text>
+              </View>
+              <DelayedFadeIn delay={ROAST_DELAY_MS}>
+                <Text style={styles.roastText}>{weekendWarriorMessage}</Text>
+              </DelayedFadeIn>
+            </>
+          ),
+        },
+      });
+    }
   }
 
   // Month-by-month spending chart — one visual slide to break up the
@@ -640,8 +706,13 @@ export function buildWrappedSlides({
     const months = analytics.monthlyBreakdown.slice(-12);
     const peak = months.reduce((best, m) => (m.totalSpent > best.totalSpent ? m : best), months[0]);
     optional.push({
+      id: 'spending-timeline',
+      category: 'trend',
       intensity: clamp100(months.length * 8),
       slide: {
+        id: 'spending-timeline',
+        category: 'trend',
+        scope: lifetimeScope,
         gradient: 'lagoon',
         emoji: '📊',
         hideHero: true, // the chart is the hero — reclaim the mascot's vertical room
@@ -649,8 +720,8 @@ export function buildWrappedSlides({
         a11y: `Month by Month. Your peak month cost ${formatCurrency(peak.totalSpent)}.`,
         content: (
           <>
-            <Text style={styles.slideTitle}>Month by Month</Text>
-            <Text style={styles.bigNumberLabel}>your year in spending</Text>
+            <Text style={styles.slideTitle}>The Damage Over Time</Text>
+            <Text style={styles.bigNumberLabel}>your recent spending timeline</Text>
             <MonthlySpendChart data={months} formatCurrency={formatCurrency} />
             <Spacer h={10} />
             <View style={styles.detailBox}>
@@ -669,6 +740,9 @@ export function buildWrappedSlides({
   const topSpots = (analytics.topRestaurants ?? []).slice(0, 5);
   const top5: Slide | null = topSpots.length >= 3
     ? {
+        id: 'top-spots',
+        category: 'places',
+        scope: lifetimeScope,
         gradient: 'indigo',
         emoji: '🏆',
         mascotPose: 'trophy',
@@ -691,22 +765,30 @@ export function buildWrappedSlides({
       }
     : null;
 
-  const ordersTop = percentiles?.orderCount?.topPercent;
+  if (top5) {
+    optional.push({
+      id: 'top-spots',
+      category: 'places',
+      intensity: 100,
+      slide: top5,
+    });
+  }
+
   const closing: Slide = {
+    id: 'case-closed',
+    category: 'transition',
+    scope: lifetimeScope,
     gradient: 'forest',
     emoji: '✨',
     mascotPose: 'celebrate',
     glow: true,
-    a11y: `That's your year. ${wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders, ${formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent.${
-      ordersTop != null && ordersTop <= 50 ? ` Top ${ordersTop} percent of orderers.` : ''
-    }`,
+    durationMs: 3200,
+    a11y: 'The case is closed. We reviewed the evidence, and the pattern is undeniable.',
     content: (
       <>
-        <Text style={styles.title}>That&apos;s Your Year</Text>
-        <Text style={styles.subtitle}>{wrapped?.comparative?.spentThisYear?.orderCount ?? analytics.totalReceipts} orders</Text>
-        <Text style={styles.subtitle}>{formatCurrency(wrapped?.comparative?.spentThisYear?.totalSpent ?? analytics.totalSpent)} spent</Text>
-        {percentilePill(ordersTop, 'orderers')}
-        <Text style={styles.introText}>So... what does that make you?</Text>
+        <Text style={styles.wrappedYearTag}>EVIDENCE REVIEWED</Text>
+        <Text style={styles.title}>The Case Is Closed</Text>
+        <Text style={styles.introText}>We reviewed the receipts. The pattern is undeniable.</Text>
       </>
     ),
   };
@@ -715,6 +797,9 @@ export function buildWrappedSlides({
   // launched in sync with the two-beat name slam.
   const archetype = getArchetype(analytics, formatCurrency);
   const archetypeSlide: Slide = {
+    id: 'lifetime-archetype',
+    category: 'identity',
+    scope: lifetimeScope,
     gradient: archetype.gradient,
     emoji: archetype.emoji,
     mascotPose: 'sunglasses',
@@ -723,14 +808,14 @@ export function buildWrappedSlides({
     glow: true,
     durationMs: 9000,
     showShareCta: true,
-    a11y: `Your food personality is ${archetype.name}. ${archetype.tagline} ${formatCurrency(analytics.totalSpent)} spent all time across ${analytics.totalReceipts} orders.`,
+    a11y: `Your all-time food personality is ${archetype.name}. ${archetype.tagline} ${formatCurrency(analytics.totalSpent)} across ${importedOrderCount} imported orders.`,
     content: (
       <>
         {/* Personalized card header — name lights up once the API provides one */}
         <Text style={styles.wrappedYearTag}>
-          {userName ? `${userName}'s` : 'Your'} {wrappedYear} Wrapped
+          {userName ? `${userName}'s ` : ''}LIFETIME
         </Text>
-        <Text style={styles.archetypeKicker}>Your food personality is</Text>
+        <Text style={styles.archetypeKicker}>Your all-time food personality is</Text>
         <DelayedSlam delay={ARCHETYPE_REVEAL_DELAY_MS} hapticOnReveal>
           <Text style={styles.archetypeName} numberOfLines={2} adjustsFontSizeToFit>{archetype.name}</Text>
           <Text style={styles.archetypeTagline}>{archetype.tagline}</Text>
@@ -741,7 +826,7 @@ export function buildWrappedSlides({
               {formatCurrency(analytics.totalSpent)}
             </Text>
             <Text style={styles.archetypeHeadlineLabel}>
-              all-time · {analytics.totalReceipts} orders
+              imported lifetime · {importedOrderCount} orders
             </Text>
           </View>
           {/* Two flavour traits — the headline above carries the hero stat. */}
@@ -763,64 +848,23 @@ export function buildWrappedSlides({
 
   // -------------------------------------------------- selection & order ----
 
-  // Core slides always play; optional stats compete for the remaining budget.
-  const coreCount = 4 + (top5 ? 1 : 0) + (showExportUpsell ? 1 : 0);
-  const budget = Math.max(0, MAX_DECK_SIZE - coreCount);
-  const picked = [...optional]
-    .sort((a, b) => b.intensity - a.intensity)
-    .slice(0, budget)
-    // Survivors escalate: mildest first, spiciest right before the finale.
-    .sort((a, b) => a.intensity - b.intensity)
-    .map((ranked) => ranked.slide);
+  const picked = selectEditorialCandidates(
+    optional.map(candidate => ({
+      id: candidate.id,
+      category: candidate.category,
+      intensity: candidate.intensity,
+      confidence: candidate.confidence,
+      value: candidate.slide,
+    }))
+  ).map(candidate => candidate.value);
 
   const slides: Slide[] = [
     intro,
     damage,
     ...picked,
-    ...(top5 ? [top5] : []),
     closing,
     archetypeSlide,
   ];
-
-  if (showExportUpsell) {
-    // Share the archetype card — the deck's shareable artifact.
-    const shareCardIndex = slides.length - 1;
-
-    slides.push({
-      id: 'export-upsell',
-      gradient: 'forest',
-      emoji: '📦',
-      shareTargetIndex: shareCardIndex,
-      a11y: 'Unlock your full delivery history. Add your full export for deeper history and better insights.',
-      content: (
-        <>
-          <Text style={[styles.slideTitle, styles.exportSlideTitle]}>Unlock your full delivery history</Text>
-          <View style={styles.savingsHighlight}>
-            <Text style={styles.savingsLabel}>You&apos;re already live with Gmail</Text>
-            <Text style={styles.exportUpsellHeadline}>Add your full export for deeper history, fuller trends, and better long-term insights.</Text>
-          </View>
-          <View style={styles.detailBox}>
-            <Text style={styles.detailText}>Fill in older orders that never hit your inbox.</Text>
-            <Text style={styles.detailText}>Strengthen yearly spending and restaurant trend analysis.</Text>
-            <Text style={styles.detailText}>Keep Gmail for speed, then use export for completeness.</Text>
-          </View>
-          <View style={styles.exportActionStack}>
-            <TouchableOpacity style={styles.affiliateButton} onPress={onExportUpgrade}>
-              <Text style={styles.affiliateButtonText}>Upload Full Export</Text>
-              <Ionicons name="arrow-forward" size={20} color="#222222" style={styles.affiliateButtonIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.exportSecondaryButton} onPress={onExportTutorial}>
-              <Ionicons name="information-circle-outline" size={18} color="white" />
-              <Text style={styles.exportSecondaryButtonText}>See how to request it</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.exportDismissButton} onPress={onDismissExportUpsell}>
-              <Text style={styles.exportDismissButtonText}>Maybe later</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ),
-    });
-  }
 
   return slides;
 }

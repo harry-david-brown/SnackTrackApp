@@ -3,7 +3,13 @@
  * Comprehensive test suite for the milestone-based roast system
  */
 
-import { getDeterministicMessage } from '../../utils/wrappedMessages';
+import {
+  getDeterministicMessage,
+  getDeterministicMessageResult,
+  getWrappedToneDistribution,
+  WRAPPED_MESSAGES,
+  type WrappedMessage,
+} from '../../utils/wrappedMessages';
 import { UserSummary } from '../../types/api';
 
 // Helper to create a minimal UserSummary for testing
@@ -23,6 +29,49 @@ const createMockAnalytics = (overrides: Partial<UserSummary> = {}): UserSummary 
 });
 
 describe('Wrapped Messages - Milestone System', () => {
+  describe('tone and copy safety', () => {
+    const flattenMessages = (node: unknown, result: WrappedMessage[] = []): WrappedMessage[] => {
+      if (Array.isArray(node)) {
+        result.push(...node as WrappedMessage[]);
+      } else if (node && typeof node === 'object') {
+        Object.values(node).forEach(value => flattenMessages(value, result));
+      }
+      return result;
+    };
+
+    it('tags every message with an allowed tone', () => {
+      const messages = flattenMessages(WRAPPED_MESSAGES);
+
+      expect(messages.length).toBeGreaterThan(0);
+      messages.forEach(message => {
+        expect(message.text.length).toBeGreaterThan(0);
+        expect(['roast', 'disbelief', 'impressive', 'celebration']).toContain(message.tone);
+      });
+    });
+
+    it('keeps the catalogue within the target tone mix', () => {
+      const distribution = getWrappedToneDistribution();
+      const targets = {
+        roast: 0.45,
+        disbelief: 0.25,
+        impressive: 0.20,
+        celebration: 0.10,
+      };
+
+      Object.entries(targets).forEach(([tone, target]) => {
+        expect(distribution[tone as keyof typeof distribution]).toBeCloseTo(target, 2);
+      });
+    });
+
+    it('returns tone metadata without changing the existing string API', () => {
+      const analytics = createMockAnalytics({ totalSpent: 15000 });
+      const result = getDeterministicMessageResult('totalDamage', analytics, undefined);
+
+      expect(result.text).toBe(getDeterministicMessage('totalDamage', analytics, undefined));
+      expect(result.tone).toBeTruthy();
+    });
+  });
+
   describe('getDeterministicMessage - totalDamage', () => {
     it('should return message for milestone 0 (under 500)', () => {
       const analytics = createMockAnalytics({ totalSpent: 250 });
@@ -756,4 +805,3 @@ describe('Wrapped Messages - Milestone System', () => {
     });
   });
 });
-

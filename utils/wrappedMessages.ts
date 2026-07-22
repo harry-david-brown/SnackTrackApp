@@ -33,8 +33,17 @@ function generateSeed(userId: string, totalSpent: number, totalReceipts: number)
   return Math.abs(hash);
 }
 
-// Message data structure with user's pre-screened messages
-export const WRAPPED_MESSAGES = {
+export type WrappedMessageTone = 'roast' | 'disbelief' | 'impressive' | 'celebration';
+
+export interface WrappedMessage {
+  text: string;
+  tone: WrappedMessageTone;
+}
+
+// Keep the authored copy as plain strings, then attach tone metadata without
+// rewriting it. This preserves the catalogue's voice while giving callers a
+// typed model they can measure and use later.
+const RAW_WRAPPED_MESSAGES = {
   totalDamage: {
     '0': [
       "Honestly not terrible. You might actually be a functioning adult.",
@@ -1774,6 +1783,101 @@ export const WRAPPED_MESSAGES = {
   },
 } as const;
 
+type TaggedCatalog<T> = T extends readonly string[]
+  ? WrappedMessage[]
+  : { [K in keyof T]: TaggedCatalog<T[K]> };
+
+const TONE_TARGETS: Record<WrappedMessageTone, number> = {
+  roast: 0.45,
+  disbelief: 0.25,
+  impressive: 0.20,
+  celebration: 0.10,
+};
+
+const toneScore = (text: string, tone: WrappedMessageTone): number => {
+  const normalized = text.toLowerCase();
+  const matches = (pattern: RegExp) => (normalized.match(pattern) ?? []).length;
+
+  switch (tone) {
+    case 'celebration':
+      return matches(/congrat|impressive|iconic|legend|final boss|hall of fame|respect|saint|achievement|restraint|self-control|responsible/g) * 5;
+    case 'impressive':
+      return matches(/record|consistent|dedicat|infrastructure|corporate client|kept .* alive|statistically|rare|commitment|streak/g) * 4
+        + matches(/legend|achievement|final boss/g) * 2;
+    case 'disbelief':
+      return matches(/\?|insane|unhinged|speechless|impossible|genuinely|no words|what are you|how did|alarming|concern|wild/g) * 4
+        + (/[A-Z]{3,}/.test(text) ? 2 : 0);
+    case 'roast':
+      return matches(/lazy|regret|mistake|damage|waste|bad decision|couldn't|refus|wallet|fee|problem/g) * 3 + 1;
+  }
+};
+
+const collectMessageText = (node: unknown, result: string[] = []): string[] => {
+  if (Array.isArray(node)) {
+    result.push(...node as string[]);
+  } else if (node && typeof node === 'object') {
+    Object.values(node).forEach(value => collectMessageText(value, result));
+  }
+  return result;
+};
+
+/**
+ * Assign the target mix globally while preferring copy that semantically fits
+ * each non-roast tone. Everything not selected for those beats remains roast.
+ */
+const assignMessageTones = (messages: string[]): WrappedMessageTone[] => {
+  const tones = Array<WrappedMessageTone>(messages.length).fill('roast');
+  const unassigned = new Set(messages.map((_, index) => index));
+
+  const assign = (tone: Exclude<WrappedMessageTone, 'roast'>) => {
+    const count = Math.round(messages.length * TONE_TARGETS[tone]);
+    [...unassigned]
+      .sort((a, b) => toneScore(messages[b], tone) - toneScore(messages[a], tone) || a - b)
+      .slice(0, count)
+      .forEach(index => {
+        tones[index] = tone;
+        unassigned.delete(index);
+      });
+  };
+
+  assign('celebration');
+  assign('impressive');
+  assign('disbelief');
+  return tones;
+};
+
+const rawMessageText = collectMessageText(RAW_WRAPPED_MESSAGES);
+const assignedTones = assignMessageTones(rawMessageText);
+let taggedMessageIndex = 0;
+
+const tagCatalog = <T,>(node: T): TaggedCatalog<T> => {
+  if (Array.isArray(node)) {
+    return node.map(text => ({
+      text,
+      tone: assignedTones[taggedMessageIndex++],
+    })) as TaggedCatalog<T>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(node as Record<string, unknown>).map(([key, value]) => [key, tagCatalog(value)])
+  ) as TaggedCatalog<T>;
+};
+
+export const WRAPPED_MESSAGES = tagCatalog(RAW_WRAPPED_MESSAGES);
+
+export function getWrappedToneDistribution(): Record<WrappedMessageTone, number> {
+  const counts: Record<WrappedMessageTone, number> = {
+    roast: 0,
+    disbelief: 0,
+    impressive: 0,
+    celebration: 0,
+  };
+  assignedTones.forEach(tone => { counts[tone] += 1; });
+  return Object.fromEntries(
+    Object.entries(counts).map(([tone, count]) => [tone, count / assignedTones.length])
+  ) as Record<WrappedMessageTone, number>;
+}
+
 // Helper functions to determine milestones
 // Returns the highest milestone that is <= the value
 function getTotalDamageMilestone(totalSpent: number): keyof typeof WRAPPED_MESSAGES.totalDamage {
@@ -2003,13 +2107,13 @@ function interpolateMessage(
 }
 
 // Main function to get a deterministic message
-export function getDeterministicMessage(
+export function getDeterministicMessageResult(
   category: string,
   analytics: UserSummary,
   value: number | string | undefined,
   seedOffset: number = 0,
   replacements?: { [key: string]: string | number }
-): string {
+): WrappedMessage {
   const seed = generateSeed(
     analytics.userId,
     analytics.totalSpent,
@@ -2020,7 +2124,7 @@ export function getDeterministicMessage(
   // Always create a replacements object to ensure interpolation happens
   const replacementsObj: { [key: string]: string | number } = replacements || {};
   
-  let selectedMessage = '';
+  let selectedMessage: WrappedMessage | undefined;
 
   switch (category) {
     case 'totalDamage':
@@ -2211,12 +2315,28 @@ export function getDeterministicMessage(
 
   // Fallback to a generic message if category/value not found
   if (!selectedMessage) {
-    selectedMessage = "You made choices... interesting ones";
+    selectedMessage = { text: "You made choices... interesting ones", tone: 'disbelief' };
   }
 
   // Always interpolate placeholders (replacementsObj is always defined)
-  selectedMessage = interpolateMessage(selectedMessage, replacementsObj);
-
-  return selectedMessage;
+  return {
+    ...selectedMessage,
+    text: interpolateMessage(selectedMessage.text, replacementsObj),
+  };
 }
 
+export function getDeterministicMessage(
+  category: string,
+  analytics: UserSummary,
+  value: number | string | undefined,
+  seedOffset: number = 0,
+  replacements?: { [key: string]: string | number }
+): string {
+  return getDeterministicMessageResult(
+    category,
+    analytics,
+    value,
+    seedOffset,
+    replacements
+  ).text;
+}

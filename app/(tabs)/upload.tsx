@@ -419,7 +419,7 @@ export default function UploadScreen() {
               <ImportTaskCard
                 id="uber_export"
                 title="Import via Uber"
-                description="Optional: upload your Uber export for a more complete history."
+                description="Optional: upload your Uber export to expand your imported history."
                 iconName="cloud-upload-outline"
                 statusLabel={hasCompletedExport ? 'Complete' : hasImportedDeliveryData ? 'Optional next step' : 'Optional'}
                 statusTone={hasCompletedExport ? 'complete' : 'optional'}
