@@ -298,18 +298,18 @@ Cutting `This Year`, the reveal-setup totals, and unselected slides orphans a lo
 
 ## Phase 6 — Visual and motion direction
 
-- [ ] Keep the forest gradient as the lifetime brand anchor.
-- [ ] Use deeper indigo/gold treatments to give lifetime results a `hall of fame` feeling.
-- [ ] Preserve hot colors for high-impact roast slides and cool colors for flex/pattern slides.
-- [ ] **Restore colour-by-category**: the narrative order now drives sequence, so gradients can once again carry section meaning (the old global intensity sort had scrambled this).
-- [ ] Ensure no two adjacent slides share a gradient or mascot pose.
-- [ ] Add at least one additional composition that breaks the mascot-title-number-detail-roast template.
-- [ ] Consider a split comparison layout for financial perspective.
-- [ ] Consider a receipt or evidence layout for the extreme-moment slide.
-- [ ] Use a minimal typographic layout for `The Case Is Closed`.
-- [ ] Assign entrance animations by narrative role rather than by slide index.
-- [ ] Reserve the strongest slam, heavy haptic, glow, and confetti for the archetype.
-- [ ] Preserve the reduced-motion equivalent for every new treatment.
+- [x] Keep the forest gradient as the lifetime brand anchor.
+- [x] Use deeper indigo/gold treatments to give lifetime results a `hall of fame` feeling.
+- [x] Preserve hot colors for high-impact roast slides and cool colors for flex/pattern slides.
+- [x] **Restore colour-by-category**: the narrative order now drives sequence, so gradients can once again carry section meaning (the old global intensity sort had scrambled this).
+- [x] Ensure no two adjacent slides share a gradient or mascot pose, including sparse-deck fallbacks.
+- [x] Add compositions that break the mascot-title-number-detail-roast template.
+- [x] Add a split `YOU GOT / COULD HAVE HAD` comparison layout for financial perspective.
+- [x] Add a stamped evidence-card layout for the selected extreme-moment slide.
+- [x] Use a minimal black-and-gold typographic layout for `The Case Is Closed`.
+- [x] Assign entrance animations by narrative role rather than by slide index.
+- [x] Reserve the strongest whole-slide reveal, name slam, heavy haptic, glow, and confetti for the archetype.
+- [x] Preserve the reduced-motion crossfade equivalent for every new treatment.
 
 ## Phase 7 — Analytics and credibility
 

@@ -36,8 +36,8 @@ export const SHARE_FRAME_H = Math.round(screenWidth * (16 / 9));
  * Rules:
  * - Every gradient is a deep jewel tone: white text passes contrast on all of
  *   them, everywhere, so slides never need per-gradient ink colors.
- * - `forest` is the brand anchor — intro, finale, and upsell slides wear it so
- *   shared screenshots are recognizably SnackTrack.
+ * - `forest` is the lifetime brand anchor; gold enters for hall-of-fame and
+ *   verdict beats while shared screenshots remain recognizably SnackTrack.
  * - Color carries the narrative: hot tones (ember/berry) for shame slides,
  *   cool tones (indigo/lagoon) for flex, warm amber for money/patterns.
  * - Each gradient has its own axis so the deck doesn't feel like one template.
@@ -82,6 +82,20 @@ export const STORY_GRADIENTS = {
     locations: [0, 0.55, 1],
     start: { x: 0.2, y: 0 },
     end: { x: 0.8, y: 1 },
+  },
+  // Hall-of-fame: deep indigo with a restrained gold landing point.
+  hallOfFame: {
+    colors: ['#100E2B', '#28205C', '#8A6420'],
+    locations: [0, 0.68, 1],
+    start: { x: 0.1, y: 0 },
+    end: { x: 0.9, y: 1 },
+  },
+  // Verdict: nearly black ink with a single evidence-gold edge.
+  verdict: {
+    colors: ['#080A09', '#171C18', '#6F531D'],
+    locations: [0, 0.78, 1],
+    start: { x: 0, y: 0 },
+    end: { x: 1, y: 1 },
   },
 } as const;
 

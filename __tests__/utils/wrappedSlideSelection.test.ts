@@ -1,4 +1,8 @@
-import { selectEditorialCandidates, type EditorialCandidate } from '../../components/wrapped/wrappedSlideSelection';
+import {
+  getSlideEntranceRole,
+  selectEditorialCandidates,
+  type EditorialCandidate,
+} from '../../components/wrapped/wrappedSlideSelection';
 
 type Candidate = EditorialCandidate<string>;
 
@@ -10,6 +14,15 @@ const candidate = (
 ): Candidate => ({ id, category, intensity, confidence, value: id });
 
 describe('selectEditorialCandidates', () => {
+  it('assigns entrance motion by narrative role rather than position', () => {
+    expect(getSlideEntranceRole('headline', 'lifetime-intro')).toBe('rise');
+    expect(getSlideEntranceRole('headline', 'lifetime-damage')).toBe('zoom');
+    expect(getSlideEntranceRole('perspective')).toBe('slide');
+    expect(getSlideEntranceRole('extreme-moment')).toBe('drop');
+    expect(getSlideEntranceRole('transition')).toBe('quiet');
+    expect(getSlideEntranceRole('identity')).toBe('reveal');
+  });
+
   it('keeps one slide per category in the editorial narrative order', () => {
     const selected = selectEditorialCandidates([
       candidate('habit-weak', 'habit', 25),

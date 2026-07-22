@@ -13,6 +13,21 @@ export type SlideCategory =
   | 'transition'
   | 'identity';
 
+export type SlideEntranceRole = 'rise' | 'zoom' | 'slide' | 'drop' | 'quiet' | 'reveal';
+
+/** Motion follows the editorial role, so a sparse deck still tells the same story. */
+export function getSlideEntranceRole(
+  category: SlideCategory,
+  slideId?: string
+): SlideEntranceRole {
+  if (category === 'identity') return 'reveal';
+  if (category === 'transition') return 'quiet';
+  if (category === 'extreme-moment') return 'drop';
+  if (category === 'perspective' || category === 'habit') return 'slide';
+  if (category === 'headline' && slideId === 'lifetime-damage') return 'zoom';
+  return 'rise';
+}
+
 export interface EditorialCandidate<T> {
   id: string;
   category: SlideCategory;
@@ -92,4 +107,3 @@ export function selectEditorialCandidates<T>(
     (a, b) => OPTIONAL_CATEGORY_ORDER.indexOf(a.category) - OPTIONAL_CATEGORY_ORDER.indexOf(b.category)
   );
 }
-

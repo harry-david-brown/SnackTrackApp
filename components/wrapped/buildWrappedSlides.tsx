@@ -83,6 +83,38 @@ interface RankedSlide {
 
 const clamp100 = (n: number) => Math.max(0, Math.min(100, n));
 
+const CATEGORY_GRADIENTS: Partial<Record<SlideCategory, keyof typeof STORY_GRADIENTS>> = {
+  perspective: 'amber',
+  trend: 'lagoon',
+  places: 'hallOfFame',
+  habit: 'berry',
+  pattern: 'indigo',
+  'extreme-moment': 'ember',
+  transition: 'verdict',
+};
+
+const ALTERNATE_GRADIENTS: Partial<Record<SlideCategory, keyof typeof STORY_GRADIENTS>> = {
+  headline: 'forest',
+  perspective: 'hallOfFame',
+  trend: 'indigo',
+  places: 'amber',
+  habit: 'lagoon',
+  pattern: 'forest',
+  'extreme-moment': 'berry',
+  transition: 'verdict',
+  identity: 'hallOfFame',
+};
+
+const REPEATED_POSE_FALLBACKS: Partial<Record<SlideCategory, MascotPose>> = {
+  headline: 'neutral',
+  perspective: 'thinking',
+  places: 'trophy',
+  habit: 'wink',
+  pattern: 'prop-salad',
+  'extreme-moment': 'flex',
+  identity: 'sunglasses',
+};
+
 /** Beat between the hero number landing and the roast punchline fading in. */
 const ROAST_DELAY_MS = 700;
 
@@ -129,7 +161,6 @@ export function buildWrappedSlides({
     gradient: 'forest',
     emoji: '🎊',
     mascotPose: 'wave',
-    glow: true,
     durationMs: 3000,
     a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes an uploaded export.' : ''}`,
     content: (
@@ -155,7 +186,6 @@ export function buildWrappedSlides({
     gradient: 'ember',
     emoji: '😱',
     mascotPose: 'shocked',
-    glow: true,
     a11y: `The Lifetime Damage. ${formatCurrency(analytics.totalSpent)} across imported food delivery orders.${
       spendTop != null && spendTop <= 50 ? ` Top ${spendTop} percent of spenders.` : ''
     } ${totalDamageMessage}`,
@@ -494,12 +524,20 @@ export function buildWrappedSlides({
         content: (
           <>
             <Text style={styles.slideTitle}>Could Have Bought</Text>
-            <AnimatedCount value={selectedComparison.quantity} style={styles.bigNumber} />
-            <Text style={styles.bigNumberLabel}>{selectedComparison.item}</Text>
-            <Spacer h={6} />
-            <View style={styles.detailBox}>
-              <Text style={styles.detailText}>Instead you spent {formatCurrency(data.totalSpent)}</Text>
-              <Text style={styles.detailText}>on food delivery</Text>
+            <View style={styles.comparisonSplit}>
+              <View style={styles.comparisonColumn}>
+                <Text style={styles.comparisonEyebrow}>YOU GOT</Text>
+                <Text style={styles.comparisonValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatCurrency(data.totalSpent)}
+                </Text>
+                <Text style={styles.comparisonLabel}>in delivery receipts</Text>
+              </View>
+              <View style={styles.comparisonDivider} />
+              <View style={styles.comparisonColumn}>
+                <Text style={styles.comparisonEyebrow}>COULD HAVE HAD</Text>
+                <AnimatedCount value={selectedComparison.quantity} style={styles.comparisonValue} />
+                <Text style={styles.comparisonLabel}>{selectedComparison.item}</Text>
+              </View>
             </View>
             <DelayedFadeIn delay={ROAST_DELAY_MS}>
               <Text style={styles.roastText}>{couldHaveBoughtMessage}</Text>
@@ -778,17 +816,17 @@ export function buildWrappedSlides({
     id: 'case-closed',
     category: 'transition',
     scope: lifetimeScope,
-    gradient: 'forest',
-    emoji: '✨',
-    mascotPose: 'celebrate',
-    glow: true,
+    gradient: 'verdict',
+    emoji: '',
+    hideHero: true,
     durationMs: 3200,
     a11y: 'The case is closed. We reviewed the evidence, and the pattern is undeniable.',
     content: (
       <>
-        <Text style={styles.wrappedYearTag}>EVIDENCE REVIEWED</Text>
-        <Text style={styles.title}>The Case Is Closed</Text>
-        <Text style={styles.introText}>We reviewed the receipts. The pattern is undeniable.</Text>
+        <Text style={styles.verdictEyebrow}>EVIDENCE REVIEWED</Text>
+        <View style={styles.verdictRule} />
+        <Text style={styles.verdictTitle}>The Case{`\n`}Is Closed</Text>
+        <Text style={styles.verdictBody}>We reviewed the receipts.{`\n`}The pattern is undeniable.</Text>
       </>
     ),
   };
@@ -866,5 +904,19 @@ export function buildWrappedSlides({
     archetypeSlide,
   ];
 
-  return slides;
+  // Apply the Phase 6 visual grammar after selection. This keeps category
+  // colour and repetition rules correct even when sparse data removes beats.
+  return slides.reduce<Slide[]>((directed, slide) => {
+    const previous = directed[directed.length - 1];
+    const categoryGradient = CATEGORY_GRADIENTS[slide.category] ?? slide.gradient;
+    const gradient = previous?.gradient === categoryGradient
+      ? (ALTERNATE_GRADIENTS[slide.category] ?? categoryGradient)
+      : categoryGradient;
+    const mascotPose = slide.mascotPose && previous?.mascotPose === slide.mascotPose
+      ? REPEATED_POSE_FALLBACKS[slide.category]
+      : slide.mascotPose;
+
+    directed.push({ ...slide, gradient, mascotPose });
+    return directed;
+  }, []);
 }

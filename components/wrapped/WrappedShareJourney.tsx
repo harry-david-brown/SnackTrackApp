@@ -49,6 +49,7 @@ import {
 } from './wrappedTheme';
 import { AnimatedBackground, HeroGlow, WrappedStaticRenderContext, useReducedMotion } from './WrappedSlideEffects';
 import { buildWrappedSlides, type Slide } from './buildWrappedSlides';
+import { getSlideEntranceRole } from './wrappedSlideSelection';
 import { useWrappedAudio } from './useWrappedAudio';
 import { styles } from './wrappedStyles';
 
@@ -250,10 +251,21 @@ export default function WrappedShareJourney({
       return;
     }
 
-    // Going FORWARD — cycle through 4 distinct "crazy" entrances.
-    const animType = currentSlide % 4;
+    // Going FORWARD — motion follows the slide's narrative role, not its
+    // position. Sparse decks therefore keep the same visual grammar.
+    const entrance = slide
+      ? getSlideEntranceRole(slide.category, slide.id)
+      : 'rise';
 
-    if (animType === 0) {
+    if (entrance === 'quiet') {
+      // The verdict is a breath before the reveal: restrained crossfade only.
+      slideTranslateY.value = 12;
+      slideTranslateX.value = 0;
+      slideScale.value = 0.99;
+      slideOpacity.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.quad) });
+      slideTranslateY.value = withTiming(0, { duration: 420, easing: Easing.out(Easing.quad) });
+      slideScale.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.quad) });
+    } else if (entrance === 'rise') {
       // Spring rise from below
       slideTranslateY.value = 60;
       slideTranslateX.value = 0;
@@ -261,14 +273,14 @@ export default function WrappedShareJourney({
       slideOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
       slideTranslateY.value = withSpring(0, { damping: 19, stiffness: 445 });
       slideScale.value = withSpring(1, { damping: 19, stiffness: 410 });
-    } else if (animType === 1) {
-      // Zoom blast — scale from huge
+    } else if (entrance === 'zoom') {
+      // Headline impact — forceful, but smaller than the final reveal.
       slideTranslateY.value = 0;
       slideTranslateX.value = 0;
-      slideScale.value = 1.55;
+      slideScale.value = 1.28;
       slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
-      slideScale.value = withSpring(1, { damping: 16, stiffness: 520 });
-    } else if (animType === 2) {
+      slideScale.value = withSpring(1, { damping: 19, stiffness: 470 });
+    } else if (entrance === 'slide') {
       // Slide in from right
       slideTranslateY.value = 0;
       slideTranslateX.value = screenWidth * 0.9;
@@ -276,7 +288,7 @@ export default function WrappedShareJourney({
       slideOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
       slideTranslateX.value = withSpring(0, { damping: 22, stiffness: 445 });
       slideScale.value = withSpring(1, { damping: 22, stiffness: 445 });
-    } else {
+    } else if (entrance === 'drop') {
       // Drop from top with spin
       slideTranslateY.value = -screenHeight * 0.35;
       slideTranslateX.value = 0;
@@ -286,6 +298,14 @@ export default function WrappedShareJourney({
       slideTranslateY.value = withSpring(0, { damping: 16, stiffness: 375 });
       slideScale.value = withSpring(1, { damping: 16, stiffness: 375 });
       slideRotate.value = withSpring(0, { damping: 19, stiffness: 410 });
+    } else {
+      // Identity reveal — the strongest whole-slide entrance. The name's
+      // DelayedSlam, heavy haptic, glow, and confetti remain archetype-only.
+      slideTranslateY.value = 0;
+      slideTranslateX.value = 0;
+      slideScale.value = 1.48;
+      slideOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+      slideScale.value = withSpring(1, { damping: 15, stiffness: 520 });
     }
   }, [currentSlide, reduceMotion, progress, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
 
@@ -501,7 +521,10 @@ export default function WrappedShareJourney({
         ) : (
           <Text style={styles.emoji}>{slide.emoji}</Text>
         )}
-        <View style={styles.frame}>
+        <View style={[styles.frame, slide.category === 'extreme-moment' && styles.evidenceFrame]}>
+          {slide.category === 'extreme-moment' && (
+            <Text style={styles.evidenceStamp}>EXHIBIT · EXTREME MOMENT</Text>
+          )}
           {slide.content}
         </View>
       </>
