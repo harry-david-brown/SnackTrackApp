@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
@@ -35,11 +36,11 @@ function RestaurantBreakdownChart({
 
     // Design-system chart palette: highest → lowest value, neutral last
     const colors = [
-      '#1F4E3A',
-      '#2E7D4F',
-      '#5EA15D',
-      '#88C34A',
-      '#D8E2D7',
+      Colors.primary,
+      Colors.secondary,
+      Colors.forest400,
+      Colors.leaf400,
+      Colors.chartNeutral,
     ];
 
     return {
@@ -47,7 +48,7 @@ function RestaurantBreakdownChart({
         name: restaurant.name.split(' ')[0], // Shorten names for chart
         population: restaurant.totalSpent,
         color: colors[index % colors.length],
-        legendFontColor: '#222222',
+        legendFontColor: Colors.textPrimary,
         legendFontSize: 12,
       })),
       fullData: topRestaurants, // Keep full data for details
@@ -67,12 +68,12 @@ function RestaurantBreakdownChart({
   }
 
   const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundColor: Colors.white,
+    backgroundGradientFrom: Colors.white,
+    backgroundGradientTo: Colors.white,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => Colors.alpha(Colors.primary, opacity),
+    labelColor: (opacity = 1) => Colors.alpha(Colors.black, opacity),
     style: {
       borderRadius: 16,
     },
@@ -84,7 +85,7 @@ function RestaurantBreakdownChart({
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1F4E3A', '#2E7D4F']}
+        colors={[Colors.primary, Colors.secondary]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -96,7 +97,7 @@ function RestaurantBreakdownChart({
             height={220}
             chartConfig={chartConfig}
             accessor="population"
-            backgroundColor="transparent"
+            backgroundColor={Colors.transparent}
             paddingLeft="15"
             center={[10, 0]}
             absolute
@@ -139,7 +140,7 @@ function RestaurantBreakdownChart({
       {selectedSegment !== null && (
         <View style={styles.detailsContainer}>
           <View style={styles.detailsHeader}>
-            <Ionicons name="restaurant" size={20} color="#1F4E3A" />
+            <Ionicons name="restaurant" size={20} color={Colors.primary} />
             <Text style={styles.detailsTitle}>Restaurant Details</Text>
           </View>
           <View style={styles.detailsContent}>
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   chartContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.alpha(Colors.white, 0.1),
     borderRadius: 12,
     padding: 10,
   },
@@ -191,15 +192,15 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   legendContainer: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -209,10 +210,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   legendItemSelected: {
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     borderRadius: 8,
     paddingHorizontal: 12,
   },
@@ -233,12 +234,12 @@ const styles = StyleSheet.create({
   legendName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   legendAmount: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   legendStats: {
     alignItems: 'flex-end',
@@ -246,15 +247,15 @@ const styles = StyleSheet.create({
   legendPercentage: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1F4E3A',
+    color: Colors.primary,
     marginBottom: 2,
   },
   legendOrders: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   detailsContainer: {
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
   detailsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginLeft: 8,
   },
   detailsContent: {
@@ -279,12 +280,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
 });
 

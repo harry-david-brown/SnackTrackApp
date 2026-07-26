@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </Text>
 
             <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
-              <Ionicons name="refresh" size={20} color="white" />
+              <Ionicons name="refresh" size={20} color={Colors.white} />
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
 
@@ -89,7 +90,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -103,13 +104,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
   },
   message: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -117,35 +118,35 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 32,
   },
   retryButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
   debugContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#EAE8E2',
+    borderColor: Colors.divider,
     width: '100%',
   },
   debugTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   debugText: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontFamily: 'monospace',
   },
 });

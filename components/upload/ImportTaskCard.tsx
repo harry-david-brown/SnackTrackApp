@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +54,7 @@ export function ImportTaskCard({
           <Ionicons
             name={isComplete ? 'checkmark-circle' : iconName}
             size={24}
-            color={isComplete ? '#2E7D4F' : '#1F4E3A'}
+            color={isComplete ? Colors.secondary : Colors.primary}
           />
         </View>
         <View style={styles.taskHeaderText}>
@@ -70,7 +71,7 @@ export function ImportTaskCard({
         <Ionicons
           name={isOpen ? 'chevron-up' : 'chevron-down'}
           size={20}
-          color="#94a3b8"
+          color={Colors.slate500}
         />
       </TouchableOpacity>
 
@@ -85,9 +86,9 @@ export function ImportTaskCard({
 
 const styles = StyleSheet.create({
   taskCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   },
   taskCardOpen: {
     borderWidth: 1,
-    borderColor: '#E9F5E2',
+    borderColor: Colors.chipActiveBg,
   },
   taskCardHeader: {
     flexDirection: 'row',
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#E9F5E2',
+    backgroundColor: Colors.chipActiveBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -128,11 +129,11 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   taskDescription: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   taskStatusBadge: {
@@ -141,30 +142,30 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   taskStatusBadgeComplete: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: Colors.successSurfaceCool,
   },
   taskStatusBadgeRecommended: {
-    backgroundColor: '#E9F5E2',
+    backgroundColor: Colors.chipActiveBg,
   },
   taskStatusBadgeOptional: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: Colors.slate50,
   },
   taskStatusText: {
     fontSize: 11,
     fontWeight: '700',
   },
   taskStatusTextComplete: {
-    color: '#15803d',
+    color: Colors.successDark,
   },
   taskStatusTextRecommended: {
-    color: '#1F4E3A',
+    color: Colors.primary,
   },
   taskStatusTextOptional: {
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   taskContent: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: Colors.slate100,
     padding: 16,
     paddingTop: 14,
   },

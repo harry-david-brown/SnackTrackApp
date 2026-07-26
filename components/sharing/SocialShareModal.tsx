@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useRef } from 'react';
 import {
   View,
@@ -100,7 +101,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
 
   const renderSummaryTemplate = () => (
     <LinearGradient
-      colors={['#1F4E3A', '#2E7D4F']}
+      colors={[Colors.primary, Colors.secondary]}
       style={styles.templateContainer}
     >
       <View style={styles.templateHeader}>
@@ -144,7 +145,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
   /*
   const renderTrendTemplate = () => (
     <LinearGradient
-      colors={['#f093fb', '#f5576c']}
+      colors={[Colors.sharePink, Colors.shareCoral]}
       style={styles.templateContainer}
     >
       <View style={styles.templateHeader}>
@@ -188,7 +189,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
 
   const renderRestaurantTemplate = () => (
     <LinearGradient
-      colors={['#4facfe', '#00f2fe']}
+      colors={[Colors.shareSky, Colors.shareCyan]}
       style={styles.templateContainer}
     >
       <View style={styles.templateHeader}>
@@ -236,7 +237,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Share Your Analytics</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#6F756E" />
+            <Ionicons name="close" size={24} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -260,10 +261,10 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
           onPress={() => captureAndShare('summary')}
         >
           <LinearGradient
-            colors={['#1F4E3A', '#2E7D4F']}
+            colors={[Colors.primary, Colors.secondary]}
             style={styles.shareButtonGradient}
           >
-            <Ionicons name="share-outline" size={24} color="white" />
+            <Ionicons name="share-outline" size={24} color={Colors.white} />
             <Text style={styles.shareButtonText}>Share This Graphic</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -275,7 +276,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -283,14 +284,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#EAE8E2',
+    borderBottomColor: Colors.divider,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   closeButton: {
     padding: 8,
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
   templateSelector: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
   },
   templateButton: {
     flexDirection: 'row',
@@ -307,22 +308,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 12,
     borderRadius: 20,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderWidth: 1,
-    borderColor: '#EAE8E2',
+    borderColor: Colors.divider,
   },
   templateButtonActive: {
-    backgroundColor: '#1F4E3A',
-    borderColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   templateButtonText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   templateButtonTextActive: {
-    color: 'white',
+    color: Colors.white,
   },
   previewContainer: {
     flex: 1,
@@ -344,13 +345,13 @@ const styles = StyleSheet.create({
   templateTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 8,
   },
   templateSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textAlign: 'center',
   },
   statsGrid: {
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -370,19 +371,19 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
     textAlign: 'center',
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   insightContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: 16,
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     fontWeight: '500',
     lineHeight: 22,
@@ -400,12 +401,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     marginBottom: 4,
   },
   footerSubtext: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.alpha(Colors.white, 0.6),
     fontWeight: '600',
   },
   // Trend template styles
@@ -427,14 +428,14 @@ const styles = StyleSheet.create({
   },
   trendBarFill: {
     width: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: Colors.alpha(Colors.white, 0.8),
     borderRadius: 4,
     marginBottom: 8,
     minHeight: 8,
   },
   trendBarLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     fontWeight: '500',
   },
   trendStats: {
@@ -448,12 +449,12 @@ const styles = StyleSheet.create({
   trendStatValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
   },
   trendStatLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -465,7 +466,7 @@ const styles = StyleSheet.create({
   restaurantItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: Colors.alpha(Colors.white, 0.3),
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -482,7 +483,7 @@ const styles = StyleSheet.create({
   restaurantRankText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
   },
   restaurantInfo: {
     flex: 1,
@@ -490,12 +491,12 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
   },
   restaurantAmount: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
   },
   restaurantFooter: {
     alignItems: 'center',
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
   },
   restaurantFooterText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textAlign: 'center',
   },
   shareButton: {
@@ -520,7 +521,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   shareButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 /**
  * Month-by-month spending column chart for the Wrapped monthly slide.
  *
@@ -20,8 +21,8 @@ export interface MonthlySpendDatum {
 
 // Light lime — validated ≥3:1 against every stop of the lagoon gradient
 // (#0C333B → #146068 → #1F8E8A), so bars stay legible top to bottom.
-const BAR_COLOR = '#C6EF9A';
-const TRACK_COLOR = 'rgba(255,255,255,0.10)'; // faint full-height column track
+const BAR_COLOR = Colors.leaf300;
+const TRACK_COLOR = Colors.alpha(Colors.white, 0.10); // faint full-height column track
 const CHART_HEIGHT = 200;
 const LABEL_HEADROOM = 30; // space above the tallest bar for the peak $ label
 const CONTAINER_W = Math.min(440, Math.round(screenWidth * 0.86));
@@ -156,12 +157,12 @@ const chartStyles = StyleSheet.create({
     textAlign: 'center', // width + left are computed per render
     fontFamily: WRAPPED_FONTS.displayBold,
     fontSize: 15,
-    color: 'white',
+    color: Colors.white,
   },
   baseline: {
     height: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: Colors.alpha(Colors.white, 0.5),
   },
   tickRow: {
     flexDirection: 'row',
@@ -171,7 +172,7 @@ const chartStyles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
+    color: Colors.alpha(Colors.white, 0.75),
     fontWeight: '700',
   },
 });

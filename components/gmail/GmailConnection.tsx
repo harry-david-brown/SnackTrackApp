@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,7 +36,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
   if (isChecking) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#1F4E3A" />
+        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>Checking Gmail connection...</Text>
       </View>
     );
@@ -50,7 +51,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       <View style={styles.heroCard}>
         <View style={styles.heroHeader}>
           <View style={styles.heroIconWrap}>
-            <Ionicons name="mail-open-outline" size={26} color="#1F4E3A" />
+            <Ionicons name="mail-open-outline" size={26} color={Colors.primary} />
           </View>
           <View style={styles.heroText}>
             <Text style={styles.heroEyebrow}>Gmail connection</Text>
@@ -65,7 +66,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
 
         {connectionStatus.email && (
           <View style={styles.connectedEmailPill}>
-            <Ionicons name="mail-outline" size={16} color="#6F756E" />
+            <Ionicons name="mail-outline" size={16} color={Colors.textSecondary} />
             <Text style={styles.connectedEmailText}>{connectionStatus.email}</Text>
           </View>
         )}
@@ -86,14 +87,14 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       <View style={styles.actionCard}>
         {needsReconnect ? (
           <View style={styles.reconnectNotice}>
-            <Ionicons name="information-circle-outline" size={18} color="#1F4E3A" />
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
             <Text style={styles.reconnectNoticeText}>
               Reconnect Gmail from the main upload page before running another import.
             </Text>
           </View>
         ) : (
           <View style={styles.manageNotice}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#1F4E3A" />
+            <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
             <Text style={styles.manageNoticeText}>
               Gmail is connected. Start imports from the main upload page.
             </Text>
@@ -106,10 +107,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#6F756E" />
+            <ActivityIndicator color={Colors.textSecondary} />
           ) : (
             <>
-              <Ionicons name="close-circle-outline" size={18} color="#6F756E" />
+              <Ionicons name="close-circle-outline" size={18} color={Colors.textSecondary} />
               <Text style={styles.tertiaryButtonText}>Disconnect Gmail</Text>
             </>
           )}
@@ -133,7 +134,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       </View>
 
       <View style={styles.privacyCard}>
-        <Ionicons name="shield-checkmark" size={24} color="#1F4E3A" />
+        <Ionicons name="shield-checkmark" size={24} color={Colors.primary} />
         <View style={styles.privacyContent}>
           <Text style={styles.privacyTitle}>Your privacy matters</Text>
           <Text style={styles.privacyText}>
@@ -152,15 +153,15 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   heroCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 24,
     borderRadius: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#E9F5E2',
+    backgroundColor: Colors.chipActiveBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   heroEyebrow: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1F4E3A',
+    color: Colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 6,
@@ -197,12 +198,12 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   heroDescription: {
     fontSize: 15,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
   connectedEmailPill: {
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -218,32 +219,32 @@ const styles = StyleSheet.create({
   connectedEmailText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   statusMessage: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginTop: 14,
   },
   statusMeta: {
     fontSize: 13,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginTop: 10,
   },
   warningText: {
     fontSize: 14,
-    color: '#C2410C',
+    color: Colors.warningDeep,
     marginTop: 10,
     fontWeight: '600',
   },
   actionCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 20,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
   manageNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -264,14 +265,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: '#1F4E3A',
+    color: Colors.primary,
     lineHeight: 20,
     fontWeight: '500',
   },
   reconnectNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: '#1F4E3A',
+    color: Colors.primary,
     lineHeight: 20,
     fontWeight: '500',
   },
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   tertiaryButtonText: {
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -300,11 +301,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   infoCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 20,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 16,
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   infoItem: {
     flexDirection: 'row',
@@ -328,8 +329,8 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1F4E3A',
-    color: 'white',
+    backgroundColor: Colors.primary,
+    color: Colors.white,
     textAlign: 'center',
     lineHeight: 24,
     fontSize: 14,
@@ -339,11 +340,11 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 15,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
   privacyCard: {
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     padding: 20,
     borderRadius: 16,
     flexDirection: 'row',
@@ -357,11 +358,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#1F4E3A',
+    color: Colors.primary,
   },
   privacyText: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
 });

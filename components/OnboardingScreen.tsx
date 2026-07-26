@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +34,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   return (
     <LinearGradient
-      colors={['#0E2A1F', '#1F4E3A', '#2E7D4F']}
+      colors={[Colors.forest850, Colors.primary, Colors.secondary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -51,7 +52,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       >
         <View style={styles.hero}>
           <View style={styles.badge}>
-            <Ionicons name="receipt-outline" size={18} color="#E9F5E2" />
+            <Ionicons name="receipt-outline" size={18} color={Colors.chipActiveBg} />
             <Text style={styles.badgeText}>SnackTrack</Text>
           </View>
 
@@ -71,7 +72,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           {highlights.map((item) => (
             <View key={item.title} style={styles.highlightRow}>
               <View style={styles.iconWrap}>
-                <Ionicons name={item.icon} size={20} color="#1F4E3A" />
+                <Ionicons name={item.icon} size={20} color={Colors.primary} />
               </View>
               <View style={styles.highlightText}>
                 <Text style={styles.highlightTitle}>{item.title}</Text>
@@ -84,7 +85,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.primaryButton} onPress={onComplete}>
             <Text style={styles.primaryButtonText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={18} color="#222222" />
+            <Ionicons name="arrow-forward" size={18} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -116,30 +117,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: Colors.alpha(Colors.white, 0.12),
     marginBottom: 24,
   },
   badgeText: {
-    color: '#E9F5E2',
+    color: Colors.chipActiveBg,
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   title: {
-    color: '#FAF8F4',
+    color: Colors.background,
     fontSize: 36,
     fontWeight: '800',
     lineHeight: 42,
     marginBottom: 16,
   },
   subtitle: {
-    color: 'rgba(248, 250, 252, 0.88)',
+    color: Colors.alpha(Colors.slateFrost, 0.88),
     fontSize: 17,
     lineHeight: 25,
     maxWidth: 540,
   },
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    backgroundColor: Colors.alpha(Colors.white, 0.96),
     borderRadius: 24,
     padding: 20,
     gap: 18,
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#E9F5E2',
+    backgroundColor: Colors.chipActiveBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -161,13 +162,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlightTitle: {
-    color: '#222222',
+    color: Colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   highlightDescription: {
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 56,
     borderRadius: 18,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   primaryButtonText: {
-    color: '#222222',
+    color: Colors.textPrimary,
     fontSize: 17,
     fontWeight: '800',
   },

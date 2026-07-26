@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 /**
  * Shared layout constants, type scales, and story gradients for the
  * Wrapped share journey. Split out of WrappedShareJourney.tsx so slides,
@@ -45,54 +46,54 @@ export const SHARE_FRAME_H = Math.round(screenWidth * (16 / 9));
 export const STORY_GRADIENTS = {
   // Brand anchor — lifetime intro and evidence-review transition.
   forest: {
-    colors: ['#0E2A1F', '#1F4E3A', '#2E7D4F'],
+    colors: [Colors.forest850, Colors.primary, Colors.secondary],
     locations: [0, 0.55, 1],
     start: { x: 0, y: 0 },
     end: { x: 1, y: 1 },
   },
   // Hot: the roast/shame slides.
   ember: {
-    colors: ['#6E1B10', '#A83220', '#D14E2A'],
+    colors: [Colors.emberDeep, Colors.emberMid, Colors.emberBright],
     locations: [0, 0.5, 1],
     start: { x: 0.5, y: 0 },
     end: { x: 0.5, y: 1 },
   },
   berry: {
-    colors: ['#4E152E', '#8C2450', '#B93A66'],
+    colors: [Colors.berryDeep, Colors.berryMid, Colors.berryBright],
     locations: [0, 0.5, 1],
     start: { x: 1, y: 0 },
     end: { x: 0, y: 1 },
   },
   // Cool: the flex slides.
   indigo: {
-    colors: ['#1F1B4E', '#3A3688', '#5551BC'],
+    colors: [Colors.indigoDeep, Colors.indigoMid, Colors.indigoBright],
     locations: [0, 0.5, 1],
     start: { x: 0, y: 0.1 },
     end: { x: 1, y: 0.9 },
   },
   lagoon: {
-    colors: ['#0C333B', '#146068', '#1F8E8A'],
+    colors: [Colors.lagoonDeep, Colors.lagoonMid, Colors.lagoonBright],
     locations: [0, 0.5, 1],
     start: { x: 0, y: 1 },
     end: { x: 1, y: 0 },
   },
   // Warm: money & patterns.
   amber: {
-    colors: ['#5C350C', '#9A611A', '#C68A26'],
+    colors: [Colors.amberDeep, Colors.amberMid, Colors.amberBright],
     locations: [0, 0.55, 1],
     start: { x: 0.2, y: 0 },
     end: { x: 0.8, y: 1 },
   },
   // Hall-of-fame: deep indigo with a restrained gold landing point.
   hallOfFame: {
-    colors: ['#100E2B', '#28205C', '#8A6420'],
+    colors: [Colors.hallDeep, Colors.hallMid, Colors.hallGold],
     locations: [0, 0.68, 1],
     start: { x: 0.1, y: 0 },
     end: { x: 0.9, y: 1 },
   },
   // Verdict: nearly black ink with a single evidence-gold edge.
   verdict: {
-    colors: ['#080A09', '#171C18', '#6F531D'],
+    colors: [Colors.verdictDeep, Colors.verdictMid, Colors.verdictGold],
     locations: [0, 0.78, 1],
     start: { x: 0, y: 0 },
     end: { x: 1, y: 1 },
@@ -100,7 +101,7 @@ export const STORY_GRADIENTS = {
 } as const;
 
 /** Confetti tuned to the brand — greens, gold, and mascot cream. */
-export const CONFETTI_COLORS = ['#73B84A', '#58C26D', '#F0C25C', '#FFE8C6', '#FFFFFF'];
+export const CONFETTI_COLORS = [Colors.accent, Colors.success, Colors.confettiGold, Colors.mascotHighlight, Colors.white];
 
 /** Display font families (Fredoka, loaded via expo-font in wrapped-journey). */
 export const WRAPPED_FONTS = {
@@ -109,5 +110,5 @@ export const WRAPPED_FONTS = {
   medium: 'Fredoka_500Medium',
 } as const;
 
-export const STORY_SLIDE_DURATION = 6500;
-export const COUNT_UP_DURATION = 1100;
+export const STORY_SLIDE_DURATION = 5800;
+export const COUNT_UP_DURATION = 900;

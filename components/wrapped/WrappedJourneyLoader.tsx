@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useEffect, useRef } from 'react';
 
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
@@ -59,7 +60,7 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#1F4E3A', '#2E7D4F', '#73B84A']}
+        colors={[Colors.primary, Colors.secondary, Colors.accent]}
         locations={[0, 0.52, 1]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
@@ -108,10 +109,10 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderTopColor: 'white',
+    borderColor: Colors.alpha(Colors.white, 0.3),
+    borderTopColor: Colors.white,
     marginBottom: 30,
-    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowColor: Colors.alpha(Colors.black, 0.3),
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 8,
@@ -123,21 +124,21 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: Math.min(28, Math.max(24, Math.round(screenWidth * 0.07))),
     fontWeight: '800',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 8,
     textAlign: 'center',
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowColor: Colors.alpha(Colors.black, 0.25),
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
   subtext: {
     fontSize: Math.min(18, Math.max(16, Math.round(screenWidth * 0.045))),
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: Colors.alpha(Colors.white, 0.9),
     textAlign: 'center',
     fontWeight: '600',
     letterSpacing: 0.2,
-    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowColor: Colors.alpha(Colors.black, 0.2),
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     // First stop of the wrapped 'forest' gradient — the journey's opening slide.
-    backgroundColor: '#0E2A1F',
+    backgroundColor: Colors.forest850,
   },
 });
 

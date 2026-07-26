@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -138,30 +139,30 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     labels,
     datasets: [{
       data: animatedData,
-      color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
+      color: (opacity = 1) => Colors.alpha(Colors.primary, opacity),
       strokeWidth: 3,
     }],
   };
 
   const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundColor: Colors.white,
+    backgroundGradientFrom: Colors.white,
+    backgroundGradientTo: Colors.white,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => Colors.alpha(Colors.primary, opacity),
+    labelColor: (opacity = 1) => Colors.alpha(Colors.black, opacity),
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: '6',
       strokeWidth: '2',
-      stroke: '#1F4E3A',
-      fill: '#ffffff',
+      stroke: Colors.primary,
+      fill: Colors.white,
     },
     propsForBackgroundLines: {
       strokeDasharray: '5,5',
-      stroke: '#EAE8E2',
+      stroke: Colors.divider,
       strokeWidth: 1,
     },
   };
@@ -169,7 +170,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1F4E3A', '#2E7D4F']}
+        colors={[Colors.primary, Colors.secondary]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   chartContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.alpha(Colors.white, 0.1),
     borderRadius: 12,
     padding: 10,
   },
@@ -233,22 +234,22 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.gray500,
     textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -266,6 +267,6 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
 });

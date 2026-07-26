@@ -71,7 +71,7 @@ export interface BuildWrappedSlidesParams {
 export const MAX_DECK_SIZE = 10;
 
 /** Delay before the archetype name slams in (confetti + haptic sync to it). */
-export const ARCHETYPE_REVEAL_DELAY_MS = 900;
+export const ARCHETYPE_REVEAL_DELAY_MS = 700;
 
 interface RankedSlide {
   id: string;
@@ -116,7 +116,7 @@ const REPEATED_POSE_FALLBACKS: Partial<Record<SlideCategory, MascotPose>> = {
 };
 
 /** Beat between the hero number landing and the roast punchline fading in. */
-const ROAST_DELAY_MS = 700;
+const ROAST_DELAY_MS = 550;
 
 export function buildWrappedSlides({
   analytics,
@@ -161,7 +161,7 @@ export function buildWrappedSlides({
     gradient: 'forest',
     emoji: '🎊',
     mascotPose: 'wave',
-    durationMs: 3000,
+    durationMs: 2700,
     a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes an uploaded export.' : ''}`,
     content: (
       <>
@@ -638,7 +638,7 @@ export function buildWrappedSlides({
         gradient: 'lagoon',
         emoji: '⏱️',
         mascotPose: 'sad',
-        durationMs: 8000, // dense slide — four detail rows to read
+        durationMs: 7200, // dense slide — four detail rows to read
         a11y: `Waiting Time. ${formattedTotalTime} spent waiting for delivery. ${waitingTimeMessage}`,
         content: (
           <>
@@ -754,7 +754,7 @@ export function buildWrappedSlides({
         gradient: 'lagoon',
         emoji: '📊',
         hideHero: true, // the chart is the hero — reclaim the mascot's vertical room
-        durationMs: 8000,
+        durationMs: 7200,
         a11y: `Month by Month. Your peak month cost ${formatCurrency(peak.totalSpent)}.`,
         content: (
           <>
@@ -784,7 +784,7 @@ export function buildWrappedSlides({
         gradient: 'indigo',
         emoji: '🏆',
         mascotPose: 'trophy',
-        durationMs: 8000,
+        durationMs: 7200,
         a11y: `Your Top 5 Spots. Number one: ${topSpots[0].name} with ${topSpots[0].count} orders.`,
         content: (
           <>
@@ -819,7 +819,7 @@ export function buildWrappedSlides({
     gradient: 'verdict',
     emoji: '',
     hideHero: true,
-    durationMs: 3200,
+    durationMs: 2800,
     a11y: 'The case is closed. We reviewed the evidence, and the pattern is undeniable.',
     content: (
       <>
@@ -844,7 +844,7 @@ export function buildWrappedSlides({
     confetti: true,
     confettiDelayMs: ARCHETYPE_REVEAL_DELAY_MS,
     glow: true,
-    durationMs: 9000,
+    durationMs: 8000,
     showShareCta: true,
     a11y: `Your all-time food personality is ${archetype.name}. ${archetype.tagline} ${formatCurrency(analytics.totalSpent)} across ${importedOrderCount} imported orders.`,
     content: (

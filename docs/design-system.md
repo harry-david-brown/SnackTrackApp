@@ -4,6 +4,17 @@ The mascot (buff dumpling) is the centerpiece of the brand; the UI supports it
 rather than competes with it. Tokens live in `constants/theme.ts` — import from
 there instead of hardcoding hex values in new code.
 
+## Testing a palette
+
+All application color values live in the `Palette` object in
+`constants/theme.ts`. Change that object to test a new palette; screens,
+components, charts, provider treatments, and Wrapped gradients consume those
+values through semantic `Colors` tokens.
+
+Run `npm run check:theme` after styling changes. The check fails when a raw hex,
+RGB/RGBA, `white`, `black`, or `transparent` color is introduced outside the
+central theme.
+
 ## Brand colors
 
 | Token | Hex | Use |

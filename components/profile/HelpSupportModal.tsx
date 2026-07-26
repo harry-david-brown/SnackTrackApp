@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { modalShellStyles } from './profileModalStyles';
@@ -29,7 +30,7 @@ export function HelpSupportModal({
           <View style={modalShellStyles.modalHeader}>
             <Text style={modalShellStyles.modalTitle}>Help & Support</Text>
             <TouchableOpacity onPress={onClose} style={modalShellStyles.closeButton}>
-              <Ionicons name="close" size={24} color="#6F756E" />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -75,7 +76,7 @@ export function HelpSupportModal({
               <Text style={styles.helpSectionTitle}>🔒 Privacy Policy</Text>
               <TouchableOpacity onPress={onPrivacyPolicy} style={styles.privacyLink}>
                 <Text style={styles.privacyLinkText}>View Privacy Policy</Text>
-                <Ionicons name="open-outline" size={20} color="#1F4E3A" />
+                <Ionicons name="open-outline" size={20} color={Colors.primary} />
               </TouchableOpacity>
             </View>
 
@@ -87,11 +88,11 @@ export function HelpSupportModal({
                 disabled={isDeleting}
               >
                 {isDeleting ? (
-                  <ActivityIndicator size="small" color="#D14343" />
+                  <ActivityIndicator size="small" color={Colors.error} />
                 ) : (
                   <>
                     <Text style={styles.deleteAccountButtonText}>Delete My Account</Text>
-                    <Ionicons name="trash-outline" size={20} color="#D14343" />
+                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
                   </>
                 )}
               </TouchableOpacity>
@@ -113,30 +114,30 @@ const styles = StyleSheet.create({
   helpSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   helpSectionText: {
     fontSize: 15,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
   helpQuestion: {
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   privacyLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     borderRadius: 8,
     marginTop: 8,
   },
   privacyLinkText: {
     fontSize: 15,
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontWeight: '500',
   },
   deleteAccountButton: {
@@ -144,20 +145,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#fff5f5',
+    backgroundColor: Colors.errorSurfaceSoft,
     borderRadius: 8,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#ffebee',
+    borderColor: Colors.errorLegacySurface,
   },
   deleteAccountButtonText: {
     fontSize: 15,
-    color: '#D14343',
+    color: Colors.error,
     fontWeight: '500',
   },
   deleteAccountWarning: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.gray500,
     marginTop: 8,
     fontStyle: 'italic',
   },

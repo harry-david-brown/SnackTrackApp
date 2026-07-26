@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,7 +82,7 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#1F4E3A" />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -118,7 +119,7 @@ export default function DashboardScreen() {
             </View>
             {__DEV__ && (
               <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                <Ionicons name="log-out-outline" size={24} color="#6F756E" />
+                <Ionicons name="log-out-outline" size={24} color={Colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -128,7 +129,7 @@ export default function DashboardScreen() {
             <SlideInView direction="left" delay={100}>
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Ionicons name="wallet-outline" size={24} color="#1F4E3A" />
+                <Ionicons name="wallet-outline" size={24} color={Colors.primary} />
                 <Text style={styles.cardTitle}>Total Spent</Text>
               </View>
               <Text style={styles.cardValue}>
@@ -141,7 +142,7 @@ export default function DashboardScreen() {
             <SlideInView direction="right" delay={200}>
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Ionicons name="receipt-outline" size={24} color="#58C26D" />
+                <Ionicons name="receipt-outline" size={24} color={Colors.success} />
                 <Text style={styles.cardTitle}>Receipts</Text>
               </View>
               <Text style={styles.cardValue}>
@@ -156,7 +157,7 @@ export default function DashboardScreen() {
               <View style={styles.exportUpsellCard}>
                 <View style={styles.exportUpsellHeader}>
                   <View style={styles.exportUpsellBadge}>
-                    <Ionicons name="sparkles-outline" size={14} color="#1F4E3A" />
+                    <Ionicons name="sparkles-outline" size={14} color={Colors.primary} />
                     <Text style={styles.exportUpsellBadgeText}>Upgrade your import</Text>
                   </View>
                   <TouchableOpacity
@@ -167,7 +168,7 @@ export default function DashboardScreen() {
                     }}
                     style={styles.exportUpsellDismiss}
                   >
-                    <Ionicons name="close" size={18} color="#6F756E" />
+                    <Ionicons name="close" size={18} color={Colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
                 {/* MASCOT: upsell guide — holding a receipt */}
@@ -180,11 +181,11 @@ export default function DashboardScreen() {
                 </Text>
                 <View style={styles.exportUpsellPoints}>
                   <View style={styles.exportUpsellPointRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#2E7D4F" />
+                    <Ionicons name="checkmark-circle" size={16} color={Colors.secondary} />
                     <Text style={styles.exportUpsellPointText}>Fill in older orders your inbox missed</Text>
                   </View>
                   <View style={styles.exportUpsellPointRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#2E7D4F" />
+                    <Ionicons name="checkmark-circle" size={16} color={Colors.secondary} />
                     <Text style={styles.exportUpsellPointText}>Get a fuller year-over-year spending picture</Text>
                   </View>
                 </View>
@@ -201,7 +202,7 @@ export default function DashboardScreen() {
                       });
                     }}
                   >
-                    <Ionicons name="cloud-upload-outline" size={18} color="white" />
+                    <Ionicons name="cloud-upload-outline" size={18} color={Colors.white} />
                     <Text style={styles.exportUpsellPrimaryText}>Upload Full Export</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -232,13 +233,13 @@ export default function DashboardScreen() {
               onPress={() => router.push('/(tabs)/upload')}
             >
               <View style={styles.actionButtonContent}>
-                <Ionicons name="cloud-upload" size={24} color="white" />
+                <Ionicons name="cloud-upload" size={24} color={Colors.white} />
                 <View style={styles.actionButtonText}>
                   <Text style={styles.actionButtonTitle}>Import Receipts</Text>
                   <Text style={styles.actionButtonSubtitle}>Connect Gmail or upload a full export</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="white" />
+              <Ionicons name="chevron-forward" size={20} color={Colors.white} />
             </TouchableOpacity>
 
           </View>
@@ -265,7 +266,7 @@ export default function DashboardScreen() {
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="restaurant-outline" size={48} color="#ccc" />
+                <Ionicons name="restaurant-outline" size={48} color={Colors.gray400} />
                 <Text style={styles.emptyStateTitle}>No receipts yet</Text>
                 <Text style={styles.emptyStateSubtitle}>
                   Connect Gmail to get started fast, or upload a full export for deeper history
@@ -282,7 +283,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -311,12 +312,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   logoutButton: {
     padding: 8,
@@ -327,13 +328,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   exportUpsellCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: '#E9F5E2',
-    shadowColor: '#222222',
+    borderColor: Colors.chipActiveBg,
+    shadowColor: Colors.textPrimary,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -352,13 +353,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
   },
   exportUpsellBadgeText: {
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -368,19 +369,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   exportUpsellTitle: {
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   exportUpsellBody: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
   exportUpsellPoints: {
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
   exportUpsellPointText: {
     flex: 1,
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     fontWeight: '500',
   },
@@ -409,12 +410,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
   },
   exportUpsellPrimaryText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -423,19 +424,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
   },
   exportUpsellSecondaryText: {
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   card: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 20,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -451,18 +452,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginLeft: 8,
   },
   cardValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   cardSubtext: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.gray500,
   },
   actionsContainer: {
     marginBottom: 32,
@@ -470,18 +471,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   actionButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -491,9 +492,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   actionButtonSecondary: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#1F4E3A',
+    borderColor: Colors.primary,
   },
   actionButtonContent: {
     flexDirection: 'row',
@@ -507,22 +508,22 @@ const styles = StyleSheet.create({
   actionButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 2,
   },
   actionButtonSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
   },
   activityContainer: {
     marginBottom: 32,
   },
   emptyState: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 40,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -534,21 +535,21 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   topRestaurantsCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 20,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
   subsectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   restaurantItem: {
@@ -569,19 +570,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   restaurantRank: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   rankNumber: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -591,11 +592,11 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   restaurantStats: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
 });

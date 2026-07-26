@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { featureFlags } from '../../config/featureFlags';
@@ -19,7 +20,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#1F4E3A',
+        tabBarActiveTintColor: Colors.primary,
         headerShown: false,
       }}
     >

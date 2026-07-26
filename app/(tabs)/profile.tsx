@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -250,7 +251,7 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1F4E3A" />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -296,52 +297,52 @@ export default function ProfileScreen() {
             style={styles.menuItem}
             onPress={() => router.push('/receipts')}
           >
-            <Ionicons name="receipt-outline" size={24} color="#6F756E" />
+            <Ionicons name="receipt-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>My Receipts</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => router.push('/(tabs)/upload')}
           >
-            <Ionicons name="cloud-upload-outline" size={24} color="#6F756E" />
+            <Ionicons name="cloud-upload-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>Import Receipts</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.menuItem} 
             onPress={() => setShowTutorial(true)}
           >
-            <Ionicons name="information-circle-outline" size={24} color="#6F756E" />
+            <Ionicons name="information-circle-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>View Tutorial</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => setShowCurrencySelector(true)}
           >
-            <Ionicons name="cash-outline" size={24} color="#6F756E" />
+            <Ionicons name="cash-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>Currency</Text>
             <Text style={styles.menuSubtext}>{SUPPORTED_CURRENCIES[currency].symbol} {currency}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => setShowHelpSupport(true)}
           >
-            <Ionicons name="help-circle-outline" size={24} color="#6F756E" />
+            <Ionicons name="help-circle-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>Help & Support</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
 
           {showReset && (
             <TouchableOpacity style={styles.menuItem} onPress={handleResetOnboarding}>
-              <Ionicons name="refresh-outline" size={24} color="#FF9500" />
-              <Text style={[styles.menuText, { color: '#FF9500' }]}>Reset Onboarding (Dev)</Text>
+              <Ionicons name="refresh-outline" size={24} color={Colors.warning} />
+              <Text style={[styles.menuText, { color: Colors.warning }]}>Reset Onboarding (Dev)</Text>
             </TouchableOpacity>
           )}
 
@@ -350,20 +351,20 @@ export default function ProfileScreen() {
             onPress={handleClearReceipts}
             disabled={isClearingReceipts || isDeleting}
           >
-            <Ionicons name="trash-outline" size={24} color="#D14343" />
-            <Text style={[styles.menuText, { color: '#D14343' }]}>
+            <Ionicons name="trash-outline" size={24} color={Colors.error} />
+            <Text style={[styles.menuText, { color: Colors.error }]}>
               {isClearingReceipts ? 'Clearing Receipts...' : 'Clear My Receipts'}
             </Text>
             {isClearingReceipts ? (
-              <ActivityIndicator size="small" color="#D14343" />
+              <ActivityIndicator size="small" color={Colors.error} />
             ) : (
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.menuItem, styles.logoutMenuItem]} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#D14343" />
-            <Text style={[styles.menuText, { color: '#D14343' }]}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={24} color={Colors.error} />
+            <Text style={[styles.menuText, { color: Colors.error }]}>Sign Out</Text>
           </TouchableOpacity>
         </View>
         
@@ -407,7 +408,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -426,22 +427,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   profileCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     padding: 30,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -454,14 +455,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   avatarText: {
     fontSize: 32,
-    color: 'white',
+    color: Colors.white,
     fontWeight: 'bold',
   },
   email: {
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
   },
   memberSince: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 20,
   },
   statsContainer: {
@@ -485,18 +486,18 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   menuCard: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -510,7 +511,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   logoutMenuItem: {
     borderBottomWidth: 0,
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
   },
   menuSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.gray500,
     marginRight: 8,
   },
   appInfo: {
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
   },
   appInfoText: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.gray500,
     marginBottom: 4,
   },
 });

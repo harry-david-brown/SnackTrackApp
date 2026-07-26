@@ -109,8 +109,8 @@ export function MascotPlaceholder({
           width: size,
           height: size,
           borderRadius: size * 0.28,
-          backgroundColor: isOutline ? 'rgba(255, 255, 255, 0.16)' : Colors.mascotHighlight,
-          borderColor: isOutline ? 'rgba(255, 255, 255, 0.85)' : Colors.mascotOutline,
+          backgroundColor: isOutline ? Colors.alpha(Colors.white, 0.16) : Colors.mascotHighlight,
+          borderColor: isOutline ? Colors.alpha(Colors.white, 0.85) : Colors.mascotOutline,
         },
       ]}
       accessibilityLabel={`SnackTrack mascot (${pose})`}
@@ -122,7 +122,7 @@ export function MascotPlaceholder({
             styles.label,
             {
               fontSize: Math.max(9, size * 0.09),
-              color: isOutline ? '#FFFFFF' : Colors.mascotOutline,
+              color: isOutline ? Colors.white : Colors.mascotOutline,
             },
           ]}
           numberOfLines={2}

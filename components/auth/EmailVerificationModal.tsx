@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -127,14 +128,14 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       >
         <View style={styles.card}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={22} color="#111" />
+            <Ionicons name="close" size={22} color={Colors.inkNearBlack} />
           </TouchableOpacity>
           <Text style={styles.title}>Verify your email</Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit verification code to {email}. Enter it below to verify your email address.
           </Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="keypad-outline" size={20} color="#6F756E" style={styles.icon} />
+            <Ionicons name="keypad-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
             <TextInput
               value={code}
               onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
@@ -181,12 +182,12 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: Colors.alpha(Colors.black, 0.5),
     justifyContent: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 20,
     padding: 24,
   },
@@ -198,18 +199,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#111',
+    color: Colors.inkNearBlack,
   },
   subtitle: {
     fontSize: 15,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 24,
     lineHeight: 22,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.gray50,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
@@ -222,23 +223,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     letterSpacing: 4,
-    color: '#111',
+    color: Colors.inkNearBlack,
     textAlign: 'center',
   },
   primaryButton: {
-    backgroundColor: '#58C26D',
+    backgroundColor: Colors.success,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 12,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
   secondaryButton: {
-    borderColor: '#d0d7de',
+    borderColor: Colors.slate200,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 14,
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   secondaryButtonText: {
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -255,12 +256,12 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 13,
-    color: '#777',
+    color: Colors.gray600,
     marginTop: 16,
     lineHeight: 18,
   },
   error: {
-    color: '#D14343',
+    color: Colors.error,
     marginBottom: 4,
     fontSize: 14,
   },
@@ -270,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipButtonText: {
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontSize: 15,
     fontWeight: '500',
   },

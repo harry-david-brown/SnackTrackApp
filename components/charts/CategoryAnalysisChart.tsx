@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
@@ -104,18 +105,18 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
   }
 
   const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundColor: Colors.white,
+    backgroundGradientFrom: Colors.white,
+    backgroundGradientTo: Colors.white,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(31, 78, 58, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => Colors.alpha(Colors.primary, opacity),
+    labelColor: (opacity = 1) => Colors.alpha(Colors.black, opacity),
     style: {
       borderRadius: 16,
     },
     propsForBackgroundLines: {
       strokeDasharray: '5,5',
-      stroke: '#EAE8E2',
+      stroke: Colors.divider,
       strokeWidth: 1,
     },
   };
@@ -126,7 +127,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#2E7D4F', '#5EA15D']}
+        colors={[Colors.secondary, Colors.forest400]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   chartContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.alpha(Colors.white, 0.1),
     borderRadius: 12,
     padding: 10,
   },
@@ -207,15 +208,15 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   categoriesContainer: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -234,12 +235,12 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   categoryOrders: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   categoryStats: {
     alignItems: 'flex-end',
@@ -247,17 +248,17 @@ const styles = StyleSheet.create({
   categoryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   categoryPercentage: {
     fontSize: 12,
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontWeight: '600',
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.gray100,
     borderRadius: 2,
     overflow: 'hidden',
   },

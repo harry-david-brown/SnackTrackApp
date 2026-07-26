@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,7 +14,7 @@ export default function SimpleChart({ title, subtitle, data, maxValue }: SimpleC
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1F4E3A', '#2E7D4F']}
+        colors={[Colors.primary, Colors.secondary]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -63,19 +64,19 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   chartContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.alpha(Colors.white, 0.1),
     borderRadius: 12,
     padding: 16,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     marginBottom: 16,
   },
   chartArea: {
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
   barBackground: {
     width: 100,
     height: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     borderRadius: 10,
     overflow: 'hidden',
     marginRight: 12,
@@ -106,12 +107,12 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     fontSize: 12,
-    color: 'white',
+    color: Colors.white,
     flex: 1,
   },
   barValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
   },
 });

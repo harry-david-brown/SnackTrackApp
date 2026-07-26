@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -50,22 +51,22 @@ export default function QuickShareButton({
     switch (variant) {
       case 'secondary':
         return {
-          colors: ['#58C26D', '#30A46C'],
-          textColor: 'white',
-          iconColor: 'white',
+          colors: [Colors.success, Colors.successDeep],
+          textColor: Colors.white,
+          iconColor: Colors.white,
         };
       case 'outline':
         return {
-          colors: ['transparent', 'transparent'],
-          textColor: '#1F4E3A',
-          iconColor: '#1F4E3A',
-          borderColor: '#1F4E3A',
+          colors: [Colors.transparent, Colors.transparent],
+          textColor: Colors.primary,
+          iconColor: Colors.primary,
+          borderColor: Colors.primary,
         };
       default: // primary
         return {
-          colors: ['#1F4E3A', '#2E7D4F'],
-          textColor: 'white',
-          iconColor: 'white',
+          colors: [Colors.primary, Colors.secondary],
+          textColor: Colors.white,
+          iconColor: Colors.white,
         };
     }
   };
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   outlineButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
     borderWidth: 1,
   },
   buttonText: {

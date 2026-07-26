@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +23,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
       
       insights.push({
         icon: 'trophy-outline',
-        iconColor: '#FFD700',
+        iconColor: Colors.gold,
         title: 'Restaurant Champion',
         description: `${topRestaurant.name} is your go-to spot! You've spent ${formatCurrency(topRestaurant.totalSpent)} (${percentage}%) there.`,
         type: 'achievement',
@@ -34,7 +35,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (avgOrderValue > 25) {
       insights.push({
         icon: 'trending-up-outline',
-        iconColor: '#FF6B6B',
+        iconColor: Colors.errorBright,
         title: 'Premium Eater',
         description: `Your average order of ${formatCurrency(avgOrderValue)} shows you enjoy quality dining experiences!`,
         type: 'pattern',
@@ -42,7 +43,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     } else if (avgOrderValue < 15) {
       insights.push({
         icon: 'wallet-outline',
-        iconColor: '#58C26D',
+        iconColor: Colors.success,
         title: 'Smart Spender',
         description: `Great job keeping your average order at ${formatCurrency(avgOrderValue)}! You're making every dollar count.`,
         type: 'pattern',
@@ -54,7 +55,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (totalOrders > 100) {
       insights.push({
         icon: 'restaurant-outline',
-        iconColor: '#1F4E3A',
+        iconColor: Colors.primary,
         title: 'Foodie Status',
         description: `Wow! ${totalOrders} orders shows you're a true food enthusiast. That's dedication!`,
         type: 'achievement',
@@ -62,7 +63,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     } else if (totalOrders < 20) {
       insights.push({
         icon: 'home-outline',
-        iconColor: '#FF9500',
+        iconColor: Colors.warning,
         title: 'Home Chef',
         description: `With ${totalOrders} orders, you prefer home cooking. Consider treating yourself more often!`,
         type: 'suggestion',
@@ -83,7 +84,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (uniqueCategories.size >= 4) {
       insights.push({
         icon: 'globe-outline',
-        iconColor: '#2E7D4F',
+        iconColor: Colors.secondary,
         title: 'Culinary Explorer',
         description: `You've tried ${uniqueCategories.size} different food categories! Your taste buds are adventurous.`,
         type: 'achievement',
@@ -100,7 +101,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
       if (variation > 100) {
         insights.push({
           icon: 'pulse-outline',
-          iconColor: '#FF2D92',
+          iconColor: Colors.hotPink,
           title: 'Variable Spender',
           description: `Your monthly spending varies by ${variation.toFixed(0)}%. Consider setting a monthly food budget!`,
           type: 'suggestion',
@@ -132,10 +133,10 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
           <LinearGradient
             colors={
               insight.type === 'achievement' 
-                ? ['#FFD700', '#FFA500']
+                ? [Colors.gold, Colors.orange]
                 : insight.type === 'suggestion'
-                ? ['#FF6B6B', '#FF8E8E']
-                : ['#1F4E3A', '#2E7D4F']
+                ? [Colors.errorBright, Colors.errorLight]
+                : [Colors.primary, Colors.secondary]
             }
             style={styles.insightGradient}
             start={{ x: 0, y: 0 }}
@@ -144,7 +145,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
             <View style={styles.insightContent}>
               <View style={styles.insightHeader}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name={insight.icon as any} size={24} color="white" />
+                  <Ionicons name={insight.icon as any} size={24} color={Colors.white} />
                 </View>
                 <View style={styles.insightTextContainer}>
                   <Text style={styles.insightTitle}>{insight.title}</Text>
@@ -172,25 +173,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   emptyContainer: {
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   insightCard: {
     marginBottom: 12,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     borderRadius: 20,
     padding: 8,
     marginRight: 12,
@@ -224,16 +225,16 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
   },
   insightDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: Colors.alpha(Colors.white, 0.9),
     lineHeight: 18,
   },
   insightBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     borderRadius: 16,
     padding: 8,
     minWidth: 32,

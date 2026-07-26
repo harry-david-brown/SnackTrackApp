@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
@@ -10,7 +11,7 @@ interface LoadingSpinnerProps {
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'large',
-  color = '#1F4E3A',
+  color = Colors.primary,
   text,
   overlay = false,
 }) => {
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: Colors.alpha(Colors.white, 0.9),
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
 });

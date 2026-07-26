@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +22,7 @@ export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   if (!isConnected || isInternetReachable === false) {
     return (
       <View style={styles.offlineContainer}>
-        <Ionicons name="wifi-outline" size={16} color="#FF9500" />
+        <Ionicons name="wifi-outline" size={16} color={Colors.warning} />
         <Text style={styles.offlineText}>No internet connection</Text>
       </View>
     );
@@ -31,7 +32,7 @@ export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   if (showWhenConnected && isConnected && isInternetReachable) {
     return (
       <View style={styles.connectedContainer}>
-        <Ionicons name="wifi" size={16} color="#58C26D" />
+        <Ionicons name="wifi" size={16} color={Colors.success} />
         <Text style={styles.connectedText}>Connected</Text>
       </View>
     );
@@ -44,31 +45,31 @@ const styles = StyleSheet.create({
   offlineContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3CD',
+    backgroundColor: Colors.warningLegacySurface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFEAA7',
+    borderBottomColor: Colors.warningPale,
   },
   offlineText: {
     marginLeft: 6,
     fontSize: 14,
-    color: '#856404',
+    color: Colors.warningLegacyText,
     fontWeight: '500',
   },
   connectedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D4EDDA',
+    backgroundColor: Colors.successLegacySurface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#C3E6CB',
+    borderBottomColor: Colors.successLegacyBorder,
   },
   connectedText: {
     marginLeft: 6,
     fontSize: 14,
-    color: '#155724',
+    color: Colors.successDeeper,
     fontWeight: '500',
   },
 });

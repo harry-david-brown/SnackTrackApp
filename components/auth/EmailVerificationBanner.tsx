@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState } from 'react';
 import {
   View,
@@ -42,7 +43,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
     <>
       <View style={styles.banner}>
         <View style={styles.content}>
-          <Ionicons name="mail-outline" size={20} color="#1F4E3A" style={styles.icon} />
+          <Ionicons name="mail-outline" size={20} color={Colors.primary} style={styles.icon} />
           <View style={styles.textContainer}>
             <Text style={styles.title}>Verify your email</Text>
             <Text style={styles.subtitle}>
@@ -61,7 +62,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
             style={styles.dismissButton}
             onPress={handleDismiss}
           >
-            <Ionicons name="close" size={18} color="#6F756E" />
+            <Ionicons name="close" size={18} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -78,9 +79,9 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: Colors.infoSurface,
     borderLeftWidth: 4,
-    borderLeftColor: '#1F4E3A',
+    borderLeftColor: Colors.primary,
     padding: 16,
     marginHorizontal: 16,
     marginTop: 16,
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 1,
@@ -113,12 +114,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1976D2',
+    color: Colors.infoDark,
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 13,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
   actions: {
@@ -127,13 +128,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   verifyButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   verifyButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
   },

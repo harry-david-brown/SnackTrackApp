@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -250,7 +251,7 @@ function TestErrorsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FF6B6B', '#FF8E8E']}
+        colors={[Colors.errorBright, Colors.errorLight]}
         style={styles.header}
       >
         <View style={styles.headerContent}>
@@ -259,7 +260,7 @@ function TestErrorsScreen() {
             <Text style={styles.headerSubtitle}>Test error handling features</Text>
           </View>
           <TouchableOpacity onPress={clearError} style={styles.clearButton}>
-            <Ionicons name="refresh" size={24} color="white" />
+            <Ionicons name="refresh" size={24} color={Colors.white} />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -271,7 +272,7 @@ function TestErrorsScreen() {
           
           {isLoading && (
             <View style={styles.stateItem}>
-              <LoadingSpinner size="small" color="#FF6B6B" />
+              <LoadingSpinner size="small" color={Colors.errorBright} />
               <Text style={styles.stateText}>Loading...</Text>
             </View>
           )}
@@ -287,7 +288,7 @@ function TestErrorsScreen() {
           
           {data && !error && !isLoading && (
             <View style={styles.successContainer}>
-              <Ionicons name="checkmark-circle" size={24} color="#58C26D" />
+              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
               <Text style={styles.successText}>
                 {data.message || 'Operation completed successfully!'}
               </Text>
@@ -314,7 +315,7 @@ function TestErrorsScreen() {
             onPress={simulateSuccess}
             disabled={isLoading}
           >
-            <Ionicons name="checkmark" size={20} color="white" />
+            <Ionicons name="checkmark" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Simulate Success</Text>
           </TouchableOpacity>
 
@@ -323,7 +324,7 @@ function TestErrorsScreen() {
             onPress={() => simulateApiCall('Network Error', () => testErrorScenarios.simulateNetworkError())}
             disabled={isLoading}
           >
-            <Ionicons name="wifi-outline" size={20} color="white" />
+            <Ionicons name="wifi-outline" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Network Error</Text>
           </TouchableOpacity>
 
@@ -332,34 +333,34 @@ function TestErrorsScreen() {
             onPress={() => simulateApiCall('Server Error', () => testErrorScenarios.simulateServerError())}
             disabled={isLoading}
           >
-            <Ionicons name="server-outline" size={20} color="white" />
+            <Ionicons name="server-outline" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Server Error</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: '#9C27B0' }]}
+            style={[styles.testButton, { backgroundColor: Colors.purple }]}
             onPress={testSentry}
             disabled={isLoading}
           >
-            <Ionicons name="bug" size={20} color="white" />
+            <Ionicons name="bug" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Test Sentry Error</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: '#FF9800' }]}
+            style={[styles.testButton, { backgroundColor: Colors.warningBright }]}
             onPress={testSentryPerformance}
             disabled={isLoading}
           >
-            <Ionicons name="speedometer" size={20} color="white" />
+            <Ionicons name="speedometer" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Test Sentry Performance</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: '#E91E63' }]}
+            style={[styles.testButton, { backgroundColor: Colors.pink }]}
             onPress={testAutomaticErrorCatching}
             disabled={isLoading}
           >
-            <Ionicons name="flash" size={20} color="white" />
+            <Ionicons name="flash" size={20} color={Colors.white} />
             <Text style={styles.testButtonText}>Test Automatic Error Catch</Text>
           </TouchableOpacity>
         </View>
@@ -403,7 +404,7 @@ function TestErrorsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   header: {
     padding: 20,
@@ -417,15 +418,15 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     marginTop: 4,
   },
   clearButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     borderRadius: 20,
     padding: 12,
   },
@@ -434,11 +435,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   stateContainer: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
   stateTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   stateItem: {
@@ -460,29 +461,29 @@ const styles = StyleSheet.create({
   stateText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d4edda',
+    backgroundColor: Colors.successLegacySurface,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#c3e6cb',
+    borderColor: Colors.successLegacyBorder,
   },
   successText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#155724',
+    color: Colors.successDeeper,
     fontWeight: '500',
   },
   testContainer: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
   testTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   testButton: {
@@ -507,22 +508,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   successButton: {
-    backgroundColor: '#58C26D',
+    backgroundColor: Colors.success,
   },
   errorButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: Colors.errorBright,
   },
   testButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
   },
   instructionsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -534,12 +535,12 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   instructionsText: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },

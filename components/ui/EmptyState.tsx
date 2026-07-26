@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +31,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {mascotPose ? (
           <MascotPlaceholder pose={mascotPose} size={120} />
         ) : (
-          <Ionicons name={icon} size={64} color="#1F4E3A" />
+          <Ionicons name={icon} size={64} color={Colors.primary} />
         )}
       </View>
 
@@ -59,25 +60,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   actionButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 16,
   },
   actionText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },

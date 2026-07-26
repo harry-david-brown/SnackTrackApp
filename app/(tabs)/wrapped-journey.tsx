@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
@@ -179,7 +180,7 @@ export default function WrappedJourneyScreen() {
   if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E7D4F" />
+        <ActivityIndicator size="large" color={Colors.secondary} />
       </View>
     );
   }
@@ -196,7 +197,7 @@ export default function WrappedJourneyScreen() {
           Import receipts with Gmail to unlock your first recap fast, or upload a full export for deeper history.
         </Text>
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/(tabs)/upload')}>
-          <Ionicons name="cloud-upload-outline" size={20} color="white" />
+          <Ionicons name="cloud-upload-outline" size={20} color={Colors.white} />
           <Text style={styles.emptyButtonText}>Import Receipts</Text>
         </TouchableOpacity>
       </View>
@@ -206,7 +207,7 @@ export default function WrappedJourneyScreen() {
   if (!isFullyReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E7D4F" />
+        <ActivityIndicator size="large" color={Colors.secondary} />
       </View>
     );
   }
@@ -214,7 +215,7 @@ export default function WrappedJourneyScreen() {
   return (
     <Suspense fallback={
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E7D4F" />
+        <ActivityIndicator size="large" color={Colors.secondary} />
       </View>
     }>
       <WrappedShareJourney
@@ -236,14 +237,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#2E7D4F',
+    backgroundColor: Colors.secondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   emptyIcon: {
     marginBottom: 24,
@@ -251,13 +252,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -266,18 +267,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#2E7D4F',
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 30,
-    shadowColor: 'rgba(46, 125, 79, 0.4)',
+    shadowColor: Colors.alpha(Colors.secondary, 0.4),
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 6,
   },
   emptyButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,

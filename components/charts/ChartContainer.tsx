@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,7 +46,7 @@ export default function ChartContainer({
         </View>
         {shareable && (
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={20} color="#1F4E3A" />
+            <Ionicons name="share-outline" size={20} color={Colors.primary} />
           </TouchableOpacity>
         )}
       </View>
@@ -58,11 +59,11 @@ export default function ChartContainer({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -85,15 +86,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginTop: 2,
   },
   shareButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.gray100,
     borderRadius: 20,
     padding: 8,
   },

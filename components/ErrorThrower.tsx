@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,7 @@ export const ErrorThrower: React.FC<ErrorThrowerProps> = ({ onThrowError }) => {
       </Text>
       
       <TouchableOpacity style={styles.button} onPress={handleThrowError}>
-        <Ionicons name="warning" size={20} color="white" />
+        <Ionicons name="warning" size={20} color={Colors.white} />
         <Text style={styles.buttonText}>Throw React Error</Text>
       </TouchableOpacity>
       
@@ -40,11 +41,11 @@ export const ErrorThrower: React.FC<ErrorThrowerProps> = ({ onThrowError }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     margin: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -56,12 +57,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -69,21 +70,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: Colors.errorBright,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     marginBottom: 12,
   },
   buttonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
   },
   warning: {
     fontSize: 12,
-    color: '#FF9500',
+    color: Colors.warning,
     fontStyle: 'italic',
     textAlign: 'center',
   },

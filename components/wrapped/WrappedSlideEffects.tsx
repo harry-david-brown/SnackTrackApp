@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 /**
  * Reusable presentation effects for Wrapped slides: count-up numbers,
  * the animated nebula background, and layout spacers.
@@ -161,7 +162,7 @@ export const AnimatedBackground = ({
     <View style={[{ width, height, overflow: 'hidden' }]}>
       {/* Background base — deep forest, matching the brand anchor gradient */}
       <LinearGradient
-        colors={['#0B1F16', '#16382A', '#1F4E3A']}
+        colors={[Colors.forest900, Colors.forest800, Colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -187,7 +188,7 @@ export const AnimatedBackground = ({
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#E8B33C', 'transparent']}
+          colors={[Colors.transparent, Colors.glowGold, Colors.transparent]}
           start={{ x: 0.3, y: 0 }}
           end={{ x: 0.7, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -213,7 +214,7 @@ export const AnimatedBackground = ({
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#73B84A', 'transparent']}
+          colors={[Colors.transparent, Colors.accent, Colors.transparent]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
@@ -237,7 +238,7 @@ export const AnimatedBackground = ({
         ]}
       >
         <LinearGradient
-          colors={['transparent', '#FFE8C6', 'transparent']}
+          colors={[Colors.transparent, Colors.mascotHighlight, Colors.transparent]}
           start={{ x: 0.8, y: 0.8 }}
           end={{ x: 0.2, y: 0.2 }}
           style={StyleSheet.absoluteFill}
@@ -258,7 +259,7 @@ export const AnimatedBackground = ({
  */
 export const HeroGlow = ({
   size = Math.round(screenWidth * 1.15),
-  color = '#FFFFFF',
+  color = Colors.white,
   opacity = 0.22,
 }: {
   size?: number;
@@ -309,7 +310,7 @@ export const useReducedMotion = (): boolean => {
  * start so nothing jumps. Static share renders show it immediately.
  */
 export const DelayedFadeIn = ({
-  delay = 700,
+  delay = 550,
   children,
 }: {
   delay?: number;
@@ -328,8 +329,8 @@ export const DelayedFadeIn = ({
     }
     const timer = setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]).start();
     }, delay);
     return () => clearTimeout(timer);
@@ -359,7 +360,7 @@ export const DelayedFadeIn = ({
  * success haptic. Reduced motion gets a plain fade; static renders skip it all.
  */
 export const DelayedSlam = ({
-  delay = 900,
+  delay = 700,
   hapticOnReveal = false,
   onReveal,
   children,
@@ -389,12 +390,12 @@ export const DelayedSlam = ({
       onRevealRef.current?.();
       if (reduceMotion) {
         scale.setValue(1);
-        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        Animated.timing(opacity, { toValue: 1, duration: 240, useNativeDriver: true }).start();
         return;
       }
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, friction: 6, tension: 140, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 130, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 7, tension: 165, useNativeDriver: true }),
       ]).start();
     }, delay);
     return () => clearTimeout(timer);

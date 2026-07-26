@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,7 +55,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
         style={styles.toggleButton}
         onPress={() => setIsVisible(true)}
       >
-        <Ionicons name="bug" size={20} color="white" />
+        <Ionicons name="bug" size={20} color={Colors.white} />
         <Text style={styles.toggleButtonText}>Test Errors</Text>
       </TouchableOpacity>
     );
@@ -65,7 +66,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
       <View style={styles.header}>
         <Text style={styles.title}>🧪 Error Testing Panel</Text>
         <TouchableOpacity onPress={() => setIsVisible(false)}>
-          <Ionicons name="close" size={24} color="#6F756E" />
+          <Ionicons name="close" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -78,7 +79,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               style={styles.testButton}
               onPress={() => handleTestError(test.key)}
             >
-              <Ionicons name={test.icon as any} size={20} color="#1F4E3A" />
+              <Ionicons name={test.icon as any} size={20} color={Colors.primary} />
               <Text style={styles.testButtonText}>{test.label}</Text>
             </TouchableOpacity>
           ))}
@@ -118,7 +119,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               onTestError('stress_network', () => runConsecutiveErrors('simulateNetworkError', 3, 1000));
             }}
           >
-            <Ionicons name="warning-outline" size={20} color="#FF6B6B" />
+            <Ionicons name="warning-outline" size={20} color={Colors.errorBright} />
             <Text style={styles.testButtonText}>3x Network Errors</Text>
           </TouchableOpacity>
 
@@ -128,7 +129,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               onTestError('stress_server', () => runConsecutiveErrors('simulateServerError', 5, 800));
             }}
           >
-            <Ionicons name="warning-outline" size={20} color="#FF6B6B" />
+            <Ionicons name="warning-outline" size={20} color={Colors.errorBright} />
             <Text style={styles.testButtonText}>5x Server Errors</Text>
           </TouchableOpacity>
 
@@ -138,7 +139,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               onTestError('chaos', () => runRandomErrors(5));
             }}
           >
-            <Ionicons name="flask-outline" size={20} color="#9C27B0" />
+            <Ionicons name="flask-outline" size={20} color={Colors.purple} />
             <Text style={styles.testButtonText}>Chaos Test (5 Random)</Text>
           </TouchableOpacity>
         </View>
@@ -155,7 +156,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
               );
             }}
           >
-            <Ionicons name="wifi-outline" size={20} color="#1F4E3A" />
+            <Ionicons name="wifi-outline" size={20} color={Colors.primary} />
             <Text style={styles.testButtonText}>Network Offline Instructions</Text>
           </TouchableOpacity>
         </View>
@@ -169,14 +170,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     right: 20,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: Colors.errorBright,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     zIndex: 1000,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   toggleButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -197,9 +198,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     zIndex: 1001,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -215,13 +216,13 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 50,
     borderBottomWidth: 1,
-    borderBottomColor: '#EAE8E2',
-    backgroundColor: '#FAF8F4',
+    borderBottomColor: Colors.divider,
+    backgroundColor: Colors.background,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   content: {
     flex: 1,
@@ -233,38 +234,38 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 12,
     fontStyle: 'italic',
   },
   stressTestButton: {
-    borderColor: '#FFEBEE',
-    backgroundColor: '#FFEBEE',
+    borderColor: Colors.errorLegacySurface,
+    backgroundColor: Colors.errorLegacySurface,
   },
   chaosTestButton: {
-    borderColor: '#F3E5F5',
-    backgroundColor: '#F3E5F5',
+    borderColor: Colors.purpleSurface,
+    backgroundColor: Colors.purpleSurface,
   },
   testButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#EAE8E2',
+    borderColor: Colors.divider,
   },
   testButtonText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   apiGroup: {
     marginBottom: 16,
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
   apiLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginBottom: 8,
   },
   apiButtons: {
@@ -281,16 +282,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   apiTestButton: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: Colors.infoSurface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#bbdefb',
+    borderColor: Colors.infoBorder,
   },
   apiTestButtonText: {
     fontSize: 12,
-    color: '#1976d2',
+    color: Colors.infoDark,
     fontWeight: '500',
   },
 });

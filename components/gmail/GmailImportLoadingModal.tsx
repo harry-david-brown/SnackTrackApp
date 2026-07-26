@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -172,7 +173,7 @@ export function GmailImportLoadingModal({
               {/* MASCOT: in progress — hand-on-chin thinking */}
               <View style={styles.loadingIconWrap}>
                 <MascotPlaceholder pose="thinking" size={96} />
-                <ActivityIndicator size="small" color="#1F4E3A" style={styles.loadingSpinnerBelowMascot} />
+                <ActivityIndicator size="small" color={Colors.primary} style={styles.loadingSpinnerBelowMascot} />
               </View>
 
               <Text style={styles.loadingModalTitle}>{inProgressTitle}</Text>
@@ -185,7 +186,7 @@ export function GmailImportLoadingModal({
               )}
 
               <View style={styles.loadingModalFooter}>
-                <Ionicons name="time-outline" size={16} color="#6F756E" />
+                <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
                 <Text style={styles.loadingModalFooterText}>
                   {isConnecting
                     ? 'Hang tight while we finish connecting your inbox.'
@@ -205,18 +206,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.62)',
+    backgroundColor: Colors.alpha(Colors.slateInk, 0.62),
     padding: 24,
   },
   loadingModalCard: {
     width: '100%',
     maxWidth: 360,
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 12,
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E9F5E2',
+    backgroundColor: Colors.chipActiveBg,
     marginBottom: 18,
   },
   successMascotWrap: {
@@ -245,27 +246,27 @@ const styles = StyleSheet.create({
   loadingModalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
     textAlign: 'center',
   },
   loadingModalStatus: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F4E3A',
+    color: Colors.primary,
     textAlign: 'center',
     marginTop: 8,
   },
   loadingModalMessage: {
     minHeight: 56,
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 18,
   },
   loadingModalSuccessText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 24,
     textAlign: 'center',
     marginTop: 12,
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
   loadingModalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   loadingModalFooterText: {
     flex: 1,
     fontSize: 12,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginLeft: 6,
   },
 });

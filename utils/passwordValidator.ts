@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 /**
  * Password validation utility
  * Provides comprehensive password strength validation
@@ -182,10 +183,10 @@ export function meetsMinimumRequirements(password: string): boolean {
  */
 export function getStrengthColor(strength: 'weak' | 'fair' | 'good' | 'strong'): string {
   const colors = {
-    weak: '#ff4444',
-    fair: '#ffaa00',
-    good: '#00aa00',
-    strong: '#00cc00',
+    weak: Colors.passwordWeak,
+    fair: Colors.passwordFair,
+    good: Colors.passwordGood,
+    strong: Colors.passwordStrong,
   };
   return colors[strength];
 }

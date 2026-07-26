@@ -1,14 +1,15 @@
+import { Colors } from '@/constants/theme';
 /** Shared bottom-sheet shell styles for Profile screen modals. */
 import { StyleSheet } from 'react-native';
 
 export const modalShellStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.alpha(Colors.black, 0.5),
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
@@ -20,12 +21,12 @@ export const modalShellStyles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   closeButton: {
     padding: 4,

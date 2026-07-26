@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -440,7 +441,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       onPress={handleGoogleLogin}
                       disabled={isLoading || state.isLoading}
                     >
-                      <Ionicons name="logo-google" size={24} color="#222222" style={styles.googleIcon} />
+                      <Ionicons name="logo-google" size={24} color={Colors.textPrimary} style={styles.googleIcon} />
                       <Text style={styles.googleButtonText}>
                         {isRegistering ? 'Sign up with Google' : 'Continue with Google'}
                       </Text>
@@ -474,11 +475,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   </Text>
 
                   <View style={styles.inputContainer}>
-                    <Ionicons name="mail-outline" size={24} color="#6F756E" style={styles.inputIcon} />
+                    <Ionicons name="mail-outline" size={24} color={Colors.textSecondary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your email address"
-                      placeholderTextColor="#999"
+                      placeholderTextColor={Colors.gray500}
                       value={email}
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -493,11 +494,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={24} color="#6F756E" style={styles.inputIcon} />
+                    <Ionicons name="lock-closed-outline" size={24} color={Colors.textSecondary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your password"
-                      placeholderTextColor="#999"
+                      placeholderTextColor={Colors.gray500}
                       value={password}
                       onChangeText={(value) => {
                         setPassword(value);
@@ -513,7 +514,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       <Ionicons
                         name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                         size={24}
-                        color="#6F756E"
+                        color={Colors.textSecondary}
                       />
                     </TouchableOpacity>
                   </View>
@@ -532,7 +533,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       <Ionicons
                         name="alert-circle-outline"
                         size={18}
-                        color="#b42318"
+                        color={Colors.errorDark}
                         style={styles.errorIcon}
                       />
                       <Text style={styles.errorText}>{formError}</Text>

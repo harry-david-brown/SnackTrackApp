@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,7 +77,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         style={styles.graphicContainer}
       >
         <LinearGradient
-          colors={['#1F4E3A', '#2E7D4F']}
+          colors={[Colors.primary, Colors.secondary]}
           style={styles.graphicBackground}
         >
           {/* Header */}
@@ -123,10 +124,10 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
       {/* Share Button */}
       <TouchableOpacity style={styles.shareButton} onPress={captureAndShare}>
         <LinearGradient
-          colors={['#1F4E3A', '#2E7D4F']}
+          colors={[Colors.primary, Colors.secondary]}
           style={styles.shareButtonGradient}
         >
-          <Ionicons name="share-outline" size={24} color="white" />
+          <Ionicons name="share-outline" size={24} color={Colors.white} />
           <Text style={styles.shareButtonText}>Share Analytics</Text>
         </LinearGradient>
       </TouchableOpacity>
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -163,13 +164,13 @@ const styles = StyleSheet.create({
   graphicTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 8,
   },
   graphicSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textAlign: 'center',
   },
   statsGrid: {
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -189,19 +190,19 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     marginBottom: 4,
     textAlign: 'center',
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   insightContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: 16,
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     fontWeight: '500',
     lineHeight: 22,
@@ -219,12 +220,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: Colors.alpha(Colors.white, 0.8),
     marginBottom: 4,
   },
   footerSubtext: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: Colors.alpha(Colors.white, 0.6),
     fontWeight: '600',
   },
   shareButton: {
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   shareButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },

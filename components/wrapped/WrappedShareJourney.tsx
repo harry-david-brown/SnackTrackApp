@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import {
   View,
@@ -235,17 +236,17 @@ export default function WrappedShareJourney({
       slideTranslateX.value = 0;
       slideTranslateY.value = 0;
       slideScale.value = 1;
-      slideOpacity.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) });
+      slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
       return;
     }
 
     if (direction === -1) {
       // Going BACK — natural reverse: slide in from the left. Consistent so the
       // gesture always reads as "backward" rather than a random forward entrance.
-      slideTranslateX.value = -screenWidth * 0.9;
+      slideTranslateX.value = -screenWidth * 0.75;
       slideTranslateY.value = 0;
       slideScale.value = 0.94;
-      slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      slideOpacity.value = withTiming(1, { duration: 190, easing: Easing.out(Easing.cubic) });
       slideTranslateX.value = withSpring(0, { damping: 25, stiffness: 410 });
       slideScale.value = withSpring(1, { damping: 25, stiffness: 410 });
       return;
@@ -262,50 +263,50 @@ export default function WrappedShareJourney({
       slideTranslateY.value = 12;
       slideTranslateX.value = 0;
       slideScale.value = 0.99;
-      slideOpacity.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.quad) });
-      slideTranslateY.value = withTiming(0, { duration: 420, easing: Easing.out(Easing.quad) });
-      slideScale.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.quad) });
+      slideOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
+      slideTranslateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.quad) });
+      slideScale.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
     } else if (entrance === 'rise') {
       // Spring rise from below
-      slideTranslateY.value = 60;
+      slideTranslateY.value = 48;
       slideTranslateX.value = 0;
-      slideScale.value = 0.88;
-      slideOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
-      slideTranslateY.value = withSpring(0, { damping: 19, stiffness: 445 });
-      slideScale.value = withSpring(1, { damping: 19, stiffness: 410 });
+      slideScale.value = 0.92;
+      slideOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
+      slideTranslateY.value = withSpring(0, { damping: 21, stiffness: 470 });
+      slideScale.value = withSpring(1, { damping: 21, stiffness: 445 });
     } else if (entrance === 'zoom') {
       // Headline impact — forceful, but smaller than the final reveal.
       slideTranslateY.value = 0;
       slideTranslateX.value = 0;
-      slideScale.value = 1.28;
-      slideOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
-      slideScale.value = withSpring(1, { damping: 19, stiffness: 470 });
+      slideScale.value = 1.2;
+      slideOpacity.value = withTiming(1, { duration: 190, easing: Easing.out(Easing.quad) });
+      slideScale.value = withSpring(1, { damping: 21, stiffness: 500 });
     } else if (entrance === 'slide') {
       // Slide in from right
       slideTranslateY.value = 0;
-      slideTranslateX.value = screenWidth * 0.9;
-      slideScale.value = 0.92;
-      slideOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
-      slideTranslateX.value = withSpring(0, { damping: 22, stiffness: 445 });
-      slideScale.value = withSpring(1, { damping: 22, stiffness: 445 });
+      slideTranslateX.value = screenWidth * 0.75;
+      slideScale.value = 0.94;
+      slideOpacity.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) });
+      slideTranslateX.value = withSpring(0, { damping: 24, stiffness: 470 });
+      slideScale.value = withSpring(1, { damping: 24, stiffness: 470 });
     } else if (entrance === 'drop') {
       // Drop from top with spin
-      slideTranslateY.value = -screenHeight * 0.35;
+      slideTranslateY.value = -screenHeight * 0.28;
       slideTranslateX.value = 0;
-      slideScale.value = 0.7;
-      slideRotate.value = 0.08;
-      slideOpacity.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.cubic) });
-      slideTranslateY.value = withSpring(0, { damping: 16, stiffness: 375 });
-      slideScale.value = withSpring(1, { damping: 16, stiffness: 375 });
-      slideRotate.value = withSpring(0, { damping: 19, stiffness: 410 });
+      slideScale.value = 0.78;
+      slideRotate.value = 0.06;
+      slideOpacity.value = withTiming(1, { duration: 210, easing: Easing.out(Easing.cubic) });
+      slideTranslateY.value = withSpring(0, { damping: 18, stiffness: 410 });
+      slideScale.value = withSpring(1, { damping: 18, stiffness: 410 });
+      slideRotate.value = withSpring(0, { damping: 21, stiffness: 445 });
     } else {
       // Identity reveal — the strongest whole-slide entrance. The name's
       // DelayedSlam, heavy haptic, glow, and confetti remain archetype-only.
       slideTranslateY.value = 0;
       slideTranslateX.value = 0;
-      slideScale.value = 1.48;
-      slideOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-      slideScale.value = withSpring(1, { damping: 15, stiffness: 520 });
+      slideScale.value = 1.36;
+      slideOpacity.value = withTiming(1, { duration: 210, easing: Easing.out(Easing.quad) });
+      slideScale.value = withSpring(1, { damping: 17, stiffness: 550 });
     }
   }, [currentSlide, reduceMotion, progress, slideOpacity, slideScale, slideTranslateY, slideTranslateX, slideRotate]);
 
@@ -693,7 +694,7 @@ export default function WrappedShareJourney({
         accessibilityRole="button"
         accessibilityLabel="Close Wrapped"
       >
-        <Ionicons name="close" size={26} color="white" />
+        <Ionicons name="close" size={26} color={Colors.white} />
       </TouchableOpacity>
 
       {/* Explicit share CTA on the most-shareable slides (archetype, summary).
@@ -706,7 +707,7 @@ export default function WrappedShareJourney({
             accessibilityRole="button"
             accessibilityLabel="Share this card"
           >
-            <Ionicons name="share-outline" size={18} color="#222222" />
+            <Ionicons name="share-outline" size={18} color={Colors.textPrimary} />
             <Text style={styles.shareCtaText}>Share</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -716,7 +717,7 @@ export default function WrappedShareJourney({
             accessibilityLabel={showExportUpsell ? 'Continue after Wrapped' : 'Finish Wrapped'}
           >
             <Text style={styles.doneCtaText}>{showExportUpsell ? 'Continue' : 'Done'}</Text>
-            <Ionicons name="arrow-forward" size={18} color="white" />
+            <Ionicons name="arrow-forward" size={18} color={Colors.white} />
           </TouchableOpacity>
         </View>
       )}
@@ -728,7 +729,7 @@ export default function WrappedShareJourney({
         accessibilityRole="button"
         accessibilityLabel="Share this slide"
       >
-        <Ionicons name="share-outline" size={22} color="white" />
+        <Ionicons name="share-outline" size={22} color={Colors.white} />
       </TouchableOpacity>
 
       {Platform.OS !== 'web' && (
@@ -739,7 +740,7 @@ export default function WrappedShareJourney({
           accessibilityRole="button"
           accessibilityLabel="Save this slide to Photos"
         >
-          <Ionicons name="download-outline" size={22} color="white" />
+          <Ionicons name="download-outline" size={22} color={Colors.white} />
         </TouchableOpacity>
       )}
 
@@ -750,7 +751,7 @@ export default function WrappedShareJourney({
         accessibilityRole="button"
         accessibilityLabel={isMuted ? 'Unmute music' : 'Mute music'}
       >
-        <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color="white" />
+        <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color={Colors.white} />
       </TouchableOpacity>
 
       <Modal

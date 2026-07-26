@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,13 +29,13 @@ const getErrorIcon = (type: ErrorType): keyof typeof Ionicons.glyphMap => {
 const getErrorColor = (type: ErrorType): string => {
   switch (type) {
     case 'network':
-      return '#FF9500';
+      return Colors.warning;
     case 'validation':
-      return '#FF6B6B';
+      return Colors.errorBright;
     case 'server':
-      return '#D14343';
+      return Colors.error;
     default:
-      return '#FF6B6B';
+      return Colors.errorBright;
   }
 };
 
@@ -76,14 +77,14 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
 
         {onDismiss && (
           <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={20} color="#6F756E" />
+            <Ionicons name="close" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
 
       {onRetry && (
         <TouchableOpacity style={[styles.retryButton, { backgroundColor: color }]} onPress={onRetry}>
-          <Ionicons name="refresh" size={16} color="white" />
+          <Ionicons name="refresh" size={16} color={Colors.white} />
           <Text style={styles.retryText}>Try Again</Text>
         </TouchableOpacity>
       )}
@@ -93,13 +94,13 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EAE8E2',
+    borderColor: Colors.divider,
     borderLeftWidth: 4,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   dismissButton: {
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,

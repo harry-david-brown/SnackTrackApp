@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -31,15 +32,15 @@ export default function RootLayout() {
             <OnboardingProvider>
               <Stack
                 screenOptions={{
-                  contentStyle: { backgroundColor: 'transparent' },
+                  contentStyle: { backgroundColor: Colors.transparent },
                 }}
               >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: Colors.transparent } }} />
                 <Stack.Screen 
                   name="index" 
                   options={{ 
                     headerShown: false, 
-                    contentStyle: { backgroundColor: 'transparent' },
+                    contentStyle: { backgroundColor: Colors.transparent },
                     animation: 'fade',
                   }} 
                 />
@@ -47,7 +48,7 @@ export default function RootLayout() {
                   name="login"
                   options={{
                     headerShown: false,
-                    contentStyle: { backgroundColor: 'transparent' },
+                    contentStyle: { backgroundColor: Colors.transparent },
                     animation: 'fade',
                   }}
                 />
@@ -55,7 +56,7 @@ export default function RootLayout() {
                   name="oauth-callback" 
                   options={{ 
                     headerShown: false,
-                    contentStyle: { backgroundColor: 'transparent' },
+                    contentStyle: { backgroundColor: Colors.transparent },
                     animation: 'fade',
                   }} 
                 />
@@ -63,7 +64,7 @@ export default function RootLayout() {
                   name="receipts" 
                   options={{ 
                     headerShown: false,
-                    contentStyle: { backgroundColor: 'transparent' },
+                    contentStyle: { backgroundColor: Colors.transparent },
                     presentation: 'card',
                   }} 
                 />

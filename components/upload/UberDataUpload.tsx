@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState } from 'react';
 import {
   View,
@@ -279,7 +280,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         disabled={uploadState.isUploading}
       >
         <View style={styles.uploadButtonContent}>
-          <Ionicons name="cloud-upload" size={24} color="white" />
+          <Ionicons name="cloud-upload" size={24} color={Colors.white} />
           <Text style={styles.uploadButtonText}>
             {uploadState.isUploading ? 'Uploading...' : 'Choose Export File'}
           </Text>
@@ -298,7 +299,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
             <Text style={styles.modalTitle}>Confirm Upload</Text>
             
             <View style={styles.fileInfo}>
-              <Ionicons name="document-text" size={32} color="#1F4E3A" />
+              <Ionicons name="document-text" size={32} color={Colors.primary} />
               <View style={styles.fileDetails}>
                 <Text style={styles.fileName}>{uploadState.fileName}</Text>
                 <Text style={styles.fileSize}>
@@ -309,7 +310,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
 
             {uploadState.isUploading ? (
               <View style={styles.uploadingContainer}>
-                <ActivityIndicator size="large" color="#1F4E3A" />
+                <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={styles.uploadingText}>Uploading and processing...</Text>
                 <View style={styles.progressBar}>
                   <View 
@@ -353,12 +354,12 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
 
 const styles = StyleSheet.create({
   uploadButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -373,25 +374,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   uploadButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.alpha(Colors.black, 0.5),
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -405,12 +406,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   fileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     padding: 16,
     borderRadius: 12,
     marginBottom: 24,
@@ -422,19 +423,19 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   fileSize: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   uploadingContainer: {
     alignItems: 'center',
   },
   uploadingText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginTop: 16,
     marginBottom: 20,
     textAlign: 'center',
@@ -442,19 +443,19 @@ const styles = StyleSheet.create({
   progressBar: {
     width: '100%',
     height: 8,
-    backgroundColor: '#EAE8E2',
+    backgroundColor: Colors.divider,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     borderRadius: 4,
   },
   progressText: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   confirmButtons: {
@@ -468,26 +469,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: Colors.slate150,
   },
   uploadConfirmButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.gray400,
     opacity: 0.6,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   uploadConfirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: Colors.white,
   },
 });
 

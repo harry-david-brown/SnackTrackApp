@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -38,7 +39,7 @@ const uberSlides: TutorialSlide[] = [
       'Uber will process your request',
     ],
     icon: 'document-text-outline',
-    gradient: ['#06C167', '#00A859'],
+    gradient: [Colors.uber, Colors.uberDark],
   },
   {
     title: '',
@@ -50,7 +51,7 @@ const uberSlides: TutorialSlide[] = [
       'Tap the download link in the email',
     ],
     icon: 'mail-outline',
-    gradient: ['#00A859', '#06C167'],
+    gradient: [Colors.uberDark, Colors.uber],
   },
   {
     title: '',
@@ -60,7 +61,7 @@ const uberSlides: TutorialSlide[] = [
       'Sit back and get ready to be roasted!',
     ],
     icon: 'cloud-upload-outline',
-    gradient: ['#06C167', '#00D96F'],
+    gradient: [Colors.uber, Colors.uberBright],
   },
 ];
 
@@ -75,7 +76,7 @@ const doordashSlides: TutorialSlide[] = [
       'Select "Request Archive"',
     ],
     icon: 'document-text-outline',
-    gradient: ['#FF3000', '#FF3000'],
+    gradient: [Colors.doorDash, Colors.doorDash],
   },
   {
     title: '',
@@ -87,7 +88,7 @@ const doordashSlides: TutorialSlide[] = [
       'Tap the download link in the email',
     ],
     icon: 'mail-outline',
-    gradient: ['#FF3000', '#FF3000'],
+    gradient: [Colors.doorDash, Colors.doorDash],
   },
   {
     title: '',
@@ -97,7 +98,7 @@ const doordashSlides: TutorialSlide[] = [
       'Sit back and get ready to be roasted!',
     ],
     icon: 'cloud-upload-outline',
-    gradient: ['#FF3000', '#FF3000'],
+    gradient: [Colors.doorDash, Colors.doorDash],
   },
 ];
 
@@ -352,7 +353,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
           >
             <View style={styles.slideContent}>
             <View style={styles.iconContainer}>
-              <Ionicons name={currentSlide.icon} size={80} color="white" />
+              <Ionicons name={currentSlide.icon} size={80} color={Colors.white} />
             </View>
 
             <Text style={styles.mainTitle}>{getMainTitle()}</Text>
@@ -369,7 +370,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
                   styles.selectorText, 
                   platform === 'uber' && [
                     styles.selectorTextActive,
-                    { color: '#2E7D4F' }
+                    { color: Colors.secondary }
                   ]
                 ]}>
                   UberEats
@@ -384,7 +385,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
                   styles.selectorText, 
                   platform === 'doordash' && [
                     styles.selectorTextActive,
-                    { color: '#FF3000' }
+                    { color: Colors.doorDash }
                   ]
                 ]}>
                   DoorDash
@@ -481,7 +482,7 @@ export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutoria
             <Text style={styles.buttonText}>
               {isLastSlide ? "I Have My ZIP!" : 'Next'}
             </Text>
-            <Ionicons name="arrow-forward" size={24} color="white" />
+            <Ionicons name="arrow-forward" size={24} color={Colors.white} />
           </TouchableOpacity>
         </View>
     </LinearGradient>
@@ -495,11 +496,11 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 100,
     padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: Colors.alpha(Colors.black, 0.2),
     borderRadius: 8,
   },
   skipText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -523,7 +524,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 30,
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 24,
     letterSpacing: 0.5,
@@ -539,14 +540,14 @@ const styles = StyleSheet.create({
   selectorContainer: {
     width: '100%',
     height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: Colors.alpha(Colors.white, 0.15),
     borderRadius: 24,
     flexDirection: 'row',
     marginBottom: 30,
     position: 'relative',
     padding: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: Colors.alpha(Colors.white, 0.2),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -554,10 +555,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '48%',
     height: 40,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 20,
     top: 4,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
   selectorText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: Colors.alpha(Colors.white, 0.7),
     letterSpacing: 0.3,
     textAlign: 'center',
     marginLeft: 8,
@@ -589,20 +590,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 15,
   },
   description: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: Colors.alpha(Colors.white, 0.9),
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
   },
   instructionsContainer: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.alpha(Colors.white, 0.1),
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
@@ -616,7 +617,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -624,12 +625,12 @@ const styles = StyleSheet.create({
   stepNumberText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2E7D4F',
+    color: Colors.secondary,
   },
   instructionText: {
     flex: 1,
     fontSize: 15,
-    color: 'white',
+    color: Colors.white,
     lineHeight: 20,
   },
   preloadContainer: {
@@ -669,9 +670,9 @@ const styles = StyleSheet.create({
     aspectRatio: 0.5625, // Common phone screenshot aspect ratio (9:16 inverted for landscape)
     marginBottom: 15,
     borderRadius: 12,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderWidth: 10,
-    borderColor: 'rgb(255, 255, 255)',
+    borderColor: Colors.white,
   },
   footer: {
     width: '100%',
@@ -679,7 +680,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    borderTopColor: Colors.alpha(Colors.white, 0.2),
   },
   pagination: {
     flexDirection: 'row',
@@ -690,27 +691,27 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: Colors.alpha(Colors.white, 0.4),
     marginHorizontal: 5,
   },
   activeDot: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     width: 24,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.alpha(Colors.white, 0.2),
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 30,
     width: '100%',
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: Colors.white,
   },
   buttonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 10,

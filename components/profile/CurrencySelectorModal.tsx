@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
@@ -28,7 +29,7 @@ export function CurrencySelectorModal({
           <View style={modalShellStyles.modalHeader}>
             <Text style={modalShellStyles.modalTitle}>Select Currency</Text>
             <TouchableOpacity onPress={onClose} style={modalShellStyles.closeButton}>
-              <Ionicons name="close" size={24} color="#6F756E" />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -50,7 +51,7 @@ export function CurrencySelectorModal({
                   </View>
                 </View>
                 {currency === curr.code && (
-                  <Ionicons name="checkmark-circle" size={24} color="#1F4E3A" />
+                  <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -68,10 +69,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   currencyItemSelected: {
-    backgroundColor: '#F7FAF7',
+    backgroundColor: Colors.infoBg,
   },
   currencyItemContent: {
     flexDirection: 'row',
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginRight: 16,
     width: 40,
   },
@@ -91,12 +92,12 @@ const styles = StyleSheet.create({
   currencyCode: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   currencyName: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
 });
 

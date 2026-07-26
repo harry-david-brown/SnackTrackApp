@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
@@ -319,7 +320,7 @@ export default function UploadScreen() {
         <View style={styles.content}>
           {pendingCount > 0 && (
             <View style={styles.pendingBanner}>
-              <Ionicons name="cloud-upload" size={20} color="#FF9800" />
+              <Ionicons name="cloud-upload" size={20} color={Colors.warningBright} />
               <Text style={styles.pendingText}>
                 {isSyncing
                   ? `Syncing ${pendingCount} pending upload${pendingCount > 1 ? 's' : ''}...`
@@ -356,7 +357,7 @@ export default function UploadScreen() {
                       activeOpacity={0.85}
                       disabled={primaryFlowState !== 'idle' || isGmailStatusChecking}
                     >
-                      <Ionicons name="logo-google" size={20} color="#fff" />
+                      <Ionicons name="logo-google" size={20} color={Colors.white} />
                       <Text style={styles.gmailButtonText}>Connect Gmail</Text>
                     </TouchableOpacity>
                   )}
@@ -398,7 +399,7 @@ export default function UploadScreen() {
                     activeOpacity={0.85}
                     disabled={!hasConnectedEmail || !canImportFromGmail || primaryFlowState !== 'idle' || isGmailStatusChecking}
                   >
-                    <Ionicons name="logo-google" size={20} color="#fff" />
+                    <Ionicons name="logo-google" size={20} color={Colors.white} />
                     <Text style={styles.gmailButtonText}>{gmailButtonLabel}</Text>
                   </TouchableOpacity>
 
@@ -433,7 +434,7 @@ export default function UploadScreen() {
 
                 <View style={styles.exportCard}>
                   <View style={styles.exportHeader}>
-                    <Ionicons name="cloud-upload-outline" size={28} color="#1F4E3A" />
+                    <Ionicons name="cloud-upload-outline" size={28} color={Colors.primary} />
                     <View style={styles.exportHeaderText}>
                       <Text style={styles.exportTitle}>Have an export file?</Text>
                       <Text style={styles.exportSubtitle}>
@@ -451,9 +452,9 @@ export default function UploadScreen() {
                     style={styles.tutorialButton}
                     onPress={() => setShowTutorial(true)}
                   >
-                    <Ionicons name="information-circle-outline" size={20} color="#6F756E" />
+                    <Ionicons name="information-circle-outline" size={20} color={Colors.textSecondary} />
                     <Text style={styles.tutorialButtonText}>How to request your Uber export</Text>
-                    <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    <Ionicons name="chevron-forward" size={18} color={Colors.slate500} />
                   </TouchableOpacity>
                 </View>
               </ImportTaskCard>
@@ -485,7 +486,7 @@ export default function UploadScreen() {
                 onPress={() => setShowGmailModal(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={28} color="#6F756E" />
+                <Ionicons name="close" size={28} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
@@ -517,7 +518,7 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -534,12 +535,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 24,
   },
   taskList: {
@@ -549,7 +550,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
   gmailButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.white,
     marginLeft: 8,
   },
   manageLink: {
@@ -570,11 +571,11 @@ const styles = StyleSheet.create({
   manageLinkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   taskHelperText: {
     fontSize: 13,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 19,
     marginTop: 12,
   },
@@ -593,12 +594,12 @@ const styles = StyleSheet.create({
   exportTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   exportSubtitle: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   tutorialButton: {
@@ -607,18 +608,18 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: Colors.slate100,
   },
   tutorialButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     marginLeft: 12,
   },
   pendingBanner: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: Colors.warningSurface,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF9800',
+    borderLeftColor: Colors.warningBright,
     padding: 12,
     marginBottom: 16,
     borderRadius: 8,
@@ -627,28 +628,28 @@ const styles = StyleSheet.create({
   },
   pendingText: {
     fontSize: 14,
-    color: '#E65100',
+    color: Colors.warningDark,
     marginLeft: 8,
     flex: 1,
     fontWeight: '500',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   closeButton: {
     padding: 4,

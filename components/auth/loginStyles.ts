@@ -1,10 +1,11 @@
+import { Colors } from '@/constants/theme';
 /** Styles for the login/registration screen. */
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -28,22 +29,22 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -59,15 +60,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
   },
   toggleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   toggleTextActive: {
-    color: 'white',
+    color: Colors.white,
   },
   form: {
     marginBottom: 32,
@@ -80,7 +81,7 @@ export const styles = StyleSheet.create({
   },
   authPanelOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   oauthSection: {
     marginBottom: 20,
@@ -88,22 +89,22 @@ export const styles = StyleSheet.create({
   oauthTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 6,
   },
   oauthSubtitle: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
   oauthSubtitleEmphasis: {
-    color: '#1d4ed8',
+    color: Colors.infoStrong,
     fontWeight: '700',
   },
   manualIntro: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -113,23 +114,23 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#fff',
+    borderColor: Colors.infoBorderStrong,
+    backgroundColor: Colors.white,
   },
   manualToggleText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2563eb',
+    color: Colors.infoLink,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -139,7 +140,7 @@ export const styles = StyleSheet.create({
     elevation: 5,
   },
   passwordRequirements: {
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -147,20 +148,20 @@ export const styles = StyleSheet.create({
   passwordRequirementsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   passwordRequirement: {
     fontSize: 13,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fef3f2',
+    backgroundColor: Colors.errorSurface,
     borderWidth: 1,
-    borderColor: '#fecdca',
+    borderColor: Colors.errorBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -172,7 +173,7 @@ export const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#b42318',
+    color: Colors.errorDark,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -180,7 +181,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginBottom: 16,
     fontWeight: '600',
-    color: '#1F4E3A',
+    color: Colors.primary,
   },
   inputIcon: {
     marginRight: 12,
@@ -188,14 +189,14 @@ export const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#222222',
+    color: Colors.textPrimary,
   },
   loginButton: {
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -205,10 +206,10 @@ export const styles = StyleSheet.create({
     elevation: 5,
   },
   loginButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.gray400,
   },
   loginButtonText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -218,7 +219,7 @@ export const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -229,7 +230,7 @@ export const styles = StyleSheet.create({
   methodSwapLinkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563eb',
+    color: Colors.infoLink,
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -239,11 +240,11 @@ export const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: Colors.gray300,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: '#999',
+    color: Colors.gray500,
     fontWeight: '600',
   },
   appleButton: {
@@ -255,13 +256,13 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.gray300,
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 1,
@@ -276,6 +277,6 @@ export const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
+    color: Colors.textPrimary,
   },
 });

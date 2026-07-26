@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/theme';
 import { 
   View, 
   Text, 
@@ -139,15 +140,15 @@ export default function ReceiptsScreen() {
     if (receipt.receiptType) {
       switch (receipt.receiptType) {
         case 'uber_eats':
-          return '#06C167'; // UberEats green (from UberDataTutorial)
+          return Colors.uber; // UberEats green (from UberDataTutorial)
         case 'doordash':
-          return '#FF3000'; // DoorDash red
+          return Colors.doorDash; // DoorDash red
       default:
-        return '#6F756E';
+        return Colors.textSecondary;
     }
     }
     // Fallback to dataSource colors
-    return receipt.dataSource === DataSource.EMAIL ? '#58C26D' : '#2196F3';
+    return receipt.dataSource === DataSource.EMAIL ? Colors.success : Colors.info;
   };
 
   const toggleExpanded = (receiptId: string) => {
@@ -183,7 +184,7 @@ export default function ReceiptsScreen() {
               {item.restaurantName || 'Unknown Restaurant'}
             </Text>
             <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={14} color="#999" />
+              <Ionicons name="calendar-outline" size={14} color={Colors.gray500} />
               <Text style={styles.dateText}>{formatDate(item.orderDate)}</Text>
             </View>
           </View>
@@ -193,7 +194,7 @@ export default function ReceiptsScreen() {
               <Ionicons 
                 name={getReceiptTypeIcon(item) as any} 
                 size={12} 
-                color="#fff" 
+                color={Colors.white}
               />
               <Text style={styles.sourceBadgeText}>
                 {getReceiptTypeLabel(item)}
@@ -211,7 +212,7 @@ export default function ReceiptsScreen() {
               <Ionicons 
                 name={isExpanded ? "chevron-up" : "chevron-down"} 
                 size={20} 
-                color="#6F756E" 
+                color={Colors.textSecondary}
               />
             </>
           ) : (
@@ -260,7 +261,7 @@ export default function ReceiptsScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="receipt-outline" size={80} color="#ccc" />
+      <Ionicons name="receipt-outline" size={80} color={Colors.gray400} />
       <Text style={styles.emptyTitle}>No receipts yet</Text>
       <Text style={styles.emptyText}>
         Connect Gmail to start importing receipts, or upload a full export for deeper history
@@ -269,7 +270,7 @@ export default function ReceiptsScreen() {
         style={styles.uploadButton}
         onPress={() => router.push('/(tabs)/upload')}
       >
-        <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+        <Ionicons name="cloud-upload-outline" size={20} color={Colors.white} />
         <Text style={styles.uploadButtonText}>Import Receipts</Text>
       </TouchableOpacity>
     </View>
@@ -279,7 +280,7 @@ export default function ReceiptsScreen() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#1F4E3A" />
+        <ActivityIndicator size="small" color={Colors.primary} />
       </View>
     );
   };
@@ -288,7 +289,7 @@ export default function ReceiptsScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1F4E3A" />
+          <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading user...</Text>
         </View>
       </SafeAreaView>
@@ -309,7 +310,7 @@ export default function ReceiptsScreen() {
           }} 
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F4E3A" />
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>My Receipts</Text>
@@ -322,19 +323,19 @@ export default function ReceiptsScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1F4E3A" />
+          <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading receipts...</Text>
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={60} color="#D14343" />
+          <Ionicons name="alert-circle-outline" size={60} color={Colors.error} />
           <Text style={styles.errorTitle}>Oops!</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
             onPress={() => fetchReceipts(0, false)}
           >
-            <Ionicons name="refresh-outline" size={20} color="#fff" />
+            <Ionicons name="refresh-outline" size={20} color={Colors.white} />
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -350,7 +351,7 @@ export default function ReceiptsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#1F4E3A"
+              tintColor={Colors.primary}
             />
           }
           onEndReached={loadMore}
@@ -364,7 +365,7 @@ export default function ReceiptsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -372,9 +373,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: Colors.gray250,
   },
   backButton: {
     width: 40,
@@ -389,11 +390,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.inkStrong,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.gray500,
     marginTop: 2,
   },
   loadingContainer: {
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
@@ -415,19 +416,19 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.inkStrong,
     marginTop: 16,
   },
   errorText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -444,11 +445,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   receiptCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: Colors.inkStrong,
     marginBottom: 6,
   },
   dateRow: {
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.gray500,
   },
   amountContainer: {
     alignItems: 'flex-end',
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F4E3A',
+    color: Colors.primary,
     marginBottom: 6,
   },
   sourceBadge: {
@@ -504,7 +505,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sourceBadgeText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -515,23 +516,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: Colors.gray100,
   },
   itemsCountText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6F756E',
+    color: Colors.textSecondary,
   },
   itemsUnavailableText: {
     fontSize: 13,
-    color: '#999',
+    color: Colors.gray500,
     fontStyle: 'italic',
   },
   itemsContainer: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: Colors.gray100,
   },
   itemRow: {
     flexDirection: 'row',
@@ -539,7 +540,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    borderBottomColor: Colors.gray50,
   },
   itemDetails: {
     flex: 1,
@@ -547,17 +548,17 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: Colors.inkStrong,
     fontWeight: '500',
     marginBottom: 4,
   },
   itemQuantity: {
     fontSize: 13,
-    color: '#999',
+    color: Colors.gray500,
   },
   itemPrice: {
     fontSize: 14,
-    color: '#1F4E3A',
+    color: Colors.primary,
     fontWeight: '600',
   },
   emptyContainer: {
@@ -570,12 +571,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.inkStrong,
     marginTop: 20,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6F756E',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 24,
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F4E3A',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   uploadButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
