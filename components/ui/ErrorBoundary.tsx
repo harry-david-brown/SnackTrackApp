@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* MASCOT: crash screen — sad/apologetic pose */}
             <View style={styles.iconContainer}>
-              <MascotPlaceholder pose="sad" size={120} />
+              <MascotPlaceholder pose="sad" size={75} />
             </View>
             
             <Text style={styles.title}>Oops! Something went wrong</Text>

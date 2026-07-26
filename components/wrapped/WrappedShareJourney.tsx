@@ -512,11 +512,9 @@ export default function WrappedShareJourney({
         {slide.hideHero ? null : slide.image ? (
           <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
         ) : slide.mascotPose ? (
-          /* MASCOT: slide hero — pose varies per slide theme; the slide emoji
-             rides along as a small badge instead of a 92px hero. */
+          /* MASCOT: slide hero — pose varies per slide theme. */
           <View style={styles.mascotHero}>
             <MascotPlaceholder pose={slide.mascotPose} size={104} variant="outline" />
-            {slide.emoji ? <Text style={styles.mascotEmojiBadge}>{slide.emoji}</Text> : null}
           </View>
         ) : (
           <Text style={styles.emoji}>{slide.emoji}</Text>
@@ -538,6 +536,7 @@ export default function WrappedShareJourney({
         key={currentSlide}
         style={[
           styles.slideContent,
+          slide.showShareCta && styles.slideContentWithActions,
           slideAnimatedStyle,
         ]}
       >
@@ -700,7 +699,7 @@ export default function WrappedShareJourney({
       {/* Explicit share CTA on the most-shareable slides (archetype, summary).
           Lives in the chrome layer so it never appears in captured images. */}
       {activeSlide?.showShareCta && (
-        <View style={[styles.finalActionRow, { bottom: Math.max(SAFE_BOTTOM, insets.bottom + 16) }]}>
+        <View style={[styles.finalActionRow, { bottom: Math.max(16, insets.bottom + 12) }]}>
           <TouchableOpacity
             style={styles.shareCtaButton}
             onPress={handleShare}

@@ -185,7 +185,7 @@ export function buildWrappedSlides({
     scope: lifetimeScope,
     gradient: 'ember',
     emoji: '😱',
-    mascotPose: 'shocked',
+    mascotPose: 'prop-receipt',
     a11y: `The Lifetime Damage. ${formatCurrency(analytics.totalSpent)} across imported food delivery orders.${
       spendTop != null && spendTop <= 50 ? ` Top ${spendTop} percent of spenders.` : ''
     } ${totalDamageMessage}`,

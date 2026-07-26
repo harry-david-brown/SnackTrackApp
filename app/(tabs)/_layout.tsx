@@ -8,10 +8,12 @@ export default function TabLayout() {
   const showDevTabs = featureFlags.showTestErrors;
 
   // Declarative auth gate: any time the user is signed out (including after
-  // logout from any tab), this layout redirects to the login/onboarding root.
+  // logout from any tab), this layout redirects to the dedicated login route.
+  // Do not redirect to "/" here: both app/index.tsx and (tabs)/index.tsx map
+  // to that URL, which can resolve back into this layout and redirect forever.
   // Screens inside the tabs never need to navigate on logout themselves.
   if (!state.isLoading && !state.isAuthenticated) {
-    return <Redirect href="/" />;
+    return <Redirect href="/login" />;
   }
 
   return (

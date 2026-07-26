@@ -61,7 +61,7 @@ Goal: the deck reads as a **SnackTrack event skin**, not a generic template. See
 - [x] **Reduce text-shadow dependence** — once backgrounds guarantee contrast, drop most shadows (muddy halo on light tones).
 - [x] **Distinct roast style** — the punchline gets its own voice (italic / tilted sticker / bubble), not another bold white block.
 - [x] **Mascot on (nearly) every slide** — placeholder poses per slide theme; demote 92px emoji to small accents. Layouts sized so final artwork drops in unchanged.
-- [x] **Composition variety** — shipped as: oversized tilted "bleed" numbers on small-integer stats (3am Regret, Serial Orderer), the rotated roast sticker on every stat slide, radial hero glow on climactic slides, and emoji demoted to a mascot hip-badge. (A left-aligned layout variant was considered and skipped — the above already breaks the monotony.)
+- [x] **Composition variety** — shipped as: oversized tilted "bleed" numbers on small-integer stats (3am Regret, Serial Orderer), the rotated roast sticker on every stat slide, radial hero glow on climactic slides, and mascot-led hero imagery without adjacent emoji badges. (A left-aligned layout variant was considered and skipped — the above already breaks the monotony.)
 - [x] **Branded watermark** — small logo lockup + `@snacktrack`, not plain text.
 
 ## Phase 3 — UX & narrative

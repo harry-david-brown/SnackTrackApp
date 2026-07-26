@@ -1,17 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  Image,
+  ImageSourcePropType,
+  View,
+  Text,
+  StyleSheet,
+} from 'react-native';
 import { Colors } from '../../constants/theme';
 
 /**
  * Poses required from the mascot art team. Each pose maps 1:1 to a final
  * asset in assets/mascot/ (e.g. pose "flex" → assets/mascot/flex.png).
  *
- * Already illustrated on the current style sheet:
- *   neutral, wink, cheer, thinking, shocked, sunglasses,
- *   prop-receipt, prop-salad, prop-phone-chart, prop-piggy-bank
+ * Integrated artwork:
+ *   neutral, wink, thinking, shocked, sunglasses, wave, flex, sleepy,
+ *   sheepish, sad, prop-receipt
  * Still needed from the art team:
- *   wave, flex, celebrate, sleepy, sheepish, sad, pointing,
- *   prop-coffee, trophy
+ *   cheer, celebrate, pointing, prop-salad, prop-phone-chart,
+ *   prop-piggy-bank, prop-coffee, trophy
  */
 export type MascotPose =
   | 'neutral' // crossed-arms bust, confident smirk — logo/header use
@@ -34,6 +40,25 @@ export type MascotPose =
   | 'prop-coffee' // holding a coffee cup
   | 'trophy'; // holding trophy / wearing crown
 
+/**
+ * React Native requires local image paths to be statically discoverable, so
+ * keep the asset lookup explicit. Poses without finished artwork intentionally
+ * fall through to the labeled placeholder below.
+ */
+const MASCOT_ASSETS: Partial<Record<MascotPose, ImageSourcePropType>> = {
+  neutral: require('../../assets/mascot/bust.png'),
+  wink: require('../../assets/mascot/archer-flex-wink-smile.png'),
+  thinking: require('../../assets/mascot/thinking.png'),
+  shocked: require('../../assets/mascot/very-shocked-hands.png'),
+  sunglasses: require('../../assets/mascot/sunglasses.png'),
+  wave: require('../../assets/mascot/waving.png'),
+  flex: require('../../assets/mascot/flex.png'),
+  sleepy: require('../../assets/mascot/sleepy.png'),
+  sheepish: require('../../assets/mascot/guilty-sheepish.png'),
+  sad: require('../../assets/mascot/sad-apolagetic.png'),
+  'prop-receipt': require('../../assets/mascot/prop-receipt-disbelief.png'),
+};
+
 interface MascotPlaceholderProps {
   pose: MascotPose;
   size?: number;
@@ -55,6 +80,24 @@ export function MascotPlaceholder({
   variant = 'filled',
   hideLabel = false,
 }: MascotPlaceholderProps) {
+  const source = MASCOT_ASSETS[pose];
+
+  if (source) {
+    return (
+      <View
+        style={{ width: size, height: size }}
+        accessibilityRole="image"
+        accessibilityLabel={`SnackTrack mascot (${pose})`}
+      >
+        <Image
+          source={source}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
   const isOutline = variant === 'outline';
   const showLabel = !hideLabel && size >= 56;
 
@@ -105,6 +148,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.75 }],
   },
 });
 

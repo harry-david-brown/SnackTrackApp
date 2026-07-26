@@ -43,6 +43,14 @@ export default function RootLayout() {
                     animation: 'fade',
                   }} 
                 />
+                <Stack.Screen
+                  name="login"
+                  options={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: 'transparent' },
+                    animation: 'fade',
+                  }}
+                />
                 <Stack.Screen 
                   name="oauth-callback" 
                   options={{ 

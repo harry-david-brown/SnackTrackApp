@@ -46,8 +46,8 @@ export const styles = StyleSheet.create({
   muteIconButton: {
     right: 112,
   },
-  // Cream pill anchored bottom-right on the archetype share card — chrome
-  // layer only, never part of the captured share image.
+  // Cream pill in the live journey chrome — never part of the captured share
+  // image. The row uses the device inset instead of the export story-safe zone.
   shareCtaButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,6 +155,12 @@ export const styles = StyleSheet.create({
     paddingBottom: SAFE_BOTTOM + 48, // Clears the corner watermark; arrows/bar removed
     paddingHorizontal: SAFE_SIDE,
   },
+  // The live Share/Done row occupies the bottom of shareable slides. Extra
+  // bottom padding shifts their centered content above that chrome; the static
+  // export render intentionally does not apply this style.
+  slideContentWithActions: {
+    paddingBottom: SAFE_BOTTOM + 112,
+  },
   slideContentPromo: {
     paddingTop: SAFE_TOP, // Less top padding to bring content up for content-heavy slide
   },
@@ -228,13 +234,6 @@ export const styles = StyleSheet.create({
   },
   mascotHero: {
     marginBottom: 20,
-  },
-  // Slide emoji demoted from 92px hero to a small badge on the mascot's hip.
-  mascotEmojiBadge: {
-    position: 'absolute',
-    right: -14,
-    bottom: -4,
-    fontSize: 30,
   },
   glowWrap: {
     ...StyleSheet.absoluteFillObject,
