@@ -613,8 +613,10 @@ export const styles = StyleSheet.create({
   },
   // Top 5 restaurants ranking rows (glass style matching archetype traits).
   topSpotsList: {
-    width: '100%',
-    maxWidth: Math.min(420, screenWidth * 0.86),
+    // A definite width is required here. With percentage width inside the
+    // intrinsically-sized slide frame, the flexible name column collapsed to
+    // nearly zero and rendered only its ellipsis.
+    width: Math.min(420, screenWidth * 0.86),
     gap: 10,
     marginTop: 4,
   },
@@ -631,6 +633,7 @@ export const styles = StyleSheet.create({
   },
   topSpotRank: {
     width: 26,
+    flexShrink: 0,
     fontSize: 22,
     fontFamily: WRAPPED_FONTS.displayBold,
     color: Colors.mascotHighlight,
@@ -638,14 +641,18 @@ export const styles = StyleSheet.create({
   },
   topSpotName: {
     flex: 1,
+    minWidth: 0,
     fontSize: 16,
     fontFamily: WRAPPED_FONTS.display,
     color: Colors.white,
   },
   topSpotCount: {
+    minWidth: 64,
+    flexShrink: 0,
     fontSize: 13,
     fontWeight: '600',
     color: Colors.alpha(Colors.white, 0.75),
+    textAlign: 'right',
   },
   archetypeKicker: {
     fontSize: 16,

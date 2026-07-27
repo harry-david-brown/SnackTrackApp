@@ -775,7 +775,13 @@ export function buildWrappedSlides({
 
   // Top 5 restaurants — the iconic "top artists" moment. Core when the data
   // supports it (needs at least 3 spots to feel like a ranking).
-  const topSpots = (analytics.topRestaurants ?? []).slice(0, 5);
+  const topSpots = (analytics.topRestaurants ?? [])
+    .map((spot) => ({
+      ...spot,
+      name: typeof spot.name === 'string' ? spot.name.trim() : '',
+    }))
+    .filter((spot) => /[\p{L}\p{N}]/u.test(spot.name))
+    .slice(0, 5);
   const top5: Slide | null = topSpots.length >= 3
     ? {
         id: 'top-spots',
@@ -793,7 +799,7 @@ export function buildWrappedSlides({
               {topSpots.map((spot, i) => (
                 <View key={`${spot.name}-${i}`} style={styles.topSpotRow}>
                   <Text style={styles.topSpotRank}>{i + 1}</Text>
-                  <Text style={styles.topSpotName} numberOfLines={1}>{spot.name}</Text>
+                  <Text style={styles.topSpotName} numberOfLines={1} ellipsizeMode="tail">{spot.name}</Text>
                   <Text style={styles.topSpotCount}>{spot.count} orders</Text>
                 </View>
               ))}

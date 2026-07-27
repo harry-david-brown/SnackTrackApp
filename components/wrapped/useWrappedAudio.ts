@@ -6,6 +6,7 @@
  *   track without touching this hook).
  * - Respects the iOS silent switch (playsInSilentModeIOS stays false).
  * - Pauses when the app backgrounds, resumes on foreground.
+ * - Pauses when the Wrapped screen is no longer active.
  * - Mute toggle persists across sessions. Muting keeps the sound playing
  *   silently (setIsMutedAsync) so unmuting stays in sync with no restart.
  */
@@ -16,9 +17,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MUTE_PREF_KEY = 'wrapped_audio_muted';
 
-export function useWrappedAudio(): { isMuted: boolean; toggleMuted: () => void } {
+export function useWrappedAudio(
+  isActive = true,
+): { isMuted: boolean; toggleMuted: () => void } {
   const soundRef = useRef<Audio.Sound | null>(null);
   const isMountedRef = useRef(true);
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(isMuted);
   isMutedRef.current = isMuted;
@@ -52,7 +57,9 @@ export function useWrappedAudio(): { isMuted: boolean; toggleMuted: () => void }
           return;
         }
         soundRef.current = sound;
-        await sound.playAsync();
+        if (isActiveRef.current) {
+          await sound.playAsync();
+        }
       } catch {
         // Audio is a garnish — never let it break the journey.
       }
@@ -65,7 +72,7 @@ export function useWrappedAudio(): { isMuted: boolean; toggleMuted: () => void }
       if (!sound) {
         return;
       }
-      if (state === 'active') {
+      if (state === 'active' && isActiveRef.current) {
         sound.playAsync().catch(() => {});
       } else {
         sound.pauseAsync().catch(() => {});
@@ -80,6 +87,18 @@ export function useWrappedAudio(): { isMuted: boolean; toggleMuted: () => void }
       sound?.unloadAsync().catch(() => {});
     };
   }, []);
+
+  useEffect(() => {
+    const sound = soundRef.current;
+    if (!sound) {
+      return;
+    }
+    if (isActive) {
+      sound.playAsync().catch(() => {});
+    } else {
+      sound.pauseAsync().catch(() => {});
+    }
+  }, [isActive]);
 
   const toggleMuted = useCallback(() => {
     const next = !isMutedRef.current;

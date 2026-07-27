@@ -49,7 +49,7 @@ The share capture is the product's viral loop; it must never produce a broken im
 Goal: the deck reads as a **SnackTrack event skin**, not a generic template. See `docs/design-system.md` (Green Forest).
 
 - [x] **New event palette in `wrappedTheme.ts`** — 4–5 gradients max, matched saturation/value so white text always passes contrast:
-  - Brand-green anchor gradient (`#0E2A1F → #1F4E3A → #2E7D4F` family) for **intro + finale** slides (mascot on brand green = recognizable share).
+  - Brand-green anchor gradient (`#0E2A1F → #356F4C → #438158` family) for **intro + finale** slides (mascot on brand green = recognizable share).
   - Hot tones for *shame* section, cool tones for *flex*, warm for *patterns* — color carries narrative meaning.
   - Kill the pastels (`mango`, `mint`, `cotton`) or pair them with a per-gradient `ink` (dark text) token.
   - [x] Removed `hellofresh`; upsell now wears the brand `forest` gradient (competitor's brand green, currently on the upsell slide of all places).

@@ -8,6 +8,12 @@ import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { initSentry } from '../utils/sentry';
+import {
+  useFonts,
+  Fredoka_500Medium,
+  Fredoka_600SemiBold,
+  Fredoka_700Bold,
+} from '@expo-google-fonts/fredoka';
 
 // Initialize Sentry as early as possible
 initSentry();
@@ -22,6 +28,15 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  // Start loading Wrapped typography with the app rather than when the Summary
+  // tab is first opened. The journey still verifies readiness before rendering,
+  // but in normal navigation these fonts are already warm.
+  useFonts({
+    Fredoka_500Medium,
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+  });
+
   return (
     // Required for react-native-gesture-handler gestures (Wrapped drag-to-dismiss).
     <GestureHandlerRootView style={{ flex: 1 }}>

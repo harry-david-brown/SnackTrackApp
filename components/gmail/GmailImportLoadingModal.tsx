@@ -172,7 +172,9 @@ export function GmailImportLoadingModal({
             <>
               {/* MASCOT: in progress — hand-on-chin thinking */}
               <View style={styles.loadingIconWrap}>
-                <MascotPlaceholder pose="thinking" size={96} />
+                <View style={styles.loadingMascotBadge}>
+                  <MascotPlaceholder pose="thinking" size={84} />
+                </View>
                 <ActivityIndicator size="small" color={Colors.primary} style={styles.loadingSpinnerBelowMascot} />
               </View>
 
@@ -227,13 +229,18 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   loadingIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 18,
+  },
+  loadingMascotBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.chipActiveBg,
-    marginBottom: 18,
   },
   successMascotWrap: {
     alignItems: 'center',
@@ -241,7 +248,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   loadingSpinnerBelowMascot: {
-    marginTop: 10,
+    marginTop: 8,
   },
   loadingModalTitle: {
     fontSize: 22,

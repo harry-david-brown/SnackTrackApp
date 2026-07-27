@@ -32,6 +32,7 @@ import Reanimated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useIsFocused } from '@react-navigation/native';
 import { UserSummary } from '../../types/api';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -80,13 +81,14 @@ export default function WrappedShareJourney({
   onDismissExportUpsell,
 }: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const reduceMotion = useReducedMotion();
-  const { isMuted, toggleMuted } = useWrappedAudio();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [confettiVisible, setConfettiVisible] = useState(false);
   const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
+  const { isMuted, toggleMuted } = useWrappedAudio(isFocused && !showPostDeckOffer);
 
   // All animation state lives in Reanimated shared values, so entrances, the
   // progress bar, and the dismiss gesture run entirely on the UI thread.
@@ -101,6 +103,10 @@ export default function WrappedShareJourney({
 
   // +1 = moving forward, -1 = going back. Drives the entrance direction.
   const directionRef = useRef<1 | -1>(1);
+  // A long press pauses the story. React Native can still emit `onPress` when
+  // that hold is released, so remember that the gesture was consumed and do
+  // not interpret its release as next/previous navigation.
+  const holdConsumedRef = useRef(false);
   // Monotonic navigation token, bumped on every slide change (tap, drag, or
   // auto-advance). An auto-advance timer captures the token when armed and
   // only fires if it still matches — so a stale advance whose completion lands
@@ -359,6 +365,16 @@ export default function WrappedShareJourney({
   }, [currentSlide, isPaused, progress, shouldAutoAdvance, slides.length, autoAdvance]);
 
   const setPaused = useCallback((paused: boolean) => setIsPaused(paused), []);
+  const handleSlidePressIn = useCallback(() => {
+    holdConsumedRef.current = false;
+    setPaused(true);
+  }, [setPaused]);
+  const handleSlideLongPress = useCallback(() => {
+    holdConsumedRef.current = true;
+  }, []);
+  const handleSlidePressOut = useCallback(() => {
+    setPaused(false);
+  }, [setPaused]);
   const fireLightHaptic = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, []);
@@ -631,17 +647,33 @@ export default function WrappedShareJourney({
 
           <Pressable
             style={[styles.tapZone, styles.tapZoneLeft]}
-            onPress={goToPrevious}
-            onPressIn={() => setIsPaused(true)}
-            onPressOut={() => setIsPaused(false)}
+            onPress={() => {
+              if (holdConsumedRef.current) {
+                holdConsumedRef.current = false;
+                return;
+              }
+              goToPrevious();
+            }}
+            onPressIn={handleSlidePressIn}
+            onLongPress={handleSlideLongPress}
+            onPressOut={handleSlidePressOut}
+            delayLongPress={250}
             accessibilityRole="button"
             accessibilityLabel="Previous slide"
           />
           <Pressable
             style={[styles.tapZone, styles.tapZoneRight]}
-            onPress={goToNext}
-            onPressIn={() => setIsPaused(true)}
-            onPressOut={() => setIsPaused(false)}
+            onPress={() => {
+              if (holdConsumedRef.current) {
+                holdConsumedRef.current = false;
+                return;
+              }
+              goToNext();
+            }}
+            onPressIn={handleSlidePressIn}
+            onLongPress={handleSlideLongPress}
+            onPressOut={handleSlidePressOut}
+            delayLongPress={250}
             accessibilityRole="button"
             accessibilityLabel="Next slide"
           />

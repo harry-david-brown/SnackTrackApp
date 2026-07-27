@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +15,13 @@ import { UserSummary } from '../../types/api';
 import { getCachedAnalytics } from '../../utils/offlineCache';
 import { useExportUpsell } from '../../hooks/useExportUpsell';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
+import WrappedShareJourney from '../../components/wrapped/WrappedShareJourney';
 
-// Lazy load WrappedShareJourney component for code splitting
-const WrappedShareJourney = lazy(() => import('../../components/wrapped/WrappedShareJourney'));
+type WrappedSummary = UserSummary & {
+  wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']>;
+};
 
-const hasWrappedData = (summary: UserSummary | null | undefined): summary is UserSummary =>
+const hasWrappedData = (summary: UserSummary | null | undefined): summary is WrappedSummary =>
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
 
 export default function WrappedJourneyScreen() {
@@ -46,98 +48,80 @@ export default function WrappedJourneyScreen() {
   const [analytics, setAnalytics] = useState<UserSummary | null>(initialAnalytics);
   const [isLoading, setIsLoading] = useState<boolean>(!initialAnalytics);
   const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
-  const [isFullyReady, setIsFullyReady] = useState<boolean>(Boolean(initialAnalytics));
-  const fetchingWrappedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const summary = state.analytics;
+    const user = state.user;
+    let cancelled = false;
 
-    // If no analytics in state, try to load from cache (for offline viewing)
-    if (!summary && state.user) {
-      getCachedAnalytics(state.user.id).then((cached) => {
-        if (cached && hasWrappedData(cached)) {
-          setAnalytics(cached);
-          setIsLoading(false);
-          setIsFullyReady(true);
-          setLoadTimestamp(Date.now());
+    if (!summary && !user) {
+      setAnalytics(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (hasWrappedData(summary)) {
+      setAnalytics(summary);
+      setIsLoading(false);
+      return;
+    }
+
+    if (summary?.totalReceipts === 0) {
+      setAnalytics(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!user) {
+      setAnalytics(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    void (async () => {
+      // The UserProvider preloads Wrapped analytics in the background. Its
+      // cached result may already be ready even if the in-memory summary is a
+      // base summary, so prefer it before starting another network wait.
+      const cached = await getCachedAnalytics(user.id);
+      if (cancelled) {
+        return;
+      }
+      if (hasWrappedData(cached)) {
+        setAnalytics(cached);
+        setGlobalAnalytics(cached);
+        setLoadTimestamp(Date.now());
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const wrappedSummary = await analyticsApi.getUserSummary(user.id, true);
+        if (cancelled) {
           return;
         }
-      });
-    }
-
-    if (!summary) {
-      setAnalytics(null);
-      setIsLoading(false);
-      setIsFullyReady(true);
-      fetchingWrappedRef.current = null;
-      return;
-    }
-
-    if (summary.wrappedAnalytics && summary.totalReceipts > 0) {
-      setAnalytics(summary);
-      setLoadTimestamp(Date.now());
-      setIsLoading(false);
-      fetchingWrappedRef.current = null;
-      setIsFullyReady(true);
-      return;
-    }
-
-    if (summary.totalReceipts === 0) {
-      setAnalytics(null);
-      setIsLoading(false);
-      setIsFullyReady(true);
-      fetchingWrappedRef.current = null;
-      return;
-    }
-
-    if (!state.user) {
-      setIsLoading(false);
-      setIsFullyReady(true);
-      return;
-    }
-
-    // We have receipts but no wrapped analytics yet – fetch with includeWrapped=true once per user session
-    if (fetchingWrappedRef.current === state.user.id) {
-      return;
-    }
-
-    fetchingWrappedRef.current = state.user.id;
-    setIsLoading(true);
-    setIsFullyReady(false);
-
-    analyticsApi
-      .getUserSummary(state.user.id, true)
-      .then((wrappedSummary) => {
         if (hasWrappedData(wrappedSummary)) {
           setAnalytics(wrappedSummary);
           setGlobalAnalytics(wrappedSummary);
           setLoadTimestamp(Date.now());
-          setIsFullyReady(true);
         } else {
           setAnalytics(null);
-          setIsFullyReady(true);
         }
-      })
-      .catch(async () => {
-        // On error, try to use cached data
-        if (state.user) {
-          const cached = await getCachedAnalytics(state.user.id);
-          if (cached && hasWrappedData(cached)) {
-            setAnalytics(cached);
-            setIsFullyReady(true);
-            setLoadTimestamp(Date.now());
-          } else {
-            setAnalytics(null);
-            setIsFullyReady(true);
-          }
-        } else {
+      } catch {
+        if (!cancelled) {
           setAnalytics(null);
-          setIsFullyReady(true);
         }
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [state.analytics, state.user, setGlobalAnalytics]);
 
   // Stable handler identities — WrappedShareJourney memoizes its slide deck on
@@ -180,7 +164,8 @@ export default function WrappedJourneyScreen() {
   if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
+        <ActivityIndicator size="large" color={Colors.white} />
+        <Text style={styles.loadingText}>Preparing your summary...</Text>
       </View>
     );
   }
@@ -204,31 +189,17 @@ export default function WrappedJourneyScreen() {
     );
   }
 
-  if (!isFullyReady) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
-      </View>
-    );
-  }
-
   return (
-    <Suspense fallback={
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
-      </View>
-    }>
-      <WrappedShareJourney
-        key={loadTimestamp}
-        analytics={analytics}
-        showExportUpsell={shouldShowWrappedSlide}
-        onExportUpsellSeen={handleExportUpsellSeen}
-        onExportUpgrade={handleExportUpgrade}
-        onExportTutorial={handleExportTutorial}
-        onDismissExportUpsell={handleDismissExportUpsell}
-        onClose={handleClose}
-      />
-    </Suspense>
+    <WrappedShareJourney
+      key={loadTimestamp}
+      analytics={analytics}
+      showExportUpsell={shouldShowWrappedSlide}
+      onExportUpsellSeen={handleExportUpsellSeen}
+      onExportUpgrade={handleExportUpgrade}
+      onExportTutorial={handleExportTutorial}
+      onDismissExportUpsell={handleDismissExportUpsell}
+      onClose={handleClose}
+    />
   );
 }
 
@@ -238,6 +209,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.secondary,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

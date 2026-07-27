@@ -19,10 +19,10 @@ central theme.
 
 | Token | Hex | Use |
 |---|---|---|
-| Primary | `#1F4E3A` | Navigation, headers, active icons, primary buttons, logo, graph highlights |
-| Primary hover | `#285B46` | Primary button hover |
-| Primary pressed | `#163C2D` | Primary button pressed |
-| Secondary | `#2E7D4F` | Hover states, secondary buttons, icons, progress bars, graphs |
+| Primary | `#356F4C` | Navigation, headers, active icons, primary buttons, logo, graph highlights |
+| Primary hover | `#3E7954` | Primary button hover |
+| Primary pressed | `#2A5F41` | Primary button pressed |
+| Secondary | `#438158` | Hover states, secondary buttons, icons, progress bars, graphs |
 | Accent | `#73B84A` | CTAs, budget remaining, highlights, streaks — avoid overusing |
 | Success | `#58C26D` | Success states ONLY (messages, checkmarks, goals achieved) |
 
@@ -46,16 +46,16 @@ central theme.
 
 ## Chart palette (highest → neutral)
 
-`#1F4E3A` → `#2E7D4F` → `#5EA15D` → `#88C34A` → `#D8E2D7` (unused portions)
+`#356F4C` → `#438158` → `#5EA15D` → `#88C34A` → `#D8E2D7` (unused portions)
 
 ## Components
 
-- **Primary button**: bg `#1F4E3A`, white text. Hover `#285B46`, pressed `#163C2D`.
-- **Secondary button**: white bg, `#2E7D4F` border, `#1F4E3A` text.
-- **Chips**: active `#E9F5E2` bg / `#1F4E3A` text; inactive `#F3F3F3` / `#666666`.
-- **Progress**: fill `#2E7D4F`, track `#E5E5E5`.
-- **Toggles**: on `#58C26D`, off `#D5D5D5`, white knob. Checkbox checked `#2E7D4F`.
-- **Alerts**: success `#F1FAEF` bg / `#58C26D` border+icon; info `#F7FAF7` / `#2E7D4F`.
+- **Primary button**: bg `#356F4C`, white text. Hover `#3E7954`, pressed `#2A5F41`.
+- **Secondary button**: white bg, `#438158` border, `#356F4C` text.
+- **Chips**: active `#E9F5E2` bg / `#356F4C` text; inactive `#F3F3F3` / `#666666`.
+- **Progress**: fill `#438158`, track `#E5E5E5`.
+- **Toggles**: on `#58C26D`, off `#D5D5D5`, white knob. Checkbox checked `#438158`.
+- **Alerts**: success `#F1FAEF` bg / `#58C26D` border+icon; info `#F7FAF7` / `#438158`.
 
 ## Corner radius
 
