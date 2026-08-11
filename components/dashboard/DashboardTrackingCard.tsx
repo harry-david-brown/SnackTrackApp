@@ -1,4 +1,4 @@
-import { Colors, Radius, Shadows } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -6,26 +6,11 @@ import type { ImportPreferencesResponse } from '../../services/gmailApi';
 import type { DashboardTrackingAction, DashboardTrackingCardState } from './dashboardTrackingState';
 
 const TONES = {
-  brand: { accent: Colors.primary, surface: Colors.infoBg, border: Colors.infoBorder },
-  progress: { accent: Colors.infoStrong, surface: Colors.infoSurface, border: Colors.infoBorder },
-  success: { accent: Colors.successDark, surface: Colors.successSurface, border: Colors.successBorder },
-  warning: { accent: Colors.warningDeep, surface: Colors.warningSurface, border: Colors.warning },
-  error: { accent: Colors.errorDark, surface: Colors.errorSurface, border: Colors.errorBorder },
-};
-
-const relativeTime = (value: string | null) => {
-  if (!value) return null;
-  const elapsed = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(elapsed) || elapsed < 0) return 'just now';
-  const minutes = Math.floor(elapsed / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days}d ago`;
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  brand: { accent: Colors.primary, surface: Colors.infoBg },
+  progress: { accent: Colors.infoStrong, surface: Colors.infoSurface },
+  success: { accent: Colors.successDark, surface: Colors.successSurface },
+  warning: { accent: Colors.warningDeep, surface: Colors.warningSurface },
+  error: { accent: Colors.errorDark, surface: Colors.errorSurface },
 };
 
 export function DashboardTrackingCard({
@@ -63,11 +48,10 @@ export function DashboardTrackingCard({
   }, [pulse, reduceMotion, state.id]);
 
   const activity = preferences?.ongoingTracking.activity;
-  const checked = relativeTime(activity?.lastSuccessfulCheckAt ?? null);
-  const updated = relativeTime(activity?.lastStatsUpdatedAt ?? null);
+  const ordersAddedThisWeek = activity?.ordersAddedThisWeek ?? 0;
 
   return (
-    <View accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} style={[styles.card, { borderColor: tone.border }]}>
+    <View accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.iconSurface, { backgroundColor: tone.surface }]}>
           <Ionicons name={state.icon as any} size={26} color={tone.accent} />
@@ -82,22 +66,12 @@ export function DashboardTrackingCard({
       </View>
       <Text style={styles.body}>{state.body}</Text>
 
-      {state.showActivity && activity ? (
-        <View style={styles.activityRow}>
-          <View style={styles.activityItem}>
-            <Text style={styles.activityValue}>{checked ?? 'Not yet'}</Text>
-            <Text style={styles.activityLabel}>Last checked</Text>
-          </View>
-          <View style={styles.activityDivider} />
-          <View style={styles.activityItem}>
-            <Text style={styles.activityValue}>{updated ?? 'No changes yet'}</Text>
-            <Text style={styles.activityLabel}>Last updated</Text>
-          </View>
-          <View style={styles.activityDivider} />
-          <View style={styles.activityItem}>
-            <Text style={styles.activityValue}>{activity.ordersAddedThisWeek}</Text>
-            <Text style={styles.activityLabel}>Added this week</Text>
-          </View>
+      {state.showActivity && ordersAddedThisWeek > 0 ? (
+        <View style={styles.activityNote}>
+          <Ionicons name="receipt-outline" size={17} color={tone.accent} />
+          <Text style={[styles.activityNoteText, { color: tone.accent }]}>
+            {ordersAddedThisWeek} new {ordersAddedThisWeek === 1 ? 'order' : 'orders'} added this week
+          </Text>
         </View>
       ) : null}
 
@@ -127,7 +101,16 @@ export function DashboardTrackingCard({
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 20, borderWidth: 1, borderRadius: Radius.card, backgroundColor: Colors.white, ...Shadows.card },
+  card: {
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   iconSurface: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   pulse: { position: 'absolute', right: 8, top: 8, width: 7, height: 7, borderRadius: 4, opacity: 0.35 },
@@ -140,9 +123,6 @@ const styles = StyleSheet.create({
   buttonText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
   secondaryButton: { minHeight: 44, marginTop: 8, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { fontSize: 14, fontWeight: '700' },
-  activityRow: { marginTop: 18, padding: 14, borderRadius: 14, backgroundColor: Colors.background, flexDirection: 'row', alignItems: 'stretch' },
-  activityItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  activityValue: { color: Colors.textPrimary, fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  activityLabel: { marginTop: 4, color: Colors.textSecondary, fontSize: 10, textAlign: 'center' },
-  activityDivider: { width: 1, marginHorizontal: 7, backgroundColor: Colors.divider },
+  activityNote: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  activityNoteText: { fontSize: 13, fontWeight: '700' },
 });

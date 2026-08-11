@@ -22,6 +22,7 @@ export default function DashboardScreen() {
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const initialLoadDoneRef = useRef(false);
   const automaticTrackingCheckRef = useRef<string | null>(null);
+  const automaticInitialGmailScanRef = useRef<string | null>(null);
   const {
     preferences: importPreferences,
     isLoading: areImportPreferencesLoading,
@@ -29,11 +30,30 @@ export default function DashboardScreen() {
     refresh: refreshImportPreferences,
     setOngoingTrackingConsent,
     checkOngoingTracking,
+    importGmailReceipts,
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
   
   // Use analytics from context instead of local state
   const analytics = state.analytics;
+
+  useEffect(() => {
+    if (
+      !importPreferences
+      || importPreferences.export.status !== 'completed'
+      || importPreferences.gmailImport.hasImported
+      || importPreferences.gmailImport.status === 'importing'
+      || !importPreferences.ongoingTracking.capability.canTrack
+      || isImportStateUpdating
+    ) return;
+
+    const scanKey = importPreferences.export.updatedAt ?? 'completed-export';
+    if (automaticInitialGmailScanRef.current === scanKey) return;
+    automaticInitialGmailScanRef.current = scanKey;
+    void importGmailReceipts()
+      .then(() => loadAnalytics())
+      .catch(() => undefined);
+  }, [importGmailReceipts, importPreferences, isImportStateUpdating, loadAnalytics]);
 
   useEffect(() => {
     if (

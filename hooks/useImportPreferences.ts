@@ -149,6 +149,32 @@ export function useImportPreferences(enabled = true) {
     }
   }, []);
 
+  const importGmailReceipts = useCallback(async () => {
+    setIsUpdating(true);
+    setError(null);
+    setPreferences((current) => current ? {
+      ...current,
+      gmailImport: {
+        ...current.gmailImport,
+        status: 'importing',
+        errorCode: null,
+      },
+    } : current);
+    try {
+      const result = await gmailApi.importReceipts();
+      const nextPreferences = await gmailApi.getImportPreferences();
+      setPreferences(nextPreferences);
+      return result;
+    } catch (importError) {
+      const nextPreferences = await gmailApi.getImportPreferences().catch(() => null);
+      if (nextPreferences) setPreferences(nextPreferences);
+      setError('Unable to scan Gmail for delivery receipts.');
+      throw importError;
+    } finally {
+      setIsUpdating(false);
+    }
+  }, []);
+
   return {
     preferences,
     isLoading,
@@ -158,6 +184,7 @@ export function useImportPreferences(enabled = true) {
     setMonitoringConsent,
     setOngoingTrackingConsent,
     checkOngoingTracking,
+    importGmailReceipts,
     markExportRequested,
   };
 }

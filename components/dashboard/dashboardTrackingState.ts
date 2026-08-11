@@ -39,6 +39,10 @@ export const resolveDashboardTrackingState = (
 
   const { export: exportState, gmailImport, ongoingTracking, coverage, monitoring } = preferences;
   const gmailConnected = ongoingTracking.capability.gmailConnected || monitoring.capability.gmailConnected;
+  const gmailNeedsReconnect = ongoingTracking.capability.needsReconnect === true
+    || monitoring.capability.needsReconnect === true
+    || ongoingTracking.capability.connectionHealth === 'reconnect_required'
+    || monitoring.capability.connectionHealth === 'reconnect_required';
 
   if (exportState.status === 'file_ready') {
     return {
@@ -70,10 +74,15 @@ export const resolveDashboardTrackingState = (
     };
   }
   if (gmailImport.status === 'failed' && !coverage.hasEmailData) {
+    const reconnectRequired = gmailImport.errorCode === 'GMAIL_RECONNECT_REQUIRED';
     return {
       id: 'gmail_failed', sectionLabel: 'Next step', eyebrow: 'SCAN NEEDS ATTENTION',
-      title: 'We couldn’t finish the Gmail scan', body: 'Reconnect or retry the import to get your recent orders.',
-      icon: 'refresh-circle-outline', tone: 'error', primaryAction: 'open_imports', primaryLabel: 'Try again',
+      title: reconnectRequired ? 'Reconnect Gmail to continue' : 'We couldn’t finish the Gmail scan',
+      body: reconnectRequired
+        ? 'Google no longer accepts the saved connection. Your existing history is safe.'
+        : 'Retry the import to get your recent orders.',
+      icon: reconnectRequired ? 'link-outline' : 'refresh-circle-outline', tone: reconnectRequired ? 'warning' : 'error',
+      primaryAction: 'open_imports', primaryLabel: reconnectRequired ? 'Reconnect Gmail' : 'Try again',
     };
   }
 
@@ -101,17 +110,43 @@ export const resolveDashboardTrackingState = (
     };
   }
 
+  if (gmailNeedsReconnect) {
+    return {
+      id: 'gmail_connection_reconnect', sectionLabel: 'Next step', eyebrow: 'GMAIL NEEDS ATTENTION',
+      title: 'Reconnect Gmail to continue',
+      body: gmailImport.hasImported
+        ? 'Your imported history is safe. Reconnect Gmail so SnackTrack can keep future orders current.'
+        : 'Google no longer accepts the saved connection. Reconnect before SnackTrack scans for delivery receipts.',
+      icon: 'link-outline', tone: 'warning', primaryAction: 'open_imports', primaryLabel: 'Reconnect Gmail',
+    };
+  }
+
   const gmailHasRun = gmailImport.hasImported;
   if (!gmailHasRun) {
+    const hasExistingExport = coverage.hasExportData;
+    if (hasExistingExport && gmailConnected && ongoingTracking.capability.canTrack) {
+      return {
+        id: 'gmail_auto_scan_pending', sectionLabel: 'In progress', eyebrow: 'FINISHING YOUR SETUP',
+        title: 'Checking Gmail for new orders',
+        body: 'Your export history is complete. SnackTrack is automatically checking for any newer delivery receipts.',
+        icon: 'sync-outline', tone: 'progress', passive: true,
+      };
+    }
     return {
       id: gmailConnected ? 'import_gmail' : 'connect_gmail', sectionLabel: 'Next step',
-      eyebrow: coverage.hasExportData ? 'KEEP YOUR STATS GROWING' : 'START WITH YOUR INBOX',
-      title: gmailConnected ? 'Import your Gmail receipts' : 'Connect Gmail for recent orders',
-      body: coverage.hasExportData
-        ? 'Your history is here. Connect Gmail so future delivery receipts can keep your stats current.'
+      eyebrow: hasExistingExport ? 'KEEP YOUR STATS GROWING' : 'START WITH YOUR INBOX',
+      title: hasExistingExport
+        ? gmailConnected ? 'Scan Gmail for future orders' : 'Connect Gmail for future orders'
+        : gmailConnected ? 'Import your Gmail receipts' : 'Connect Gmail for recent orders',
+      body: hasExistingExport
+        ? gmailConnected
+          ? 'Your full history is already here. Run a Gmail scan so SnackTrack can start recognizing new delivery receipts.'
+          : 'Your full history is already here. Connect Gmail so SnackTrack can recognize new delivery receipts going forward.'
         : 'SnackTrack can quickly find your recent delivery receipts before you add a full export.',
       icon: gmailConnected ? 'mail-open-outline' : 'mail-outline', tone: 'brand',
-      primaryAction: 'open_imports', primaryLabel: gmailConnected ? 'Import receipts' : 'Connect Gmail',
+      primaryAction: 'open_imports', primaryLabel: gmailConnected
+        ? hasExistingExport ? 'Scan Gmail' : 'Import receipts'
+        : 'Connect Gmail',
     };
   }
 

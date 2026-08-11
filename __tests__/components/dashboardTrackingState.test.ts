@@ -57,6 +57,23 @@ describe('dashboard tracking state resolver', () => {
     expect(resolveDashboardTrackingState(value, false).id).toBe('enable_tracking');
   });
 
+  it('automatically finishes the Gmail scan when export history and durable access exist', () => {
+    const value = preferences();
+    value.export.status = 'completed';
+    value.coverage = { ...value.coverage, hasExportData: true, exportReceiptCount: 942 };
+    value.ongoingTracking.capability = {
+      gmailConnected: true,
+      durableAccess: true,
+      canTrack: true,
+    };
+
+    const resolved = resolveDashboardTrackingState(value, false);
+    expect(resolved.id).toBe('gmail_auto_scan_pending');
+    expect(resolved.title).toBe('Checking Gmail for new orders');
+    expect(resolved.primaryAction).toBeUndefined();
+    expect(resolved.passive).toBe(true);
+  });
+
   it('shows a passive active state only when tracking is actually active', () => {
     const value = preferences();
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
@@ -80,5 +97,44 @@ describe('dashboard tracking state resolver', () => {
     value.ongoingTracking.consentState = 'granted';
     value.ongoingTracking.effectiveState = 'reconnect_required';
     expect(resolveDashboardTrackingState(value, false).id).toBe('tracking_reconnect');
+  });
+
+  it('turns an invalid Gmail grant into an explicit reconnect action', () => {
+    const value = preferences();
+    value.export.status = 'completed';
+    value.coverage.hasExportData = true;
+    value.gmailImport = {
+      ...value.gmailImport,
+      status: 'failed',
+      errorCode: 'GMAIL_RECONNECT_REQUIRED',
+    };
+
+    const resolved = resolveDashboardTrackingState(value, false);
+    expect(resolved.title).toBe('Reconnect Gmail to continue');
+    expect(resolved.primaryLabel).toBe('Reconnect Gmail');
+  });
+
+  it('prioritizes proactively validated reconnect health over active tracking', () => {
+    const value = preferences();
+    value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
+    value.export.status = 'completed';
+    value.coverage.hasExportData = true;
+    value.ongoingTracking = {
+      ...value.ongoingTracking,
+      consentState: 'granted',
+      status: 'active',
+      effectiveState: 'active',
+      capability: {
+        gmailConnected: true,
+        durableAccess: false,
+        canTrack: false,
+        needsReconnect: true,
+        connectionHealth: 'reconnect_required',
+      },
+    };
+
+    const resolved = resolveDashboardTrackingState(value, false);
+    expect(resolved.id).toBe('gmail_connection_reconnect');
+    expect(resolved.primaryAction).toBe('open_imports');
   });
 });

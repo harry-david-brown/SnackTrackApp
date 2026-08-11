@@ -10,11 +10,15 @@ export interface GmailConnectionStatus {
   hasRequiredScope?: boolean;
   expiresAt?: string | null;
   statusMessage?: string;
+  connectionHealth?: 'disconnected' | 'valid' | 'reconnect_required' | 'unavailable';
+  lastValidatedAt?: string | null;
 }
 
 
 export interface GmailImportResponse {
   success: boolean;
+  code?: string | null;
+  message?: string;
   totalEmailsFound: number;
   totalReceiptsProcessed: number;
   totalReceiptsImported: number;
@@ -59,6 +63,9 @@ export interface ImportPreferencesResponse {
     capability: {
       gmailConnected: boolean;
       durableAccess: boolean;
+      needsReconnect?: boolean;
+      connectionHealth?: GmailConnectionStatus['connectionHealth'];
+      lastValidatedAt?: string | null;
       canMonitor: boolean;
     };
   };
@@ -85,6 +92,9 @@ export interface ImportPreferencesResponse {
     capability: {
       gmailConnected: boolean;
       durableAccess: boolean;
+      needsReconnect?: boolean;
+      connectionHealth?: GmailConnectionStatus['connectionHealth'];
+      lastValidatedAt?: string | null;
       canTrack: boolean;
     };
     activity: {
@@ -171,7 +181,7 @@ export const gmailApi = {
 
   /**
    * Import receipts from Gmail
-   * Always replaces existing email-based receipts before importing new ones
+   * Incrementally merges new or updated Gmail receipts.
    * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (): Promise<GmailImportResponse> => {

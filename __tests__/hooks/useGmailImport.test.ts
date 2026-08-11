@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useGmailImport } from '../../hooks/useGmailImport';
 import { gmailApi } from '../../services/gmailApi';
 import * as WebBrowser from 'expo-web-browser';
+import { showSimpleAlert } from '../../utils/platformAlert';
 
 jest.mock('expo-auth-session', () => ({
   makeRedirectUri: jest.fn(() => 'snacktrack://oauth-callback'),
@@ -115,5 +116,31 @@ describe('useGmailImport', () => {
       expect(result.current.primaryFlowState).toBe('idle');
       expect(result.current.isPrimaryActionInProgress).toBe(false);
     });
+  });
+
+  it('refreshes connection state and asks for reconnection after invalid_grant', async () => {
+    (gmailApi.getStatus as jest.Mock)
+      .mockResolvedValueOnce({ connected: true, canImport: true })
+      .mockResolvedValueOnce({ connected: true, canImport: false, needsReconnect: true });
+    (gmailApi.importReceipts as jest.Mock).mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          code: 'GMAIL_RECONNECT_REQUIRED',
+          message: 'Reconnect Gmail to continue.',
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useGmailImport());
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+
+    await act(async () => {
+      await result.current.importReceipts();
+    });
+
+    expect(showSimpleAlert).toHaveBeenCalledWith('Reconnect Gmail', 'Reconnect Gmail to continue.');
+    expect(gmailApi.getStatus).toHaveBeenCalledTimes(2);
+    expect(result.current.connectionStatus.needsReconnect).toBe(true);
   });
 });

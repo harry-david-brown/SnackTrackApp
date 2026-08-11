@@ -115,10 +115,21 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     } catch (error: any) {
       console.error('Import failed:', getErrorMessage(error));
 
-      if (error.response?.status === 409 || error.response?.data?.code === 'IMPORT_IN_PROGRESS') {
+      if (error.response?.data?.code === 'IMPORT_IN_PROGRESS') {
         showSimpleAlert(
           'Import Already Running',
           error.response?.data?.message || 'A receipt import is already running for your account. Please wait for it to complete.'
+        );
+      } else if (error.response?.data?.code === 'GMAIL_RECONNECT_REQUIRED') {
+        showSimpleAlert(
+          'Reconnect Gmail',
+          error.response?.data?.message || 'Your Gmail authorization has expired. Reconnect Gmail to continue importing receipts.'
+        );
+        await refreshConnectionStatus();
+      } else if (error.response?.data?.code === 'GMAIL_VALIDATION_UNAVAILABLE') {
+        showSimpleAlert(
+          'Couldn’t verify Gmail',
+          error.response?.data?.message || 'Gmail could not be reached. Please try again shortly.'
         );
       } else if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.message?.includes('timeout')) {
         showSimpleAlert(
@@ -134,7 +145,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
       return false;
     }
-  }, [connectionStatus, onImportSuccess, setAnalytics, state.user]);
+  }, [connectionStatus, onImportSuccess, refreshConnectionStatus, setAnalytics, state.user]);
 
   const waitForImportReady = useCallback(async () => {
     let latestStatus: GmailConnectionStatus | null = null;

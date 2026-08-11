@@ -69,13 +69,12 @@ export default function UploadScreen() {
   const localPickerRequestRef = useRef(0);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
-  const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
   const scrollViewRef = useRef<ScrollView>(null);
   const {
     connectionStatus,
     isChecking: isGmailStatusChecking,
     primaryFlowState,
-    connectGmail,
+    connectAndImportGmail,
     importReceipts,
     resumeAutoImport,
     refreshConnectionStatus,
@@ -106,7 +105,11 @@ export default function UploadScreen() {
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
   const hasConnectedEmail = connectionStatus.connected;
-  const hasImportedDeliveryData = totalImportedReceipts > 0;
+  // This task represents the Gmail scan specifically. Export receipts must not
+  // make it look complete when the user has never run the Gmail import.
+  const hasImportedDeliveryData = Boolean(
+    importPreferences?.gmailImport.hasImported || gmailImportResult?.success
+  );
   const showGmailImportLoadingModal = showGmailFeature
     && !showLoader
     && (gmailImportResult !== null
@@ -246,7 +249,7 @@ export default function UploadScreen() {
       return;
     }
 
-    if (!hasConnectedEmail) {
+    if (!hasConnectedEmail || needsReconnectForImport) {
       setActiveTaskId('connect_email');
       return;
     }
@@ -269,6 +272,7 @@ export default function UploadScreen() {
     isExportComplete,
     isExportUpsellLoading,
     isGmailStatusChecking,
+    needsReconnectForImport,
     shouldFocusExport,
     shouldShowExportTutorialFromParam,
     showGmailFeature,
@@ -339,9 +343,12 @@ export default function UploadScreen() {
     }
     setGmailConnectPhase('connecting');
 
-    const didConnect = await connectGmail();
+    // Connecting Gmail includes the initial scan. The OAuth screen and this
+    // task's copy make the read access explicit, so a second manual step is
+    // unnecessary.
+    const didConnect = await connectAndImportGmail();
     if (didConnect) {
-      setActiveTaskId('gmail_import');
+      setActiveTaskId(isExportComplete ? null : 'uber_export');
       setGmailConnectPhase('connected');
       connectSuccessTimerRef.current = setTimeout(() => {
         setGmailConnectPhase('idle');
@@ -526,13 +533,13 @@ export default function UploadScreen() {
                   title="Connect email"
                   description="Connect Gmail so SnackTrack can find delivery receipts."
                   iconName="mail-outline"
-                  statusLabel={hasConnectedEmail ? 'Complete' : 'Recommended'}
-                  statusTone={hasConnectedEmail ? 'complete' : 'recommended'}
-                  isComplete={hasConnectedEmail}
+                  statusLabel={hasConnectedEmail && !needsReconnectForImport ? 'Complete' : needsReconnectForImport ? 'Reconnect' : 'Recommended'}
+                  statusTone={hasConnectedEmail && !needsReconnectForImport ? 'complete' : 'recommended'}
+                  isComplete={hasConnectedEmail && !needsReconnectForImport}
                 isOpen={activeTaskId === 'connect_email'}
                 onPress={handleTaskPress}
               >
-                  {!hasConnectedEmail && (
+                  {(!hasConnectedEmail || needsReconnectForImport) && (
                     <TouchableOpacity
                       style={styles.gmailButton}
                       onPress={handleConnectEmail}
@@ -540,17 +547,19 @@ export default function UploadScreen() {
                       disabled={primaryFlowState !== 'idle' || isGmailStatusChecking}
                     >
                       <Ionicons name="logo-google" size={20} color={Colors.white} />
-                      <Text style={styles.gmailButtonText}>Connect Gmail</Text>
+                      <Text style={styles.gmailButtonText}>{needsReconnectForImport ? 'Reconnect Gmail' : 'Connect Gmail'}</Text>
                     </TouchableOpacity>
                   )}
 
                   <Text style={styles.taskHelperText}>
-                    {hasConnectedEmail
+                    {needsReconnectForImport
+                      ? 'Google no longer accepts the saved authorization. Reconnect Gmail to continue.'
+                      : hasConnectedEmail
                       ? 'Gmail is connected. You can manage the connection below if needed.'
                       : 'We only use your receipt data to generate your personal spending insights.'}
                   </Text>
 
-                  {hasConnectedEmail && (
+                  {hasConnectedEmail && !needsReconnectForImport && (
                     <TouchableOpacity
                       style={styles.manageLink}
                       onPress={() => setShowGmailModal(true)}
@@ -566,7 +575,7 @@ export default function UploadScreen() {
                   title="Import delivery data"
                   description="Pull delivery receipts from your connected Gmail account."
                   iconName="download-outline"
-                  statusLabel={hasImportedDeliveryData ? 'Complete' : hasConnectedEmail ? 'Recommended' : 'Connect email first'}
+                  statusLabel={hasImportedDeliveryData ? 'Complete' : needsReconnectForImport ? 'Reconnect email first' : hasConnectedEmail ? 'Recommended' : 'Connect email first'}
                   statusTone={hasImportedDeliveryData ? 'complete' : 'recommended'}
                   isComplete={hasImportedDeliveryData}
                   isOpen={activeTaskId === 'gmail_import'}

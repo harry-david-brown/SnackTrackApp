@@ -11,6 +11,7 @@ jest.mock('../../services/gmailApi', () => ({
     setMonitoringConsent: jest.fn(),
     setOngoingTrackingConsent: jest.fn(),
     checkOngoingTracking: jest.fn(),
+    importReceipts: jest.fn(),
     markExportRequested: jest.fn(),
   },
 }));
@@ -130,6 +131,38 @@ describe('useImportPreferences', () => {
 
     expect(gmailApi.setOngoingTrackingConsent).toHaveBeenCalledWith('granted');
     expect(result.current.preferences?.ongoingTracking.effectiveState).toBe('active');
+  });
+
+  it('marks an automatic Gmail scan as importing and refreshes its completion state', async () => {
+    let finishImport!: (value: { success: boolean }) => void;
+    (gmailApi.importReceipts as jest.Mock).mockImplementation(() => new Promise((resolve) => {
+      finishImport = resolve;
+    }));
+    const completed = preferences();
+    completed.gmailImport = {
+      ...completed.gmailImport,
+      status: 'completed',
+      hasImported: true,
+    };
+    (gmailApi.getImportPreferences as jest.Mock)
+      .mockResolvedValueOnce(preferences())
+      .mockResolvedValueOnce(completed);
+
+    const { result } = renderHook(() => useImportPreferences());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let importPromise!: Promise<unknown>;
+    act(() => {
+      importPromise = result.current.importGmailReceipts();
+    });
+    expect(result.current.preferences?.gmailImport.status).toBe('importing');
+
+    await act(async () => {
+      finishImport({ success: true });
+      await importPromise;
+    });
+
+    expect(result.current.preferences?.gmailImport.hasImported).toBe(true);
   });
 
   it('resets mounted export state after receipts are cleared', async () => {
