@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
@@ -7,8 +7,9 @@ import { useUser } from '../../contexts/UserContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import UberDataTutorial, { type DataPlatform } from '../../components/upload/UberDataTutorial';
 import EmailVerificationBanner from '../../components/auth/EmailVerificationBanner';
 import { HelpSupportModal } from '../../components/profile/HelpSupportModal';
 import { CurrencySelectorModal } from '../../components/profile/CurrencySelectorModal';
@@ -17,6 +18,12 @@ import { featureFlags } from '../../config/featureFlags';
 import { authApi } from '../../services/authApi';
 import { receiptApi } from '../../services/api';
 import { getRefreshToken } from '../../utils/tokenManager';
+import {
+  resetCachedImportExportState,
+  useImportPreferences,
+} from '../../hooks/useImportPreferences';
+import { showAlert } from '../../utils/platformAlert';
+import { resetExportUpsellForUser } from '../../hooks/useExportUpsell';
 
 export default function ProfileScreen() {
   const { state, logout, resetReceiptData } = useUser();
@@ -28,12 +35,27 @@ export default function ProfileScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClearingReceipts, setIsClearingReceipts] = useState(false);
   const showReset = featureFlags.showResetOnboarding;
+  const {
+    preferences: importPreferences,
+    isLoading: areImportPreferencesLoading,
+    isUpdating: areImportPreferencesUpdating,
+    refresh: refreshImportPreferences,
+    setMonitoringConsent,
+    setOngoingTrackingConsent,
+    markExportRequested,
+  } = useImportPreferences(Boolean(state.user?.id));
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshImportPreferences();
+    }, [refreshImportPreferences])
+  );
   
   // Use analytics from context instead of loading separately
   const analytics = state.analytics;
 
   const handleResetOnboarding = async () => {
-    Alert.alert(
+    showAlert(
       'Reset Onboarding',
       'This will show the onboarding flow again. Continue?',
       [
@@ -43,7 +65,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetOnboarding();
-            Alert.alert('Success', 'Onboarding reset! Logout and login again to see it.');
+            showAlert('Success', 'Onboarding reset! Logout and login again to see it.');
           }
         },
       ]
@@ -51,7 +73,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Sign Out',
       'Are you sure you want to sign out?',
       [
@@ -86,18 +108,192 @@ export default function ProfileScreen() {
     setShowCurrencySelector(false);
   };
 
+  const handleAutomaticImports = () => {
+    const isGranted = importPreferences?.monitoring.consentState === 'granted';
+
+    if (isGranted) {
+      showAlert(
+        'Turn off export alerts?',
+        'SnackTrack will stop checking for Uber’s data-ready email. Your existing imported receipts will remain.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Turn Off',
+            style: 'destructive',
+            onPress: () => {
+              void setMonitoringConsent('revoked').catch(() => {
+                showAlert('Update Failed', 'Could not turn off export alerts. Please try again.');
+              });
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    showAlert(
+      'Turn on export-ready alerts?',
+      'SnackTrack will check only for Uber’s data-ready email while the app is active. It will not open the link or download the file, and you can turn this off at any time.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Allow',
+          onPress: () => {
+            void setMonitoringConsent('granted')
+              .then((nextPreferences) => {
+                if (nextPreferences.monitoring.effectiveState === 'reconnect_required') {
+                  showAlert(
+                    'Permission saved',
+                    'Reconnect Gmail from Import before export-ready alerts can work.'
+                  );
+                }
+              })
+              .catch(() => {
+                showAlert('Update Failed', 'Could not enable export alerts. Please try again.');
+              });
+          },
+        },
+      ]
+    );
+  };
+
+  const saveProfileExportRequest = async (decision?: 'granted' | 'declined') => {
+    try {
+      if (decision) {
+        await setMonitoringConsent(decision);
+      }
+      await markExportRequested();
+    } catch {
+      showAlert(
+        'Status Not Saved',
+        'The tutorial is complete, but we could not save your export request status.'
+      );
+    }
+  };
+
+  const handleProfileTutorialComplete = (platform: DataPlatform) => {
+    setShowTutorial(false);
+
+    if (platform === 'doordash') {
+      void saveProfileExportRequest();
+      return;
+    }
+
+    if (importPreferences?.monitoring.consentState === 'granted') {
+      void saveProfileExportRequest();
+      return;
+    }
+
+    showAlert(
+      'Notify you when it’s ready?',
+      'Allow SnackTrack to check only for Uber’s data-ready email and let you know when the download is available. SnackTrack will not open the link or download the file.',
+      [
+        {
+          text: 'Not Now',
+          style: 'cancel',
+          onPress: () => {
+            void saveProfileExportRequest('declined');
+          },
+        },
+        {
+          text: 'Notify Me',
+          onPress: () => {
+            void saveProfileExportRequest('granted');
+          },
+        },
+      ]
+    );
+  };
+
+  const automaticImportsLabel = (() => {
+    if (areImportPreferencesLoading) {
+      return 'Checking...';
+    }
+    switch (importPreferences?.monitoring.effectiveState) {
+      case 'enabled':
+        return 'On';
+      case 'reconnect_required':
+        return 'Reconnect';
+      case 'declined':
+      case 'disabled':
+        return 'Off';
+      default:
+        return 'Not set';
+    }
+  })();
+
+  const ongoingTrackingLabel = (() => {
+    if (areImportPreferencesLoading) return 'Checking...';
+    switch (importPreferences?.ongoingTracking.effectiveState) {
+      case 'active': return 'On';
+      case 'reconnect_required': return 'Reconnect';
+      case 'error': return 'Needs attention';
+      case 'paused':
+      case 'declined': return 'Off';
+      default: return 'Not set';
+    }
+  })();
+
+  const handleOngoingTracking = () => {
+    const active = importPreferences?.ongoingTracking.consentState === 'granted';
+    if (active) {
+      showAlert(
+        'Turn off ongoing tracking?',
+        'SnackTrack will stop periodically checking Gmail for new delivery receipts. Your imported history will remain.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Turn Off', style: 'destructive',
+            onPress: () => { void setOngoingTrackingConsent('revoked'); },
+          },
+        ]
+      );
+      return;
+    }
+    if (!importPreferences?.gmailImport.hasImported || importPreferences.export.status !== 'completed') {
+      showAlert(
+        'Finish your imports first',
+        'Connect Gmail and add your full export before setting up ongoing order tracking.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
+        ]
+      );
+      return;
+    }
+    if (!importPreferences?.ongoingTracking.capability.canTrack) {
+      showAlert(
+        'Reconnect Gmail first',
+        'Ongoing tracking needs durable Gmail access. Reconnect from the Import screen, then return here.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
+        ]
+      );
+      return;
+    }
+    showAlert(
+      'Allow ongoing order tracking?',
+      'SnackTrack will periodically read delivery receipt emails from your connected Gmail account to update spending and stats. You can turn this off at any time.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Allow tracking', onPress: () => { void setOngoingTrackingConsent('granted'); } },
+      ]
+    );
+  };
+
   const handlePrivacyPolicy = async () => {
     const url = 'https://getsnacktrack.com/privacy-policy';
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
     } else {
-      Alert.alert('Error', 'Unable to open the privacy policy link.');
+      showAlert('Error', 'Unable to open the privacy policy link.');
     }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.\n\nThis action is irreversible.',
       [
@@ -110,15 +306,14 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: confirmDeleteAccount,
         },
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
   const handleClearReceipts = () => {
     if (!state.user || isClearingReceipts) return;
 
-    Alert.alert(
+    showAlert(
       'Clear All Receipts',
       'This will permanently delete all of your receipts and reset your spending analytics. Your account will remain active.\n\nThis action cannot be undone.',
       [
@@ -131,8 +326,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: performClearReceipts,
         },
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
@@ -143,8 +337,14 @@ export default function ProfileScreen() {
 
     try {
       await receiptApi.clearReceipts();
+      await resetOnboarding();
+      await resetExportUpsellForUser(state.user.id);
+      resetCachedImportExportState();
       resetReceiptData();
-      Alert.alert('Receipts Cleared', 'All of your receipts have been deleted.');
+      showAlert(
+        'Receipts Cleared',
+        'All of your receipts have been deleted. Onboarding and your Uber export status have been reset.'
+      );
     } catch (error: any) {
       let errorMessage = 'Failed to clear receipts. Please try again.';
 
@@ -169,14 +369,14 @@ export default function ProfileScreen() {
         errorMessage = error.message;
       }
 
-      Alert.alert('Clear Failed', errorMessage);
+      showAlert('Clear Failed', errorMessage);
     } finally {
       setIsClearingReceipts(false);
     }
   };
 
   const confirmDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       'Final Confirmation',
       'This is your last chance to cancel. Your account will be permanently deleted.',
       [
@@ -210,11 +410,10 @@ export default function ProfileScreen() {
       // back to the login screen.
       await logout();
 
-      Alert.alert(
+      showAlert(
         'Account Deleted',
         'Your account has been permanently deleted.',
-        [{ text: 'OK' }],
-        { cancelable: false }
+        [{ text: 'OK' }]
       );
     } catch (error: any) {
 
@@ -237,7 +436,7 @@ export default function ProfileScreen() {
         errorMessage = 'Network error. Please check your connection and try again.';
       }
 
-      Alert.alert('Deletion Failed', errorMessage);
+      showAlert('Deletion Failed', errorMessage);
     } finally {
       setIsDeleting(false);
     }
@@ -308,6 +507,38 @@ export default function ProfileScreen() {
           >
             <Ionicons name="cloud-upload-outline" size={24} color={Colors.textSecondary} />
             <Text style={styles.menuText}>Import Receipts</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleAutomaticImports}
+            disabled={areImportPreferencesLoading || areImportPreferencesUpdating}
+            accessibilityRole="button"
+            accessibilityLabel={`Export-ready alerts: ${automaticImportsLabel}`}
+          >
+            <Ionicons name="sync-outline" size={24} color={Colors.textSecondary} />
+            <Text style={styles.menuText}>Export-Ready Alerts</Text>
+            {areImportPreferencesUpdating ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <>
+                <Text style={styles.menuSubtext}>{automaticImportsLabel}</Text>
+                <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleOngoingTracking}
+            disabled={areImportPreferencesLoading || areImportPreferencesUpdating}
+            accessibilityRole="button"
+            accessibilityLabel={`Ongoing order tracking: ${ongoingTrackingLabel}`}
+          >
+            <Ionicons name="pulse-outline" size={24} color={Colors.textSecondary} />
+            <Text style={styles.menuText}>Ongoing Order Tracking</Text>
+            <Text style={styles.menuSubtext}>{ongoingTrackingLabel}</Text>
             <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
           </TouchableOpacity>
           
@@ -383,7 +614,16 @@ export default function ProfileScreen() {
         presentationStyle="fullScreen"
         onRequestClose={() => setShowTutorial(false)}
       >
-        <UberDataTutorial onComplete={() => setShowTutorial(false)} />
+        <UberDataTutorial
+          mode={
+            importPreferences
+            && !['not_started', 'completed'].includes(importPreferences.export.status)
+              ? 'download'
+              : 'request'
+          }
+          onRequestConfirmed={handleProfileTutorialComplete}
+          onClose={() => setShowTutorial(false)}
+        />
       </Modal>
 
       <HelpSupportModal

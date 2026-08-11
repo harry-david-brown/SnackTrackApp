@@ -146,6 +146,13 @@ api.interceptors.request.use(
     
     logger.apiRequest(method, url);
 
+    // Analytics are calculated in the user's IANA timezone. Supplying the
+    // current device zone lets the API repair fallback zones on older accounts.
+    const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (deviceTimezone) {
+      config.headers['X-Timezone'] = deviceTimezone;
+    }
+
     // Apply rate limiting
     const rateLimitType = getRateLimitType(url, method);
     const rateLimitKey = `${method}:${url}`;
@@ -296,4 +303,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

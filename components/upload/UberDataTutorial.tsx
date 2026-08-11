@@ -1,720 +1,464 @@
-import { Colors } from '@/constants/theme';
-import React, { useState, useRef, useEffect } from 'react';
+import { Colors, Radius, Shadows } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  ScrollView,
-  Animated,
-  Platform,
   Image,
+  ImageSourcePropType,
+  Linking,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { showSimpleAlert } from '../../utils/platformAlert';
 
-const { width } = Dimensions.get('window');
+export type DataPlatform = 'uber' | 'doordash';
+export type DataTutorialMode = 'request' | 'download';
 
-type DataPlatform = 'uber' | 'doordash';
-
-interface TutorialSlide {
+interface TutorialStep {
   title: string;
   description: string;
-  instructions: string[];
-  icon: keyof typeof Ionicons.glyphMap;
-  gradient: string[];
+  image: ImageSourcePropType;
+  imageLabel: string;
 }
 
-const uberSlides: TutorialSlide[] = [
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Go to Account → Privacy',
-      'Scroll right and tap "Request"',
-      'Tap "Request Data Download"',
-      'Uber will process your request',
-    ],
-    icon: 'document-text-outline',
-    gradient: [Colors.uber, Colors.uberDark],
-  },
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Usually takes about an hour',
-      'Could take up to 24 hours',
-      'You will receive an email notification when ready',
-      'Tap the download link in the email',
-    ],
-    icon: 'mail-outline',
-    gradient: [Colors.uberDark, Colors.uber],
-  },
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Upload the ZIP file here',
-      'Sit back and get ready to be roasted!',
-    ],
-    icon: 'cloud-upload-outline',
-    gradient: [Colors.uber, Colors.uberBright],
-  },
-];
+const REQUEST_STEPS: Record<DataPlatform, TutorialStep[]> = {
+  uber: [
+    {
+      title: 'Open your account',
+      description: 'In Uber Eats, tap the Account icon in the bottom-right corner.',
+      image: require('../../assets/UberDataTutorialScreenshots/1/1.webp'),
+      imageLabel: 'Uber Eats home screen with the account navigation highlighted',
+    },
+    {
+      title: 'Open Privacy',
+      description: 'Scroll down through your account menu and choose Privacy.',
+      image: require('../../assets/UberDataTutorialScreenshots/1/2.webp'),
+      imageLabel: 'Uber account menu with Privacy highlighted',
+    },
+    {
+      title: 'Choose Request',
+      description: 'In the Privacy Center, find the personal-data card and tap Request.',
+      image: require('../../assets/UberDataTutorialScreenshots/1/3.webp'),
+      imageLabel: 'Uber Privacy Center with the personal-data Request button highlighted',
+    },
+    {
+      title: 'Submit the request',
+      description: 'Tap Request Your Data. Uber may ask you to verify your identity.',
+      image: require('../../assets/UberDataTutorialScreenshots/1/4.webp'),
+      imageLabel: 'Uber Download your data page with Request Your Data highlighted',
+    },
+  ],
+  doordash: [
+    {
+      title: 'Open your account',
+      description: 'In DoorDash, tap the Account icon near the top of the home screen.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/1.webp'),
+      imageLabel: 'DoorDash home screen with the account icon highlighted',
+    },
+    {
+      title: 'Open Settings',
+      description: 'From your account page, choose Settings.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/2.webp'),
+      imageLabel: 'DoorDash account page with Settings highlighted',
+    },
+    {
+      title: 'Choose Manage Account',
+      description: 'Scroll to Account Settings and select Manage Account.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/3.webp'),
+      imageLabel: 'DoorDash settings page with Manage Account highlighted',
+    },
+    {
+      title: 'Continue to account management',
+      description: 'Tap the Manage Account button to open DoorDash account tools.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/4.webp'),
+      imageLabel: 'DoorDash profile page with Manage Account highlighted',
+    },
+    {
+      title: 'Choose Request Archive',
+      description: 'Under Account Data, select Request Archive.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/5.webp'),
+      imageLabel: 'DoorDash account page with Request Archive highlighted',
+    },
+    {
+      title: 'Submit the request',
+      description: 'Confirm Request Archive. DoorDash may ask you to verify your identity.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/1/6.webp'),
+      imageLabel: 'DoorDash archive options with Request Archive highlighted',
+    },
+  ],
+};
 
-const doordashSlides: TutorialSlide[] = [
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Go to Account → Settings',
-      'Navigate to "Manage Account"',
-      'Tap "Manage Account"',
-      'Select "Request Archive"',
-    ],
-    icon: 'document-text-outline',
-    gradient: [Colors.doorDash, Colors.doorDash],
+const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
+  uber: [
+    {
+      title: 'Open the notification',
+      description: 'In Gmail, open “Your Uber data is ready for download” from noreply@uber.com, then tap Go to Download Page. The link is available for 7 days.',
+      image: require('../../assets/UberDataTutorialScreenshots/2/1.webp'),
+      imageLabel: 'Uber data-ready email with the download-page button highlighted',
+    },
+    {
+      title: 'Download your archive',
+      description: 'Sign in if asked, then tap Download Data. Download links expire, so do this promptly.',
+      image: require('../../assets/UberDataTutorialScreenshots/2/2.webp'),
+      imageLabel: 'Uber data download page with Download Data highlighted',
+    },
+    {
+      title: 'Confirm the download',
+      description: 'Approve the ZIP download when your browser asks.',
+      image: require('../../assets/UberDataTutorialScreenshots/2/3.webp'),
+      imageLabel: 'Browser confirmation dialog with Download highlighted',
+    },
+    {
+      title: 'Choose your export file',
+      description: 'Return to SnackTrack and choose your downloaded Uber ZIP file.',
+      image: require('../../assets/UberDataTutorialScreenshots/3/1.webp'),
+      imageLabel: 'SnackTrack export upload control highlighted',
+    },
+    {
+      title: 'Select the ZIP',
+      description: 'Pick the Uber archive from Recents or your Downloads folder. Keep the file zipped.',
+      image: require('../../assets/UberDataTutorialScreenshots/3/2.webp'),
+      imageLabel: 'Device file picker with an Uber ZIP archive highlighted',
+    },
+  ],
+  doordash: [
+    {
+      title: 'Open the notification',
+      description: 'DoorDash will email you when the archive is ready. Tap View Your Data Archive.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/2/1.webp'),
+      imageLabel: 'DoorDash archive-ready email with View Your Data Archive highlighted',
+    },
+    {
+      title: 'Download your archive',
+      description: 'Tap Download before the archive link expires.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/2/2.webp'),
+      imageLabel: 'DoorDash archive page with Download highlighted',
+    },
+    {
+      title: 'Confirm the download',
+      description: 'Approve the ZIP download when your browser asks.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/2/3.webp'),
+      imageLabel: 'Browser confirmation dialog with Download highlighted',
+    },
+    {
+      title: 'Choose your export file',
+      description: 'Return to SnackTrack and choose your downloaded DoorDash ZIP file.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/3/1.webp'),
+      imageLabel: 'SnackTrack export upload control highlighted',
+    },
+    {
+      title: 'Select the ZIP',
+      description: 'Pick data_archive.zip from Recents or your Downloads folder. Keep the file zipped.',
+      image: require('../../assets/DoorDashDataTutorialScreenshots/3/2.webp'),
+      imageLabel: 'Device file picker with a DoorDash ZIP archive highlighted',
+    },
+  ],
+};
+
+const PLATFORM_DETAILS = {
+  uber: {
+    name: 'Uber Eats',
+    accent: Colors.uberDark,
+    surface: Colors.successSurface,
+    icon: 'car-outline' as const,
+    requestUrl: 'https://myprivacy.uber.com/privacy/exploreyourdata/download',
   },
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Usually takes about an hour',
-      'Could take up to 24 hours',
-      'You will receive an email notification when ready',
-      'Tap the download link in the email',
-    ],
-    icon: 'mail-outline',
-    gradient: [Colors.doorDash, Colors.doorDash],
+  doordash: {
+    name: 'DoorDash',
+    accent: Colors.doorDash,
+    surface: Colors.errorSurface,
+    icon: 'bag-handle-outline' as const,
+    requestUrl: 'https://www.doordash.com/consumer/privacy/manage_account',
   },
-  {
-    title: '',
-    description: '',
-    instructions: [
-      'Upload the ZIP file here',
-      'Sit back and get ready to be roasted!',
-    ],
-    icon: 'cloud-upload-outline',
-    gradient: [Colors.doorDash, Colors.doorDash],
-  },
-];
+};
 
 interface UberDataTutorialProps {
-  onComplete: () => void;
-  onSkip?: () => void;
+  mode?: DataTutorialMode;
+  initialPlatform?: DataPlatform;
+  onRequestConfirmed: (platform: DataPlatform) => void;
+  onClose: () => void;
 }
 
-export default function UberDataTutorial({ onComplete, onSkip }: UberDataTutorialProps) {
-  const [platform, setPlatform] = useState<DataPlatform>('uber');
+export default function UberDataTutorial({
+  mode = 'request',
+  initialPlatform,
+  onRequestConfirmed,
+  onClose,
+}: UberDataTutorialProps) {
+  const [platform, setPlatform] = useState<DataPlatform>(initialPlatform ?? 'uber');
+  const [hasChosenPlatform, setHasChosenPlatform] = useState(Boolean(initialPlatform));
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [zoomedImage, setZoomedImage] = useState<TutorialStep | null>(null);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  const slides = platform === 'uber' ? uberSlides : doordashSlides;
+  useEffect(() => {
+    setPlatform(initialPlatform ?? 'uber');
+    setHasChosenPlatform(Boolean(initialPlatform));
+    setCurrentIndex(0);
+  }, [initialPlatform, mode]);
 
-  // Helper function to get image paths based on platform
-  const getImagePaths = (platformType: DataPlatform) => {
-    if (platformType === 'uber') {
-      return {
-        slide1: [
-          require('../../assets/UberDataTutorialScreenshots/1/1.webp'),
-          require('../../assets/UberDataTutorialScreenshots/1/2.webp'),
-          require('../../assets/UberDataTutorialScreenshots/1/3.webp'),
-          require('../../assets/UberDataTutorialScreenshots/1/4.webp'),
-        ],
-        slide2: [
-          require('../../assets/UberDataTutorialScreenshots/2/1.webp'),
-          require('../../assets/UberDataTutorialScreenshots/2/2.webp'),
-          require('../../assets/UberDataTutorialScreenshots/2/3.webp'),
-        ],
-        slide3: [
-          require('../../assets/UberDataTutorialScreenshots/3/1.webp'),
-          require('../../assets/UberDataTutorialScreenshots/3/2.webp'),
-        ],
-      };
+  const details = PLATFORM_DETAILS[platform];
+  const steps = mode === 'request' ? REQUEST_STEPS[platform] : DOWNLOAD_STEPS[platform];
+  const currentStep = steps[currentIndex];
+  const isLastStep = currentIndex === steps.length - 1;
+
+  const imageSize = useMemo(() => {
+    if (!currentStep) return { width: 0, height: 0 };
+    const resolved = Image.resolveAssetSource(currentStep.image);
+    const aspectRatio = resolved.width / resolved.height;
+    const maxWidth = Math.min(windowWidth - 40, 520);
+    const maxHeight = Math.min(windowHeight * 0.5, 520);
+    let displayWidth = maxWidth;
+    let displayHeight = displayWidth / aspectRatio;
+    if (displayHeight > maxHeight) {
+      displayHeight = maxHeight;
+      displayWidth = displayHeight * aspectRatio;
+    }
+    return { width: displayWidth, height: displayHeight };
+  }, [currentStep, windowHeight, windowWidth]);
+
+  const choosePlatform = (nextPlatform: DataPlatform) => {
+    setPlatform(nextPlatform);
+    setCurrentIndex(0);
+    setHasChosenPlatform(true);
+  };
+
+  const goBack = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((index) => index - 1);
     } else {
-      // DoorDash tutorial screenshots
-      return {
-        slide1: [
-          require('../../assets/DoorDashDataTutorialScreenshots/1/1.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/1/2.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/1/3.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/1/4.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/1/5.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/1/6.webp'),
-        ],
-        slide2: [
-          require('../../assets/DoorDashDataTutorialScreenshots/2/1.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/2/2.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/2/3.webp'),
-        ],
-        slide3: [
-          require('../../assets/DoorDashDataTutorialScreenshots/3/1.webp'),
-          require('../../assets/DoorDashDataTutorialScreenshots/3/2.webp'),
-        ],
-      };
+      setHasChosenPlatform(false);
     }
   };
 
-  // Preload all images on mount and when platform changes
-  // Prioritize slide 2 images since they're slower to load
-  useEffect(() => {
-    const preloadImages = async () => {
-      const imagePaths = getImagePaths(platform);
-      
-      // Slide 2 images first (they're slower)
-      const slide2Images = imagePaths.slide2;
-      
-      // Other images
-      const otherImages = [...imagePaths.slide1, ...imagePaths.slide3];
-
-      try {
-        // Prefetch slide 2 images first (priority)
-        await Promise.all(
-          slide2Images.map((source) => {
-            const resolved = Image.resolveAssetSource(source);
-            return Image.prefetch(resolved.uri);
-          })
-        );
-        
-        // Then prefetch other images
-        await Promise.all(
-          otherImages.map((source) => {
-            const resolved = Image.resolveAssetSource(source);
-            return Image.prefetch(resolved.uri);
-        })
-        );
-      } catch {
-        // Silently fail - images will load normally if prefetch fails
-      }
-    };
-
-    preloadImages();
-  }, [platform]);
-
-  // Reset scroll position to top whenever slide changes
-  useEffect(() => {
-    scrollViewRef.current?.scrollTo({
-      y: 0,
-      animated: false,
-    });
-  }, [currentIndex]);
-
-  // Reset scroll position when platform changes (but keep current slide index)
-  useEffect(() => {
-    scrollViewRef.current?.scrollTo({
-      y: 0,
-      animated: false,
-    });
-  }, [platform]);
-
-  const handlePlatformSwitch = (newPlatform: DataPlatform) => {
-    if (newPlatform === platform) return;
-    
-    // Animate slide out
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: newPlatform === 'uber' ? 20 : -20, // Slide out opposite direction
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setPlatform(newPlatform);
-      // Keep current slide index - don't reset to 0
-      
-      // Animate slide in from opposite direction
-      slideAnim.setValue(newPlatform === 'uber' ? -20 : 20);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  };
-
-  const handleNext = () => {
-    if (currentIndex < slides.length - 1) {
-      const nextIndex = currentIndex + 1;
-      
-      // Fade out
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start(() => {
-        // Change slide
-        setCurrentIndex(nextIndex);
-        
-        // Fade in
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }).start();
-      });
+  const goForward = () => {
+    if (!isLastStep) {
+      setCurrentIndex((index) => index + 1);
+      return;
+    }
+    if (mode === 'request') {
+      onRequestConfirmed(platform);
     } else {
-      onComplete();
+      onClose();
     }
   };
 
-  const handleSkip = () => {
-    if (onSkip) {
-      onSkip();
-    } else {
-      onComplete();
+  const openVendorRequest = async () => {
+    try {
+      await Linking.openURL(details.requestUrl);
+    } catch {
+      showSimpleAlert(
+        'Could not open the request page',
+        `Open ${details.name} and follow the steps shown here.`
+      );
     }
   };
 
-  const currentSlide = slides[currentIndex];
-  const isLastSlide = currentIndex === slides.length - 1;
-
-  // Get main title based on slide index
-  const getMainTitle = () => {
-    const titles = ['Request Your Data', 'Wait for the Email', 'Upload Your Zip'];
-    return titles[currentIndex] || 'Request Your Data';
-  };
-
-  // Animated value for selector position
-  const selectorPosition = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(selectorPosition, {
-      toValue: platform === 'uber' ? 0 : 1,
-      useNativeDriver: false,
-      tension: 100,
-      friction: 8,
-    }).start();
-  }, [platform, selectorPosition]);
-
-  const selectorLeft = selectorPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['4%', '52%'],
-  });
-
-  return (
-    <LinearGradient colors={currentSlide.gradient as any} style={StyleSheet.absoluteFillObject}>
-      <StatusBar hidden />
-      {/* Skip Button */}
-      <TouchableOpacity style={[styles.skipButton, { top: insets.top + 10 }]} onPress={handleSkip}>
-        <Text style={styles.skipText}>Skip</Text>
-      </TouchableOpacity>
-
-      {/* Preload all images in hidden container for caching - render at full size off-screen */}
-      <View style={styles.preloadContainer}>
-        {(() => {
-          const imagePaths = getImagePaths(platform);
-          const allImages = [...imagePaths.slide1, ...imagePaths.slide2, ...imagePaths.slide3];
-          return allImages.map((source, index) => (
-        <Image 
-              key={index}
-              source={source} 
-              style={styles.preloadImage}
-              resizeMode="contain"
-            />
-          ));
-        })()}
-      </View>
-
-      <Animated.View 
-        style={[
-          styles.mainContent, 
-          { 
-            opacity: fadeAnim, 
-            paddingTop: insets.top,
-            transform: [{ translateX: slideAnim }]
-          }
-        ]}
-      >
-          <ScrollView 
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            bounces={true}
-            overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'}
-            scrollEnabled={true}
-          >
-            <View style={styles.slideContent}>
-            <View style={styles.iconContainer}>
-              <Ionicons name={currentSlide.icon} size={80} color={Colors.white} />
-            </View>
-
-            <Text style={styles.mainTitle}>{getMainTitle()}</Text>
-
-            {/* Platform Selector */}
-            <View style={styles.selectorContainer}>
-              <Animated.View style={[styles.selectorBackground, { left: selectorLeft }]} />
-              <TouchableOpacity
-                style={styles.selectorOption}
-                onPress={() => handlePlatformSwitch('uber')}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.selectorText, 
-                  platform === 'uber' && [
-                    styles.selectorTextActive,
-                    { color: Colors.secondary }
-                  ]
-                ]}>
-                  UberEats
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.selectorOption}
-                onPress={() => handlePlatformSwitch('doordash')}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.selectorText, 
-                  platform === 'doordash' && [
-                    styles.selectorTextActive,
-                    { color: Colors.doorDash }
-                  ]
-                ]}>
-                  DoorDash
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {currentSlide.title ? (
-            <Text style={styles.title}>{currentSlide.title}</Text>
-            ) : null}
-            {currentSlide.description ? (
-            <Text style={styles.description}>{currentSlide.description}</Text>
-            ) : null}
-
-            {/* Instructions List */}
-            <View style={styles.instructionsContainer}>
-              {currentSlide.instructions.map((instruction, index) => (
-                <View key={index} style={styles.instructionRow}>
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>{index + 1}</Text>
-                  </View>
-                  <Text style={styles.instructionText}>{instruction}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Screenshots - render all but show only active slide */}
-                <View style={styles.screenshotContainer}>
-              {(() => {
-                const imagePaths = getImagePaths(platform);
-                return (
-                  <>
-                    {/* Slide 0 images */}
-                    <View style={[styles.slideScreenshots, currentIndex !== 0 && styles.hiddenSlide]}>
-                      {imagePaths.slide1.map((source, index) => (
-                    <Image 
-                          key={index}
-                          source={source} 
-                          style={styles.screenshot}
-                      resizeMode="contain"
-                          fadeDuration={0}
-                    />
-                      ))}
-                  </View>
-                    {/* Slide 1 images */}
-                    <View style={[styles.slideScreenshots, currentIndex !== 1 && styles.hiddenSlide]}>
-                      {imagePaths.slide2.map((source, index) => (
-                    <Image 
-                          key={index}
-                          source={source} 
-                          style={styles.screenshot}
-                      resizeMode="contain"
-                          fadeDuration={0}
-                    />
-                      ))}
-                  </View>
-                    {/* Slide 2 images */}
-                    <View style={[styles.slideScreenshots, currentIndex !== 2 && styles.hiddenSlide]}>
-                      {imagePaths.slide3.map((source, index) => (
-                    <Image 
-                          key={index}
-                          source={source} 
-                          style={styles.screenshot}
-                      resizeMode="contain"
-                          fadeDuration={0}
-                    />
-                      ))}
-                  </View>
-                  </>
-                );
-              })()}
-                </View>
-            </View>
-          </ScrollView>
-        </Animated.View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {slides.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  currentIndex === index && styles.activeDot,
-                ]}
-              />
-            ))}
-          </View>
-
-          {/* Next Button */}
-          <TouchableOpacity style={styles.button} onPress={handleNext}>
-            <Text style={styles.buttonText}>
-              {isLastSlide ? "I Have My ZIP!" : 'Next'}
-            </Text>
-            <Ionicons name="arrow-forward" size={24} color={Colors.white} />
+  if (!hasChosenPlatform) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>
+            {mode === 'request' ? 'Request your data' : 'Download and upload'}
+          </Text>
+          <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
+            <Ionicons name="close" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
-    </LinearGradient>
+        <View style={styles.platformContent}>
+          <Text style={styles.platformEyebrow}>
+            {mode === 'request' ? 'COMPLETE YOUR HISTORY' : 'YOUR ARCHIVE IS READY'}
+          </Text>
+          <Text style={styles.platformTitle}>
+            {mode === 'request' ? 'Where do you want to import from?' : 'Which archive are you importing?'}
+          </Text>
+          <Text style={styles.platformBody}>
+            {mode === 'request'
+              ? 'Choose a provider and SnackTrack will guide you through requesting its official data archive.'
+              : 'Choose the provider that sent your archive and we’ll guide you through downloading and uploading it.'}
+          </Text>
+          <View style={styles.platformStack}>
+            {(Object.keys(PLATFORM_DETAILS) as DataPlatform[]).map((option) => {
+              const optionDetails = PLATFORM_DETAILS[option];
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.platformCard, { backgroundColor: optionDetails.surface }]}
+                  onPress={() => choosePlatform(option)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Choose ${optionDetails.name}`}
+                >
+                  <View style={[styles.platformIcon, { backgroundColor: optionDetails.accent }]}>
+                    <Ionicons name={optionDetails.icon} size={25} color={Colors.white} />
+                  </View>
+                  <View style={styles.platformCardText}>
+                    <Text style={styles.platformName}>{optionDetails.name}</Text>
+                    <Text style={styles.platformDescription}>
+                      {mode === 'request' ? 'Show me the request steps' : 'Show me the download steps'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={22} color={optionDetails.accent} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity accessibilityLabel="Previous tutorial step" style={styles.headerButton} onPress={goBack}>
+          <Ionicons name="arrow-back" size={23} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.providerChip, { backgroundColor: details.surface }]}
+          onPress={() => setHasChosenPlatform(false)}
+          accessibilityRole="button"
+          accessibilityLabel={`Change provider from ${details.name}`}
+        >
+          <Text style={[styles.providerChipText, { color: details.accent }]}>{details.name}</Text>
+          <Ionicons name="chevron-down" size={15} color={details.accent} />
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
+          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.stepContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.stepEyebrow, { color: details.accent }]}>
+          {mode === 'request' ? 'REQUEST YOUR ARCHIVE' : 'DOWNLOAD AND IMPORT'} · {currentIndex + 1}/{steps.length}
+        </Text>
+        <Text style={styles.stepTitle}>{currentStep.title}</Text>
+        <Text style={styles.stepDescription}>{currentStep.description}</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.imageButton}
+          onPress={() => setZoomedImage(currentStep)}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={`${currentStep.imageLabel}. Tap to enlarge.`}
+        >
+          <Image
+            source={currentStep.image}
+            style={[styles.screenshot, imageSize]}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <View style={styles.zoomHint}>
+            <Ionicons name="expand-outline" size={15} color={Colors.textSecondary} />
+            <Text style={styles.zoomHintText}>Tap to enlarge</Text>
+          </View>
+        </TouchableOpacity>
+
+        {mode === 'request' ? (
+          <TouchableOpacity style={styles.vendorButton} onPress={openVendorRequest} accessibilityRole="link">
+            <Ionicons name="open-outline" size={19} color={details.accent} />
+            <Text style={[styles.vendorButtonText, { color: details.accent }]}>Open {details.name}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={styles.progressTrack}>
+          {steps.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.progressSegment,
+                index <= currentIndex && { backgroundColor: details.accent },
+              ]}
+            />
+          ))}
+        </View>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: details.accent }]} onPress={goForward}>
+          <Text style={styles.primaryButtonText}>
+            {isLastStep
+              ? mode === 'request' ? "I've requested it" : 'Back to Import'
+              : 'Next'}
+          </Text>
+          <Ionicons name={isLastStep ? 'checkmark' : 'arrow-forward'} size={21} color={Colors.white} />
+        </TouchableOpacity>
+        {isLastStep && mode === 'request' ? (
+          <TouchableOpacity style={styles.notYetButton} onPress={onClose}>
+            <Text style={styles.notYetText}>I’ll do this later</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <Modal visible={Boolean(zoomedImage)} transparent animationType="fade" onRequestClose={() => setZoomedImage(null)}>
+        <View style={styles.zoomBackdrop}>
+          <TouchableOpacity style={[styles.zoomClose, { top: insets.top + 12 }]} onPress={() => setZoomedImage(null)}>
+            <Ionicons name="close" size={28} color={Colors.white} />
+          </TouchableOpacity>
+          {zoomedImage ? (
+            <Image source={zoomedImage.image} style={styles.zoomedImage} resizeMode="contain" />
+          ) : null}
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  skipButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 100,
-    padding: 16,
-    backgroundColor: Colors.alpha(Colors.black, 0.2),
-    borderRadius: 8,
-  },
-  skipText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  mainContent: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
-  },
-  slideContent: {
-    width,
-    alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 80,
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: Colors.alpha(Colors.white, 0.2),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: 24,
-    letterSpacing: 0.5,
-  },
-  selectorContainer: {
-    width: '100%',
-    height: 48,
-    backgroundColor: Colors.alpha(Colors.white, 0.15),
-    borderRadius: 24,
-    flexDirection: 'row',
-    marginBottom: 30,
-    position: 'relative',
-    padding: 4,
-    borderWidth: 1,
-    borderColor: Colors.alpha(Colors.white, 0.2),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectorBackground: {
-    position: 'absolute',
-    width: '48%',
-    height: 40,
-    backgroundColor: Colors.white,
-    borderRadius: 20,
-    top: 4,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  selectorOption: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-    paddingHorizontal: 12,
-    height: 40,
-    marginTop: 0,
-    marginBottom: 0,
-  },
-  selectorText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.alpha(Colors.white, 0.7),
-    letterSpacing: 0.3,
-    textAlign: 'center',
-    marginLeft: 8,
-    marginTop: 0,
-    ...(Platform.OS === 'android' && { includeFontPadding: false }),
-  },
-  selectorTextActive: {
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  description: {
-    fontSize: 16,
-    color: Colors.alpha(Colors.white, 0.9),
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
-  },
-  instructionsContainer: {
-    width: '100%',
-    backgroundColor: Colors.alpha(Colors.white, 0.1),
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  instructionRow: {
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+    backgroundColor: Colors.surface,
   },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.secondary,
-  },
-  instructionText: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.white,
-    lineHeight: 20,
-  },
-  preloadContainer: {
-    position: 'absolute',
-    left: -9999,
-    top: 0,
-    width: width * 0.9,
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-  preloadImage: {
-    width: width * 0.9,
-    height: undefined,
-    aspectRatio: 0.5625,
-    marginBottom: 15,
-  },
-  screenshotContainer: {
-    width: '100%',
-    marginTop: 0,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  slideScreenshots: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  hiddenSlide: {
-    position: 'absolute',
-    left: -9999,
-    top: 0,
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-  screenshot: {
-    width: width * 0.9,
-    height: undefined,
-    aspectRatio: 0.5625, // Common phone screenshot aspect ratio (9:16 inverted for landscape)
-    marginBottom: 15,
-    borderRadius: 12,
-    backgroundColor: Colors.white,
-    borderWidth: 10,
-    borderColor: Colors.white,
-  },
-  footer: {
-    width: '100%',
-    paddingHorizontal: 30,
-    paddingBottom: 20,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Colors.alpha(Colors.white, 0.2),
-  },
-  pagination: {
-    flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.alpha(Colors.white, 0.4),
-    marginHorizontal: 5,
-  },
-  activeDot: {
-    backgroundColor: Colors.white,
-    width: 24,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.alpha(Colors.white, 0.2),
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 30,
-    width: '100%',
-    borderWidth: 2,
-    borderColor: Colors.white,
-  },
-  buttonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 10,
-  },
+  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerSpacer: { width: 44 },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: Colors.textPrimary },
+  providerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
+  providerChipText: { fontSize: 14, fontWeight: '800' },
+  platformContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 },
+  platformEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 1.1, textAlign: 'center' },
+  platformTitle: { marginTop: 10, color: Colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '800', textAlign: 'center' },
+  platformBody: { marginTop: 12, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  platformStack: { marginTop: 30, gap: 14 },
+  platformCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: Radius.card, ...Shadows.card },
+  platformIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  platformCardText: { flex: 1, marginHorizontal: 14 },
+  platformName: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  platformDescription: { marginTop: 3, color: Colors.textSecondary, fontSize: 14 },
+  scrollView: { flex: 1 },
+  stepContent: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
+  stepEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, textAlign: 'center' },
+  stepTitle: { marginTop: 8, color: Colors.textPrimary, fontSize: 27, lineHeight: 33, fontWeight: '800', textAlign: 'center' },
+  stepDescription: { maxWidth: 520, marginTop: 10, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  imageButton: { alignItems: 'center', marginTop: 22, padding: 10, borderRadius: Radius.card, backgroundColor: Colors.surface, ...Shadows.card },
+  screenshot: { borderRadius: 14, backgroundColor: Colors.white },
+  zoomHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
+  zoomHintText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  vendorButton: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, paddingHorizontal: 18, paddingVertical: 12, borderWidth: 1, borderColor: Colors.divider, borderRadius: Radius.button, backgroundColor: Colors.surface },
+  vendorButtonText: { fontSize: 15, fontWeight: '800' },
+  footer: { paddingTop: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.surface },
+  progressTrack: { flexDirection: 'row', gap: 5, marginBottom: 12 },
+  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.gray200 },
+  primaryButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: Radius.button },
+  primaryButtonText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
+  notYetButton: { alignItems: 'center', paddingTop: 13, paddingBottom: 2 },
+  notYetText: { color: Colors.textSecondary, fontSize: 15, fontWeight: '700' },
+  zoomBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: Colors.alpha(Colors.black, 0.94) },
+  zoomClose: { position: 'absolute', right: 16, zIndex: 1, width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: Colors.alpha(Colors.white, 0.14) },
+  zoomedImage: { width: '100%', height: '88%' },
 });
-

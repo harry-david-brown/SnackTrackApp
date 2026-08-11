@@ -237,7 +237,7 @@ The archetype's **Done button doubles as the offer transition**, so the promo re
 - [x] Stop the archetype from auto-advancing into the export upsell.
 - [x] Add an explicit **Done / Continue** button to the archetype alongside the share CTA.
 - [x] Tapping Continue presents the post-deck offer (sheet or post-deck screen), not another deck slide.
-- [x] Users who already completed a full export get a plain Done that closes the deck — no offer.
+- [x] Users who already completed a full export skip the historical export proposition but still see the ongoing-value epilogue.
 - [x] Preserve `markSeen`, `markClicked`, `dismiss`, and completion tracking.
 - [x] Ensure dismissing the post-deck offer returns the user to the expected tab.
 - [x] Ensure the X and swipe-down still exit directly without the offer.
@@ -393,7 +393,7 @@ These tasks establish boundaries now; they do not ship the yearly deck.
 ### Player behavior
 
 - [ ] Test the archetype does not auto-advance.
-- [ ] Test Done presents the post-deck offer, and skips it for completed-export users.
+- [ ] Test Continue presents the ongoing-value epilogue and skips only the export step for completed-export users.
 - [ ] Test hold-to-pause and resume after the reordered deck.
 - [ ] Test backward navigation from the archetype.
 - [ ] Test share and save target the active lifetime slide.

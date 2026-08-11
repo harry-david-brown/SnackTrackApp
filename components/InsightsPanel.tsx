@@ -17,7 +17,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     const insights = [];
 
     // Top restaurant insight
-    if (analytics.topRestaurants.length > 0) {
+    if (analytics.topRestaurants.length > 0 && analytics.totalSpent > 0) {
       const topRestaurant = analytics.topRestaurants[0];
       const percentage = ((topRestaurant.totalSpent / analytics.totalSpent) * 100).toFixed(1);
       
@@ -32,7 +32,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
 
     // Spending pattern insight
     const avgOrderValue = analytics.averageOrderValue;
-    if (avgOrderValue > 25) {
+    if (analytics.totalReceipts > 0 && avgOrderValue > 25) {
       insights.push({
         icon: 'trending-up-outline',
         iconColor: Colors.errorBright,
@@ -40,7 +40,7 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
         description: `Your average order of ${formatCurrency(avgOrderValue)} shows you enjoy quality dining experiences!`,
         type: 'pattern',
       });
-    } else if (avgOrderValue < 15) {
+    } else if (analytics.totalReceipts > 0 && avgOrderValue < 15) {
       insights.push({
         icon: 'wallet-outline',
         iconColor: Colors.success,
@@ -95,8 +95,9 @@ export default function InsightsPanel({ analytics }: InsightsPanelProps) {
     if (analytics.monthlyBreakdown.length > 0) {
       const monthlySpending = analytics.monthlyBreakdown.map((m: { totalSpent: number; receiptCount: number; month: string }) => m.totalSpent);
       const maxMonth = Math.max(...monthlySpending);
-      const minMonth = Math.min(...monthlySpending);
-      const variation = ((maxMonth - minMonth) / minMonth) * 100;
+      const positiveMonths = monthlySpending.filter(amount => amount > 0);
+      const minMonth = positiveMonths.length > 0 ? Math.min(...positiveMonths) : 0;
+      const variation = minMonth > 0 ? ((maxMonth - minMonth) / minMonth) * 100 : 0;
 
       if (variation > 100) {
         insights.push({

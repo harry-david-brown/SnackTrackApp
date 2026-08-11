@@ -5,13 +5,13 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import { UberDataUpload } from '../components/upload/UberDataUpload';
 import { useUser } from '../contexts/UserContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { csvApi } from '../services/api';
 import * as DocumentPicker from 'expo-document-picker';
 import * as offlineCache from '../utils/offlineCache';
+import { showAlert } from '../utils/alerts';
 
 // Mock dependencies
 jest.mock('../contexts/UserContext');
@@ -19,6 +19,7 @@ jest.mock('../hooks/useNetworkStatus');
 jest.mock('../services/api');
 jest.mock('expo-document-picker');
 jest.mock('../utils/offlineCache');
+jest.mock('../utils/alerts', () => ({ showAlert: jest.fn() }));
 jest.mock('../utils/sentry', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),
@@ -28,9 +29,6 @@ const mockUseUser = useUser as jest.MockedFunction<typeof useUser>;
 const mockUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
 const mockImportCsv = csvApi.importCsv as jest.MockedFunction<typeof csvApi.importCsv>;
 const mockGetDocumentAsync = DocumentPicker.getDocumentAsync as jest.MockedFunction<typeof DocumentPicker.getDocumentAsync>;
-
-// Mock Alert
-jest.spyOn(Alert, 'alert');
 
 describe('UberDataUpload', () => {
   const mockUser = {
@@ -65,7 +63,6 @@ describe('UberDataUpload', () => {
       isInternetReachable: true,
       type: 'wifi',
     });
-    (Alert.alert as jest.Mock).mockImplementation(() => {});
   });
 
   describe('Network Status Checks', () => {
@@ -89,7 +86,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       // Wait for modal to open and check upload button shows "No Connection"
       await waitFor(() => {
@@ -117,7 +114,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       // When offline, button shows "No Connection" instead of "Upload"
       await waitFor(() => {
@@ -156,7 +153,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       // Wait for modal to open - button should show "No Connection" when offline
       await waitFor(() => {
@@ -187,7 +184,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -196,7 +193,7 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
+        expect(showAlert).toHaveBeenCalledWith(
           'Upload Failed',
           'Unable to connect to the server. Please check your internet connection.'
         );
@@ -224,7 +221,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -233,7 +230,7 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
+        expect(showAlert).toHaveBeenCalledWith(
           'Upload Failed',
           'Server is busy. Please wait a moment and try again.'
         );
@@ -261,7 +258,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -270,7 +267,7 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
+        expect(showAlert).toHaveBeenCalledWith(
           'Upload Failed',
           'Service temporarily unavailable. Please try again in a few minutes.'
         );
@@ -298,7 +295,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -307,7 +304,7 @@ describe('UberDataUpload', () => {
       fireEvent.press(getByText('Upload'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
+        expect(showAlert).toHaveBeenCalledWith(
           'Upload Failed',
           'Service temporarily unavailable. Please try again in a few minutes.'
         );
@@ -335,7 +332,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -345,7 +342,7 @@ describe('UberDataUpload', () => {
 
       await waitFor(() => {
         // "Invalid file format" passes through sanitization since it matches /invalid file/i pattern
-        expect(Alert.alert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
+        expect(showAlert).toHaveBeenCalledWith('Upload Failed', 'Invalid file format');
       }, { timeout: 3000 });
     });
   });
@@ -367,7 +364,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -399,7 +396,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -430,11 +427,11 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
 
       await waitFor(() => {
         // File validation now uses the same error message format
-        expect(Alert.alert).toHaveBeenCalledWith('Wrong file!', 'Please select your Uber user data.');
+        expect(showAlert).toHaveBeenCalledWith('Wrong file!', 'Please select a delivery export file in ZIP or CSV format.');
       });
     });
 
@@ -452,10 +449,10 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('File Too Large', expect.stringContaining('50'));
+        expect(showAlert).toHaveBeenCalledWith('File Too Large', expect.stringContaining('50'));
       });
     });
 
@@ -473,7 +470,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
 
       await waitFor(() => {
         expect(getByText('test.zip')).toBeTruthy();
@@ -494,7 +491,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
 
       await waitFor(() => {
         expect(getByText('test.csv')).toBeTruthy();
@@ -521,7 +518,7 @@ describe('UberDataUpload', () => {
 
       const { getByText } = render(<UberDataUpload onUploadSuccess={onUploadSuccess} />);
       
-      fireEvent.press(getByText('Choose ZIP File'));
+      fireEvent.press(getByText('Choose Export File'));
       
       await waitFor(() => {
         expect(getByText('Upload')).toBeTruthy();
@@ -539,4 +536,3 @@ describe('UberDataUpload', () => {
     });
   });
 });
-

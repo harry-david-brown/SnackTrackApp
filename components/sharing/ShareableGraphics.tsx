@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../../types/api';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { showAlert } from '../../utils/platformAlert';
 
 interface ShareableGraphicsProps {
   analytics: UserSummary;
@@ -26,7 +27,7 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
       const uri = await viewShotRef.current?.capture?.();
       
       if (!uri) {
-        alert('Failed to capture image');
+        showAlert('Error', 'Failed to capture image');
         return;
       }
 
@@ -39,10 +40,10 @@ export default function ShareableGraphics({ analytics, onShare }: ShareableGraph
         });
         onShare?.(uri);
       } else {
-        alert('Sharing is not available on this device');
+        showAlert('Sharing unavailable', 'Sharing is not available on this device');
       }
     } catch {
-      alert('Failed to capture image. Please try again.');
+      showAlert('Sharing failed', 'Failed to capture image. Please try again.');
     }
   };
 

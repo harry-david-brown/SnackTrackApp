@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,7 +22,7 @@ function RestaurantBreakdownChart({
   const { formatCurrency } = useCurrency();
   const [selectedSegment, setSelectedSegment] = useState<number | null>(null);
 
-  const prepareChartData = () => {
+  const prepareChartData = useCallback(() => {
     if (!analytics?.topRestaurants || analytics.topRestaurants.length === 0) {
       return null;
     }
@@ -53,11 +53,11 @@ function RestaurantBreakdownChart({
       })),
       fullData: topRestaurants, // Keep full data for details
     };
-  };
+  }, [analytics.topRestaurants, maxRestaurants]);
 
   const chartData = useMemo(() => {
     return prepareChartData();
-  }, [analytics.topRestaurants, maxRestaurants]);
+  }, [prepareChartData]);
 
   if (!chartData || chartData.data.length === 0) {
     return (
@@ -80,7 +80,7 @@ function RestaurantBreakdownChart({
   };
 
 
-  const totalSpent = chartData.data.reduce((sum, item) => sum + item.population, 0);
+  const totalSpent = analytics.totalSpent;
 
   return (
     <View style={styles.container}>
@@ -126,7 +126,7 @@ function RestaurantBreakdownChart({
             </View>
             <View style={styles.legendStats}>
               <Text style={styles.legendPercentage}>
-                {((item.population / totalSpent) * 100).toFixed(1)}%
+                {totalSpent > 0 ? ((item.population / totalSpent) * 100).toFixed(1) : '0.0'}%
               </Text>
               <Text style={styles.legendOrders}>
                 {chartData.fullData[index].count} orders

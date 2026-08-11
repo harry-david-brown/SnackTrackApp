@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +17,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
   const { formatCurrency } = useCurrency();
   const [animatedData, setAnimatedData] = useState<number[]>([]);
 
-  const categorizeRestaurant = (restaurantName: string): string => {
+  const categorizeRestaurant = useCallback((restaurantName: string): string => {
     const name = restaurantName.toLowerCase();
     
     if (name.includes('mcdonald') || name.includes('burger') || name.includes('kfc') || 
@@ -40,9 +40,9 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
     } else {
       return 'Other';
     }
-  };
+  }, []);
 
-  const prepareChartData = () => {
+  const prepareChartData = useCallback(() => {
     if (!analytics?.topRestaurants || analytics.topRestaurants.length === 0) {
       return null;
     }
@@ -77,11 +77,11 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
         count: data.count,
       })),
     };
-  };
+  }, [analytics.topRestaurants, categorizeRestaurant]);
 
   const chartData = useMemo(() => {
     return prepareChartData();
-  }, [analytics.topRestaurants]);
+  }, [prepareChartData]);
 
   useEffect(() => {
     if (chartData) {
@@ -122,7 +122,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
   };
 
 
-  const totalSpent = chartData.data.reduce((sum, amount) => sum + amount, 0);
+  const totalSpent = analytics.totalSpent;
 
   return (
     <View style={styles.container}>
@@ -164,7 +164,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
               <View style={styles.categoryStats}>
                 <Text style={styles.categoryAmount}>{formatCurrency(category.total)}</Text>
                 <Text style={styles.categoryPercentage}>
-                  {((category.total / totalSpent) * 100).toFixed(1)}%
+                  {totalSpent > 0 ? ((category.total / totalSpent) * 100).toFixed(1) : '0.0'}%
                 </Text>
               </View>
             </View>
@@ -173,7 +173,7 @@ function CategoryAnalysisChart({ analytics }: CategoryAnalysisChartProps) {
                 style={[
                   styles.progressFill, 
                   { 
-                    width: `${(category.total / totalSpent) * 100}%`,
+                    width: `${totalSpent > 0 ? Math.min(100, (category.total / totalSpent) * 100) : 0}%`,
                     backgroundColor: chartConfig.color(0.8),
                   }
                 ]} 

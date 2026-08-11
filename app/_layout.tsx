@@ -7,6 +7,8 @@ import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
+import { AppAlertProvider } from '../components/ui/AppAlertProvider';
+import ExportReadyNotifier from '../components/upload/ExportReadyNotifier';
 import { initSentry } from '../utils/sentry';
 import {
   useFonts,
@@ -41,54 +43,63 @@ export default function RootLayout() {
     // Required for react-native-gesture-handler gestures (Wrapped drag-to-dismiss).
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-        <CurrencyProvider>
-          <UserProvider>
-            <OnboardingProvider>
-              <Stack
-                screenOptions={{
-                  contentStyle: { backgroundColor: Colors.transparent },
-                }}
-              >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: Colors.transparent } }} />
-                <Stack.Screen 
-                  name="index" 
-                  options={{ 
-                    headerShown: false, 
-                    contentStyle: { backgroundColor: Colors.transparent },
-                    animation: 'fade',
-                  }} 
-                />
-                <Stack.Screen
-                  name="login"
-                  options={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Colors.transparent },
-                    animation: 'fade',
-                  }}
-                />
-                <Stack.Screen 
-                  name="oauth-callback" 
-                  options={{ 
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Colors.transparent },
-                    animation: 'fade',
-                  }} 
-                />
-                <Stack.Screen 
-                  name="receipts" 
-                  options={{ 
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Colors.transparent },
-                    presentation: 'card',
-                  }} 
-                />
-              </Stack>
-              <StatusBar style="auto" />
-            </OnboardingProvider>
-          </UserProvider>
-        </CurrencyProvider>
-        </QueryClientProvider>
+        <AppAlertProvider>
+          <QueryClientProvider client={queryClient}>
+            <CurrencyProvider>
+              <UserProvider>
+                <OnboardingProvider>
+                  <ExportReadyNotifier />
+                  <Stack
+                    screenOptions={{
+                      contentStyle: { backgroundColor: Colors.transparent },
+                    }}
+                  >
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.transparent },
+                      }}
+                    />
+                    <Stack.Screen
+                      name="index"
+                      options={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.transparent },
+                        animation: 'fade',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="login"
+                      options={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.transparent },
+                        animation: 'fade',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="oauth-callback"
+                      options={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.transparent },
+                        animation: 'fade',
+                      }}
+                    />
+                    <Stack.Screen
+                      name="receipts"
+                      options={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.transparent },
+                        presentation: 'card',
+                      }}
+                    />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </OnboardingProvider>
+              </UserProvider>
+            </CurrencyProvider>
+          </QueryClientProvider>
+        </AppAlertProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );

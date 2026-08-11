@@ -9,24 +9,47 @@ import { router } from 'expo-router';
 import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
 import { SlideInView } from '../../components/ui/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
-import { useExportUpsell } from '../../hooks/useExportUpsell';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
+import { DashboardTrackingCard } from '../../components/dashboard/DashboardTrackingCard';
+import { resolveDashboardTrackingState, type DashboardTrackingAction } from '../../components/dashboard/dashboardTrackingState';
+import { showAlert, showSimpleAlert } from '../../utils/platformAlert';
+import { openUberExportEmail } from '../../utils/exportDownloadHandoff';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
   const { formatCurrency } = useCurrency();
   const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
   const initialLoadDoneRef = useRef(false);
+  const automaticTrackingCheckRef = useRef<string | null>(null);
   const {
-    upsellState,
-    shouldShowDashboardCard,
-    markSeen,
-    markClicked,
-    dismiss,
-  } = useExportUpsell(state.user?.id);
+    preferences: importPreferences,
+    isLoading: areImportPreferencesLoading,
+    isUpdating: isImportStateUpdating,
+    refresh: refreshImportPreferences,
+    setOngoingTrackingConsent,
+    checkOngoingTracking,
+  } = useImportPreferences(Boolean(state.user?.id));
+  const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
   
   // Use analytics from context instead of local state
   const analytics = state.analytics;
+
+  useEffect(() => {
+    if (
+      importPreferences?.ongoingTracking.effectiveState !== 'active'
+      || isImportStateUpdating
+    ) return;
+    const lastChecked = importPreferences.ongoingTracking.activity.lastSuccessfulCheckAt;
+    const lastCheckedMs = lastChecked ? new Date(lastChecked).getTime() : 0;
+    if (lastCheckedMs && Date.now() - lastCheckedMs < 15 * 60 * 1000) return;
+    const checkKey = lastChecked ?? 'never';
+    if (automaticTrackingCheckRef.current === checkKey) return;
+    automaticTrackingCheckRef.current = checkKey;
+    void checkOngoingTracking()
+      .then(() => loadAnalytics())
+      .catch(() => undefined);
+  }, [checkOngoingTracking, importPreferences, isImportStateUpdating, loadAnalytics]);
 
   // Load analytics only when user logs in/out, not on every user property change
   useEffect(() => {
@@ -52,17 +75,10 @@ export default function DashboardScreen() {
       if (state.user && initialLoadDoneRef.current && !state.analytics) {
         loadAnalytics();
       }
+      void refreshImportPreferences();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.user, state.analytics])
+    }, [state.user, state.analytics, refreshImportPreferences])
   );
-
-  useEffect(() => {
-    if (!shouldShowDashboardCard || upsellState.dashboardSeenAt) {
-      return;
-    }
-
-    void markSeen('dashboard');
-  }, [markSeen, shouldShowDashboardCard, upsellState.dashboardSeenAt]);
 
 
 
@@ -75,6 +91,44 @@ export default function DashboardScreen() {
       // Even if the API call fails, local auth state is cleared and the
       // tabs layout redirects to the login screen.
     }
+  };
+
+  const handleTrackingAction = (action: DashboardTrackingAction) => {
+    if (action === 'open_imports') {
+      router.push('/(tabs)/upload');
+      return;
+    }
+    if (action === 'open_export') {
+      router.push({ pathname: '/(tabs)/upload', params: { focus: 'export' } });
+      return;
+    }
+    if (action === 'open_gmail') {
+      void openUberExportEmail().catch(() => {
+        showSimpleAlert('Couldn’t open Gmail', 'Open Gmail and search for “Your Uber data is ready for download.”');
+      });
+      return;
+    }
+    if (action === 'enable_tracking') {
+      showAlert(
+        'Allow ongoing order tracking?',
+        'SnackTrack will periodically read delivery receipt emails from your connected Gmail account to update your spending and stats. You can turn this off at any time.',
+        [
+          { text: 'Not now', style: 'cancel', onPress: () => { void setOngoingTrackingConsent('declined'); } },
+          {
+            text: 'Allow tracking',
+            onPress: () => {
+              void setOngoingTrackingConsent('granted').catch(() => {
+                showSimpleAlert('Couldn’t enable tracking', 'Reconnect Gmail and try again.');
+              });
+            },
+          },
+        ]
+      );
+      return;
+    }
+    void checkOngoingTracking()
+      .then(() => loadAnalytics())
+      .catch(() => showSimpleAlert('Couldn’t check for orders', 'Please try again in a moment.'));
   };
 
   if (!state.user) {
@@ -153,95 +207,15 @@ export default function DashboardScreen() {
             </SlideInView>
 	          </View>
 
-            {shouldShowDashboardCard && (
-              <View style={styles.exportUpsellCard}>
-                <View style={styles.exportUpsellHeader}>
-                  <View style={styles.exportUpsellBadge}>
-                    <Ionicons name="sparkles-outline" size={14} color={Colors.primary} />
-                    <Text style={styles.exportUpsellBadgeText}>Upgrade your import</Text>
-                  </View>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Dismiss export upgrade"
-                    onPress={() => {
-                      void dismiss();
-                    }}
-                    style={styles.exportUpsellDismiss}
-                  >
-                    <Ionicons name="close" size={18} color={Colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-                {/* MASCOT: upsell guide — holding a receipt */}
-                <View style={styles.exportUpsellMascot}>
-                  <MascotPlaceholder pose="prop-receipt" size={72} />
-                </View>
-                <Text style={styles.exportUpsellTitle}>Add your full export for deeper history</Text>
-                <Text style={styles.exportUpsellBody}>
-                  Gmail got you started fast. Upload your full Uber Eats or DoorDash export to backfill older orders and strengthen long-range trends.
-                </Text>
-                <View style={styles.exportUpsellPoints}>
-                  <View style={styles.exportUpsellPointRow}>
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.secondary} />
-                    <Text style={styles.exportUpsellPointText}>Fill in older orders your inbox missed</Text>
-                  </View>
-                  <View style={styles.exportUpsellPointRow}>
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.secondary} />
-                    <Text style={styles.exportUpsellPointText}>Get a fuller year-over-year spending picture</Text>
-                  </View>
-                </View>
-                <View style={styles.exportUpsellActions}>
-                  <TouchableOpacity
-                    style={styles.exportUpsellPrimary}
-                    onPress={() => {
-                      void markClicked();
-                      router.push({
-                        pathname: '/(tabs)/upload',
-                        params: {
-                          focus: 'export',
-                        },
-                      });
-                    }}
-                  >
-                    <Ionicons name="cloud-upload-outline" size={18} color={Colors.white} />
-                    <Text style={styles.exportUpsellPrimaryText}>Upload Full Export</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.exportUpsellSecondary}
-                    onPress={() => {
-                      void markClicked();
-                      router.push({
-                        pathname: '/(tabs)/upload',
-                        params: {
-                          focus: 'export',
-                          showExportTutorial: 'true',
-                        },
-                      });
-                    }}
-                  >
-                    <Text style={styles.exportUpsellSecondaryText}>How it works</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-	          {/* Quick Actions */}
+          {/* Contextual import and tracking status */}
           <View style={styles.actionsContainer}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/(tabs)/upload')}
-            >
-              <View style={styles.actionButtonContent}>
-                <Ionicons name="cloud-upload" size={24} color={Colors.white} />
-                <View style={styles.actionButtonText}>
-                  <Text style={styles.actionButtonTitle}>Import Receipts</Text>
-                  <Text style={styles.actionButtonSubtitle}>Connect Gmail or upload a full export</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.white} />
-            </TouchableOpacity>
-
+            <Text style={styles.sectionTitle}>{trackingCardState.sectionLabel}</Text>
+            <DashboardTrackingCard
+              state={trackingCardState}
+              preferences={importPreferences}
+              busy={isImportStateUpdating}
+              onAction={handleTrackingAction}
+            />
           </View>
 
           {/* Recent Activity */}

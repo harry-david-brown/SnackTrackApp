@@ -35,11 +35,13 @@ export const analyticsApi = {
           count: restaurant.count,
           totalSpent: restaurant.total,
         })),
-        monthlyBreakdown: Object.entries(data.statistics.monthlyBreakdown).map(([month, data]: [string, any]) => ({
-          month,
-          totalSpent: data.total,
-          receiptCount: data.count,
-        })),
+        monthlyBreakdown: Object.entries(data.statistics.monthlyBreakdown)
+          .map(([month, data]: [string, any]) => ({
+            month,
+            totalSpent: data.total,
+            receiptCount: data.count,
+          }))
+          .sort((a, b) => a.month.localeCompare(b.month)),
         refundedReceipts: data.validation.refundedReceipts,
         dataQuality: {
           issues: data.validation.issues,

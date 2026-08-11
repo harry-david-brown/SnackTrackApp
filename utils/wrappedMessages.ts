@@ -2018,13 +2018,7 @@ function getPeakHungerCategory(hour: number): keyof typeof WRAPPED_MESSAGES.peak
   return 'chaos';
 }
 
-function getWeekendWarriorCategory(
-  weekendOrders: number,
-  weekdayOrders: number,
-  weekendSpending: number,
-  weekdaySpending: number
-): keyof typeof WRAPPED_MESSAGES.weekendWarrior {
-  const ratio = weekendSpending / weekdaySpending;
+function getWeekendWarriorCategory(ratio: number): keyof typeof WRAPPED_MESSAGES.weekendWarrior {
   if (ratio > 1.2) return 'weekend';
   if (ratio < 0.8) return 'weekday';
   return 'balanced';
@@ -2264,10 +2258,7 @@ export function getDeterministicMessageResult(
       const wrapped = analytics.wrappedAnalytics;
       if (wrapped?.patterns.weekendWarrior) {
         const warriorCategory = getWeekendWarriorCategory(
-          wrapped.patterns.weekendWarrior.weekendOrders,
-          wrapped.patterns.weekendWarrior.weekdayOrders,
-          wrapped.patterns.weekendWarrior.weekendSpending,
-          wrapped.patterns.weekendWarrior.weekdaySpending
+          wrapped.patterns.weekendWarrior.ratio
         );
         const warriorMessages = WRAPPED_MESSAGES.weekendWarrior[warriorCategory];
         selectedMessage = warriorMessages[rng.nextInt(0, warriorMessages.length)];

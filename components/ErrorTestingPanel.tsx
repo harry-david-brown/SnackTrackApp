@@ -1,8 +1,9 @@
 import { Colors } from '@/constants/theme';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { testErrorScenarios, runConsecutiveErrors, runRandomErrors } from '../utils/testErrorScenarios';
+import { showAlert } from '../utils/platformAlert';
 
 interface ErrorTestingPanelProps {
   onTestError: (errorType: string, testFunction: () => Promise<void>) => void;
@@ -149,7 +150,7 @@ export const ErrorTestingPanel: React.FC<ErrorTestingPanelProps> = ({
           <TouchableOpacity
             style={styles.testButton}
             onPress={() => {
-              Alert.alert(
+              showAlert(
                 'Manual Network Test',
                 'To test real network conditions:\n\n1. Turn off WiFi/mobile data\n2. Use airplane mode\n3. Try uploading CSV or refreshing data\n4. Observe network status indicator at top',
                 [{ text: 'Got it' }]

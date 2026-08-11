@@ -27,6 +27,9 @@ const DEFAULT_STATE: ExportUpsellState = {
 };
 
 type ExportUpsellSurface = 'wrapped' | 'dashboard';
+type ExportUpsellResetListener = (userId: string) => void;
+
+const resetListeners = new Set<ExportUpsellResetListener>();
 
 const getStorageKey = (userId: string) => `${EXPORT_UPSELL_STORAGE_PREFIX}_${userId}`;
 
@@ -64,6 +67,12 @@ const saveStateForUser = async (userId: string, state: ExportUpsellState) => {
   await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(state));
 };
 
+/** Clear legacy device-side export completion and notify mounted consumers. */
+export const resetExportUpsellForUser = async (userId: string) => {
+  await saveStateForUser(userId, DEFAULT_STATE);
+  resetListeners.forEach((listener) => listener(userId));
+};
+
 const isWithinSnoozeWindow = (lastDismissedAt: string | null) => {
   if (!lastDismissedAt) {
     return false;
@@ -81,6 +90,20 @@ export function useExportUpsell(userId?: string | null) {
   const [upsellState, setUpsellState] = useState<ExportUpsellState>(DEFAULT_STATE);
   const [isLoading, setIsLoading] = useState(Boolean(userId));
   const [hasCompletedExport, setHasCompletedExport] = useState(false);
+
+  useEffect(() => {
+    const handleReset = (resetUserId: string) => {
+      if (resetUserId !== userId) return;
+      setUpsellState({ ...DEFAULT_STATE });
+      setHasCompletedExport(false);
+      setIsLoading(false);
+    };
+
+    resetListeners.add(handleReset);
+    return () => {
+      resetListeners.delete(handleReset);
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -198,14 +221,12 @@ export function useExportUpsell(userId?: string | null) {
 
   const isPermanentlyDismissed = upsellState.dismissCount >= EXPORT_UPSELL_MAX_DISMISSALS;
   const isSnoozed = isWithinSnoozeWindow(upsellState.lastDismissedAt);
-  const shouldShowWrappedSlide = !isLoading && !hasCompletedExport && !isPermanentlyDismissed && !isSnoozed;
   const shouldShowDashboardCard = !isLoading && !hasCompletedExport && Boolean(upsellState.wrappedSeenAt) && !isPermanentlyDismissed && !isSnoozed;
 
   return {
     upsellState,
     isLoading,
     hasCompletedExport,
-    shouldShowWrappedSlide,
     shouldShowDashboardCard,
     markSeen,
     markClicked,

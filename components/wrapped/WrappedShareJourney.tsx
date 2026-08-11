@@ -10,6 +10,7 @@ import {
   Platform,
   AccessibilityInfo,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -54,6 +55,14 @@ import { buildWrappedSlides, type Slide } from './buildWrappedSlides';
 import { getSlideEntranceRole } from './wrappedSlideSelection';
 import { useWrappedAudio } from './useWrappedAudio';
 import { styles } from './wrappedStyles';
+import {
+  resolveTrackingPropositionCopy,
+  type PostWrappedExperience,
+} from './postWrappedState';
+import type {
+  EffectiveMonitoringState,
+  ExportLifecycleStatus,
+} from '../../services/gmailApi';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -63,22 +72,32 @@ interface WrappedShareJourneyProps {
   onClose: () => void;
   /** First name for personalized cards; omitted until the API exposes one. */
   userName?: string;
-  showExportUpsell?: boolean;
+  postWrappedExperience: PostWrappedExperience;
+  monitoringState: EffectiveMonitoringState;
+  exportStatus: ExportLifecycleStatus;
+  areImportPreferencesUpdating?: boolean;
+  onMonitoringDecision?: (decision: 'granted' | 'declined') => Promise<void>;
+  onManageGmail?: () => void;
   onExportUpsellSeen?: () => void;
   onExportUpgrade?: () => void;
   onExportTutorial?: () => void;
-  onDismissExportUpsell?: () => void;
+  onFinishPostWrapped?: () => void;
 }
 
 export default function WrappedShareJourney({
   analytics,
   onClose,
   userName,
-  showExportUpsell = false,
+  postWrappedExperience,
+  monitoringState,
+  exportStatus,
+  areImportPreferencesUpdating = false,
+  onMonitoringDecision,
+  onManageGmail,
   onExportUpsellSeen,
   onExportUpgrade,
   onExportTutorial,
-  onDismissExportUpsell,
+  onFinishPostWrapped,
 }: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -88,6 +107,7 @@ export default function WrappedShareJourney({
   const [isPaused, setIsPaused] = useState(false);
   const [confettiVisible, setConfettiVisible] = useState(false);
   const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
+  const [postDeckStep, setPostDeckStep] = useState<'tracking' | 'export'>('tracking');
   const { isMuted, toggleMuted } = useWrappedAudio(isFocused && !showPostDeckOffer);
 
   // All animation state lives in Reanimated shared values, so entrances, the
@@ -128,7 +148,10 @@ export default function WrappedShareJourney({
   }, [formatCurrencyFromContext]);
 
   const formatDate = useCallback((dateString: string) => {
-    const date = new Date(dateString);
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+    const date = dateOnly
+      ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+      : new Date(dateString);
     // Device locale — currency formatting already respects it via CurrencyContext.
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }, []);
@@ -161,10 +184,10 @@ export default function WrappedShareJourney({
   }, [currentSlide, slides.length]);
 
   React.useEffect(() => {
-    if (showPostDeckOffer) {
+    if (showPostDeckOffer && postDeckStep === 'export') {
       onExportUpsellSeen?.();
     }
-  }, [showPostDeckOffer, onExportUpsellSeen]);
+  }, [postDeckStep, showPostDeckOffer, onExportUpsellSeen]);
 
   // Captured share images go stale if the slide deck is rebuilt.
   React.useEffect(() => {
@@ -521,6 +544,42 @@ export default function WrappedShareJourney({
     setCurrentSlide((current) => Math.max(current - 1, 0));
   };
 
+  const finishPostWrapped = () => {
+    setShowPostDeckOffer(false);
+    onFinishPostWrapped?.();
+  };
+
+  const continueFromTracking = () => {
+    if (postWrappedExperience.exportEligibility === 'show') {
+      setPostDeckStep('export');
+      return;
+    }
+
+    if (postWrappedExperience.exportEligibility === 'hide') {
+      finishPostWrapped();
+    }
+  };
+
+  const handleMonitoringDecision = async (decision: 'granted' | 'declined') => {
+    try {
+      await onMonitoringDecision?.(decision);
+      continueFromTracking();
+    } catch {
+      // The screen displays the error. Keep this step open so the user can retry.
+    }
+  };
+
+  const exportOrderCount =
+    analytics.wrappedAnalytics?.coverage?.orderCount ?? analytics.totalReceipts;
+  const hasRequestedExport = exportStatus === 'requested_monitoring_enabled'
+    || exportStatus === 'requested_monitoring_disabled';
+  const hasCompletedHistory = exportStatus === 'completed'
+    || postWrappedExperience.exportEligibility === 'hide';
+  const trackingPropositionCopy = resolveTrackingPropositionCopy({
+    hasCompletedExport: hasCompletedHistory,
+    monitoringState,
+  });
+
   // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
   // the device screen) for the off-screen capture.
   const renderSlideInner = (slide: Slide, animatedContent = false, shareFrame = false) => {
@@ -744,11 +803,14 @@ export default function WrappedShareJourney({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.doneCtaButton}
-            onPress={() => showExportUpsell ? setShowPostDeckOffer(true) : onClose()}
+            onPress={() => {
+              setPostDeckStep('tracking');
+              setShowPostDeckOffer(true);
+            }}
             accessibilityRole="button"
-            accessibilityLabel={showExportUpsell ? 'Continue after Wrapped' : 'Finish Wrapped'}
+            accessibilityLabel="Continue after Wrapped"
           >
-            <Text style={styles.doneCtaText}>{showExportUpsell ? 'Continue' : 'Done'}</Text>
+            <Text style={styles.doneCtaText}>Continue</Text>
             <Ionicons name="arrow-forward" size={18} color={Colors.white} />
           </TouchableOpacity>
         </View>
@@ -794,44 +856,221 @@ export default function WrappedShareJourney({
       >
         <View style={styles.offerBackdrop}>
           <View style={styles.offerCard}>
-            <Text style={styles.offerEyebrow}>WANT TO GO FURTHER?</Text>
-            <Text style={styles.offerTitle}>Expand your imported history</Text>
-            <Text style={styles.offerBody}>
-              Add an Uber export to bring in older orders your inbox may not include.
-            </Text>
-            <View style={styles.exportActionStack}>
-              <TouchableOpacity
-                style={styles.affiliateButton}
-                onPress={() => {
-                  setShowPostDeckOffer(false);
-                  onExportUpgrade?.();
-                }}
-                accessibilityRole="button"
-              >
-                <Ionicons name="cloud-upload-outline" size={20} style={styles.affiliateButtonIcon} />
-                <Text style={styles.affiliateButtonText}>Upload an Export</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.offerSecondaryButton}
-                onPress={() => {
-                  setShowPostDeckOffer(false);
-                  onExportTutorial?.();
-                }}
-                accessibilityRole="button"
-              >
-                <Text style={styles.offerSecondaryButtonText}>See how to request it</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.exportDismissButton}
-                onPress={() => {
-                  setShowPostDeckOffer(false);
-                  onDismissExportUpsell?.();
-                }}
-                accessibilityRole="button"
-              >
-                <Text style={styles.offerDismissText}>Maybe later</Text>
-              </TouchableOpacity>
-            </View>
+            {postDeckStep === 'tracking' ? (
+              <>
+                <View style={styles.offerIcon}>
+                  <Ionicons
+                    name={hasCompletedHistory
+                      ? 'stats-chart-outline'
+                      : monitoringState === 'enabled'
+                        ? 'checkmark-circle-outline'
+                        : 'notifications-outline'}
+                    size={26}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.offerEyebrow}>{trackingPropositionCopy.eyebrow}</Text>
+                <Text style={styles.offerTitle}>{trackingPropositionCopy.title}</Text>
+                <Text style={styles.offerBody}>{trackingPropositionCopy.body}</Text>
+                {!hasCompletedHistory
+                  && monitoringState !== 'enabled'
+                  && monitoringState !== 'reconnect_required' && (
+                  <View style={styles.consentDetails}>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="search-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>Only Uber’s matching data-ready email</Text>
+                    </View>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="shield-checkmark-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>We do not store your inbox</Text>
+                    </View>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="settings-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>Turn it off from Profile at any time</Text>
+                    </View>
+                  </View>
+                )}
+                <View style={styles.exportActionStack}>
+                  {hasCompletedHistory ? (
+                    <TouchableOpacity
+                      style={styles.affiliateButton}
+                      onPress={finishPostWrapped}
+                      accessibilityRole="button"
+                      accessibilityLabel="Finish and return to the dashboard"
+                    >
+                      <Text style={styles.affiliateButtonText}>Finish</Text>
+                      <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
+                    </TouchableOpacity>
+                  ) : monitoringState === 'reconnect_required' ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.affiliateButton}
+                        onPress={() => {
+                          setShowPostDeckOffer(false);
+                          onManageGmail?.();
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reconnect Gmail from the import screen"
+                      >
+                        <Ionicons name="mail-outline" size={20} style={styles.affiliateButtonIcon} />
+                        <Text style={styles.affiliateButtonText}>Reconnect Gmail</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.offerSecondaryButton}
+                        onPress={continueFromTracking}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.offerSecondaryButtonText}>Continue for now</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : monitoringState === 'enabled' ? (
+                    <TouchableOpacity
+                      style={styles.affiliateButton}
+                      onPress={continueFromTracking}
+                      accessibilityRole="button"
+                      accessibilityLabel="Continue to the next step"
+                    >
+                      <Text style={styles.affiliateButtonText}>
+                        {postWrappedExperience.exportEligibility === 'show' ? 'Continue' : 'Finish'}
+                      </Text>
+                      <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={[
+                          styles.affiliateButton,
+                          areImportPreferencesUpdating && styles.offerButtonDisabled,
+                        ]}
+                        onPress={() => void handleMonitoringDecision('granted')}
+                        disabled={areImportPreferencesUpdating}
+                        accessibilityRole="button"
+                        accessibilityLabel="Notify me when my Uber export is ready"
+                      >
+                        {areImportPreferencesUpdating ? (
+                          <ActivityIndicator size="small" color={Colors.textPrimary} />
+                        ) : (
+                          <Ionicons name="mail-open-outline" size={20} style={styles.affiliateButtonIcon} />
+                        )}
+                        <Text style={styles.affiliateButtonText}>Notify Me When Ready</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.offerSecondaryButton}
+                        onPress={() => void handleMonitoringDecision('declined')}
+                        disabled={areImportPreferencesUpdating}
+                        accessibilityRole="button"
+                        accessibilityLabel="Do not enable export-ready alerts"
+                      >
+                        <Text style={styles.offerSecondaryButtonText}>Not now</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {postWrappedExperience.exportEligibility === 'loading' && (
+                    <View style={styles.offerLoadingRow}>
+                      <ActivityIndicator size="small" color={Colors.white} />
+                      <Text style={styles.offerLoadingText}>Checking your import history...</Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.offerIcon}>
+                  <Ionicons
+                    name={hasRequestedExport ? 'time-outline' : 'archive-outline'}
+                    size={26}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.offerEyebrow}>
+                  {hasRequestedExport ? 'EXPORT REQUESTED' : 'COMPLETE THE PICTURE'}
+                </Text>
+                <Text style={styles.offerTitle}>
+                  {hasRequestedExport
+                    ? 'Your Uber request is saved'
+                    : exportStatus === 'file_ready'
+                      ? 'Your export is ready to finish'
+                    : exportStatus === 'import_processing'
+                      ? "We're processing your export"
+                      : exportStatus === 'failed'
+                        ? 'That import needs another try'
+                        : postWrappedExperience.coverageAssessment === 'sparse'
+                          ? 'Your inbox may be missing history'
+                          : 'Make your history more complete'}
+                </Text>
+                <Text style={styles.offerBody}>
+                  {hasRequestedExport
+                    ? exportStatus === 'requested_monitoring_enabled'
+                      ? 'When SnackTrack is active, it will check for Uber’s matching data-ready email and let you know when to finish the download. It will not download the file itself.'
+                      : 'When Uber emails you, return to Import and upload the ZIP file. You can enable export-ready alerts from Profile later.'
+                    : exportStatus === 'file_ready'
+                      ? 'SnackTrack found the matching export delivery. Open Import to finish adding the file to your history.'
+                    : exportStatus === 'import_processing'
+                      ? 'Your file is being processed. Your history will update when the import finishes.'
+                      : exportStatus === 'failed'
+                        ? 'The last file did not finish importing. Try the upload again with a fresh Uber export.'
+                        : postWrappedExperience.coverageAssessment === 'sparse'
+                          ? `We only found ${exportOrderCount} Uber Eats ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. Older emails may no longer be available, so your Uber data export is the best way to recover more history.`
+                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add your Uber data export to uncover older orders and fill in the gaps.`}
+                </Text>
+                <View style={styles.exportActionStack}>
+                  {exportStatus !== 'import_processing' && (
+                    <>
+                      {exportStatus === 'not_started' && (
+                        <TouchableOpacity
+                          style={styles.affiliateButton}
+                          onPress={() => {
+                            setShowPostDeckOffer(false);
+                            onExportTutorial?.();
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel="See how to request your Uber data"
+                        >
+                          <Ionicons name="download-outline" size={20} style={styles.affiliateButtonIcon} />
+                          <Text style={styles.affiliateButtonText}>
+                            {postWrappedExperience.coverageAssessment === 'sparse'
+                              ? 'Get My Uber History'
+                              : 'Request My Uber Data'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={exportStatus === 'not_started'
+                          ? styles.exportSecondaryButton
+                          : styles.affiliateButton}
+                        onPress={() => {
+                          setShowPostDeckOffer(false);
+                          onExportUpgrade?.();
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Upload an Uber export you already have"
+                      >
+                        <Ionicons
+                          name="cloud-upload-outline"
+                          size={18}
+                          color={exportStatus === 'not_started' ? Colors.white : Colors.textPrimary}
+                        />
+                        <Text
+                          style={exportStatus === 'not_started'
+                            ? styles.exportSecondaryButtonText
+                            : styles.affiliateButtonText}
+                        >
+                          Upload an Existing Export
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  <TouchableOpacity
+                    style={styles.exportDismissButton}
+                    onPress={finishPostWrapped}
+                    accessibilityRole="button"
+                    accessibilityLabel="Finish without importing an export"
+                  >
+                    <Text style={styles.offerDismissText}>Finish for now</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>

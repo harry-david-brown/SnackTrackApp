@@ -9,6 +9,10 @@ import SimpleChart from './SimpleChart';
 
 const screenWidth = Dimensions.get('window').width;
 const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)
+const monthParts = (month: string) => {
+  const match = /^(\d{4})-(\d{1,2})$/.exec(month);
+  return match ? { year: match[1], month: Number(match[2]) } : null;
+};
 
 interface SpendingTrendChartProps {
   analytics: UserSummary;
@@ -24,8 +28,8 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
       return null;
     }
 
-    let sortedMonths = analytics.monthlyBreakdown
-      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    let sortedMonths = [...analytics.monthlyBreakdown]
+      .sort((a, b) => a.month.localeCompare(b.month));
 
     let data: number[] = [];
 
@@ -33,7 +37,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
       // Group by year
       const yearlyData: { [year: string]: number } = {};
       sortedMonths.forEach(month => {
-        const year = new Date(month.month).getFullYear().toString();
+        const year = monthParts(month.month)?.year ?? month.month.slice(0, 4);
         yearlyData[year] = (yearlyData[year] || 0) + month.totalSpent;
       });
       
@@ -73,15 +77,15 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
       return ['No Data', 'No Data'];
     }
 
-    let sortedMonths = analytics.monthlyBreakdown
-      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    let sortedMonths = [...analytics.monthlyBreakdown]
+      .sort((a, b) => a.month.localeCompare(b.month));
 
     let labels: string[] = [];
 
     if (timeframe === 'yearly') {
       const yearlyData: { [year: string]: number } = {};
       sortedMonths.forEach(month => {
-        const year = new Date(month.month).getFullYear().toString();
+        const year = monthParts(month.month)?.year ?? month.month.slice(0, 4);
         yearlyData[year] = (yearlyData[year] || 0) + month.totalSpent;
       });
       
@@ -90,8 +94,11 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     } else {
       sortedMonths = sortedMonths.slice(-12);
       labels = sortedMonths.map(month => {
-        const date = new Date(month.month);
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        const parts = monthParts(month.month);
+        if (!parts) return month.month;
+        const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short' })
+          .format(new Date(2000, parts.month - 1, 1));
+        return `${monthLabel} '${parts.year.slice(-2)}`;
       });
     }
 

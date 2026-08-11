@@ -1,11 +1,12 @@
 import { Colors } from '@/constants/theme';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  InteractionManager,
   Modal,
   Platform,
 } from 'react-native';
@@ -21,6 +22,8 @@ import { showAlert } from '../../utils/alerts';
 interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;
   onUploadError?: (error: string) => void;
+  autoOpenToken?: string | null;
+  onAutoOpenConsumed?: () => void;
 }
 
 interface UploadState {
@@ -34,6 +37,8 @@ interface UploadState {
 export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   onUploadSuccess,
   onUploadError,
+  autoOpenToken = null,
+  onAutoOpenConsumed,
 }) => {
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
@@ -43,6 +48,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     fileUri: null,
   });
   const [showModal, setShowModal] = useState(false);
+  const lastAutoOpenTokenRef = useRef<string | null>(null);
   const { state } = useUser();
   const networkHookStatus = useNetworkStatus();
   
@@ -63,7 +69,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const validateFile = (file: DocumentPicker.DocumentPickerResult): boolean => {
+  const validateFile = useCallback((file: DocumentPicker.DocumentPickerResult): boolean => {
     if (file.canceled || !file.assets || file.assets.length === 0) {
       return false;
     }
@@ -88,9 +94,9 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     }
 
     return true;
-  };
+  }, []);
 
-  const handleFilePicker = async () => {
+  const handleFilePicker = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['text/csv', 'application/csv', 'application/zip', 'application/x-zip-compressed'],
@@ -111,7 +117,19 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     } catch {
       showAlert('Error', 'Failed to select file. Please try again.');
     }
-  };
+  }, [validateFile]);
+
+  useEffect(() => {
+    if (!autoOpenToken || lastAutoOpenTokenRef.current === autoOpenToken) return;
+
+    lastAutoOpenTokenRef.current = autoOpenToken;
+    const task = InteractionManager.runAfterInteractions(() => {
+      onAutoOpenConsumed?.();
+      void handleFilePicker();
+    });
+
+    return () => task.cancel();
+  }, [autoOpenToken, handleFilePicker, onAutoOpenConsumed]);
 
   const handleUpload = async () => {
     console.log('🔵 handleUpload called');

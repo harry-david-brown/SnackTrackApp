@@ -247,7 +247,7 @@ export interface WrappedAnalytics {
       allChains: {
         name: string;
         count: number;
-        percentage: number;
+        spent: number;
       }[];
     };
   };
@@ -256,7 +256,10 @@ export interface WrappedAnalytics {
       amount: number;
       restaurant: string;
       date: string;
-      items: string[];
+      items: {
+        name: string;
+        price: number;
+      }[];
       message: string;
     };
     coffeeAddiction?: {

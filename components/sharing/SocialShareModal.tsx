@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Alert,
   Dimensions,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import * as Sharing from 'expo-sharing';
 import { UserSummary } from '../../types/api';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { showAlert } from '../../utils/platformAlert';
 
 interface SocialShareModalProps {
   visible: boolean;
@@ -40,7 +40,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         const uri = await viewShotRef.current?.capture?.();
         
         if (!uri) {
-          Alert.alert('Error', 'Failed to capture image');
+          showAlert('Error', 'Failed to capture image');
           return;
         }
         
@@ -52,7 +52,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         link.click();
         document.body.removeChild(link);
         
-        Alert.alert('Success!', 'Image downloaded to your device. You can now share it manually!');
+        showAlert('Success!', 'Image downloaded to your device. You can now share it manually!');
         onClose();
         return;
       }
@@ -61,7 +61,7 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
       const uri = await viewShotRef.current?.capture?.();
       
       if (!uri) {
-        Alert.alert('Error', 'Failed to capture image');
+        showAlert('Error', 'Failed to capture image');
         return;
       }
 
@@ -74,10 +74,10 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
         });
         onClose();
       } else {
-        Alert.alert('Error', 'Sharing is not available on this device');
+        showAlert('Error', 'Sharing is not available on this device');
       }
     } catch {
-      Alert.alert('Error', 'Failed to capture image. Please try again.');
+      showAlert('Error', 'Failed to capture image. Please try again.');
     }
   };
 

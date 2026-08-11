@@ -1,0 +1,52 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking, Platform } from 'react-native';
+import {
+  getExportDownloadHandoffState,
+  openUberExportEmail,
+  setExportDownloadHandoffState,
+  UBER_EXPORT_EMAIL_SEARCH_QUERY,
+  UBER_EXPORT_GMAIL_SEARCH_URL,
+} from '../../utils/exportDownloadHandoff';
+
+describe('exportDownloadHandoff', () => {
+  const originalPlatform = Platform.OS;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalPlatform, configurable: true });
+  });
+
+  it('uses local download state only for the matching ready event', async () => {
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    await setExportDownloadHandoffState('user-1', 'ready-v1', 'downloaded');
+
+    const storedValue = JSON.stringify({ readyVersion: 'ready-v1', state: 'downloaded' });
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(storedValue);
+
+    await expect(getExportDownloadHandoffState('user-1', 'ready-v1')).resolves.toBe('downloaded');
+    await expect(getExportDownloadHandoffState('user-1', 'ready-v2')).resolves.toBe('not_downloaded');
+  });
+
+  it('opens the Gmail app when its URL scheme succeeds', async () => {
+    const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce(undefined as never);
+
+    await expect(openUberExportEmail()).resolves.toBe('gmail_app');
+    expect(openUrl).toHaveBeenCalledWith('googlegmail://');
+  });
+
+  it('falls back to a focused Gmail web search', async () => {
+    const openUrl = jest.spyOn(Linking, 'openURL')
+      .mockRejectedValueOnce(new Error('Gmail is not installed'))
+      .mockResolvedValueOnce(undefined as never);
+
+    await expect(openUberExportEmail()).resolves.toBe('gmail_web');
+    expect(UBER_EXPORT_EMAIL_SEARCH_QUERY).toBe(
+      'from:noreply@uber.com subject:"Your Uber data is ready for download"'
+    );
+    expect(openUrl).toHaveBeenNthCalledWith(2, UBER_EXPORT_GMAIL_SEARCH_URL);
+  });
+});

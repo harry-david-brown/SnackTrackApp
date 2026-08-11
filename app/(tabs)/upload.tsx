@@ -13,10 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useUser } from '@contexts/UserContext';
 import { analyticsApi } from '@services/analyticsApi';
 import { UberDataUpload } from '@components/upload/UberDataUpload';
-import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import UberDataTutorial, { type DataPlatform } from '../../components/upload/UberDataTutorial';
 import WrappedJourneyLoader from '../../components/wrapped/WrappedJourneyLoader';
 import { useOfflineSync } from '@hooks/useOfflineSync';
 import { GmailConnection } from '@/components';
@@ -29,6 +30,20 @@ import {
   type GmailConnectPhase,
 } from '@components/gmail/GmailImportLoadingModal';
 import { ImportTaskCard, type ImportTaskId } from '@components/upload/ImportTaskCard';
+import { useImportPreferences } from '@hooks/useImportPreferences';
+import { showAlert, showSimpleAlert } from '@utils/platformAlert';
+import {
+  type ExportDownloadHandoffState,
+  getExportDownloadHandoffState,
+  openUberExportEmail,
+  setExportDownloadHandoffState,
+  UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS,
+  UBER_EXPORT_EMAIL_ACTION,
+  UBER_EXPORT_EMAIL_ADDRESS,
+  UBER_EXPORT_EMAIL_SEARCH_QUERY,
+  UBER_EXPORT_EMAIL_SENDER_NAME,
+  UBER_EXPORT_EMAIL_SUBJECT,
+} from '@utils/exportDownloadHandoff';
 
 export default function UploadScreen() {
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
@@ -37,6 +52,9 @@ export default function UploadScreen() {
   const autoImportFlowId = typeof params.autoImportFlowId === 'string' ? params.autoImportFlowId : null;
   const shouldShowExportTutorialFromParam = params.showExportTutorial === 'true';
   const shouldFocusExport = params.focus === 'export';
+  const downloadedVersionFromParam = typeof params.downloadedVersion === 'string'
+    ? params.downloadedVersion
+    : null;
   const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showGmailModal, setShowGmailModal] = useState(false);
@@ -44,7 +62,11 @@ export default function UploadScreen() {
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
   const [gmailImportResult, setGmailImportResult] = useState<GmailImportResponse | null>(null);
   const [gmailConnectPhase, setGmailConnectPhase] = useState<GmailConnectPhase>('idle');
+  const [exportDownloadState, setExportDownloadState] =
+    useState<ExportDownloadHandoffState>('not_downloaded');
+  const [autoOpenExportPickerToken, setAutoOpenExportPickerToken] = useState<string | null>(null);
   const connectSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localPickerRequestRef = useRef(0);
   const { pendingCount, isSyncing } = useOfflineSync();
   const showGmailFeature = featureFlags.showGmailImport;
   const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user?.receiptCount ?? 0;
@@ -64,6 +86,23 @@ export default function UploadScreen() {
     },
   });
   const { hasCompletedExport, isLoading: isExportUpsellLoading, markCompleted } = useExportUpsell(state.user?.id);
+  const {
+    preferences: importPreferences,
+    isLoading: areImportPreferencesLoading,
+    refresh: refreshImportPreferences,
+    setMonitoringConsent,
+    markExportRequested,
+  } = useImportPreferences(Boolean(state.user?.id));
+  const hasServerCompletedExport = importPreferences?.export.status === 'completed';
+  const isExportComplete = hasCompletedExport || hasServerCompletedExport;
+  const hasRequestedExport = importPreferences?.export.status === 'requested_monitoring_enabled'
+    || importPreferences?.export.status === 'requested_monitoring_disabled';
+  const isExportFileReady = importPreferences?.export.status === 'file_ready';
+  const exportReadyVersion = importPreferences?.export.updatedAt ?? 'ready';
+  const shouldShowDownloadGuide = Boolean(
+    importPreferences
+    && !['not_started', 'completed'].includes(importPreferences.export.status)
+  );
   const canImportFromGmail = connectionStatus.canImport !== false;
   const needsReconnectForImport = connectionStatus.connected && !canImportFromGmail;
   const hasConnectedEmail = connectionStatus.connected;
@@ -75,8 +114,41 @@ export default function UploadScreen() {
       || primaryFlowState === 'preparing_import'
       || primaryFlowState === 'importing');
   const hasTriggeredAutoImport = useRef(false);
-  const hasHandledExportFocus = useRef(false);
+  const handledExportFocusKeyRef = useRef<string | null>(null);
   const hasAppliedInitialTask = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshImportPreferences();
+    }, [refreshImportPreferences])
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+    const userId = state.user?.id;
+
+    if (!userId || !isExportFileReady) {
+      setExportDownloadState('not_downloaded');
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    void getExportDownloadHandoffState(userId, exportReadyVersion).then((nextState) => {
+      if (!isCancelled) setExportDownloadState(nextState);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [exportReadyVersion, isExportFileReady, state.user?.id]);
+
+  useEffect(() => {
+    if (isExportFileReady && downloadedVersionFromParam === exportReadyVersion) {
+      setExportDownloadState('downloaded');
+      setAutoOpenExportPickerToken(downloadedVersionFromParam);
+    }
+  }, [downloadedVersionFromParam, exportReadyVersion, isExportFileReady]);
 
   useEffect(() => {
     return () => {
@@ -119,11 +191,19 @@ export default function UploadScreen() {
   }, [refreshConnectionStatus, showGmailFeature, showGmailModal]);
 
   useEffect(() => {
-    if (!shouldFocusExport || exportSectionY === null || hasHandledExportFocus.current) {
+    const focusKey = shouldFocusExport
+      ? `${downloadedVersionFromParam ?? 'export'}:${shouldShowExportTutorialFromParam}`
+      : null;
+    if (
+      !focusKey
+      || exportSectionY === null
+      || handledExportFocusKeyRef.current === focusKey
+    ) {
       return;
     }
 
-    hasHandledExportFocus.current = true;
+    handledExportFocusKeyRef.current = focusKey;
+    setActiveTaskId('uber_export');
 
     requestAnimationFrame(() => {
       scrollViewRef.current?.scrollTo({
@@ -137,10 +217,20 @@ export default function UploadScreen() {
         setShowTutorial(true);
       }, 300);
     }
-  }, [exportSectionY, shouldFocusExport, shouldShowExportTutorialFromParam]);
+  }, [
+    downloadedVersionFromParam,
+    exportSectionY,
+    shouldFocusExport,
+    shouldShowExportTutorialFromParam,
+  ]);
 
   useEffect(() => {
-    if (hasAppliedInitialTask.current || isGmailStatusChecking || isExportUpsellLoading) {
+    if (
+      hasAppliedInitialTask.current
+      || isGmailStatusChecking
+      || isExportUpsellLoading
+      || areImportPreferencesLoading
+    ) {
       return;
     }
 
@@ -152,7 +242,7 @@ export default function UploadScreen() {
     }
 
     if (!showGmailFeature) {
-      setActiveTaskId(hasCompletedExport ? null : 'uber_export');
+      setActiveTaskId(isExportComplete ? null : 'uber_export');
       return;
     }
 
@@ -166,16 +256,17 @@ export default function UploadScreen() {
       return;
     }
 
-    if (!hasCompletedExport) {
+    if (!isExportComplete) {
       setActiveTaskId('uber_export');
       return;
     }
 
     setActiveTaskId(null);
   }, [
-    hasCompletedExport,
+    areImportPreferencesLoading,
     hasConnectedEmail,
     hasImportedDeliveryData,
+    isExportComplete,
     isExportUpsellLoading,
     isGmailStatusChecking,
     shouldFocusExport,
@@ -275,6 +366,97 @@ export default function UploadScreen() {
 
   const handleExportSectionLayout = (event: LayoutChangeEvent) => {
     setExportSectionY(event.nativeEvent.layout.y);
+  };
+
+  const saveExportRequest = async (decision?: 'granted' | 'declined') => {
+    try {
+      if (decision) {
+        await setMonitoringConsent(decision);
+      }
+      await markExportRequested();
+    } catch {
+      showSimpleAlert(
+        'Could not save your export status',
+        'Your tutorial is complete, but we could not save this status. Please try again from Import.'
+      );
+    }
+  };
+
+  const handleExportTutorialComplete = (platform: DataPlatform) => {
+    setShowTutorial(false);
+
+    // Automatic delivery-email monitoring currently supports Uber only.
+    // DoorDash requests are still recorded, but must be uploaded manually.
+    if (platform === 'doordash') {
+      void saveExportRequest();
+      return;
+    }
+
+    if (importPreferences?.monitoring.consentState === 'granted') {
+      void saveExportRequest();
+      return;
+    }
+
+    showAlert(
+      'Notify you when it’s ready?',
+      'Allow SnackTrack to check only for Uber’s data-ready email and let you know when the download is available. SnackTrack will not open the link or download the file.',
+      [
+        {
+          text: 'Not Now',
+          style: 'cancel',
+          onPress: () => {
+            void saveExportRequest('declined');
+          },
+        },
+        {
+          text: 'Notify Me',
+          onPress: () => {
+            void saveExportRequest('granted');
+          },
+        },
+      ]
+    );
+  };
+
+  const reportExportDownloaded = useCallback(async (openPicker = false) => {
+    const userId = state.user?.id;
+    if (!userId || !isExportFileReady) return;
+
+    await setExportDownloadHandoffState(userId, exportReadyVersion, 'downloaded');
+    setExportDownloadState('downloaded');
+    if (openPicker) {
+      localPickerRequestRef.current += 1;
+      setAutoOpenExportPickerToken(
+        `${exportReadyVersion}:local:${localPickerRequestRef.current}`
+      );
+    }
+  }, [exportReadyVersion, isExportFileReady, state.user?.id]);
+
+  const handleAutoOpenPickerConsumed = useCallback(() => {
+    setAutoOpenExportPickerToken(null);
+    if (downloadedVersionFromParam) {
+      router.setParams({ downloadedVersion: undefined });
+    }
+  }, [downloadedVersionFromParam]);
+
+  const handleOpenUberEmail = async () => {
+    const userId = state.user?.id;
+    if (!userId || !isExportFileReady) return;
+
+    setExportDownloadState('checking_email');
+    await setExportDownloadHandoffState(userId, exportReadyVersion, 'checking_email');
+
+    try {
+      await openUberExportEmail();
+    } catch {
+      setExportDownloadState('not_downloaded');
+      await setExportDownloadHandoffState(userId, exportReadyVersion, 'not_downloaded');
+      showAlert(
+        'Could not open Gmail',
+        `Open your email app and search for ${UBER_EXPORT_EMAIL_SEARCH_QUERY}.`,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const gmailButtonLabel = (() => {
@@ -419,41 +601,140 @@ export default function UploadScreen() {
             <View onLayout={handleExportSectionLayout}>
               <ImportTaskCard
                 id="uber_export"
-                title="Import via Uber"
-                description="Optional: upload your Uber export to expand your imported history."
+                title="Import a data export"
+                description="Optional: upload an Uber Eats or DoorDash export to expand your history."
                 iconName="cloud-upload-outline"
-                statusLabel={hasCompletedExport ? 'Complete' : hasImportedDeliveryData ? 'Optional next step' : 'Optional'}
-                statusTone={hasCompletedExport ? 'complete' : 'optional'}
-                isComplete={hasCompletedExport}
+                statusLabel={
+                  isExportComplete
+                    ? 'Complete'
+                    : isExportFileReady
+                      ? exportDownloadState === 'downloaded'
+                        ? 'Ready to upload'
+                        : 'Ready to download'
+                    : hasRequestedExport
+                      ? 'Requested'
+                      : hasImportedDeliveryData
+                        ? 'Optional next step'
+                        : 'Optional'
+                }
+                statusTone={isExportComplete ? 'complete' : isExportFileReady ? 'recommended' : 'optional'}
+                isComplete={isExportComplete}
                 isOpen={activeTaskId === 'uber_export'}
                 onPress={handleTaskPress}
               >
                 <Text style={styles.taskHelperText}>
-                  Already have a delivery data export? Upload it here.
+                  {isExportFileReady
+                    ? exportDownloadState === 'downloaded'
+                      ? 'You said the Uber ZIP is downloaded. Choose it to finish importing your history.'
+                      : `Uber says your export is ready. Its download link is available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.`
+                    : 'Already have a delivery data export? Upload it here.'}
                 </Text>
 
                 <View style={styles.exportCard}>
                   <View style={styles.exportHeader}>
-                    <Ionicons name="cloud-upload-outline" size={28} color={Colors.primary} />
+                    <Ionicons
+                      name={isExportFileReady && exportDownloadState !== 'downloaded'
+                        ? 'mail-unread-outline'
+                        : 'cloud-upload-outline'}
+                      size={28}
+                      color={Colors.primary}
+                    />
                     <View style={styles.exportHeaderText}>
-                      <Text style={styles.exportTitle}>Have an export file?</Text>
+                      <Text style={styles.exportTitle}>
+                        {isExportFileReady && exportDownloadState !== 'downloaded'
+                          ? 'Find Uber’s data-ready email'
+                          : isExportFileReady
+                            ? 'Upload your Uber export'
+                            : 'Have an export file?'}
+                      </Text>
                       <Text style={styles.exportSubtitle}>
-                        Upload it now, or review the tutorial if you need help requesting one.
+                        {isExportFileReady && exportDownloadState !== 'downloaded'
+                          ? `Open the email below and tap “${UBER_EXPORT_EMAIL_ACTION}” to save the original ZIP.`
+                          : 'Upload it now, or use the in-app guide if you need help with the next step.'}
                       </Text>
                     </View>
                   </View>
 
-                  <UberDataUpload
-                    onUploadSuccess={handleUploadSuccess}
-                    onUploadError={handleUploadError}
-                  />
+                  {isExportFileReady && exportDownloadState !== 'downloaded' ? (
+                    <View style={styles.readyActionStack}>
+                      <View style={styles.emailTargetCard}>
+                        <View style={styles.emailTargetRow}>
+                          <Text style={styles.emailTargetLabel}>From</Text>
+                          <View style={styles.emailTargetValueColumn}>
+                            <Text style={styles.emailTargetValue}>{UBER_EXPORT_EMAIL_SENDER_NAME}</Text>
+                            <Text style={styles.emailTargetMeta}>{UBER_EXPORT_EMAIL_ADDRESS}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.emailTargetDivider} />
+                        <View style={styles.emailTargetRow}>
+                          <Text style={styles.emailTargetLabel}>Subject</Text>
+                          <Text style={[styles.emailTargetValue, styles.emailTargetSubject]}>
+                            {UBER_EXPORT_EMAIL_SUBJECT}
+                          </Text>
+                        </View>
+                        <View style={styles.emailTargetDivider} />
+                        <View style={styles.emailTargetRow}>
+                          <Text style={styles.emailTargetLabel}>Tap</Text>
+                          <Text style={[styles.emailTargetValue, styles.emailTargetSubject]}>
+                            {UBER_EXPORT_EMAIL_ACTION}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.gmailButton}
+                        onPress={() => void handleOpenUberEmail()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open Gmail and find the Uber data-ready email"
+                      >
+                        <Ionicons name="mail-outline" size={20} color={Colors.white} />
+                        <Text style={styles.gmailButtonText}>
+                          {exportDownloadState === 'checking_email'
+                            ? 'Open Gmail Again'
+                            : 'Open Gmail and Find This Email'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.downloadedButton}
+                        onPress={() => void reportExportDownloaded(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="I already downloaded the Uber export"
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={20} color={Colors.primary} />
+                        <Text style={styles.downloadedButtonText}>I Already Downloaded It</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.downloadLocationHint}>
+                        Downloaded it on a computer? Move the ZIP to Files, iCloud Drive, or Google Drive on this device first.
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <UberDataUpload
+                        onUploadSuccess={handleUploadSuccess}
+                        onUploadError={handleUploadError}
+                        autoOpenToken={autoOpenExportPickerToken}
+                        onAutoOpenConsumed={handleAutoOpenPickerConsumed}
+                      />
+                      {isExportFileReady ? (
+                        <TouchableOpacity
+                          style={styles.emailHelpButton}
+                          onPress={() => void handleOpenUberEmail()}
+                          accessibilityRole="button"
+                        >
+                          <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
+                          <Text style={styles.emailHelpButtonText}>Still need to download it? Open Gmail</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </>
+                  )}
 
                   <TouchableOpacity
                     style={styles.tutorialButton}
                     onPress={() => setShowTutorial(true)}
                   >
                     <Ionicons name="information-circle-outline" size={20} color={Colors.textSecondary} />
-                    <Text style={styles.tutorialButtonText}>How to request your Uber export</Text>
+                    <Text style={styles.tutorialButtonText}>
+                      {shouldShowDownloadGuide ? 'How to download and upload it' : 'How to request your data'}
+                    </Text>
                     <Ionicons name="chevron-forward" size={18} color={Colors.slate500} />
                   </TouchableOpacity>
                 </View>
@@ -469,7 +750,11 @@ export default function UploadScreen() {
         presentationStyle="fullScreen"
         onRequestClose={() => setShowTutorial(false)}
       >
-        <UberDataTutorial onComplete={() => setShowTutorial(false)} />
+        <UberDataTutorial
+          mode={shouldShowDownloadGuide ? 'download' : 'request'}
+          onRequestConfirmed={handleExportTutorialComplete}
+          onClose={() => setShowTutorial(false)}
+        />
       </Modal>
 
       {showGmailFeature && showGmailModal && (
@@ -601,6 +886,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  readyActionStack: {
+    gap: 12,
+  },
+  emailTargetCard: {
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.slate200,
+    borderRadius: 12,
+    backgroundColor: Colors.slate50,
+  },
+  emailTargetRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  emailTargetLabel: {
+    width: 58,
+    paddingTop: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  emailTargetValueColumn: {
+    flex: 1,
+  },
+  emailTargetValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  emailTargetSubject: {
+    lineHeight: 19,
+  },
+  emailTargetMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  emailTargetDivider: {
+    height: 1,
+    marginVertical: 11,
+    backgroundColor: Colors.slate200,
+  },
+  downloadedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+  },
+  downloadedButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  downloadLocationHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.textSecondary,
+  },
+  emailHelpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 8,
+  },
+  emailHelpButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   tutorialButton: {
     flexDirection: 'row',

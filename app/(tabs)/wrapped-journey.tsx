@@ -16,6 +16,9 @@ import { getCachedAnalytics } from '../../utils/offlineCache';
 import { useExportUpsell } from '../../hooks/useExportUpsell';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
 import WrappedShareJourney from '../../components/wrapped/WrappedShareJourney';
+import { resolvePostWrappedExperience } from '../../components/wrapped/postWrappedState';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
+import { showSimpleAlert } from '../../utils/platformAlert';
 
 type WrappedSummary = UserSummary & {
   wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']>;
@@ -34,11 +37,17 @@ export default function WrappedJourneyScreen() {
   });
   const { state, setAnalytics: setGlobalAnalytics } = useUser();
   const {
-    shouldShowWrappedSlide,
+    isLoading: isExportStateLoading,
+    hasCompletedExport,
     markSeen,
     markClicked,
-    dismiss,
   } = useExportUpsell(state.user?.id);
+  const {
+    preferences: importPreferences,
+    isLoading: areImportPreferencesLoading,
+    isUpdating: areImportPreferencesUpdating,
+    setMonitoringConsent,
+  } = useImportPreferences(Boolean(state.user?.id));
 
   const initialAnalytics = useMemo(
     () => (hasWrappedData(state.analytics) ? state.analytics : null),
@@ -48,6 +57,21 @@ export default function WrappedJourneyScreen() {
   const [analytics, setAnalytics] = useState<UserSummary | null>(initialAnalytics);
   const [isLoading, setIsLoading] = useState<boolean>(!initialAnalytics);
   const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
+  const postWrappedExperience = useMemo(
+    () => resolvePostWrappedExperience({
+      isExportStateLoading: isExportStateLoading || areImportPreferencesLoading,
+      hasCompletedExport:
+        importPreferences?.export.status === 'completed' || hasCompletedExport,
+      coverage: analytics?.wrappedAnalytics?.coverage,
+    }),
+    [
+      analytics?.wrappedAnalytics?.coverage,
+      areImportPreferencesLoading,
+      hasCompletedExport,
+      importPreferences?.export.status,
+      isExportStateLoading,
+    ]
+  );
 
   useEffect(() => {
     const summary = state.analytics;
@@ -152,10 +176,36 @@ export default function WrappedJourneyScreen() {
     });
   }, [markClicked]);
 
-  const handleDismissExportUpsell = useCallback(() => {
-    void dismiss();
+  const handleFinishPostWrapped = useCallback(() => {
     router.replace('/(tabs)');
-  }, [dismiss]);
+  }, []);
+
+  const handleMonitoringDecision = useCallback(async (
+    decision: 'granted' | 'declined'
+  ) => {
+    try {
+      const nextPreferences = await setMonitoringConsent(decision);
+      if (
+        decision === 'granted'
+        && nextPreferences.monitoring.effectiveState === 'reconnect_required'
+      ) {
+        showSimpleAlert(
+          'Permission saved',
+          'Reconnect Gmail from Import before export-ready alerts can work.'
+        );
+      }
+    } catch {
+      showSimpleAlert(
+        'Could not save your choice',
+        'Please check your connection and try again.'
+      );
+      throw new Error('monitoring_consent_update_failed');
+    }
+  }, [setMonitoringConsent]);
+
+  const handleManageGmail = useCallback(() => {
+    router.push('/(tabs)/upload');
+  }, []);
 
   const handleClose = useCallback(() => {
     router.replace('/(tabs)');
@@ -193,11 +243,18 @@ export default function WrappedJourneyScreen() {
     <WrappedShareJourney
       key={loadTimestamp}
       analytics={analytics}
-      showExportUpsell={shouldShowWrappedSlide}
+      postWrappedExperience={postWrappedExperience}
+      monitoringState={importPreferences?.monitoring.effectiveState ?? 'not_offered'}
+      exportStatus={importPreferences?.export.status ?? 'not_started'}
+      areImportPreferencesUpdating={
+        areImportPreferencesLoading || areImportPreferencesUpdating
+      }
+      onMonitoringDecision={handleMonitoringDecision}
+      onManageGmail={handleManageGmail}
       onExportUpsellSeen={handleExportUpsellSeen}
       onExportUpgrade={handleExportUpgrade}
       onExportTutorial={handleExportTutorial}
-      onDismissExportUpsell={handleDismissExportUpsell}
+      onFinishPostWrapped={handleFinishPostWrapped}
       onClose={handleClose}
     />
   );

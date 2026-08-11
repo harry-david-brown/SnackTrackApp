@@ -129,8 +129,13 @@ export function buildWrappedSlides({
   const lifetimeScope = { kind: 'lifetime' } as const;
   const coverage = wrapped?.coverage;
   const importedOrderCount = coverage?.orderCount ?? analytics.totalReceipts;
-  const formatCoverageMonth = (dateString: string) =>
-    new Date(dateString).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const formatCoverageMonth = (dateString: string) => {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateString);
+    const date = dateOnly
+      ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+      : new Date(dateString);
+    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  };
   const coverageWindow = coverage?.earliestOrderDate && coverage?.latestOrderDate
     ? `${formatCoverageMonth(coverage.earliestOrderDate)}–${formatCoverageMonth(coverage.latestOrderDate)}`
     : null;
@@ -186,7 +191,7 @@ export function buildWrappedSlides({
     gradient: 'ember',
     emoji: '😱',
     mascotPose: 'prop-receipt',
-    a11y: `The Lifetime Damage. ${formatCurrency(analytics.totalSpent)} across imported food delivery orders.${
+    a11y: `The Lifetime Damage. ${formatCurrency(analytics.totalSpent)} across imported delivery orders.${
       spendTop != null && spendTop <= 50 ? ` Top ${spendTop} percent of spenders.` : ''
     } ${totalDamageMessage}`,
     content: (
@@ -562,12 +567,12 @@ export function buildWrappedSlides({
         gradient: 'lagoon',
         emoji: '📈',
         mascotPose: 'prop-piggy-bank',
-        a11y: `The Investment You Didn't Make. Worth ${formatCurrency(data.wouldBeWorth)} if invested in the S&P 500. ${investmentMessage}`,
+        a11y: `The Investment You Didn't Make. Worth ${formatCurrency(data.wouldBeWorth)} at a hypothetical ${data.sp500Return} percent annual return. ${investmentMessage}`,
         content: (
           <>
             <Text style={styles.slideTitle}>The Investment You Didn&apos;t Make</Text>
             <AnimatedCount value={data.wouldBeWorth} format={formatCurrency} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit />
-            <Text style={styles.bigNumberLabel}>if you&apos;d invested in S&P 500</Text>
+            <Text style={styles.bigNumberLabel}>at a hypothetical {data.sp500Return}% annual return</Text>
             <Spacer h={6} />
             <View style={styles.detailBox}>
               <Text style={styles.detailText}>That&apos;s {formatCurrency(data.missedGains)} in missed gains</Text>
@@ -700,16 +705,15 @@ export function buildWrappedSlides({
 
   if (wrapped?.patterns.weekendWarrior) {
     const data = wrapped.patterns.weekendWarrior;
-    const isWeekendMore = data.weekendSpending > data.weekdaySpending;
-    const total = data.weekendSpending + data.weekdaySpending;
-    const weekendShare = total > 0 ? data.weekendSpending / total : 0.5;
+    const isWeekendMore = data.ratio > 1;
+    const normalizedWeekendShare = data.ratio > 0 ? data.ratio / (1 + data.ratio) : 0;
     const weekendWarriorMessage = getDeterministicMessage('weekendWarrior', analytics, undefined, 13);
-    if (Math.abs(weekendShare - 0.5) >= 0.1) {
+    if (Math.abs(normalizedWeekendShare - 0.5) >= 0.1) {
       optional.push({
         id: 'weekend-warrior',
         category: 'pattern',
         // Interesting only insofar as spending skews away from an even split.
-        intensity: clamp100(Math.abs(weekendShare - 0.5) * 200),
+        intensity: clamp100(Math.abs(normalizedWeekendShare - 0.5) * 200),
         slide: {
           id: 'weekend-warrior',
           category: 'pattern',
@@ -741,7 +745,9 @@ export function buildWrappedSlides({
   // Month-by-month spending chart — one visual slide to break up the
   // number-title-roast rhythm. Needs at least 3 months to be worth showing.
   if (analytics.monthlyBreakdown && analytics.monthlyBreakdown.length >= 3) {
-    const months = analytics.monthlyBreakdown.slice(-12);
+    const months = [...analytics.monthlyBreakdown]
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-12);
     const peak = months.reduce((best, m) => (m.totalSpent > best.totalSpent ? m : best), months[0]);
     optional.push({
       id: 'spending-timeline',

@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../services/authApi';
+import { showAlert } from '../../utils/platformAlert';
 
 interface EmailVerificationModalProps {
   visible: boolean;
@@ -77,7 +77,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       
       // Handle "already verified" case
       if (errorMessage.toLowerCase().includes('already verified')) {
-        Alert.alert('Already Verified', 'This email is already verified.');
+        showAlert('Already Verified', 'This email is already verified.');
         onVerified(); // Update state to reflect verified status
         return;
       }
@@ -97,7 +97,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     try {
       setIsVerifying(true);
       await authApi.verifyEmailCode({ email, code });
-      Alert.alert('Email Verified', 'Your email has been verified successfully!');
+      showAlert('Email Verified', 'Your email has been verified successfully!');
       onVerified();
     } catch (err: any) {
       // Handle backend error format: error.error?.message
@@ -278,5 +278,4 @@ const styles = StyleSheet.create({
 });
 
 export default EmailVerificationModal;
-
 

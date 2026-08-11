@@ -5,11 +5,20 @@ process.env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://te
 process.env.EXPO_PUBLIC_APP_ENV = process.env.EXPO_PUBLIC_APP_ENV || 'development';
 
 // Mock Expo modules
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  setParams: jest.fn(),
+};
+
 jest.mock('expo-router', () => ({
+  router: mockRouter,
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
+    push: mockRouter.push,
+    replace: mockRouter.replace,
+    back: mockRouter.back,
+    setParams: mockRouter.setParams,
   }),
   useLocalSearchParams: () => ({}),
   Stack: ({ children }: { children: React.ReactNode }) => children,
@@ -27,6 +36,7 @@ jest.mock('expo-status-bar', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 // Mock AsyncStorage

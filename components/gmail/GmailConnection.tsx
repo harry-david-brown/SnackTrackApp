@@ -138,7 +138,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
         <View style={styles.privacyContent}>
           <Text style={styles.privacyTitle}>Your privacy matters</Text>
           <Text style={styles.privacyText}>
-            We only request read-only Gmail access. We do not store your inbox, and we only extract receipt data from matching Uber Eats emails.
+            We only request read-only Gmail access and do not store your inbox. One-time imports use matching Uber Eats receipts; export-ready alerts, when explicitly enabled, check for Uber’s matching data-ready email but never open its link or download the file.
           </Text>
         </View>
       </View>
