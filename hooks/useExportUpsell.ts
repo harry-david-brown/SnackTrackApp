@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { receiptApi } from '../services/api/receiptApi';
-import { DataSource } from '../types/api';
+import { useImportPreferences } from './useImportPreferences';
 
 const EXPORT_UPSELL_STORAGE_PREFIX = '@snacktrack_export_upsell';
 const EXPORT_UPSELL_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 const EXPORT_UPSELL_MAX_DISMISSALS = 2;
-const RECEIPT_SOURCE_CHECK_LIMIT = 50;
 
 export interface ExportUpsellState {
   wrappedSeenAt: string | null;
@@ -14,7 +12,6 @@ export interface ExportUpsellState {
   clickedAt: string | null;
   lastDismissedAt: string | null;
   dismissCount: number;
-  completedAt: string | null;
 }
 
 const DEFAULT_STATE: ExportUpsellState = {
@@ -23,14 +20,9 @@ const DEFAULT_STATE: ExportUpsellState = {
   clickedAt: null,
   lastDismissedAt: null,
   dismissCount: 0,
-  completedAt: null,
 };
 
 type ExportUpsellSurface = 'wrapped' | 'dashboard';
-type ExportUpsellResetListener = (userId: string) => void;
-
-const resetListeners = new Set<ExportUpsellResetListener>();
-
 const getStorageKey = (userId: string) => `${EXPORT_UPSELL_STORAGE_PREFIX}_${userId}`;
 
 const sanitizeState = (value: unknown): ExportUpsellState => {
@@ -46,7 +38,6 @@ const sanitizeState = (value: unknown): ExportUpsellState => {
     clickedAt: typeof parsed.clickedAt === 'string' ? parsed.clickedAt : null,
     lastDismissedAt: typeof parsed.lastDismissedAt === 'string' ? parsed.lastDismissedAt : null,
     dismissCount: typeof parsed.dismissCount === 'number' ? parsed.dismissCount : 0,
-    completedAt: typeof parsed.completedAt === 'string' ? parsed.completedAt : null,
   };
 };
 
@@ -67,10 +58,9 @@ const saveStateForUser = async (userId: string, state: ExportUpsellState) => {
   await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(state));
 };
 
-/** Clear legacy device-side export completion and notify mounted consumers. */
+/** Clear device-side presentation history after the server resets receipt coverage. */
 export const resetExportUpsellForUser = async (userId: string) => {
   await saveStateForUser(userId, DEFAULT_STATE);
-  resetListeners.forEach((listener) => listener(userId));
 };
 
 const isWithinSnoozeWindow = (lastDismissedAt: string | null) => {
@@ -89,26 +79,18 @@ const isWithinSnoozeWindow = (lastDismissedAt: string | null) => {
 export function useExportUpsell(userId?: string | null) {
   const [upsellState, setUpsellState] = useState<ExportUpsellState>(DEFAULT_STATE);
   const [isLoading, setIsLoading] = useState(Boolean(userId));
-  const [hasCompletedExport, setHasCompletedExport] = useState(false);
-
-  useEffect(() => {
-    const handleReset = (resetUserId: string) => {
-      if (resetUserId !== userId) return;
-      setUpsellState({ ...DEFAULT_STATE });
-      setHasCompletedExport(false);
-      setIsLoading(false);
-    };
-
-    resetListeners.add(handleReset);
-    return () => {
-      resetListeners.delete(handleReset);
-    };
-  }, [userId]);
+  const {
+    preferences,
+    isLoading: arePreferencesLoading,
+    refresh: refreshPreferences,
+  } = useImportPreferences(Boolean(userId));
+  const hasCompletedExport = Boolean(
+    preferences?.coverage.hasExportData || preferences?.export.status === 'completed'
+  );
 
   useEffect(() => {
     if (!userId) {
       setUpsellState(DEFAULT_STATE);
-      setHasCompletedExport(false);
       setIsLoading(false);
       return;
     }
@@ -120,29 +102,8 @@ export function useExportUpsell(userId?: string | null) {
 
       try {
         const storedState = await loadStateForUser(userId);
-        let nextState = storedState;
-        let completed = Boolean(storedState.completedAt);
-
-        if (!completed) {
-          try {
-            const response = await receiptApi.getReceipts(userId, RECEIPT_SOURCE_CHECK_LIMIT, 0);
-            completed = response.data.some((receipt) => receipt.dataSource === DataSource.CSV);
-
-            if (completed) {
-              nextState = {
-                ...storedState,
-                completedAt: storedState.completedAt ?? new Date().toISOString(),
-              };
-              await saveStateForUser(userId, nextState);
-            }
-          } catch {
-            completed = Boolean(storedState.completedAt);
-          }
-        }
-
         if (!cancelled) {
-          setUpsellState(nextState);
-          setHasCompletedExport(completed);
+          setUpsellState(storedState);
         }
       } finally {
         if (!cancelled) {
@@ -208,24 +169,16 @@ export function useExportUpsell(userId?: string | null) {
       return;
     }
 
-    const completedAt = new Date().toISOString();
-    const nextState = {
-      ...upsellState,
-      completedAt,
-    };
-
-    setUpsellState(nextState);
-    setHasCompletedExport(true);
-    await saveStateForUser(userId, nextState);
-  }, [upsellState, userId]);
+    await refreshPreferences();
+  }, [refreshPreferences, userId]);
 
   const isPermanentlyDismissed = upsellState.dismissCount >= EXPORT_UPSELL_MAX_DISMISSALS;
   const isSnoozed = isWithinSnoozeWindow(upsellState.lastDismissedAt);
-  const shouldShowDashboardCard = !isLoading && !hasCompletedExport && Boolean(upsellState.wrappedSeenAt) && !isPermanentlyDismissed && !isSnoozed;
+  const shouldShowDashboardCard = !isLoading && !arePreferencesLoading && !hasCompletedExport && Boolean(upsellState.wrappedSeenAt) && !isPermanentlyDismissed && !isSnoozed;
 
   return {
     upsellState,
-    isLoading,
+    isLoading: isLoading || arePreferencesLoading,
     hasCompletedExport,
     shouldShowDashboardCard,
     markSeen,

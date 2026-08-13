@@ -16,17 +16,13 @@ import { CurrencySelectorModal } from '../../components/profile/CurrencySelector
 import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
 import { featureFlags } from '../../config/featureFlags';
 import { authApi } from '../../services/authApi';
-import { receiptApi } from '../../services/api';
 import { getRefreshToken } from '../../utils/tokenManager';
-import {
-  resetCachedImportExportState,
-  useImportPreferences,
-} from '../../hooks/useImportPreferences';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
 import { showAlert } from '../../utils/platformAlert';
-import { resetExportUpsellForUser } from '../../hooks/useExportUpsell';
+import { useAnalyticsQuery } from '../../hooks/queries/useAnalyticsQueries';
 
 export default function ProfileScreen() {
-  const { state, logout, resetReceiptData } = useUser();
+  const { state, logout } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
   const [showTutorial, setShowTutorial] = useState(false);
@@ -51,27 +47,31 @@ export default function ProfileScreen() {
     }, [refreshImportPreferences])
   );
   
-  // Use analytics from context instead of loading separately
-  const analytics = state.analytics;
+  const { data: analytics } = useAnalyticsQuery(state.user?.id);
 
   const handleResetOnboarding = async () => {
+    if (isClearingReceipts) return;
     showAlert(
       'Reset Onboarding',
-      'This will show the onboarding flow again, disconnect Gmail, and reset the Gmail import step. Your existing receipts will remain. Continue?',
+      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears your Uber export progress. Your login remains active. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Reset', 
           style: 'destructive',
           onPress: async () => {
+            setIsClearingReceipts(true);
             try {
               await resetOnboarding();
               showAlert(
-                'Success',
-                'Onboarding and Gmail import status reset. Gmail has been disconnected.'
+                'Account Reset',
+                'Your import data has been cleared and Gmail is disconnected.'
               );
+              router.replace('/');
             } catch {
               showAlert('Reset Failed', 'Could not reset onboarding. Please try again.');
+            } finally {
+              setIsClearingReceipts(false);
             }
           }
         },
@@ -321,15 +321,15 @@ export default function ProfileScreen() {
     if (!state.user || isClearingReceipts) return;
 
     showAlert(
-      'Clear All Receipts',
-      'This will permanently delete all of your receipts and reset your spending analytics. Your account will remain active.\n\nThis action cannot be undone.',
+      'Reset Imported Data',
+      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears Uber export progress. Your login remains active.\n\nThis action cannot be undone.',
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Clear Receipts',
+          text: 'Reset Data',
           style: 'destructive',
           onPress: performClearReceipts,
         },
@@ -343,15 +343,12 @@ export default function ProfileScreen() {
     setIsClearingReceipts(true);
 
     try {
-      await receiptApi.clearReceipts();
       await resetOnboarding();
-      await resetExportUpsellForUser(state.user.id);
-      resetCachedImportExportState();
-      resetReceiptData();
       showAlert(
         'Receipts Cleared',
-        'All of your receipts have been deleted. Onboarding and import statuses have been reset, and Gmail has been disconnected.'
+        'Your account import data has been reset and Gmail is disconnected.'
       );
+      router.replace('/');
     } catch (error: any) {
       let errorMessage = 'Failed to clear receipts. Please try again.';
 
@@ -578,9 +575,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {showReset && (
-            <TouchableOpacity style={styles.menuItem} onPress={handleResetOnboarding}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleResetOnboarding}
+              disabled={isClearingReceipts || isDeleting}
+            >
               <Ionicons name="refresh-outline" size={24} color={Colors.warning} />
-              <Text style={[styles.menuText, { color: Colors.warning }]}>Reset Onboarding (Dev)</Text>
+              <Text style={[styles.menuText, { color: Colors.warning }]}>
+                {isClearingReceipts ? 'Resetting Account...' : 'Reset Onboarding (Dev)'}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -591,7 +594,7 @@ export default function ProfileScreen() {
           >
             <Ionicons name="trash-outline" size={24} color={Colors.error} />
             <Text style={[styles.menuText, { color: Colors.error }]}>
-              {isClearingReceipts ? 'Clearing Receipts...' : 'Clear My Receipts'}
+              {isClearingReceipts ? 'Resetting Account...' : 'Reset Imported Data'}
             </Text>
             {isClearingReceipts ? (
               <ActivityIndicator size="small" color={Colors.error} />

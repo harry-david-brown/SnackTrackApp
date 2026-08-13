@@ -3,6 +3,7 @@ import { useGmailImport } from '../../hooks/useGmailImport';
 import { gmailApi } from '../../services/gmailApi';
 import * as WebBrowser from 'expo-web-browser';
 import { showSimpleAlert } from '../../utils/platformAlert';
+import { createQueryTestWrapper } from '../utils/queryTestUtils';
 
 jest.mock('expo-auth-session', () => ({
   makeRedirectUri: jest.fn(() => 'snacktrack://oauth-callback'),
@@ -24,8 +25,7 @@ jest.mock('../../services/gmailApi', () => ({
 
 jest.mock('../../contexts/UserContext', () => ({
   useUser: jest.fn(() => ({
-    state: { user: null },
-    setAnalytics: jest.fn(),
+    state: { user: { id: 'user-123' } },
   })),
 }));
 
@@ -41,6 +41,11 @@ jest.mock('../../utils/platformAlert', () => ({
 }));
 
 describe('useGmailImport', () => {
+  const renderGmailHook = () => {
+    const { Wrapper } = createQueryTestWrapper();
+    return renderHook(() => useGmailImport(), { wrapper: Wrapper });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: false });
@@ -57,7 +62,7 @@ describe('useGmailImport', () => {
         })
     );
 
-    const { result } = renderHook(() => useGmailImport());
+    const { result } = renderGmailHook();
 
     await waitFor(() => {
       expect(result.current.isChecking).toBe(false);
@@ -95,7 +100,7 @@ describe('useGmailImport', () => {
       .mockResolvedValueOnce({ connected: true, canImport: true });
     (gmailApi.importReceipts as jest.Mock).mockRejectedValue(new Error('Import failed'));
 
-    const { result } = renderHook(() => useGmailImport());
+    const { result } = renderGmailHook();
 
     await waitFor(() => {
       expect(result.current.isChecking).toBe(false);
@@ -132,7 +137,7 @@ describe('useGmailImport', () => {
       },
     });
 
-    const { result } = renderHook(() => useGmailImport());
+    const { result } = renderGmailHook();
     await waitFor(() => expect(result.current.isChecking).toBe(false));
 
     await act(async () => {

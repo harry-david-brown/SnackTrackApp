@@ -4,6 +4,7 @@ describe('API Services', () => {
     const { userApi } = require('../../services/api');
     expect(userApi).toBeDefined();
     expect(typeof userApi.createUser).toBe('function');
+    expect(typeof userApi.resetOnboarding).toBe('function');
   });
 
   it('should have csvApi with importCsv method', () => {

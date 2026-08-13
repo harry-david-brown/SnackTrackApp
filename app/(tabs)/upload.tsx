@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutChangeEvent,
   Modal,
@@ -44,9 +45,12 @@ import {
   UBER_EXPORT_EMAIL_SENDER_NAME,
   UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
+import { analyticsKeys } from '../../lib/queryKeys';
+import { invalidateReceiptDerivedData } from '../../lib/queryInvalidation';
 
 export default function UploadScreen() {
-  const { state, setAnalytics: setGlobalAnalytics } = useUser();
+  const { state } = useUser();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams();
   const shouldAutoImportFromParam = params.autoImportGmail === 'true';
   const autoImportFlowId = typeof params.autoImportFlowId === 'string' ? params.autoImportFlowId : null;
@@ -280,6 +284,9 @@ export default function UploadScreen() {
 
   const handleUploadSuccess = async (_receiptsCount: number) => {
     await markCompleted();
+    if (state.user) {
+      await invalidateReceiptDerivedData(queryClient, state.user.id);
+    }
     setShowLoader(true);
   };
 
@@ -290,15 +297,17 @@ export default function UploadScreen() {
         return;
       }
 
-      const summary = await analyticsApi.getUserSummary(state.user.id, true);
-      setGlobalAnalytics(summary);
+      await queryClient.fetchQuery({
+        queryKey: analyticsKeys.wrapped(state.user.id),
+        queryFn: () => analyticsApi.getUserSummary(state.user!.id, true),
+      });
       router.replace('/(tabs)/wrapped-journey');
     } catch (error) {
       console.error('Failed to complete import flow:', error);
     } finally {
       setShowLoader(false);
     }
-  }, [setGlobalAnalytics, state.user]);
+  }, [queryClient, state.user]);
 
   useEffect(() => {
     if (!gmailImportResult) {

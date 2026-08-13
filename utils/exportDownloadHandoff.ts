@@ -9,6 +9,7 @@ interface StoredExportDownloadHandoff {
 }
 
 const STORAGE_KEY_PREFIX = 'uber-export-download-handoff';
+const READY_NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';
 const GMAIL_APP_URL = 'googlegmail://';
 
 export const UBER_EXPORT_EMAIL_SENDER_NAME = 'Uber – Download Your Data';
@@ -54,6 +55,13 @@ export async function setExportDownloadHandoffState(
 ): Promise<void> {
   const value: StoredExportDownloadHandoff = { readyVersion, state };
   await AsyncStorage.setItem(storageKey(userId), JSON.stringify(value));
+}
+
+export async function resetExportDownloadStateForUser(userId: string): Promise<void> {
+  await Promise.all([
+    AsyncStorage.removeItem(storageKey(userId)),
+    AsyncStorage.removeItem(`${READY_NOTIFICATION_KEY_PREFIX}:${userId}`),
+  ]);
 }
 
 /** Opens Gmail when installed, falling back to a focused Gmail web search. */

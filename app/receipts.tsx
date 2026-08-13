@@ -12,86 +12,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { receiptApi } from '../services/api';
+import { useState } from 'react';
 import { Receipt, DataSource } from '../types/api';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useUser } from '../contexts/UserContext';
+import { useReceiptsQuery } from '../hooks/queries/useReceiptsQuery';
 
 export default function ReceiptsScreen() {
   const { formatCurrency } = useCurrency();
   const { state } = useUser();
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
-  const [totalReceipts, setTotalReceipts] = useState<number>(0);
 
   const ITEMS_PER_PAGE = 20;
-
-  const fetchReceipts = async (pageNum: number = 0, append: boolean = false) => {
-    try {
-      if (!state.user?.id) {
-        setError('User not logged in');
-        setLoading(false);
-        return;
-      }
-
-      if (!append) {
-        setLoading(true);
-        // Reset expanded receipt when refreshing
-        setExpandedReceiptId(null);
-      } else {
-        setLoadingMore(true);
-      }
-      setError(null);
-
-      const offset = pageNum * ITEMS_PER_PAGE;
-      const response = await receiptApi.getReceipts(state.user.id, ITEMS_PER_PAGE, offset);
-      
-      if (append) {
-        setReceipts(prev => [...prev, ...response.data]);
-      } else {
-        setReceipts(response.data);
-      }
-
-      // Update total count from pagination
-      if (response.pagination?.total !== undefined) {
-        setTotalReceipts(response.pagination.total);
-      }
-
-      // Check if we have more items to load
-      setHasMore(response.data.length === ITEMS_PER_PAGE);
-      setPage(pageNum);
-    } catch (err) {
-      console.error('Error fetching receipts:', err);
-      setError('Failed to load receipts. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    if (state.user?.id) {
-      fetchReceipts(0, false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.user?.id]);
+  const receiptsQuery = useReceiptsQuery(state.user?.id, ITEMS_PER_PAGE);
+  const receipts = receiptsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const totalReceipts = receiptsQuery.data?.pages[0]?.pagination?.total ?? receipts.length;
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchReceipts(0, false);
+    setExpandedReceiptId(null);
+    await receiptsQuery.refetch();
   };
 
   const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      fetchReceipts(page + 1, true);
+    if (!receiptsQuery.isFetchingNextPage && receiptsQuery.hasNextPage) {
+      void receiptsQuery.fetchNextPage();
     }
   };
 
@@ -277,7 +221,7 @@ export default function ReceiptsScreen() {
   );
 
   const renderFooter = () => {
-    if (!loadingMore) return null;
+    if (!receiptsQuery.isFetchingNextPage) return null;
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color={Colors.primary} />
@@ -321,19 +265,19 @@ export default function ReceiptsScreen() {
         <View style={styles.backButton} />
       </View>
 
-      {loading && !refreshing ? (
+      {receiptsQuery.isPending ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading receipts...</Text>
         </View>
-      ) : error ? (
+      ) : receiptsQuery.isError ? (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={60} color={Colors.error} />
           <Text style={styles.errorTitle}>Oops!</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>Failed to load receipts. Please try again.</Text>
           <TouchableOpacity 
             style={styles.retryButton}
-            onPress={() => fetchReceipts(0, false)}
+            onPress={() => { void receiptsQuery.refetch(); }}
           >
             <Ionicons name="refresh-outline" size={20} color={Colors.white} />
             <Text style={styles.retryButtonText}>Try Again</Text>
@@ -349,7 +293,7 @@ export default function ReceiptsScreen() {
           ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage}
               onRefresh={onRefresh}
               tintColor={Colors.primary}
             />

@@ -1,12 +1,12 @@
 import { Colors } from '@/constants/theme';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
-import { ErrorMessage, ErrorType } from '../../components/ui/ErrorMessage';
+import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { SlideInView } from '../../components/ui/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
@@ -16,12 +16,13 @@ import { resolveDashboardTrackingState, type DashboardTrackingAction } from '../
 import { showAlert, showSimpleAlert } from '../../utils/platformAlert';
 import { openUberExportEmail } from '../../utils/exportDownloadHandoff';
 import { WhatWeNoticedCarousel } from '../../components/dashboard/WhatWeNoticedCarousel';
+import { useAnalyticsQuery } from '../../hooks/queries/useAnalyticsQueries';
 
 export default function DashboardScreen() {
-  const { state, logout, loadAnalytics } = useUser();
+  const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
-  const [analyticsError, setAnalyticsError] = useState<{ message: string; type: ErrorType } | null>(null);
-  const initialLoadDoneRef = useRef(false);
+  const analyticsQuery = useAnalyticsQuery(state.user?.id);
+  const { data: analytics, refetch: loadAnalytics } = analyticsQuery;
   const automaticTrackingCheckRef = useRef<string | null>(null);
   const automaticInitialGmailScanRef = useRef<string | null>(null);
   const {
@@ -35,9 +36,6 @@ export default function DashboardScreen() {
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
   
-  // Use analytics from context instead of local state
-  const analytics = state.analytics;
-
   useEffect(() => {
     if (
       !importPreferences
@@ -72,33 +70,10 @@ export default function DashboardScreen() {
       .catch(() => undefined);
   }, [checkOngoingTracking, importPreferences, isImportStateUpdating, loadAnalytics]);
 
-  // Load analytics only when user logs in/out, not on every user property change
-  useEffect(() => {
-    if (state.user && !state.analytics && !state.analyticsLoading) {
-      // Only load if not already loading (prevents duplicate calls after login)
-      loadAnalytics().then(() => {
-        // Set flag after load completes to prevent useFocusEffect from triggering too early
-        initialLoadDoneRef.current = true;
-      });
-    } else if (!state.user) {
-      // Reset flag when user logs out
-      initialLoadDoneRef.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.user?.id, state.analytics, state.analyticsLoading]);
-
-  // Reload analytics when screen comes into focus (e.g., after wrapped journey or upload)
-  // Skip if we haven't done the initial load yet (prevents duplicate on login)
   useFocusEffect(
     React.useCallback(() => {
-      // Only reload if we've already done the initial load AND we don't have analytics
-      // This prevents unnecessary calls when just switching tabs
-      if (state.user && initialLoadDoneRef.current && !state.analytics) {
-        loadAnalytics();
-      }
       void refreshImportPreferences();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.user, state.analytics, refreshImportPreferences])
+    }, [refreshImportPreferences])
   );
 
 
@@ -173,12 +148,11 @@ export default function DashboardScreen() {
       >
         <View style={styles.content}>
           {/* Error Message */}
-          {analyticsError && (
+          {analyticsQuery.isError && (
             <ErrorMessage
-              error={analyticsError.message}
-              type={analyticsError.type}
-              onRetry={loadAnalytics}
-              onDismiss={() => setAnalyticsError(null)}
+              error="We couldn’t refresh your spending summary."
+              type="network"
+              onRetry={() => { void loadAnalytics(); }}
             />
           )}
 
@@ -208,7 +182,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardTitle}>Total Spent</Text>
               </View>
               <Text style={styles.cardValue}>
-                {analytics ? formatCurrency(analytics.totalSpent) : formatCurrency(state.user.totalSpent)}
+                {analytics ? formatCurrency(analytics.totalSpent) : '—'}
               </Text>
               <Text style={styles.cardSubtext}>All time</Text>
             </View>
@@ -221,7 +195,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardTitle}>Receipts</Text>
               </View>
               <Text style={styles.cardValue}>
-                {analytics ? analytics.totalReceipts : state.user.receiptCount}
+                {analytics ? analytics.totalReceipts : '—'}
               </Text>
               <Text style={styles.cardSubtext}>Orders tracked</Text>
             </View>

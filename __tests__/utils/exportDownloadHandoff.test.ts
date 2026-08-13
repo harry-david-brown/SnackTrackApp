@@ -3,6 +3,7 @@ import { Linking, Platform } from 'react-native';
 import {
   getExportDownloadHandoffState,
   openUberExportEmail,
+  resetExportDownloadStateForUser,
   setExportDownloadHandoffState,
   UBER_EXPORT_EMAIL_SEARCH_QUERY,
   UBER_EXPORT_GMAIL_SEARCH_URL,
@@ -48,5 +49,18 @@ describe('exportDownloadHandoff', () => {
       'from:noreply@uber.com subject:"Your Uber data is ready for download"'
     );
     expect(openUrl).toHaveBeenNthCalledWith(2, UBER_EXPORT_GMAIL_SEARCH_URL);
+  });
+
+  it('clears local export progress for a fresh onboarding state', async () => {
+    await resetExportDownloadStateForUser('user-1');
+
+    expect(AsyncStorage.removeItem).toHaveBeenNthCalledWith(
+      1,
+      'uber-export-download-handoff:user-1'
+    );
+    expect(AsyncStorage.removeItem).toHaveBeenNthCalledWith(
+      2,
+      'uber-export-ready-notified:user-1'
+    );
   });
 });

@@ -17,7 +17,7 @@ import { useUser } from '../../contexts/UserContext';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { parseApiError } from '../../utils/errorUtils';
 import { captureException } from '../../utils/sentry';
-import { showAlert } from '../../utils/alerts';
+import { showAlert } from '../../utils/platformAlert';
 
 interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;

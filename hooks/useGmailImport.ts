@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { gmailApi, GmailConnectionStatus, type GmailImportResponse } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
-import { analyticsApi } from '../services/analyticsApi';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
 import { getErrorMessage } from '../utils/errorUtils';
+import { gmailStatusKeys } from '../lib/queryKeys';
+import { invalidateImportState, invalidateReceiptDerivedData } from '../lib/queryInvalidation';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,10 +32,18 @@ interface UseGmailImportOptions {
 
 export function useGmailImport(options: UseGmailImportOptions = {}) {
   const { onImportSuccess, onDisconnectSuccess } = options;
-  const { state, setAnalytics } = useUser();
-  const [connectionStatus, setConnectionStatus] = useState<GmailConnectionStatus>({ connected: false });
+  const { state } = useUser();
+  const queryClient = useQueryClient();
+  const userId = state.user?.id;
+  const statusKey = gmailStatusKeys.current(userId ?? 'anonymous');
+  const statusQuery = useQuery({
+    queryKey: statusKey,
+    queryFn: gmailApi.getStatus,
+    enabled: Boolean(userId),
+    staleTime: 60 * 1000,
+  });
+  const connectionStatus = statusQuery.data ?? { connected: false };
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
   const [primaryFlowState, setPrimaryFlowStateLocal] = useState<GmailPrimaryFlowState>(primaryFlowStateStore);
 
   useEffect(() => {
@@ -51,21 +61,17 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
   const refreshConnectionStatus = useCallback(async () => {
     try {
-      setIsChecking(true);
-      const status = await gmailApi.getStatus();
-      setConnectionStatus(status);
-      return status;
+      if (!userId) return null;
+      return await queryClient.fetchQuery({
+        queryKey: statusKey,
+        queryFn: gmailApi.getStatus,
+        staleTime: 0,
+      });
     } catch (error) {
       console.error('Failed to check Gmail status:', error);
       return null;
-    } finally {
-      setIsChecking(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void refreshConnectionStatus();
-  }, [refreshConnectionStatus]);
+  }, [queryClient, statusKey, userId]);
 
   const formatExpiry = useCallback((expiresAt?: string | null): string | null => {
     if (!expiresAt) {
@@ -92,14 +98,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
       const result = await gmailApi.importReceipts();
 
       if (result.success) {
-        if (state.user) {
-          try {
-            const summary = await analyticsApi.getUserSummary(state.user.id, true);
-            setAnalytics(summary);
-          } catch (error) {
-            console.warn('Failed to refresh analytics:', error);
-          }
-        }
+        if (userId) await invalidateReceiptDerivedData(queryClient, userId);
 
         try {
           onImportSuccess?.(result);
@@ -145,7 +144,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
       return false;
     }
-  }, [connectionStatus, onImportSuccess, refreshConnectionStatus, setAnalytics, state.user]);
+  }, [connectionStatus, onImportSuccess, queryClient, refreshConnectionStatus, userId]);
 
   const waitForImportReady = useCallback(async () => {
     let latestStatus: GmailConnectionStatus | null = null;
@@ -323,7 +322,8 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
             try {
               setIsLoading(true);
               await gmailApi.disconnect();
-              setConnectionStatus({ connected: false });
+              queryClient.setQueryData(statusKey, { connected: false });
+              if (userId) await invalidateImportState(queryClient, userId);
               onDisconnectSuccess?.();
               showSimpleAlert('Success', 'Gmail account disconnected.');
             } catch (error) {
@@ -336,12 +336,12 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         },
       ]
     );
-  }, [onDisconnectSuccess]);
+  }, [onDisconnectSuccess, queryClient, statusKey, userId]);
 
   return {
     connectionStatus,
     isLoading,
-    isChecking,
+    isChecking: statusQuery.isPending || statusQuery.isFetching,
     primaryFlowState,
     isPrimaryActionInProgress,
     connectGmail,

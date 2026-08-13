@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import PasswordResetModal from './PasswordResetModal';
-import { showAlert } from '../../utils/alerts';
+import { showAlert } from '../../utils/platformAlert';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';

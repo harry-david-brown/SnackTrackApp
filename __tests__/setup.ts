@@ -47,18 +47,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }));
 
-// Mock React Query
-jest.mock('@tanstack/react-query', () => ({
-  QueryClient: jest.fn(() => ({
-    getQueryData: jest.fn(),
-    setQueryData: jest.fn(),
-    invalidateQueries: jest.fn(),
-  })),
-  QueryClientProvider: ({ children }: { children: React.ReactNode }) => children,
-  useQuery: jest.fn(),
-  useMutation: jest.fn(),
-}));
-
 // Mock Expo Constants for environment config
 jest.mock('expo-constants', () => ({
   default: {

@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,15 +10,14 @@ import {
   Fredoka_700Bold,
 } from '@expo-google-fonts/fredoka';
 import { useUser } from '../../contexts/UserContext';
-import { analyticsApi } from '../../services/analyticsApi';
 import { UserSummary } from '../../types/api';
-import { getCachedAnalytics } from '../../utils/offlineCache';
 import { useExportUpsell } from '../../hooks/useExportUpsell';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
 import WrappedShareJourney from '../../components/wrapped/WrappedShareJourney';
 import { resolvePostWrappedExperience } from '../../components/wrapped/postWrappedState';
 import { useImportPreferences } from '../../hooks/useImportPreferences';
 import { showSimpleAlert } from '../../utils/platformAlert';
+import { useWrappedAnalyticsQuery } from '../../hooks/queries/useAnalyticsQueries';
 
 type WrappedSummary = UserSummary & {
   wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']>;
@@ -35,7 +34,9 @@ export default function WrappedJourneyScreen() {
     Fredoka_600SemiBold,
     Fredoka_700Bold,
   });
-  const { state, setAnalytics: setGlobalAnalytics } = useUser();
+  const { state } = useUser();
+  const wrappedQuery = useWrappedAnalyticsQuery(state.user?.id);
+  const analytics = wrappedQuery.data ?? null;
   const {
     isLoading: isExportStateLoading,
     hasCompletedExport,
@@ -49,14 +50,6 @@ export default function WrappedJourneyScreen() {
     setMonitoringConsent,
   } = useImportPreferences(Boolean(state.user?.id));
 
-  const initialAnalytics = useMemo(
-    () => (hasWrappedData(state.analytics) ? state.analytics : null),
-    [state.analytics]
-  );
-
-  const [analytics, setAnalytics] = useState<UserSummary | null>(initialAnalytics);
-  const [isLoading, setIsLoading] = useState<boolean>(!initialAnalytics);
-  const [loadTimestamp, setLoadTimestamp] = useState(Date.now());
   const postWrappedExperience = useMemo(
     () => resolvePostWrappedExperience({
       isExportStateLoading: isExportStateLoading || areImportPreferencesLoading,
@@ -72,81 +65,6 @@ export default function WrappedJourneyScreen() {
       isExportStateLoading,
     ]
   );
-
-  useEffect(() => {
-    const summary = state.analytics;
-    const user = state.user;
-    let cancelled = false;
-
-    if (!summary && !user) {
-      setAnalytics(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (hasWrappedData(summary)) {
-      setAnalytics(summary);
-      setIsLoading(false);
-      return;
-    }
-
-    if (summary?.totalReceipts === 0) {
-      setAnalytics(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!user) {
-      setAnalytics(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-
-    void (async () => {
-      // The UserProvider preloads Wrapped analytics in the background. Its
-      // cached result may already be ready even if the in-memory summary is a
-      // base summary, so prefer it before starting another network wait.
-      const cached = await getCachedAnalytics(user.id);
-      if (cancelled) {
-        return;
-      }
-      if (hasWrappedData(cached)) {
-        setAnalytics(cached);
-        setGlobalAnalytics(cached);
-        setLoadTimestamp(Date.now());
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const wrappedSummary = await analyticsApi.getUserSummary(user.id, true);
-        if (cancelled) {
-          return;
-        }
-        if (hasWrappedData(wrappedSummary)) {
-          setAnalytics(wrappedSummary);
-          setGlobalAnalytics(wrappedSummary);
-          setLoadTimestamp(Date.now());
-        } else {
-          setAnalytics(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setAnalytics(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [state.analytics, state.user, setGlobalAnalytics]);
 
   // Stable handler identities — WrappedShareJourney memoizes its slide deck on
   // these, and inline arrows were rebuilding it (and re-firing entrance
@@ -211,7 +129,7 @@ export default function WrappedJourneyScreen() {
     router.replace('/(tabs)');
   }, []);
 
-  if (isLoading || !fontsLoaded) {
+  if (wrappedQuery.isPending || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.white} />
@@ -241,7 +159,7 @@ export default function WrappedJourneyScreen() {
 
   return (
     <WrappedShareJourney
-      key={loadTimestamp}
+      key={wrappedQuery.dataUpdatedAt}
       analytics={analytics}
       postWrappedExperience={postWrappedExperience}
       monitoringState={importPreferences?.monitoring.effectiveState ?? 'not_offered'}

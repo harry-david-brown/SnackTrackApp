@@ -1,9 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import {
-  resetCachedImportExportState,
-  useImportPreferences,
-} from '../../hooks/useImportPreferences';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
 import { gmailApi, type ImportPreferencesResponse } from '../../services/gmailApi';
+import { createQueryTestWrapper } from '../utils/queryTestUtils';
+
+jest.mock('../../contexts/UserContext', () => ({
+  useUser: () => ({ state: { user: { id: 'user-123' } } }),
+}));
 
 jest.mock('../../services/gmailApi', () => ({
   gmailApi: {
@@ -56,13 +58,18 @@ const preferences = (
 });
 
 describe('useImportPreferences', () => {
+  const renderPreferencesHook = (enabled = true) => {
+    const { Wrapper } = createQueryTestWrapper();
+    return renderHook(() => useImportPreferences(enabled), { wrapper: Wrapper });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(preferences());
   });
 
   it('loads durable import preferences', async () => {
-    const { result } = renderHook(() => useImportPreferences());
+    const { result } = renderPreferencesHook();
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -82,7 +89,7 @@ describe('useImportPreferences', () => {
     });
     (gmailApi.setMonitoringConsent as jest.Mock).mockResolvedValue(enabledPreferences);
 
-    const { result } = renderHook(() => useImportPreferences());
+    const { result } = renderPreferencesHook();
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
@@ -90,7 +97,7 @@ describe('useImportPreferences', () => {
     });
 
     expect(gmailApi.setMonitoringConsent).toHaveBeenCalledWith('granted');
-    expect(result.current.preferences?.monitoring.effectiveState).toBe('enabled');
+    await waitFor(() => expect(result.current.preferences?.monitoring.effectiveState).toBe('enabled'));
   });
 
   it('records export-request lifecycle state', async () => {
@@ -103,14 +110,14 @@ describe('useImportPreferences', () => {
     });
     (gmailApi.markExportRequested as jest.Mock).mockResolvedValue(requestedPreferences);
 
-    const { result } = renderHook(() => useImportPreferences());
+    const { result } = renderPreferencesHook();
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
       await result.current.markExportRequested();
     });
 
-    expect(result.current.preferences?.export.status).toBe('requested_monitoring_disabled');
+    await waitFor(() => expect(result.current.preferences?.export.status).toBe('requested_monitoring_disabled'));
   });
 
   it('stores ongoing tracking consent independently from export alerts', async () => {
@@ -122,7 +129,7 @@ describe('useImportPreferences', () => {
       status: 'active',
     };
     (gmailApi.setOngoingTrackingConsent as jest.Mock).mockResolvedValue(activePreferences);
-    const { result } = renderHook(() => useImportPreferences());
+    const { result } = renderPreferencesHook();
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
@@ -130,7 +137,7 @@ describe('useImportPreferences', () => {
     });
 
     expect(gmailApi.setOngoingTrackingConsent).toHaveBeenCalledWith('granted');
-    expect(result.current.preferences?.ongoingTracking.effectiveState).toBe('active');
+    await waitFor(() => expect(result.current.preferences?.ongoingTracking.effectiveState).toBe('active'));
   });
 
   it('marks an automatic Gmail scan as importing and refreshes its completion state', async () => {
@@ -148,42 +155,25 @@ describe('useImportPreferences', () => {
       .mockResolvedValueOnce(preferences())
       .mockResolvedValueOnce(completed);
 
-    const { result } = renderHook(() => useImportPreferences());
+    const { result } = renderPreferencesHook();
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     let importPromise!: Promise<unknown>;
     act(() => {
       importPromise = result.current.importGmailReceipts();
     });
-    expect(result.current.preferences?.gmailImport.status).toBe('importing');
+    await waitFor(() => expect(result.current.preferences?.gmailImport.status).toBe('importing'));
 
     await act(async () => {
       finishImport({ success: true });
       await importPromise;
     });
 
-    expect(result.current.preferences?.gmailImport.hasImported).toBe(true);
-  });
-
-  it('resets mounted export state after receipts are cleared', async () => {
-    (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(preferences({
-      export: {
-        status: 'completed',
-        requestedAt: '2026-07-29T12:00:00.000Z',
-        updatedAt: '2026-07-29T12:00:00.000Z',
-      },
-    }));
-    const { result } = renderHook(() => useImportPreferences());
-    await waitFor(() => expect(result.current.preferences?.export.status).toBe('completed'));
-
-    act(() => resetCachedImportExportState());
-
-    expect(result.current.preferences?.export.status).toBe('not_started');
-    expect(result.current.preferences?.export.requestedAt).toBeNull();
+    await waitFor(() => expect(result.current.preferences?.gmailImport.hasImported).toBe(true));
   });
 
   it('does not load when disabled', async () => {
-    const { result } = renderHook(() => useImportPreferences(false));
+    const { result } = renderPreferencesHook(false);
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(gmailApi.getImportPreferences).not.toHaveBeenCalled();

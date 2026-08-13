@@ -12,20 +12,8 @@ describe('gmailApi.importReceipts', () => {
     jest.clearAllMocks();
   });
 
-  it('deduplicates concurrent import requests', async () => {
-    let resolveRequest!: (value: any) => void;
-
-    (api.post as jest.Mock).mockImplementation(() => new Promise((resolve) => {
-      resolveRequest = resolve;
-    }));
-
-    const promise1 = gmailApi.importReceipts();
-    const promise2 = gmailApi.importReceipts();
-
-    expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.post).toHaveBeenCalledWith('/gmail/import', {}, { timeout: 300000 });
-
-    resolveRequest({
+  it('leaves duplicate-action prevention to the flow controller and API lock', async () => {
+    const response = {
       data: {
         success: true,
         totalEmailsFound: 5,
@@ -34,11 +22,13 @@ describe('gmailApi.importReceipts', () => {
         totalAmount: 42.5,
         errors: [],
       },
-    });
+    };
+    (api.post as jest.Mock).mockResolvedValue(response);
 
-    const [result1, result2] = await Promise.all([promise1, promise2]);
+    await expect(gmailApi.importReceipts()).resolves.toEqual(response.data);
 
-    expect(result1).toEqual(result2);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/gmail/import', {}, { timeout: 300000 });
   });
 
   it('allows a new import after the previous one completes', async () => {

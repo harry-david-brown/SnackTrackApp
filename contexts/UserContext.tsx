@@ -1,10 +1,9 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { userApi } from '../services/api';
 import { mockUserApi } from '../services/mockApi';
 import { authApi } from '../services/authApi';
-import { analyticsApi } from '../services/analyticsApi';
-import { AppUser, UserSummary, RegisterResponse, LoginResponse } from '../types/api';
+import { AppUser, RegisterResponse, LoginResponse } from '../types/api';
 import { 
   getUserData, 
   getUserId, 
@@ -12,9 +11,7 @@ import {
   clearAuthTokens,
   AUTH_STORAGE_KEYS 
 } from '../utils/tokenManager';
-import { cacheAnalytics, getCachedAnalytics, clearAnalyticsCache } from '../utils/offlineCache';
 import { setSentryUser, clearSentryUser } from '../utils/sentry';
-import { loadUserAnalytics } from '../utils/userAnalytics';
 import { logger } from '../utils/logger';
 import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '../constants';
 import { UserState, UserAction, UserContextType, initialState } from './userTypes';
@@ -41,9 +38,7 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
-
-  // Ref to prevent duplicate analytics loads
-  const loadingAnalyticsRef = useRef<Promise<UserSummary | null> | null>(null);
+  const queryClient = useQueryClient();
 
   // Load user data from storage on app start
   useEffect(() => {
@@ -89,16 +84,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
             
-            // Load analytics using extracted utility function
-            loadUserAnalytics({
-              userId,
-              user: userWithSpending,
-              dispatch,
-              loadingRef: loadingAnalyticsRef,
-              preloadWrapped: true,
-            }).catch(() => {
-              // Silently fail - analytics loading is non-critical for app start
-            });
           } else {
             // Session invalid, clear and force re-login
             await clearAuthTokens();
@@ -245,19 +230,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
       
-      // Start loading analytics immediately (non-blocking) so dashboard has data ready
-      // This prevents "Total Spent" from popping in after dashboard renders
-      // Use response.userId directly since state.user might not be updated yet
-      loadUserAnalytics({
-        userId: response.userId,
-        user,
-        dispatch,
-        loadingRef: loadingAnalyticsRef,
-        preloadWrapped: true,
-      }).catch(() => {
-        // Don't fail login if analytics fails - user can still use the app
-      });
-      
       logger.info('User logged in successfully:', email);
       
       return response;
@@ -311,17 +283,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       dispatch({ type: 'SET_USER', payload: user });
       setSentryUser(response.userId, response.email);
-
-      // Load analytics using extracted utility function
-      loadUserAnalytics({
-        userId: response.userId,
-        user,
-        dispatch,
-        loadingRef: loadingAnalyticsRef,
-        preloadWrapped: true,
-      }).catch(() => {
-        // Don't fail login if analytics fails - user can still use the app
-      });
 
       return response;
     } catch (error: any) {
@@ -386,17 +347,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_USER', payload: appUser });
       setSentryUser(response.userId, response.email);
 
-      // Load analytics using extracted utility function
-      loadUserAnalytics({
-        userId: response.userId,
-        user: appUser,
-        dispatch,
-        loadingRef: loadingAnalyticsRef,
-        preloadWrapped: true,
-      }).catch(() => {
-        // Don't fail login if analytics fails - user can still use the app
-      });
-
       return response;
     } catch (error: any) {
       logger.error('Apple Login Error:', error);
@@ -442,6 +392,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       // Clear Sentry user context
       clearSentryUser();
+      queryClient.clear();
       
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
@@ -450,69 +401,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       // Clear Sentry user context
       clearSentryUser();
+      queryClient.clear();
       
       dispatch({ type: 'LOGOUT' });
     }
   };
 
-  const refreshUserData = async () => {
-    if (!state.user) return;
-
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
-      // Fetch updated spending data
-      const totalSpent = await userApi.getTotalSpent(state.user.id);
-      
-      // Update user state
-      dispatch({ type: 'UPDATE_USER_DATA', payload: { totalSpent } });
-      
-    } catch (error: any) {
-      // Handle session expired
-      if (error.message === 'SESSION_EXPIRED') {
-        await clearUserStorage();
-        dispatch({ type: 'LOGOUT' });
-      } else {
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to refresh user data' });
-      }
-    }
-  };
-
   const clearError = () => {
     dispatch({ type: 'SET_ERROR', payload: null });
-  };
-
-  const clearAnalytics = () => {
-    dispatch({ type: 'SET_ANALYTICS', payload: null });
-    clearAnalyticsCache(); // Also clear from AsyncStorage
-  };
-
-  const resetReceiptData = () => {
-    if (!state.user) return;
-
-    const emptyAnalytics: UserSummary = {
-      userId: state.user.id,
-      totalSpent: 0,
-      totalReceipts: 0,
-      averageOrderValue: 0,
-      topRestaurants: [],
-      monthlyBreakdown: [],
-      refundedReceipts: 0,
-      dataQuality: {
-        issues: [],
-        recommendations: [],
-      },
-    };
-
-    dispatch({
-      type: 'UPDATE_USER_DATA',
-      payload: {
-        totalSpent: 0,
-        receiptCount: 0,
-      },
-    });
-    dispatch({ type: 'SET_ANALYTICS', payload: emptyAnalytics });
-    clearAnalyticsCache();
   };
 
   const markEmailVerified = () => {
@@ -523,116 +419,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
   };
 
-  const setAnalytics = (analytics: UserSummary) => {
-    dispatch({ type: 'SET_ANALYTICS', payload: analytics });
-    // Update user data from analytics
-    if (state.user && (analytics.totalSpent !== state.user.totalSpent || analytics.totalReceipts !== state.user.receiptCount)) {
-      dispatch({
-        type: 'UPDATE_USER_DATA', payload: {
-        totalSpent: analytics.totalSpent,
-        receiptCount: analytics.totalReceipts 
-        }
-      });
-    }
-    // Cache it
-    if (state.user) {
-      cacheAnalytics(state.user.id, analytics);
-    }
-  };
-
-  const loadAnalytics = async (includeWrapped: boolean = false): Promise<UserSummary | null> => {
-    if (!state.user) return null;
-
-    // Prevent duplicate loads
-    if (loadingAnalyticsRef.current) {
-      return loadingAnalyticsRef.current;
-    }
-
-    // Capture user ID and user object to avoid null checks in callbacks
-    const userId = state.user.id;
-    const currentUser = state.user;
-
-    try {
-      dispatch({ type: 'SET_ANALYTICS_LOADING', payload: true });
-      
-      // The deduplication in analyticsApi will handle concurrent calls
-      const summaryPromise = analyticsApi.getUserSummary(userId, includeWrapped)
-        .then((summary) => {
-      dispatch({ type: 'SET_ANALYTICS', payload: summary });
-      
-      // Cache for offline use
-          cacheAnalytics(userId, summary).catch(() => {
-            // Silently fail caching - not critical
-          });
-      
-      // Update user's totalSpent in context from the summary data
-          if (summary.totalSpent !== currentUser.totalSpent) {
-            dispatch({
-              type: 'UPDATE_USER_DATA', payload: {
-          totalSpent: summary.totalSpent,
-          receiptCount: summary.totalReceipts 
-              }
-            });
-      }
-      
-      // If we loaded without wrapped data and user has data, preload wrapped data in background
-      // This ensures Wrapped Journey tab loads instantly when clicked
-          if (!includeWrapped && summary.totalReceipts > 0) {
-        // Preload wrapped analytics in background (don't await - let it run async)
-        analyticsApi.getUserSummary(userId, true)
-          .then((wrappedSummary) => {
-            // Always update analytics with the wrapped summary (it has all the data)
-            dispatch({ type: 'SET_ANALYTICS', payload: wrappedSummary });
-            dispatch({
-              type: 'UPDATE_USER_DATA',
-              payload: {
-                totalSpent: wrappedSummary.totalSpent,
-                receiptCount: wrappedSummary.totalReceipts,
-              },
-            });
-            cacheAnalytics(userId, wrappedSummary).catch(() => {
-              // Silently fail caching - not critical
-            });
-          })
-          .catch(() => {
-            // Silently fail wrapped preload - not critical
-          });
-      }
-      
-      return summary;
-        })
-        .catch(async (error: any) => {
-          // Try to use cached data on error
-          const cached = await getCachedAnalytics(userId);
-          if (cached) {
-            dispatch({ type: 'SET_ANALYTICS', payload: cached });
-            return cached;
-          }
-          // Don't set error here - let screens handle it individually
-          return null;
-        })
-        .finally(() => {
-          loadingAnalyticsRef.current = null;
-          dispatch({ type: 'SET_ANALYTICS_LOADING', payload: false });
-        });
-
-      // Store the promise in the ref so concurrent calls can reuse it
-      loadingAnalyticsRef.current = summaryPromise;
-
-      return summaryPromise;
-    } catch (error: any) {
-      loadingAnalyticsRef.current = null;
-      // Try to use cached data on error
-      const cached = await getCachedAnalytics(userId);
-      if (cached) {
-        dispatch({ type: 'SET_ANALYTICS', payload: cached });
-        return cached;
-      }
-      // Don't set error here - let screens handle it individually
-      return null;
-    }
-  };
-
   const value: UserContextType = {
     state,
     register,
@@ -640,11 +426,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     loginWithGoogle,
     loginWithApple,
     logout,
-    refreshUserData,
-    loadAnalytics,
-    setAnalytics,
-    clearAnalytics,
-    resetReceiptData,
     clearError,
     markEmailVerified,
   };

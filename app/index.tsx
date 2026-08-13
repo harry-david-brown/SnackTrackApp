@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { LoginScreen } from '../components/auth/LoginScreen';
 import OnboardingScreen from '../components/OnboardingScreen';
+import { useAnalyticsQuery } from '../hooks/queries/useAnalyticsQueries';
 
 /**
  * Entry route. Everything here is derived directly from auth/onboarding
@@ -20,13 +21,14 @@ import OnboardingScreen from '../components/OnboardingScreen';
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
+  const analyticsQuery = useAnalyticsQuery(state.user?.id);
 
   // Wait for auth + onboarding hydration, and — when authenticated — for the
   // analytics probe that decides whether to land on Upload or Dashboard.
   const isLoading =
     state.isLoading ||
     onboardingLoading ||
-    (state.isAuthenticated && Boolean(state.user) && state.analyticsLoading);
+    (state.isAuthenticated && Boolean(state.user) && analyticsQuery.isPending);
 
   if (isLoading) {
     return (
@@ -39,7 +41,7 @@ export default function HomeScreen() {
   }
 
   if (state.isAuthenticated && state.user) {
-    const totalImportedReceipts = state.analytics?.totalReceipts ?? state.user.receiptCount ?? 0;
+    const totalImportedReceipts = analyticsQuery.data?.totalReceipts ?? 0;
     return <Redirect href={totalImportedReceipts > 0 ? '/(tabs)' : '/(tabs)/upload'} />;
   }
 

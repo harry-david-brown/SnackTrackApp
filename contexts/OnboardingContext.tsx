@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from './UserContext';
-import { gmailApi } from '../services/gmailApi';
+import { userApi } from '../services/api';
+import { clearAnalyticsCache } from '../utils/offlineCache';
+import { resetExportUpsellForUser } from '../hooks/useExportUpsell';
+import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
+import { resetExportDownloadStateForUser } from '../utils/exportDownloadHandoff';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;
@@ -23,6 +28,7 @@ const getOnboardingKey = (userId: string | null): string => {
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const { state: userState } = useUser();
+  const queryClient = useQueryClient();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [lastCheckedUserId, setLastCheckedUserId] = useState<string | null>(null);
@@ -101,7 +107,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     try {
       const userId = userState.user?.id || null;
       if (userState.isAuthenticated && userId) {
-        await gmailApi.disconnect({ resetImportStatus: true });
+        await userApi.resetOnboarding(userId);
+        await Promise.all([
+          clearAnalyticsCache(),
+          resetExportUpsellForUser(userId),
+          resetExportDownloadStateForUser(userId),
+        ]);
+        queryClient.removeQueries({ queryKey: [...analyticsKeys.all, userId] });
+        queryClient.removeQueries({ queryKey: [...receiptKeys.all, userId] });
+        queryClient.removeQueries({ queryKey: importPreferenceKeys.current(userId) });
+        queryClient.removeQueries({ queryKey: gmailStatusKeys.current(userId) });
       }
       const key = getOnboardingKey(userId);
       await AsyncStorage.removeItem(key);

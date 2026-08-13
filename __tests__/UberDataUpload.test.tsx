@@ -11,7 +11,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { csvApi } from '../services/api';
 import * as DocumentPicker from 'expo-document-picker';
 import * as offlineCache from '../utils/offlineCache';
-import { showAlert } from '../utils/alerts';
+import { showAlert } from '../utils/platformAlert';
 
 // Mock dependencies
 jest.mock('../contexts/UserContext');
@@ -19,7 +19,7 @@ jest.mock('../hooks/useNetworkStatus');
 jest.mock('../services/api');
 jest.mock('expo-document-picker');
 jest.mock('../utils/offlineCache');
-jest.mock('../utils/alerts', () => ({ showAlert: jest.fn() }));
+jest.mock('../utils/platformAlert', () => ({ showAlert: jest.fn() }));
 jest.mock('../utils/sentry', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),

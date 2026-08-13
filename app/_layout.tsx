@@ -2,7 +2,8 @@ import { Colors } from '@/constants/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { appQueryClient } from '../lib/queryClient';
 import { UserProvider } from '../contexts/UserContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
@@ -20,15 +21,6 @@ import {
 // Initialize Sentry as early as possible
 initSentry();
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
 export default function RootLayout() {
   // Start loading Wrapped typography with the app rather than when the Summary
   // tab is first opened. The journey still verifies readiness before rendering,
@@ -44,7 +36,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <AppAlertProvider>
-          <QueryClientProvider client={queryClient}>
+          <QueryClientProvider client={appQueryClient}>
             <CurrencyProvider>
               <UserProvider>
                 <OnboardingProvider>

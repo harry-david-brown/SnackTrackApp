@@ -9,7 +9,7 @@ jest.mock('../../hooks/useNetworkStatus', () => ({ useNetworkStatus: jest.fn() }
 jest.mock('../../services/api', () => ({ csvApi: { importCsv: jest.fn() } }));
 jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }));
 jest.mock('../../utils/sentry', () => ({ captureException: jest.fn() }));
-jest.mock('../../utils/alerts', () => ({ showAlert: jest.fn() }));
+jest.mock('../../utils/platformAlert', () => ({ showAlert: jest.fn() }));
 
 describe('UberDataUpload automatic picker handoff', () => {
   beforeEach(() => {

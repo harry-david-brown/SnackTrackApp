@@ -34,26 +34,13 @@ export const userReducer = (state: UserState, action: UserAction): UserState => 
         isAuthenticated: false,
         error: null,
         isLoading: false,
-        analytics: null,
-        analyticsLoading: false,
       };
     case 'UPDATE_USER_DATA':
       return {
         ...state,
         user: state.user ? { ...state.user, ...action.payload } : null,
       };
-    case 'SET_ANALYTICS':
-      return {
-        ...state,
-        analytics: action.payload,
-      };
-    case 'SET_ANALYTICS_LOADING':
-      return {
-        ...state,
-        analyticsLoading: action.payload,
-      };
     default:
       return state;
   }
 };
-

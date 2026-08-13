@@ -123,8 +123,6 @@ export interface ExportReadyCheckResponse {
 export const MONITORING_CONSENT_VERSION = '2026-08-04.v2';
 export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-10.v1';
 
-let activeImportPromise: Promise<GmailImportResponse> | null = null;
-
 export const gmailApi = {
   getAuthUrl: async (redirectUri: string, autoImportGmail = true): Promise<GmailAuthUrlResponse> => {
     const response = await api.post('/gmail/auth-url', { redirectUri, autoImportGmail });
@@ -185,19 +183,10 @@ export const gmailApi = {
    * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (): Promise<GmailImportResponse> => {
-    if (activeImportPromise) {
-      return activeImportPromise;
-    }
-
-    activeImportPromise = api.post('/gmail/import', {}, {
+    const response = await api.post('/gmail/import', {}, {
       timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
-    })
-      .then((response) => response.data)
-      .finally(() => {
-        activeImportPromise = null;
-      });
-
-    return activeImportPromise;
+    });
+    return response.data;
   },
 
   /**

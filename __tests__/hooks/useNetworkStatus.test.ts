@@ -3,7 +3,7 @@
  * Tests for network status monitoring
  */
 
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
@@ -35,11 +35,13 @@ describe('useNetworkStatus', () => {
     });
   });
 
-  it('should initialize with connected state', () => {
+  it('should initialize with connected state', async () => {
     const { result } = renderHook(() => useNetworkStatus());
-    
-    expect(result.current.isConnected).toBe(true);
-    expect(result.current.isInternetReachable).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+      expect(result.current.isInternetReachable).toBe(true);
+      expect(result.current.type).toBe('wifi');
+    });
   });
 
   it('should update when network disconnects', async () => {
@@ -47,15 +49,15 @@ describe('useNetworkStatus', () => {
     
     // Wait for initial fetch to complete
     await waitFor(() => {
-      expect(NetInfo.fetch).toHaveBeenCalled();
+      expect(result.current.type).toBe('wifi');
     });
     
     // Simulate network disconnection
-    mockListener({
+    act(() => mockListener({
       isConnected: false,
       isInternetReachable: false,
       type: 'none',
-    });
+    }));
     
     await waitFor(() => {
       expect(result.current.isConnected).toBe(false);
@@ -68,26 +70,26 @@ describe('useNetworkStatus', () => {
     
     // Wait for initial fetch to complete
     await waitFor(() => {
-      expect(NetInfo.fetch).toHaveBeenCalled();
+      expect(result.current.type).toBe('wifi');
     });
     
     // Disconnect
-    mockListener({
+    act(() => mockListener({
       isConnected: false,
       isInternetReachable: false,
       type: 'none',
-    });
+    }));
     
     await waitFor(() => {
       expect(result.current.isConnected).toBe(false);
     });
     
     // Reconnect
-    mockListener({
+    act(() => mockListener({
       isConnected: true,
       isInternetReachable: true,
       type: 'wifi',
-    });
+    }));
     
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -101,14 +103,14 @@ describe('useNetworkStatus', () => {
     
     // Wait for initial fetch to complete
     await waitFor(() => {
-      expect(NetInfo.fetch).toHaveBeenCalled();
+      expect(result.current.type).toBe('wifi');
     });
     
-    mockListener({
+    act(() => mockListener({
       isConnected: true,
       isInternetReachable: null,
       type: 'cellular',
-    });
+    }));
     
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -117,9 +119,9 @@ describe('useNetworkStatus', () => {
     });
   });
 
-  it('should cleanup listener on unmount', () => {
-    const { unmount } = renderHook(() => useNetworkStatus());
-    
+  it('should cleanup listener on unmount', async () => {
+    const { result, unmount } = renderHook(() => useNetworkStatus());
+    await waitFor(() => expect(result.current.type).toBe('wifi'));
     unmount();
     
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
@@ -134,4 +136,3 @@ describe('useNetworkStatus', () => {
     // In a real scenario, this would be called, but with our mock it's just verified to exist
   });
 });
-

@@ -6,6 +6,12 @@ import api from './client';
 import { CreateUserRequest, CreateUserResponse } from '../../types/api';
 import { validateAndAuthorizeUserId, isValidEmail, sanitizeInput } from '../../utils/securityValidation';
 
+export interface ResetOnboardingResponse {
+  success: boolean;
+  deletedReceipts: number;
+  message: string;
+}
+
 export const userApi = {
   /**
    * Create a new user account
@@ -37,6 +43,16 @@ export const userApi = {
     return response.data.totalSpent;
   },
 
+  resetOnboarding: async (userId: string): Promise<ResetOnboardingResponse> => {
+    const validatedUserId = await validateAndAuthorizeUserId(userId);
+    const response = await api.post<ResetOnboardingResponse>(
+      `/users/${validatedUserId}/reset-onboarding`,
+      {},
+      { timeout: 360000 }
+    );
+    return response.data;
+  },
+
   /**
    * Trigger email parsing for user to extract receipt data
    * @param userId - The user ID to process receipts for
@@ -64,4 +80,3 @@ export const userApi = {
     return response.data;
   },
 };
-
