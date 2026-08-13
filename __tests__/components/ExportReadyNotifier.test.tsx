@@ -2,32 +2,34 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { render, waitFor } from '@testing-library/react-native';
 import ExportReadyNotifier from '../../components/upload/ExportReadyNotifier';
 import { useUser } from '../../contexts/UserContext';
-import { gmailApi } from '../../services/gmailApi';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
 import { showAlert } from '../../utils/platformAlert';
 import { router } from 'expo-router';
 
 jest.mock('../../contexts/UserContext', () => ({
   useUser: jest.fn(),
 }));
-jest.mock('../../services/gmailApi', () => ({
-  gmailApi: { checkExportReady: jest.fn() },
+jest.mock('../../hooks/useImportPreferences', () => ({
+  useImportPreferences: jest.fn(),
 }));
 jest.mock('../../utils/platformAlert', () => ({
   showAlert: jest.fn(),
 }));
 
 describe('ExportReadyNotifier', () => {
+  const checkExportReady = jest.fn();
   beforeEach(() => {
     jest.clearAllMocks();
     (useUser as jest.Mock).mockReturnValue({
       state: { user: { id: 'user-1' } },
     });
+    (useImportPreferences as jest.Mock).mockReturnValue({ checkExportReady });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('shows the standard in-app alert when an Uber export becomes ready', async () => {
-    (gmailApi.checkExportReady as jest.Mock).mockResolvedValue({
+    checkExportReady.mockResolvedValue({
       detected: true,
       preferences: {
         export: {
@@ -52,7 +54,7 @@ describe('ExportReadyNotifier', () => {
 
   it('does not repeat an alert for the same ready-state update', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('2026-08-04T12:00:00.000Z');
-    (gmailApi.checkExportReady as jest.Mock).mockResolvedValue({
+    checkExportReady.mockResolvedValue({
       detected: false,
       preferences: {
         export: {
@@ -64,12 +66,12 @@ describe('ExportReadyNotifier', () => {
 
     render(<ExportReadyNotifier />);
 
-    await waitFor(() => expect(gmailApi.checkExportReady).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(checkExportReady).toHaveBeenCalledTimes(1));
     expect(showAlert).not.toHaveBeenCalled();
   });
 
   it('routes directly to the uploader when the user already downloaded the file', async () => {
-    (gmailApi.checkExportReady as jest.Mock).mockResolvedValue({
+    checkExportReady.mockResolvedValue({
       detected: true,
       preferences: {
         export: {
@@ -103,7 +105,7 @@ describe('ExportReadyNotifier', () => {
       readyVersion: '2026-08-04T12:00:00.000Z',
       state: 'checking_email',
     }));
-    (gmailApi.checkExportReady as jest.Mock).mockResolvedValue({
+    checkExportReady.mockResolvedValue({
       detected: false,
       preferences: {
         export: {

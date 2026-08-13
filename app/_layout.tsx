@@ -10,6 +10,7 @@ import { CurrencyProvider } from '../contexts/CurrencyContext';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { AppAlertProvider } from '../components/ui/AppAlertProvider';
 import ExportReadyNotifier from '../components/upload/ExportReadyNotifier';
+import { ImportBackgroundController } from '../components/import/ImportBackgroundController';
 import { initSentry } from '../utils/sentry';
 import {
   useFonts,
@@ -41,6 +42,7 @@ export default function RootLayout() {
               <UserProvider>
                 <OnboardingProvider>
                   <ExportReadyNotifier />
+                  <ImportBackgroundController />
                   <Stack
                     screenOptions={{
                       contentStyle: { backgroundColor: Colors.transparent },

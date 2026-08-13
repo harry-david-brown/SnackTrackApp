@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { gmailApi, GmailConnectionStatus, type GmailImportResponse } from '../services/gmailApi';
 import { useUser } from '../contexts/UserContext';
 import { showAlert, showSimpleAlert } from '../utils/platformAlert';
-import { getErrorMessage } from '../utils/errorUtils';
 import { gmailStatusKeys } from '../lib/queryKeys';
+import { toDomainError } from '../utils/domainError';
+import { captureException } from '../utils/sentry';
 import { invalidateImportState, invalidateReceiptDerivedData } from '../lib/queryInvalidation';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -14,16 +15,6 @@ WebBrowser.maybeCompleteAuthSession();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export type GmailPrimaryFlowState = 'idle' | 'connecting' | 'preparing_import' | 'importing';
-
-let primaryFlowStateStore: GmailPrimaryFlowState = 'idle';
-let activePrimaryFlowPromise: Promise<boolean> | null = null;
-const primaryFlowListeners = new Set<(state: GmailPrimaryFlowState) => void>();
-const handledAutoImportFlowIds = new Set<string>();
-
-const setPrimaryFlowState = (nextState: GmailPrimaryFlowState) => {
-  primaryFlowStateStore = nextState;
-  primaryFlowListeners.forEach((listener) => listener(nextState));
-};
 
 interface UseGmailImportOptions {
   onImportSuccess?: (result: GmailImportResponse) => void;
@@ -44,16 +35,14 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   });
   const connectionStatus = statusQuery.data ?? { connected: false };
   const [isLoading, setIsLoading] = useState(false);
-  const [primaryFlowState, setPrimaryFlowStateLocal] = useState<GmailPrimaryFlowState>(primaryFlowStateStore);
+  const [primaryFlowState, setPrimaryFlowState] = useState<GmailPrimaryFlowState>('idle');
+  const activePrimaryFlowPromise = useRef<Promise<boolean> | null>(null);
+  const handledAutoImportFlowIds = useRef(new Set<string>());
+  const safetyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const listener = (nextState: GmailPrimaryFlowState) => {
-      setPrimaryFlowStateLocal(nextState);
-    };
-
-    primaryFlowListeners.add(listener);
     return () => {
-      primaryFlowListeners.delete(listener);
+      if (safetyTimeout.current) clearTimeout(safetyTimeout.current);
     };
   }, []);
 
@@ -67,24 +56,10 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         queryFn: gmailApi.getStatus,
         staleTime: 0,
       });
-    } catch (error) {
-      console.error('Failed to check Gmail status:', error);
+    } catch {
       return null;
     }
   }, [queryClient, statusKey, userId]);
-
-  const formatExpiry = useCallback((expiresAt?: string | null): string | null => {
-    if (!expiresAt) {
-      return null;
-    }
-
-    const expiry = new Date(expiresAt);
-    if (Number.isNaN(expiry.getTime())) {
-      return null;
-    }
-
-    return expiry.toLocaleString();
-  }, []);
 
   const importReceiptsInternal = useCallback(async (statusOverride?: GmailConnectionStatus | null) => {
     try {
@@ -99,11 +74,10 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
       if (result.success) {
         if (userId) await invalidateReceiptDerivedData(queryClient, userId);
-
         try {
           onImportSuccess?.(result);
         } catch (error) {
-          console.error('Error in onImportSuccess callback:', error);
+          captureException(error instanceof Error ? error : new Error('Gmail import callback failed'), { context: 'gmail-import-callback' });
         }
 
         return true;
@@ -111,26 +85,25 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
       showSimpleAlert('Import Failed', 'Failed to import receipts. Please try again.');
       return false;
-    } catch (error: any) {
-      console.error('Import failed:', getErrorMessage(error));
-
-      if (error.response?.data?.code === 'IMPORT_IN_PROGRESS') {
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      if (domainError.code === 'IMPORT_IN_PROGRESS') {
         showSimpleAlert(
           'Import Already Running',
-          error.response?.data?.message || 'A receipt import is already running for your account. Please wait for it to complete.'
+          'A receipt import is already running for your account. Please wait for it to complete.'
         );
-      } else if (error.response?.data?.code === 'GMAIL_RECONNECT_REQUIRED') {
+      } else if (domainError.code === 'GMAIL_RECONNECT_REQUIRED') {
         showSimpleAlert(
           'Reconnect Gmail',
-          error.response?.data?.message || 'Your Gmail authorization has expired. Reconnect Gmail to continue importing receipts.'
+          'Reconnect Gmail to continue.'
         );
         await refreshConnectionStatus();
-      } else if (error.response?.data?.code === 'GMAIL_VALIDATION_UNAVAILABLE') {
+      } else if (domainError.code === 'GMAIL_VALIDATION_UNAVAILABLE') {
         showSimpleAlert(
           'Couldn’t verify Gmail',
-          error.response?.data?.message || 'Gmail could not be reached. Please try again shortly.'
+          'Gmail could not be reached. Please try again shortly.'
         );
-      } else if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.message?.includes('timeout')) {
+      } else if (domainError.kind === 'network') {
         showSimpleAlert(
           'Import Timeout',
           'The import is taking longer than expected. This might mean you have many emails to process. Please try again or check your connection.'
@@ -138,7 +111,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
       } else {
         showSimpleAlert(
           'Import Failed',
-          getErrorMessage(error) || 'Failed to import receipts. Please check your connection and try again.'
+          domainError.message
         );
       }
 
@@ -209,9 +182,8 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
       }
 
       return readyStatus;
-    } catch (error: any) {
-      console.error('Failed to connect Gmail:', error);
-      showSimpleAlert('Error', getErrorMessage(error) || 'Failed to connect Gmail. Please try again.');
+    } catch (error: unknown) {
+      showSimpleAlert('Error', toDomainError(error).message);
       return null;
     } finally {
       setIsLoading(false);
@@ -219,32 +191,32 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   }, [waitForImportReady]);
 
   const runPrimaryFlow = useCallback((runner: () => Promise<boolean>) => {
-    if (activePrimaryFlowPromise) {
-      return activePrimaryFlowPromise;
+    if (activePrimaryFlowPromise.current) {
+      return activePrimaryFlowPromise.current;
     }
 
     // Safety timeout to ensure state always resets (6 minutes max, slightly longer than API timeout)
-    const safetyTimeout = setTimeout(() => {
-      console.warn('Primary flow exceeded safety timeout, forcing reset to idle');
-      activePrimaryFlowPromise = null;
+    safetyTimeout.current = setTimeout(() => {
+      captureException(new Error('Gmail primary flow exceeded safety timeout'), { context: 'gmail-primary-flow' });
+      activePrimaryFlowPromise.current = null;
       setPrimaryFlowState('idle');
     }, 360000);
 
-    activePrimaryFlowPromise = (async () => {
+    activePrimaryFlowPromise.current = (async () => {
       try {
         return await runner();
       } catch (error) {
-        // Catch any uncaught errors to ensure state reset
-        console.error('Uncaught error in primary flow:', error);
+        captureException(error instanceof Error ? error : new Error('Gmail primary flow failed'), { context: 'gmail-primary-flow' });
         return false;
       } finally {
-        clearTimeout(safetyTimeout);
-        activePrimaryFlowPromise = null;
+        if (safetyTimeout.current) clearTimeout(safetyTimeout.current);
+        safetyTimeout.current = null;
+        activePrimaryFlowPromise.current = null;
         setPrimaryFlowState('idle');
       }
     })();
 
-    return activePrimaryFlowPromise;
+    return activePrimaryFlowPromise.current;
   }, []);
 
   const connectGmail = useCallback(async () => {
@@ -285,11 +257,11 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   }, [importReceiptsInternal, runPrimaryFlow]);
 
   const resumeAutoImport = useCallback(async (flowId: string) => {
-    if (handledAutoImportFlowIds.has(flowId)) {
+    if (handledAutoImportFlowIds.current.has(flowId)) {
       return false;
     }
 
-    handledAutoImportFlowIds.add(flowId);
+    handledAutoImportFlowIds.current.add(flowId);
 
     return runPrimaryFlow(async () => {
       setPrimaryFlowState('preparing_import');
@@ -326,8 +298,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
               if (userId) await invalidateImportState(queryClient, userId);
               onDisconnectSuccess?.();
               showSimpleAlert('Success', 'Gmail account disconnected.');
-            } catch (error) {
-              console.error('Disconnect failed:', error);
+            } catch {
               showSimpleAlert('Error', 'Failed to disconnect Gmail. Please try again.');
             } finally {
               setIsLoading(false);
@@ -350,6 +321,5 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     resumeAutoImport,
     disconnectGmail,
     refreshConnectionStatus,
-    formatExpiry,
   };
 }

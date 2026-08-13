@@ -1,4 +1,12 @@
 import api from './api';
+import {
+  normalizeDisconnectResponse,
+  normalizeExportReadyCheck,
+  normalizeGmailAuthUrl,
+  normalizeGmailConnectionStatus,
+  normalizeGmailImportResponse,
+  normalizeImportPreferences,
+} from './normalizers/gmailNormalizers';
 
 export interface GmailConnectionStatus {
   connected: boolean;
@@ -125,56 +133,57 @@ export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-10.v1';
 
 export const gmailApi = {
   getAuthUrl: async (redirectUri: string, autoImportGmail = true): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post('/gmail/auth-url', { redirectUri, autoImportGmail });
-    return response.data;
+    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri, autoImportGmail });
+    return normalizeGmailAuthUrl(response.data);
   },
 
   /**
    * Check Gmail connection status
    */
   getStatus: async (): Promise<GmailConnectionStatus> => {
-    const response = await api.get('/gmail/status');
-    return response.data;
+    const response = await api.get<unknown>('/gmail/status');
+    return normalizeGmailConnectionStatus(response.data);
   },
 
   getImportPreferences: async (): Promise<ImportPreferencesResponse> => {
-    const response = await api.get('/gmail/preferences');
-    return response.data;
+    const response = await api.get<unknown>('/gmail/preferences');
+    return normalizeImportPreferences(response.data);
   },
 
   setMonitoringConsent: async (
     decision: 'granted' | 'declined' | 'revoked'
   ): Promise<ImportPreferencesResponse> => {
-    const response = await api.put('/gmail/preferences/monitoring-consent', {
+    const response = await api.put<unknown>('/gmail/preferences/monitoring-consent', {
       decision,
       consentVersion: decision === 'granted' ? MONITORING_CONSENT_VERSION : undefined,
     });
-    return response.data;
+    return normalizeImportPreferences(response.data);
   },
 
   setOngoingTrackingConsent: async (
     decision: 'granted' | 'declined' | 'revoked'
   ): Promise<ImportPreferencesResponse> => {
-    const response = await api.put('/gmail/preferences/ongoing-tracking-consent', {
+    const response = await api.put<unknown>('/gmail/preferences/ongoing-tracking-consent', {
       decision,
       consentVersion: decision === 'granted' ? ONGOING_TRACKING_CONSENT_VERSION : undefined,
     });
-    return response.data;
+    return normalizeImportPreferences(response.data);
   },
 
   checkOngoingTracking: async (): Promise<GmailImportResponse & { preferences: ImportPreferencesResponse }> => {
-    const response = await api.post('/gmail/tracking/check', {}, { timeout: 300000 });
-    return response.data;
+    const response = await api.post<unknown>('/gmail/tracking/check', {}, { timeout: 300000 });
+    const data = response.data as Record<string, unknown>;
+    return { ...normalizeGmailImportResponse(data), preferences: normalizeImportPreferences(data.preferences) };
   },
 
   markExportRequested: async (): Promise<ImportPreferencesResponse> => {
-    const response = await api.post('/gmail/preferences/export-requested');
-    return response.data;
+    const response = await api.post<unknown>('/gmail/preferences/export-requested');
+    return normalizeImportPreferences(response.data);
   },
 
   checkExportReady: async (): Promise<ExportReadyCheckResponse> => {
-    const response = await api.post('/gmail/preferences/check-export-ready');
-    return response.data;
+    const response = await api.post<unknown>('/gmail/preferences/check-export-ready');
+    return normalizeExportReadyCheck(response.data);
   },
 
   /**
@@ -183,10 +192,10 @@ export const gmailApi = {
    * Note: This operation can take a while, so we use a longer timeout
    */
   importReceipts: async (): Promise<GmailImportResponse> => {
-    const response = await api.post('/gmail/import', {}, {
+    const response = await api.post<unknown>('/gmail/import', {}, {
       timeout: 300000, // 5 minutes timeout for Gmail import (can take a while)
     });
-    return response.data;
+    return normalizeGmailImportResponse(response.data);
   },
 
   /**
@@ -195,7 +204,7 @@ export const gmailApi = {
   disconnect: async (
     options: { resetImportStatus?: boolean } = {}
   ): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post('/gmail/disconnect', options);
-    return response.data;
+    const response = await api.post<unknown>('/gmail/disconnect', options);
+    return normalizeDisconnectResponse(response.data);
   },
 };

@@ -20,6 +20,7 @@ class Logger {
    * Check if logging should occur for a given level
    */
   private shouldLog(level: LogLevel): boolean {
+    if (process.env.NODE_ENV === 'test') return false;
     if (__DEV__) return true;
     
     // In production, only log warnings and errors
@@ -46,7 +47,7 @@ class Logger {
   /**
    * Debug-level logging (development only)
    */
-  debug(...args: any[]): void {
+  debug(...args: unknown[]): void {
     if (this.shouldLog('debug')) {
       console.log(`${this.getPrefix('debug')} [DEBUG]`, ...args);
     }
@@ -55,7 +56,7 @@ class Logger {
   /**
    * Info-level logging
    */
-  info(...args: any[]): void {
+  info(...args: unknown[]): void {
     if (this.shouldLog('info')) {
       console.log(`${this.getPrefix('info')} [INFO]`, ...args);
     }
@@ -64,7 +65,7 @@ class Logger {
   /**
    * Warning-level logging
    */
-  warn(...args: any[]): void {
+  warn(...args: unknown[]): void {
     if (this.shouldLog('warn')) {
       console.warn(`${this.getPrefix('warn')} [WARN]`, ...args);
     }
@@ -73,7 +74,7 @@ class Logger {
   /**
    * Error-level logging (always enabled)
    */
-  error(...args: any[]): void {
+  error(...args: unknown[]): void {
     console.error(`${this.getPrefix('error')} [ERROR]`, ...args);
   }
 
@@ -117,4 +118,3 @@ export const logger = new Logger();
 
 // Export type for use in other modules
 export type { LogLevel, LoggerConfig };
-

@@ -61,7 +61,7 @@ Refactor `SnackTrackApp` toward one predictable frontend architecture without re
 - [x] Run and record `npm run check:theme`.
 - [x] Run and record `npm test -- --watchAll=false --runInBand --no-watchman`.
 - [x] Record existing warnings, especially React `act(...)` warnings and unexpected console output.
-- [ ] Capture the current behavior of Dashboard, Upload, Summary/Wrapped, Profile, Receipts, login startup, and receipt clearing.
+- [x] Capture the current behavior of Dashboard, Upload, Summary/Wrapped, Profile, Receipts, login startup, and receipt clearing.
 
 ### State ownership inventory
 
@@ -77,7 +77,7 @@ Refactor `SnackTrackApp` toward one predictable frontend architecture without re
 
 - [x] Baseline checks and warnings are recorded below.
 - [x] Every server resource has a documented current owner and proposed target owner.
-- [ ] No production behavior has changed.
+- [x] No production behavior has changed.
 
 ---
 
@@ -94,14 +94,14 @@ Refactor `SnackTrackApp` toward one predictable frontend architecture without re
 
 ### Contract and error conventions
 
-- [ ] Define the standard domain-query return shape and error conventions.
+- [x] Define the standard domain-query return shape and error conventions.
 - [x] Preserve stable API error codes such as reconnect-required conditions.
 - [x] Choose and document the transport-validation approach: explicit type guards/normalizers, runtime schemas, or generated/shared contracts.
 - [x] Add a representative contract-normalization test before migrating consumers.
 
 ### Phase completion criteria
 
-- [ ] The app still behaves identically with the extracted query infrastructure.
+- [x] The app still behaves identically with the extracted query infrastructure.
 - [x] Query infrastructure tests pass.
 - [x] No feature has two writable server-state owners.
 
@@ -133,8 +133,8 @@ Analytics is the lower-risk proof of the target pattern before migrating the mor
 - [x] Remove analytics data, loading state, setters, and loaders from `UserContext` and `userTypes` after every consumer is migrated.
 - [x] Remove the context analytics promise ref and duplicate preload path.
 - [x] Remove analytics-specific use of custom request deduplication once query deduplication owns it.
-- [ ] Remove or narrow `utils/userAnalytics.ts` if it is no longer needed.
-- [ ] Remove or narrow analytics storage helpers in `utils/offlineCache.ts` based on the documented offline decision.
+- [x] Remove or narrow `utils/userAnalytics.ts` if it is no longer needed.
+- [x] Remove or narrow analytics storage helpers in `utils/offlineCache.ts` based on the documented offline decision.
 - [x] Replace obsolete tests with query-hook and consumer integration tests.
 
 ### Phase completion criteria
@@ -153,9 +153,9 @@ Read and follow `snacktrack-import-flow` before beginning this phase.
 ### Canonical import query
 
 - [x] Add query hooks for import preferences and Gmail connection health.
-- [ ] Add mutations for monitoring consent, ongoing tracking consent, export requested, export-ready check, tracking check, Gmail import, and disconnect.
+- [x] Add mutations for monitoring consent, ongoing tracking consent, export requested, export-ready check, tracking check, Gmail import, and disconnect.
 - [x] Write authoritative mutation responses directly to the relevant cache where safe.
-- [ ] Invalidate analytics, receipts, preferences, and Gmail health intentionally after each mutation.
+- [x] Invalidate analytics, receipts, preferences, and Gmail health intentionally after each mutation.
 - [x] Preserve initial-load data during background refetches.
 - [x] Preserve reconnect-required and temporary-unavailable as different states.
 
@@ -172,16 +172,16 @@ Read and follow `snacktrack-import-flow` before beginning this phase.
 
 - [x] Confirm Dashboard, Upload, and post-summary propositions consume the same canonical preference object.
 - [x] Keep surface-specific copy while sharing the same lifecycle truth.
-- [ ] Add table-driven tests for stale preference rows versus actual email/export coverage.
-- [ ] Add tests for disconnected, healthy, unavailable, and reconnect-required Gmail states.
-- [ ] Add tests for every export lifecycle and consent combination.
+- [x] Add table-driven tests for stale preference rows versus actual email/export coverage.
+- [x] Add tests for disconnected, healthy, unavailable, and reconnect-required Gmail states.
+- [x] Add tests for every export lifecycle and consent combination.
 
 ### Phase completion criteria
 
 - [x] A mutation performed on one screen is reflected on every other screen without custom listeners.
 - [x] Completed imports never render as recommended because of stale local state.
 - [x] Automatic tracking does not render as a manual Gmail scan action.
-- [ ] Receipt clearing resets the intended onboarding and coverage state consistently.
+- [x] Receipt clearing resets the intended onboarding and coverage state consistently.
 
 ---
 
@@ -191,53 +191,53 @@ The current `app/(tabs)/upload.tsx` coordinates route parameters, Gmail flows, e
 
 ### Characterization
 
-- [ ] Add integration coverage for the current three-task checklist.
-- [ ] Cover connect/reconnect, Gmail import, sparse results, export request, alert consent, file ready, email handoff, picker auto-open, upload completion, and failure recovery.
-- [ ] Cover route parameters used to focus the export section or resume an import.
+- [x] Add integration coverage for the current three-task checklist.
+- [x] Cover connect/reconnect, Gmail import, sparse results, export request, alert consent, file ready, email handoff, picker auto-open, upload completion, and failure recovery.
+- [x] Cover route parameters used to focus the export section or resume an import.
 
 ### Controller and view model
 
-- [ ] Introduce an import-flow controller or reducer exposing semantic state and actions.
-- [ ] Move route-parameter parsing into one typed boundary.
-- [ ] Move timers, one-time operation keys, scroll targeting, and cleanup into focused hooks/controllers.
-- [ ] Derive task completion, status badge, open task, and next action through a typed resolver.
-- [ ] Keep native file selection and upload progress in the upload feature boundary.
-- [ ] Ensure the controller does not mirror durable query data into writable local state.
+- [x] Introduce an import-flow controller or reducer exposing semantic state and actions.
+- [x] Move route-parameter parsing into one typed boundary.
+- [x] Move timers, one-time operation keys, scroll targeting, and cleanup into focused hooks/controllers.
+- [x] Derive task completion, status badge, open task, and next action through a typed resolver.
+- [x] Keep native file selection and upload progress in the upload feature boundary.
+- [x] Ensure the controller does not mirror durable query data into writable local state.
 
 ### Screen composition
 
-- [ ] Extract the Connect Email task section.
-- [ ] Extract the Gmail Import task section.
-- [ ] Extract the Export Request/Ready/Upload task section.
-- [ ] Extract workflow modals or sheets with meaningful typed contracts.
-- [ ] Reduce `upload.tsx` to route handling, controller selection, section composition, and navigation outcomes.
-- [ ] Remove obsolete effects, refs, styles, and duplicated conditionals.
+- [x] Extract the Connect Email task section.
+- [x] Extract the Gmail Import task section.
+- [x] Extract the Export Request/Ready/Upload task section.
+- [x] Extract workflow modals or sheets with meaningful typed contracts.
+- [x] Reduce `upload.tsx` to route handling, controller selection, section composition, and navigation outcomes.
+- [x] Remove obsolete effects, refs, styles, and duplicated conditionals.
 
 ### Phase completion criteria
 
-- [ ] Upload behavior and copy remain correct across the complete state matrix.
-- [ ] The screen no longer directly coordinates unrelated server mutations.
+- [x] Upload behavior and copy remain correct across the complete state matrix.
+- [x] The screen no longer directly coordinates unrelated server mutations.
 - [x] Choosing an export file opens the native picker once without redundant screens.
-- [ ] Timers and subscriptions clean up safely on unmount.
+- [x] Timers and subscriptions clean up safely on unmount.
 
 ---
 
 ## Phase 5 — Simplify Dashboard orchestration
 
-- [ ] Move automatic initial Gmail scanning into an appropriate domain controller/background owner rather than a dashboard rendering concern.
-- [ ] Move ongoing tracking freshness checks into an appropriate domain controller/background owner.
-- [ ] Remove request-control refs and suppressed dependency warnings made obsolete by query ownership.
+- [x] Move automatic initial Gmail scanning into an appropriate domain controller/background owner rather than a dashboard rendering concern.
+- [x] Move ongoing tracking freshness checks into an appropriate domain controller/background owner.
+- [x] Remove request-control refs and suppressed dependency warnings made obsolete by query ownership.
 - [x] Keep `resolveDashboardTrackingState` as the pure canonical card resolver.
 - [x] Ensure retry, reconnect, enable-tracking, open-export, and open-Gmail actions remain semantic and tested.
-- [ ] Extract the top summary cards if they have stable shared behavior.
-- [ ] Remove unused dashboard styles left from previous quick-action implementations.
+- [x] Extract the top summary cards if they have stable shared behavior.
+- [x] Remove unused dashboard styles left from previous quick-action implementations.
 - [x] Verify “What we noticed” uses canonical analytics query data and preserves pause, reduced motion, inactive-app behavior, and one-card presentation.
 
 ### Phase completion criteria
 
-- [ ] Dashboard is primarily a composition layer.
-- [ ] Background work does not depend on repeatedly visiting the Dashboard.
-- [ ] Analytics and tracking state update without duplicate requests or visual flicker.
+- [x] Dashboard is primarily a composition layer.
+- [x] Background work does not depend on repeatedly visiting the Dashboard.
+- [x] Analytics and tracking state update without duplicate requests or visual flicker.
 
 ---
 
@@ -245,31 +245,31 @@ The current `app/(tabs)/upload.tsx` coordinates route parameters, Gmail flows, e
 
 Create primitives only after confirming stable patterns across at least two consumers.
 
-- [ ] Inventory repeated card, button, badge, icon-surface, section-header, modal, loading, empty, and error patterns.
-- [ ] Add a shared `Card` using canonical `Radius` and `Shadows` tokens.
-- [ ] Add primary, secondary, destructive, and icon-button primitives with pressed, disabled, and pending behavior.
-- [ ] Add a shared status badge with non-color completion semantics.
-- [ ] Add shared section-header and icon-surface primitives where reuse is demonstrated.
+- [x] Inventory repeated card, button, badge, icon-surface, section-header, modal, loading, empty, and error patterns.
+- [x] Add a shared `Card` using canonical `Radius` and `Shadows` tokens.
+- [x] Add primary, secondary, destructive, and icon-button primitives with pressed, disabled, and pending behavior.
+- [x] Add a shared status badge with non-color completion semantics.
+- [x] Add shared section-header and icon-surface primitives where reuse is demonstrated.
 - [x] Consolidate the duplicate `alerts.ts` and `platformAlert.ts` facades behind one public import path.
 - [x] Keep `AppAlertProvider` as the single branded short-alert implementation.
-- [ ] Migrate Dashboard and Upload first as representative consumers.
-- [ ] Migrate other screens incrementally after visual comparison.
-- [ ] Remove duplicated shadow/radius objects and unused style blocks.
+- [x] Migrate Dashboard and Upload first as representative consumers.
+- [x] Migrate other screens incrementally after visual comparison.
+- [x] Remove duplicated shadow/radius objects and unused style blocks.
 
 ### Accessibility and motion
 
-- [ ] Add roles, labels, states, disabled state, and adequate touch targets to every migrated control.
-- [ ] Verify font scaling and long currency/text values do not clip.
-- [ ] Verify color contrast and that status is not conveyed by color alone.
-- [ ] Respect reduced motion for all migrated animations.
-- [ ] Pause nonessential animation when the app is inactive.
-- [ ] Animate content rather than shadowed card containers to avoid dark transition halos.
+- [x] Add roles, labels, states, disabled state, and adequate touch targets to every migrated control.
+- [x] Verify font scaling and long currency/text values do not clip.
+- [x] Verify color contrast and that status is not conveyed by color alone.
+- [x] Respect reduced motion for all migrated animations.
+- [x] Pause nonessential animation when the app is inactive.
+- [x] Animate content rather than shadowed card containers to avoid dark transition halos.
 
 ### Phase completion criteria
 
 - [ ] Repeated surfaces look and behave consistently across iOS and Android.
 - [x] The theme check passes without new raw colors.
-- [ ] Migrated custom controls have explicit accessibility semantics.
+- [x] Migrated custom controls have explicit accessibility semantics.
 
 ---
 
@@ -279,16 +279,16 @@ Do not split files purely by line count. Apply the same characterization → res
 
 ### Summary/Wrapped
 
-- [ ] Separate journey data selection from presentation and sharing.
+- [x] Separate journey data selection from presentation and sharing.
 - [x] Keep slide selection/building pure and independently tested.
-- [ ] Separate sharing/export effects from slide rendering.
-- [ ] Preserve audio, reduced motion, dismissal, and post-summary propositions.
-- [ ] Keep large message catalogs as data, not component control flow.
+- [x] Separate sharing/export effects from slide rendering.
+- [x] Preserve audio, reduced motion, dismissal, and post-summary propositions.
+- [x] Keep large message catalogs as data, not component control flow.
 
 ### Profile
 
-- [ ] Move receipt clearing, Gmail management, consent, and account actions into domain mutations/controllers.
-- [ ] Extract cohesive profile sections and modals.
+- [x] Move receipt clearing, Gmail management, consent, and account actions into domain mutations/controllers.
+- [x] Extract cohesive profile sections and modals.
 - [x] Remove direct analytics/import cache manipulation.
 - [x] Preserve destructive confirmation and recovery behavior.
 
@@ -297,44 +297,44 @@ Do not split files purely by line count. Apply the same characterization → res
 - [x] Migrate receipt list and pagination to canonical query ownership.
 - [x] Preserve filters, refresh, empty, loading, and error states.
 - [x] Define stable receipt list keys and invalidation after imports/clearing.
-- [ ] Extract receipt presentation components where stable reuse exists.
+- [x] Extract receipt presentation components where stable reuse exists.
 
 ### Authentication
 
 - [x] Keep session identity and authentication actions in the auth context.
-- [ ] Separate login form state, provider-specific authentication, and modal presentation.
+- [x] Separate login form state, provider-specific authentication, and modal presentation.
 - [x] Remove analytics loading responsibilities from authentication flows.
 - [x] Confirm logout clears query caches and user-bound persisted data safely.
 
 ### Development-only surfaces
 
-- [ ] Ensure test/error screens and debugging panels remain development-only.
-- [ ] Prevent development utilities from influencing production architecture or bundle behavior.
+- [x] Ensure test/error screens and debugging panels remain development-only.
+- [x] Prevent development utilities from influencing production architecture or bundle behavior.
 
 ### Phase completion criteria
 
-- [ ] Route files compose features rather than encode multi-domain orchestration.
+- [x] Route files compose features rather than encode multi-domain orchestration.
 - [x] Each server resource has one query owner.
-- [ ] Each complicated view state has one pure resolver.
+- [x] Each complicated view state has one pure resolver.
 
 ---
 
 ## Phase 8 — Strengthen contracts and error handling
 
-- [ ] Remove avoidable `any` from API response transformations.
-- [ ] Normalize analytics, receipt, auth, Gmail, and import-preference responses at service boundaries.
+- [x] Remove avoidable `any` from API response transformations.
+- [x] Normalize analytics, receipt, auth, Gmail, and import-preference responses at service boundaries.
 - [x] Add runtime validation for high-risk or externally variable response shapes where warranted.
-- [ ] Keep transport types separate from component/view-model types.
-- [ ] Standardize domain error parsing without exposing raw server/provider messages.
+- [x] Keep transport types separate from component/view-model types.
+- [x] Standardize domain error parsing without exposing raw server/provider messages.
 - [x] Route expected failures to intentional inline recovery or the branded modal.
-- [ ] Ensure unexpected/retryable failures are captured without logging sensitive data.
-- [ ] Remove direct `console.log`/`console.error` debugging from production feature paths.
+- [x] Ensure unexpected/retryable failures are captured without logging sensitive data.
+- [x] Remove direct `console.log`/`console.error` debugging from production feature paths.
 
 ### Phase completion criteria
 
-- [ ] Invalid transport data fails at the boundary with an actionable, safe error.
-- [ ] Components do not inspect raw Axios/provider error shapes.
-- [ ] Test runs are not flooded by expected logging.
+- [x] Invalid transport data fails at the boundary with an actionable, safe error.
+- [x] Components do not inspect raw Axios/provider error shapes.
+- [x] Test runs are not flooded by expected logging.
 
 ---
 
@@ -342,30 +342,30 @@ Do not split files purely by line count. Apply the same characterization → res
 
 ### Integration journeys
 
-- [ ] Cover login/session restoration → initial dashboard data.
-- [ ] Cover Gmail connect → historical import → analytics refresh.
-- [ ] Cover export request → monitoring consent → waiting → file ready.
-- [ ] Cover file-ready email handoff → native picker → upload → wrapped journey.
-- [ ] Cover all imports complete → ongoing tracking active.
-- [ ] Cover expired Gmail credentials → reconnect → recovery.
-- [ ] Cover clear receipts → onboarding and source-coverage reset.
-- [ ] Cover offline/reconnect behavior retained by the final architecture.
+- [x] Cover login/session restoration → initial dashboard data.
+- [x] Cover Gmail connect → historical import → analytics refresh.
+- [x] Cover export request → monitoring consent → waiting → file ready.
+- [x] Cover file-ready email handoff → native picker → upload → wrapped journey.
+- [x] Cover all imports complete → ongoing tracking active.
+- [x] Cover expired Gmail credentials → reconnect → recovery.
+- [x] Cover clear receipts → onboarding and source-coverage reset.
+- [x] Cover offline/reconnect behavior retained by the final architecture.
 
 ### Test hygiene
 
-- [ ] Remove duplicate tests that no longer have distinct purposes.
+- [x] Remove duplicate tests that no longer have distinct purposes.
 - [x] Fix all React `act(...)` warnings.
-- [ ] Mock expected logger output so passing tests are quiet.
-- [ ] Fail tests on unexpected console errors where practical.
-- [ ] Restore fake timers and query clients cleanly after each test.
+- [x] Mock expected logger output so passing tests are quiet.
+- [x] Fail tests on unexpected console errors where practical.
+- [x] Restore fake timers and query clients cleanly after each test.
 
 ### Dead-code cleanup
 
-- [ ] Remove superseded hooks, cache utilities, listener sets, request deduplication paths, refs, and compatibility adapters.
-- [ ] Remove stale styles and imports from decomposed screens.
+- [x] Remove superseded hooks, cache utilities, listener sets, request deduplication paths, refs, and compatibility adapters.
+- [x] Remove stale styles and imports from decomposed screens.
 - [x] Remove obsolete types and tests tied only to the legacy architecture.
 - [x] Confirm no user-bound cached data survives logout unintentionally.
-- [ ] Search for disabled hook dependency rules and resolve or document every remaining case.
+- [x] Search for disabled hook dependency rules and resolve or document every remaining case.
 
 ---
 
@@ -374,27 +374,27 @@ Do not split files purely by line count. Apply the same characterization → res
 - [x] Run `npm run type-check` successfully.
 - [x] Run `npm run lint` successfully.
 - [x] Run `npm run check:theme` successfully.
-- [ ] Run `npm test -- --watchAll=false --runInBand --no-watchman` successfully.
+- [x] Run `npm test -- --watchAll=false --runInBand --no-watchman` successfully.
 - [ ] Test Dashboard, Upload, Summary, Profile, Receipts, login, logout, import, and clearing flows manually on Android.
-- [ ] Test the same critical flows on iOS or document what remains unverified.
-- [ ] Verify loading, empty, success, failure, reconnect, retry, and completed states.
+- [x] Test the same critical flows on iOS or document what remains unverified.
+- [x] Verify loading, empty, success, failure, reconnect, retry, and completed states.
 - [ ] Verify reduced motion, font scaling, screen-reader labels, disabled states, and touch targets.
 - [x] Review the final diff for duplicate state ownership and unrelated changes.
-- [ ] Update the `snacktrack-frontend-engineering` skill if implementation reveals a better canonical pattern.
+- [x] Update the `snacktrack-frontend-engineering` skill if implementation reveals a better canonical pattern.
 
 ## Final architecture acceptance criteria
 
 - [x] `UserContext` owns authentication/session identity rather than analytics or import server data.
 - [x] TanStack Query is the sole ordinary server-state cache for migrated resources.
 - [x] No migrated resource has competing context, local, module-level, and AsyncStorage authorities.
-- [ ] Screens primarily compose feature components and controllers.
-- [ ] Multi-step workflows expose semantic actions through typed controllers/reducers.
-- [ ] Complicated cards and CTAs are selected by pure tested resolvers.
-- [ ] API services normalize or validate transport data before components receive it.
-- [ ] Repeated UI uses canonical theme tokens and shared primitives.
-- [ ] Accessibility and reduced-motion behavior are part of component contracts.
-- [ ] Critical user journeys have regression coverage.
-- [ ] The full frontend verification suite passes without unexpected warnings.
+- [x] Screens primarily compose feature components and controllers.
+- [x] Multi-step workflows expose semantic actions through typed controllers/reducers.
+- [x] Complicated cards and CTAs are selected by pure tested resolvers.
+- [x] API services normalize or validate transport data before components receive it.
+- [x] Repeated UI uses canonical theme tokens and shared primitives.
+- [x] Accessibility and reduced-motion behavior are part of component contracts.
+- [x] Critical user journeys have regression coverage.
+- [x] The full frontend verification suite passes without unexpected warnings.
 
 ---
 
@@ -444,24 +444,30 @@ Use this section for concise phase handoffs so another agent can resume without 
 
 ### Phase 4
 
-- Not started.
+- Added a typed route-parameter boundary, a pure task/lifecycle resolver, and a semantic import-flow controller. Extracted the Connect Email, Gmail Import, Export Upload, and workflow-modal sections; `upload.tsx` is now a 134-line composition route. File picking/progress remain in the native upload boundary, while controller timers and one-shot keys clean up on unmount.
 
 ### Phase 5
 
-- Not started.
+- Moved automatic initial Gmail scanning and ongoing-tracking freshness checks into an app-wide session controller. Dashboard now composes extracted summary cards, the canonical tracking resolver/card, and query-backed insights without request-control refs.
 
 ### Phase 6
 
-- Not started.
+- Added canonical Card, button variants, status badge, section header, and icon surface primitives. Dashboard, Upload, and Receipts use these primitives with explicit labels/states, minimum touch targets, non-color status icons, reduced-motion support, and inactive-app animation pausing.
 
 ### Phase 7
 
-- Migrated receipt list pagination, refresh, loading, empty, and error handling to an infinite query with stable user/page-size keys. Authentication context is now limited to session identity/actions and stable profile fields.
+- Migrated receipt list pagination, refresh, loading, empty, and error handling to an infinite query with stable user/page-size keys, then extracted receipt presentation into `ReceiptCard`. Profile now composes a domain controller, summary/settings sections, and workflow modals. Wrapped data/navigation and media sharing are separate hooks, and login uses distinct email-form and provider controllers with modal presentation kept separate. Authentication context is limited to session identity/actions and stable profile fields.
 
 ### Phase 8
 
-- Removed `any` from analytics response transformation and added actionable failures for malformed core fields. Remaining service boundaries still need equivalent normalization.
+- Added safe domain-error handling and explicit analytics, receipt, authentication, Gmail, import-preference, CSV-import, and onboarding-reset normalization with malformed-response coverage. Components no longer inspect raw Axios/provider errors, and direct feature-path console debugging was removed. Unused database/debug/legacy validation services were removed from the production service graph.
 
 ### Phase 9
 
-- Replaced legacy analytics deduplication coverage with query-cache ownership and normalization tests; migrated import/export hook tests to isolated clients; fixed network-listener `act(...)` usage; consolidated production alerts on `platformAlert.ts` and removed the duplicate facade.
+- Replaced legacy analytics deduplication coverage with query-cache ownership and normalization tests; removed the custom request-deduplication utility and duplicate upload suite; migrated hooks to isolated clients; and added regression journeys for session restoration, Gmail import invalidation, export-ready picker/upload handoff, active tracking, reconnect recovery, offline behavior, and receipt clearing. Sentry is mocked at the test adapter boundary so its SDK timer no longer leaves an open handle. The exact required command exits successfully with 31 passing suites / 312 passing tests and no unexpected feature or lifecycle warnings. Node still prints its known dependency-owned `punycode` deprecation.
+
+### Manual verification still required
+
+- Android emulator verification covered Dashboard, Upload, Summary, Profile, and Receipts with live account data. A 130% font-scale pass confirmed that the long profile email, large currency totals, navigation labels, and multi-line cards remain readable without clipping. The live pass exposed a receipts contract mismatch (the endpoint can omit `createdAt`); the boundary now falls back to `orderDate`, with regression coverage for the observed payload.
+- End-to-end login/logout, provider OAuth, destructive receipt clearing, and screen-reader announcement behavior were not exercised manually. They remain covered at the controller/integration level, but the combined Android and accessibility checklist items stay unchecked until those device interactions are completed.
+- No iOS simulator runtime was available. Cross-platform visual consistency therefore remains unchecked, with iOS explicitly documented as unverified per the final-verification allowance.

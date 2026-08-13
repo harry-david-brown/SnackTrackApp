@@ -5,6 +5,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { showSimpleAlert } from '../../utils/platformAlert';
 import { createQueryTestWrapper } from '../utils/queryTestUtils';
 
+const mockInvalidateReceiptDerivedData = jest.fn();
+
 jest.mock('expo-auth-session', () => ({
   makeRedirectUri: jest.fn(() => 'snacktrack://oauth-callback'),
 }));
@@ -38,6 +40,11 @@ jest.mock('../../services/analyticsApi', () => ({
 jest.mock('../../utils/platformAlert', () => ({
   showAlert: jest.fn(),
   showSimpleAlert: jest.fn(),
+}));
+
+jest.mock('../../lib/queryInvalidation', () => ({
+  invalidateImportState: jest.fn(),
+  invalidateReceiptDerivedData: (...args: unknown[]) => mockInvalidateReceiptDerivedData(...args),
 }));
 
 describe('useGmailImport', () => {
@@ -147,5 +154,27 @@ describe('useGmailImport', () => {
     expect(showSimpleAlert).toHaveBeenCalledWith('Reconnect Gmail', 'Reconnect Gmail to continue.');
     expect(gmailApi.getStatus).toHaveBeenCalledTimes(2);
     expect(result.current.connectionStatus.needsReconnect).toBe(true);
+  });
+
+  it('refreshes receipts and analytics after a historical Gmail import', async () => {
+    (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: true, canImport: true });
+    (gmailApi.importReceipts as jest.Mock).mockResolvedValue({
+      success: true,
+      totalEmailsFound: 4,
+      totalReceiptsProcessed: 3,
+      totalReceiptsImported: 3,
+      totalAmount: 45,
+      errors: [],
+    });
+    mockInvalidateReceiptDerivedData.mockResolvedValue(undefined);
+    const onImportSuccess = jest.fn();
+    const { Wrapper } = createQueryTestWrapper();
+    const { result } = renderHook(() => useGmailImport({ onImportSuccess }), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+
+    await act(async () => { await result.current.importReceipts(); });
+
+    expect(mockInvalidateReceiptDerivedData).toHaveBeenCalledTimes(1);
+    expect(onImportSuccess).toHaveBeenCalledWith(expect.objectContaining({ success: true, totalReceiptsImported: 3 }));
   });
 });

@@ -1,13 +1,12 @@
 import { Colors } from '@/constants/theme';
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../../contexts/UserContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
-import { SlideInView } from '../../components/ui/SlideInView';
 import { useFocusEffect } from '@react-navigation/native';
 import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
 import { useImportPreferences } from '../../hooks/useImportPreferences';
@@ -17,14 +16,16 @@ import { showAlert, showSimpleAlert } from '../../utils/platformAlert';
 import { openUberExportEmail } from '../../utils/exportDownloadHandoff';
 import { WhatWeNoticedCarousel } from '../../components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery } from '../../hooks/queries/useAnalyticsQueries';
+import { DashboardSummaryCards } from '../../components/dashboard/DashboardSummaryCards';
+import { AppButton } from '../../components/ui/AppButton';
+import { Card } from '../../components/ui/Card';
+import { SectionHeader } from '../../components/ui/SectionHeader';
 
 export default function DashboardScreen() {
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
   const { data: analytics, refetch: loadAnalytics } = analyticsQuery;
-  const automaticTrackingCheckRef = useRef<string | null>(null);
-  const automaticInitialGmailScanRef = useRef<string | null>(null);
   const {
     preferences: importPreferences,
     isLoading: areImportPreferencesLoading,
@@ -32,44 +33,9 @@ export default function DashboardScreen() {
     refresh: refreshImportPreferences,
     setOngoingTrackingConsent,
     checkOngoingTracking,
-    importGmailReceipts,
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
   
-  useEffect(() => {
-    if (
-      !importPreferences
-      || importPreferences.export.status !== 'completed'
-      || importPreferences.gmailImport.hasImported
-      || importPreferences.gmailImport.status === 'importing'
-      || !importPreferences.ongoingTracking.capability.canTrack
-      || isImportStateUpdating
-    ) return;
-
-    const scanKey = importPreferences.export.updatedAt ?? 'completed-export';
-    if (automaticInitialGmailScanRef.current === scanKey) return;
-    automaticInitialGmailScanRef.current = scanKey;
-    void importGmailReceipts()
-      .then(() => loadAnalytics())
-      .catch(() => undefined);
-  }, [importGmailReceipts, importPreferences, isImportStateUpdating, loadAnalytics]);
-
-  useEffect(() => {
-    if (
-      importPreferences?.ongoingTracking.effectiveState !== 'active'
-      || isImportStateUpdating
-    ) return;
-    const lastChecked = importPreferences.ongoingTracking.activity.lastSuccessfulCheckAt;
-    const lastCheckedMs = lastChecked ? new Date(lastChecked).getTime() : 0;
-    if (lastCheckedMs && Date.now() - lastCheckedMs < 15 * 60 * 1000) return;
-    const checkKey = lastChecked ?? 'never';
-    if (automaticTrackingCheckRef.current === checkKey) return;
-    automaticTrackingCheckRef.current = checkKey;
-    void checkOngoingTracking()
-      .then(() => loadAnalytics())
-      .catch(() => undefined);
-  }, [checkOngoingTracking, importPreferences, isImportStateUpdating, loadAnalytics]);
-
   useFocusEffect(
     React.useCallback(() => {
       void refreshImportPreferences();
@@ -167,44 +133,19 @@ export default function DashboardScreen() {
               </View>
             </View>
             {__DEV__ && (
-              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                <Ionicons name="log-out-outline" size={24} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              <AppButton label="Log out" variant="icon" icon="log-out-outline" onPress={handleLogout} />
             )}
           </View>
           
 	          {/* Stats Cards */}
-          <View style={styles.statsContainer}>
-            <SlideInView direction="left" delay={100}>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="wallet-outline" size={24} color={Colors.primary} />
-                <Text style={styles.cardTitle}>Total Spent</Text>
-              </View>
-              <Text style={styles.cardValue}>
-                {analytics ? formatCurrency(analytics.totalSpent) : '—'}
-              </Text>
-              <Text style={styles.cardSubtext}>All time</Text>
-            </View>
-            </SlideInView>
-            
-            <SlideInView direction="right" delay={200}>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="receipt-outline" size={24} color={Colors.success} />
-                <Text style={styles.cardTitle}>Receipts</Text>
-              </View>
-              <Text style={styles.cardValue}>
-                {analytics ? analytics.totalReceipts : '—'}
-              </Text>
-              <Text style={styles.cardSubtext}>Orders tracked</Text>
-            </View>
-            </SlideInView>
-	          </View>
+          <DashboardSummaryCards
+            totalSpent={analytics ? formatCurrency(analytics.totalSpent) : '—'}
+            receiptCount={analytics?.totalReceipts ?? null}
+          />
 
           {/* Contextual import and tracking status */}
           <View style={styles.actionsContainer}>
-            <Text style={styles.sectionTitle}>{trackingCardState.sectionLabel}</Text>
+            <SectionHeader title={trackingCardState.sectionLabel} />
             <DashboardTrackingCard
               state={trackingCardState}
               preferences={importPreferences}
@@ -215,20 +156,20 @@ export default function DashboardScreen() {
 
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
-            <Text style={styles.sectionTitle}>What we noticed</Text>
+            <SectionHeader title="What we noticed" />
             {analytics?.dashboardInsights?.length ? (
               <WhatWeNoticedCarousel
                 insights={analytics.dashboardInsights}
                 onOpenExport={() => router.push({ pathname: '/(tabs)/upload', params: { focus: 'export' } })}
               />
             ) : (
-              <View style={styles.emptyState}>
+              <Card style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={48} color={Colors.gray400} />
                 <Text style={styles.emptyStateTitle}>No receipts yet</Text>
                 <Text style={styles.emptyStateSubtitle}>
                   Connect Gmail to get started fast, or upload a full export for deeper history
                 </Text>
-              </View>
+              </Card>
             )}
           </View>
         </View>
@@ -276,218 +217,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  logoutButton: {
-    padding: 8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
-  },
-  exportUpsellCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: Colors.chipActiveBg,
-    shadowColor: Colors.textPrimary,
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  exportUpsellHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  exportUpsellBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.infoBg,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  exportUpsellBadgeText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  exportUpsellDismiss: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.background,
-  },
-  exportUpsellTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  exportUpsellBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-  },
-  exportUpsellPoints: {
-    gap: 10,
-    marginBottom: 18,
-  },
-  exportUpsellPointRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  exportUpsellPointText: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  exportUpsellActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  exportUpsellPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  exportUpsellPrimaryText: {
-    color: Colors.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  exportUpsellSecondary: {
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: Colors.infoBg,
-  },
-  exportUpsellSecondaryText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  card: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginLeft: 8,
-  },
-  cardValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  cardSubtext: {
-    fontSize: 12,
-    color: Colors.gray500,
-  },
   actionsContainer: {
     marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-  },
-  actionButton: {
-    backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  actionButtonSecondary: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  actionButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  actionButtonText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  actionButtonTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
-    marginBottom: 2,
-  },
-  actionButtonSubtitle: {
-    fontSize: 14,
-    color: Colors.alpha(Colors.white, 0.8),
   },
   activityContainer: {
     marginBottom: 32,
   },
   emptyState: {
-    backgroundColor: Colors.white,
     padding: 40,
-    borderRadius: 12,
     alignItems: 'center',
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   emptyStateTitle: {
     fontSize: 18,

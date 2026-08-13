@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '../contexts/UserContext';
-import { analyticsKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
+import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
 import {
   gmailApi,
   type ImportPreferencesResponse,
@@ -24,6 +24,16 @@ export function useImportPreferences(enabled = true) {
     return preferences;
   };
 
+  const invalidateImportDependents = async ({ receipts = false, gmail = false, preferences = true } = {}) => {
+    if (!userId) return;
+    await Promise.all([
+      preferences ? queryClient.invalidateQueries({ queryKey: importPreferenceKeys.current(userId) }) : Promise.resolve(),
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, userId] }),
+      receipts ? queryClient.invalidateQueries({ queryKey: [...receiptKeys.all, userId] }) : Promise.resolve(),
+      gmail ? queryClient.invalidateQueries({ queryKey: gmailStatusKeys.current(userId) }) : Promise.resolve(),
+    ]);
+  };
+
   const monitoringConsent = useMutation({
     mutationFn: (decision: 'granted' | 'declined' | 'revoked') => gmailApi.setMonitoringConsent(decision),
     onSuccess: writePreferences,
@@ -39,16 +49,24 @@ export function useImportPreferences(enabled = true) {
     onSuccess: writePreferences,
   });
 
+  const exportReadyCheck = useMutation({
+    mutationFn: () => gmailApi.checkExportReady(),
+    onSuccess: (result) => writePreferences(result.preferences),
+  });
+
+  const disconnect = useMutation({
+    mutationFn: (options?: { resetImportStatus?: boolean }) => gmailApi.disconnect(options),
+    onSuccess: async () => {
+      queryClient.setQueryData(gmailStatusKeys.current(userId ?? 'anonymous'), { connected: false });
+      await invalidateImportDependents({ gmail: true });
+    },
+  });
+
   const trackingCheck = useMutation({
     mutationFn: () => gmailApi.checkOngoingTracking(),
     onSuccess: async (result) => {
       writePreferences(result.preferences);
-      if (userId) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, userId] }),
-          queryClient.invalidateQueries({ queryKey: [...receiptKeys.all, userId] }),
-        ]);
-      }
+      await invalidateImportDependents({ receipts: true, preferences: false });
     },
   });
 
@@ -66,24 +84,23 @@ export function useImportPreferences(enabled = true) {
         queryFn: gmailApi.getImportPreferences,
         staleTime: 0,
       });
-      if (userId) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, userId] }),
-          queryClient.invalidateQueries({ queryKey: [...receiptKeys.all, userId] }),
-        ]);
-      }
+      await invalidateImportDependents({ receipts: true, preferences: false });
     },
   });
 
   const isUpdating = monitoringConsent.isPending
     || ongoingConsent.isPending
     || exportRequested.isPending
+    || exportReadyCheck.isPending
+    || disconnect.isPending
     || trackingCheck.isPending
     || gmailImport.isPending;
 
   const mutationError = monitoringConsent.error
     || ongoingConsent.error
     || exportRequested.error
+    || exportReadyCheck.error
+    || disconnect.error
     || trackingCheck.error
     || gmailImport.error;
 
@@ -104,5 +121,7 @@ export function useImportPreferences(enabled = true) {
     checkOngoingTracking: trackingCheck.mutateAsync,
     importGmailReceipts: gmailImport.mutateAsync,
     markExportRequested: exportRequested.mutateAsync,
+    checkExportReady: exportReadyCheck.mutateAsync,
+    disconnectGmail: disconnect.mutateAsync,
   };
 }

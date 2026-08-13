@@ -1,67 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserSummary } from '../types/api';
-
 const CACHE_KEYS = {
-  ANALYTICS: '@snacktrack_analytics_cache',
   LAST_SYNC: '@snacktrack_last_sync',
   PENDING_OPERATIONS: '@snacktrack_pending_operations',
 };
 
-const CACHE_DURATION = 1000 * 60 * 15; // 15 minutes
+export interface PendingUploadFile {
+  uri?: string;
+  name?: string;
+  type?: string;
+}
 
 export interface PendingOperation {
   id: string;
   type: 'csv_upload' | 'user_update';
-  data: any;
+  data: { userId?: string; file?: File | PendingUploadFile; [key: string]: unknown };
   timestamp: number;
   retryCount: number;
 }
-
-// Analytics cache
-export const cacheAnalytics = async (userId: string, data: UserSummary): Promise<void> => {
-  try {
-    const cacheData = {
-      data,
-      timestamp: Date.now(),
-      userId,
-    };
-    await AsyncStorage.setItem(CACHE_KEYS.ANALYTICS, JSON.stringify(cacheData));
-  } catch (error) {
-    // Silently fail - caching is not critical
-  }
-};
-
-export const getCachedAnalytics = async (userId: string): Promise<UserSummary | null> => {
-  try {
-    const cached = await AsyncStorage.getItem(CACHE_KEYS.ANALYTICS);
-    if (!cached) return null;
-
-    const cacheData = JSON.parse(cached);
-    
-    // Check if cache is still valid
-    const age = Date.now() - cacheData.timestamp;
-    if (age > CACHE_DURATION) {
-      return null; // Cache expired
-    }
-
-    // Check if cache is for the same user
-    if (cacheData.userId !== userId) {
-      return null; // Different user
-    }
-
-    return cacheData.data;
-  } catch (error) {
-    return null;
-  }
-};
-
-export const clearAnalyticsCache = async (): Promise<void> => {
-  try {
-    await AsyncStorage.removeItem(CACHE_KEYS.ANALYTICS);
-  } catch (error) {
-    // Silently fail - not critical
-  }
-};
 
 // Pending operations queue (for offline support)
 export const queueOperation = async (operation: Omit<PendingOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> => {
@@ -133,7 +88,6 @@ export const getLastSync = async (): Promise<number | null> => {
 export const clearAllCache = async (): Promise<void> => {
   try {
     await AsyncStorage.multiRemove([
-      CACHE_KEYS.ANALYTICS,
       CACHE_KEYS.LAST_SYNC,
       CACHE_KEYS.PENDING_OPERATIONS,
     ]);
@@ -141,4 +95,3 @@ export const clearAllCache = async (): Promise<void> => {
     // Silently fail - not critical
   }
 };
-

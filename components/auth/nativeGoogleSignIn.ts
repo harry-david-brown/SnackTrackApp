@@ -56,17 +56,11 @@ export const checkNativeGoogleSignIn = (): boolean => {
           return true;
         }
       } catch {
-        // Config might not be ready yet - that's okay, we'll use expo-auth-session
-        if (__DEV__) {
-          console.log('Config not ready for Google Sign-In, using expo-auth-session fallback');
-        }
+        // Config might not be ready yet; use expo-auth-session fallback.
       }
     }
   } catch {
-    // Native module not available - use expo-auth-session fallback
-    if (__DEV__) {
-      console.log('Native Google Sign-In not available, using expo-auth-session fallback');
-    }
+    // Native module not available; use expo-auth-session fallback.
   }
 
   nativeGoogleSignInAvailable = false;

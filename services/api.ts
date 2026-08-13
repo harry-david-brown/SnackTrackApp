@@ -6,5 +6,5 @@
  * Example: import { userApi } from './api/userApi'
  */
 
-export { default as api, userApi, csvApi, databaseApi, receiptApi, validationApi } from './api/index';
+export { default as api, userApi, csvApi, receiptApi } from './api/index';
 export { default } from './api/index';

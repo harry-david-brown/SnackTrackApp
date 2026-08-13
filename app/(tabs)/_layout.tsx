@@ -1,12 +1,10 @@
 import { Colors } from '@/constants/theme';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { featureFlags } from '../../config/featureFlags';
 import { useUser } from '../../contexts/UserContext';
 
 export default function TabLayout() {
   const { state } = useUser();
-  const showDevTabs = featureFlags.showTestErrors;
 
   // Declarative auth gate: any time the user is signed out (including after
   // logout from any tab), this layout redirects to the dedicated login route.
@@ -57,16 +55,6 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="test-errors"
-        options={{
-          title: 'Test Errors',
-          href: showDevTabs ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bug' : 'bug-outline'} size={24} color={color} />
           ),
         }}
       />

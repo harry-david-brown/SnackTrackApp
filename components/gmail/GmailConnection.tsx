@@ -2,28 +2,23 @@ import { Colors } from '@/constants/theme';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useGmailImport } from '../../hooks/useGmailImport';
-import { type GmailImportResponse } from '../../services/gmailApi';
+import { type GmailConnectionStatus } from '../../services/gmailApi';
 
 interface GmailConnectionProps {
-  onImportSuccess?: (result: GmailImportResponse) => void;
+  connectionStatus: GmailConnectionStatus;
+  isLoading: boolean;
+  isChecking: boolean;
+  onDisconnect: () => void;
   onClose?: () => void;
-  onDisconnectSuccess?: () => void;
 }
 
 export const GmailConnection: React.FC<GmailConnectionProps> = ({
-  onImportSuccess,
+  connectionStatus,
+  isLoading,
+  isChecking,
+  onDisconnect,
   onClose,
-  onDisconnectSuccess,
 }) => {
-  const {
-    connectionStatus,
-    isLoading,
-    isChecking,
-    disconnectGmail,
-    formatExpiry,
-  } = useGmailImport({ onImportSuccess, onDisconnectSuccess });
-
   const isConnected = connectionStatus.connected;
   const needsReconnect = connectionStatus.needsReconnect;
 
@@ -76,7 +71,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
         )}
 
         {isConnected && connectionStatus.connectionMode === 'temporary' && connectionStatus.expiresAt && (
-          <Text style={styles.statusMeta}>Temporary access expires {formatExpiry(connectionStatus.expiresAt)}</Text>
+          <Text style={styles.statusMeta}>Temporary access expires {new Date(connectionStatus.expiresAt).toLocaleString()}</Text>
         )}
 
         {needsReconnect && (
@@ -103,7 +98,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
 
         <TouchableOpacity
           style={[styles.tertiaryButton, isLoading && styles.buttonDisabled]}
-          onPress={disconnectGmail}
+          onPress={onDisconnect}
           disabled={isLoading}
         >
           {isLoading ? (

@@ -103,24 +103,6 @@ function getApiUrl(): string {
     );
   }
 
-  // In development, allow http only for localhost and local IPs
-  if (appEnv === 'development' && parsedUrl.protocol === 'http:') {
-    const isLocalhost = parsedUrl.hostname === 'localhost' || 
-                       parsedUrl.hostname === '127.0.0.1' ||
-                       parsedUrl.hostname.startsWith('192.168.') ||
-                       parsedUrl.hostname.startsWith('10.') ||
-                       parsedUrl.hostname.startsWith('172.');
-
-    if (!isLocalhost && __DEV__) {
-      // Use console.warn here since logger might not be initialized yet during config load
-      console.warn(
-        '⚠️  Security Warning: Using HTTP for non-localhost API URL in development.\n' +
-        `URL: ${apiUrl}\n` +
-        'Consider using HTTPS for better security, even in development.'
-      );
-    }
-  }
-
   return apiUrl;
 }
 
@@ -176,21 +158,7 @@ export function getEnvConfig(): EnvConfig {
  * This is useful for catching configuration errors before the app starts.
  */
 export function validateEnv(): void {
-  try {
-    getEnvConfig();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('\n❌ Environment Configuration Error:');
-    console.error('=====================================');
-    console.error(message);
-    console.error('\n💡 Quick Fix:');
-    console.error('1. Create a .env file in the project root');
-    console.error('2. Add: EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app');
-    console.error('   (Or use a different URL if needed)');
-    console.error('3. Add: EXPO_PUBLIC_APP_ENV=development (optional)');
-    console.error('\n📚 See README.md for detailed setup instructions.\n');
-    throw error;
-  }
+  getEnvConfig();
 }
 
 // Export singleton instance (validated on first access)

@@ -1,303 +1,49 @@
-import { Colors } from '@/constants/theme';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  Pressable,
-  ActivityIndicator,
-  RefreshControl 
-} from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Receipt, DataSource } from '../types/api';
+import { Colors } from '../constants/theme';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useUser } from '../contexts/UserContext';
 import { useReceiptsQuery } from '../hooks/queries/useReceiptsQuery';
+import { ReceiptCard } from '../components/receipts/ReceiptCard';
+import { AppButton } from '../components/ui/AppButton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export default function ReceiptsScreen() {
   const { formatCurrency } = useCurrency();
   const { state } = useUser();
-  const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(null);
-
-  const ITEMS_PER_PAGE = 20;
-  const receiptsQuery = useReceiptsQuery(state.user?.id, ITEMS_PER_PAGE);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const receiptsQuery = useReceiptsQuery(state.user?.id, 20);
   const receipts = receiptsQuery.data?.pages.flatMap((page) => page.data) ?? [];
-  const totalReceipts = receiptsQuery.data?.pages[0]?.pagination?.total ?? receipts.length;
+  const total = receiptsQuery.data?.pages[0]?.pagination.total ?? receipts.length;
 
-  const onRefresh = async () => {
-    setExpandedReceiptId(null);
-    await receiptsQuery.refetch();
-  };
+  const goBack = () => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile');
+  const refresh = async () => { setExpandedId(null); await receiptsQuery.refetch(); };
+  const loadMore = () => { if (!receiptsQuery.isFetchingNextPage && receiptsQuery.hasNextPage) void receiptsQuery.fetchNextPage(); };
 
-  const loadMore = () => {
-    if (!receiptsQuery.isFetchingNextPage && receiptsQuery.hasNextPage) {
-      void receiptsQuery.fetchNextPage();
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getReceiptTypeLabel = (receipt: Receipt): string => {
-    // Use receiptType if available, otherwise fall back to dataSource
-    if (receipt.receiptType) {
-      switch (receipt.receiptType) {
-        case 'uber_eats':
-          return 'UberEats';
-        case 'doordash':
-          return 'DoorDash';
-        default:
-          // If receiptType exists but is unknown, fall back to dataSource
-          return receipt.dataSource === DataSource.EMAIL ? 'Email' : 'CSV';
-      }
-    }
-    // Fallback to dataSource for backward compatibility
-    return receipt.dataSource === DataSource.EMAIL ? 'Email' : 'CSV';
-  };
-
-  const getReceiptTypeIcon = (receipt: Receipt): string => {
-    if (receipt.receiptType) {
-      switch (receipt.receiptType) {
-        case 'uber_eats':
-          return 'car-outline';
-        case 'doordash':
-          return 'bicycle-outline';
-      default:
-        return 'receipt-outline';
-    }
-    }
-    // Fallback to dataSource icons
-    return receipt.dataSource === DataSource.EMAIL ? 'mail-outline' : 'document-outline';
-  };
-
-  const getReceiptTypeColor = (receipt: Receipt): string => {
-    if (receipt.receiptType) {
-      switch (receipt.receiptType) {
-        case 'uber_eats':
-          return Colors.uber; // UberEats green (from UberDataTutorial)
-        case 'doordash':
-          return Colors.doorDash; // DoorDash red
-      default:
-        return Colors.textSecondary;
-    }
-    }
-    // Fallback to dataSource colors
-    return receipt.dataSource === DataSource.EMAIL ? Colors.success : Colors.info;
-  };
-
-  const toggleExpanded = (receiptId: string) => {
-    setExpandedReceiptId((current) => {
-      // Use functional update to ensure we have the latest state
-      return current === receiptId ? null : receiptId;
-    });
-  };
-
-  const renderReceipt = ({ item }: { item: Receipt }) => {
-    // Only check expansion if item has a valid ID
-    const isExpanded = item.id && expandedReceiptId === item.id;
-    // Ensure items is an array
-    const items = Array.isArray(item.items) ? item.items : [];
-    const hasItems = items.length > 0;
-
-    return (
-      <Pressable 
-        style={({ pressed }) => [
-          styles.receiptCard,
-          hasItems && pressed && styles.receiptCardPressed
-        ]}
-        onPress={() => {
-          if (hasItems && item.id) {
-            toggleExpanded(item.id);
-          }
-        }}
-        disabled={!hasItems}
-      >
-        <View style={styles.receiptHeader}>
-          <View style={styles.receiptInfo}>
-            <Text style={styles.restaurantName} numberOfLines={1}>
-              {item.restaurantName || 'Unknown Restaurant'}
-            </Text>
-            <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={14} color={Colors.gray500} />
-              <Text style={styles.dateText}>{formatDate(item.orderDate)}</Text>
-            </View>
-          </View>
-          <View style={styles.amountContainer}>
-            <Text style={styles.amount}>{formatCurrency(item.amountSpent)}</Text>
-            <View style={[styles.sourceBadge, { backgroundColor: getReceiptTypeColor(item) }]}>
-              <Ionicons 
-                name={getReceiptTypeIcon(item) as any} 
-                size={12} 
-                color={Colors.white}
-              />
-              <Text style={styles.sourceBadgeText}>
-                {getReceiptTypeLabel(item)}
-              </Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.itemsHeaderRow}>
-          {hasItems ? (
-            <>
-              <Text style={styles.itemsCountText}>
-                {items.length} {items.length === 1 ? 'item' : 'items'}
-              </Text>
-              <Ionicons 
-                name={isExpanded ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color={Colors.textSecondary}
-              />
-            </>
-          ) : (
-            <Text style={styles.itemsUnavailableText}>
-              {item.dataSource === DataSource.EMAIL 
-                ? 'Item details not available from email import'
-                : 'No items'}
-            </Text>
-          )}
-        </View>
-        
-        {hasItems && isExpanded && (
-          <View style={styles.itemsContainer}>
-            {items.map((receiptItem, index) => {
-              // Ensure we're working with primitive values
-              const itemName = typeof receiptItem?.name === 'string' ? receiptItem.name : 'Unknown item';
-              const itemQuantity = typeof receiptItem?.quantity === 'number' ? receiptItem.quantity : 1;
-              const itemPrice = typeof receiptItem?.price === 'number' ? receiptItem.price : 0;
-              
-              // Use a unique key combining receipt ID and index
-              const uniqueKey = `${item.id}-item-${index}`;
-              
-              return (
-                <View key={uniqueKey} style={styles.itemRow}>
-                  <View style={styles.itemDetails}>
-                    <Text style={styles.itemName} numberOfLines={2}>
-                      {itemName}
-                    </Text>
-                    <Text style={styles.itemQuantity}>
-                      Qty: {itemQuantity}
-                    </Text>
-                  </View>
-                  {itemPrice > 0 && (
-                    <Text style={styles.itemPrice}>
-                      {formatCurrency(itemPrice)}
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </Pressable>
-    );
-  };
-
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="receipt-outline" size={80} color={Colors.gray400} />
-      <Text style={styles.emptyTitle}>No receipts yet</Text>
-      <Text style={styles.emptyText}>
-        Connect Gmail to start importing receipts, or upload a full export for deeper history
-      </Text>
-      <TouchableOpacity 
-        style={styles.uploadButton}
-        onPress={() => router.push('/(tabs)/upload')}
-      >
-        <Ionicons name="cloud-upload-outline" size={20} color={Colors.white} />
-        <Text style={styles.uploadButtonText}>Import Receipts</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderFooter = () => {
-    if (!receiptsQuery.isFetchingNextPage) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={Colors.primary} />
-      </View>
-    );
-  };
-
-  if (!state.user) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading user...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!state.user) return <SafeAreaView style={styles.container}><LoadingSpinner text="Loading user…" /></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => {
-            // Navigate to profile tab, or go back if there's a history
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/(tabs)/profile');
-            }
-          }} 
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>My Receipts</Text>
-          <Text style={styles.headerSubtitle}>
-            {totalReceipts > 0 ? totalReceipts : receipts.length} {totalReceipts > 0 ? (totalReceipts === 1 ? 'receipt' : 'receipts') : (receipts.length === 1 ? 'receipt' : 'receipts')}
-          </Text>
-        </View>
-        <View style={styles.backButton} />
+        <AppButton label="Back" variant="icon" icon="arrow-back" onPress={goBack} />
+        <View style={styles.headerCopy}><Text style={styles.title}>My Receipts</Text><Text style={styles.subtitle}>{total} {total === 1 ? 'receipt' : 'receipts'}</Text></View>
+        <View style={styles.spacer} />
       </View>
-
-      {receiptsQuery.isPending ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading receipts...</Text>
-        </View>
-      ) : receiptsQuery.isError ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={60} color={Colors.error} />
-          <Text style={styles.errorTitle}>Oops!</Text>
-          <Text style={styles.errorText}>Failed to load receipts. Please try again.</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={() => { void receiptsQuery.refetch(); }}
-          >
-            <Ionicons name="refresh-outline" size={20} color={Colors.white} />
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
+      {receiptsQuery.isPending ? <LoadingSpinner text="Loading receipts…" /> : receiptsQuery.isError ? (
+        <View style={styles.message}><ErrorMessage error="Failed to load receipts. Please try again." type="network" onRetry={() => { void receiptsQuery.refetch(); }} /></View>
       ) : (
         <FlatList
           data={receipts}
-          renderItem={renderReceipt}
-          keyExtractor={(item, index) => item.id || `receipt-${index}`}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-          refreshControl={
-            <RefreshControl
-              refreshing={receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-            />
-          }
+          renderItem={({ item }) => <ReceiptCard receipt={item} expanded={expandedId === item.id} formatCurrency={formatCurrency} onToggle={(id) => setExpandedId((current) => current === id ? null : id)} />}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={<EmptyState icon="receipt-outline" title="No receipts yet" message="Connect Gmail to start importing receipts, or upload a full export for deeper history." actionText="Import Receipts" onAction={() => router.push('/(tabs)/upload')} />}
+          ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator color={Colors.primary} /> : null}
+          refreshControl={<RefreshControl refreshing={receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage} onRefresh={refresh} tintColor={Colors.primary} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
         />
@@ -307,241 +53,12 @@ export default function ReceiptsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray250,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.inkStrong,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: Colors.gray500,
-    marginTop: 2,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.inkStrong,
-    marginTop: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
-  },
-  retryButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  receiptCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    cursor: 'pointer',
-  },
-  receiptCardPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
-  receiptHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  receiptInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  restaurantName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.inkStrong,
-    marginBottom: 6,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dateText: {
-    fontSize: 14,
-    color: Colors.gray500,
-  },
-  amountContainer: {
-    alignItems: 'flex-end',
-  },
-  amount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginBottom: 6,
-  },
-  sourceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  sourceBadgeText: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  itemsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
-  },
-  itemsCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  itemsUnavailableText: {
-    fontSize: 13,
-    color: Colors.gray500,
-    fontStyle: 'italic',
-  },
-  itemsContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray50,
-  },
-  itemDetails: {
-    flex: 1,
-    marginRight: 12,
-  },
-  itemName: {
-    fontSize: 14,
-    color: Colors.inkStrong,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  itemQuantity: {
-    fontSize: 13,
-    color: Colors.gray500,
-  },
-  itemPrice: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 60,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.inkStrong,
-    marginTop: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 24,
-  },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
-  },
-  uploadButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.gray250 },
+  headerCopy: { flex: 1, alignItems: 'center' },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.inkStrong },
+  subtitle: { fontSize: 12, color: Colors.gray500, marginTop: 2 },
+  spacer: { width: 48 },
+  list: { flexGrow: 1, padding: 16, paddingBottom: 32 },
+  message: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
 });

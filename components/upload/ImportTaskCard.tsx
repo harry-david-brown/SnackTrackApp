@@ -3,6 +3,10 @@ import { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FadeInView } from '../ui/FadeInView';
+import { Card } from '../ui/Card';
+import { StatusBadge } from '../ui/StatusBadge';
+import { IconSurface } from '../ui/IconSurface';
+import type { StatusTone } from '../ui/StatusBadge';
 
 export type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
 
@@ -12,7 +16,7 @@ interface ImportTaskCardProps {
   description: string;
   iconName: keyof typeof Ionicons.glyphMap;
   statusLabel: string;
-  statusTone: 'complete' | 'recommended' | 'optional';
+  statusTone: StatusTone;
   isComplete: boolean;
   isOpen: boolean;
   onPress: (id: ImportTaskId) => void;
@@ -32,39 +36,21 @@ export function ImportTaskCard({
   onPress,
   children,
 }: ImportTaskCardProps) {
-  const statusBadgeStyle = {
-    complete: styles.taskStatusBadgeComplete,
-    recommended: styles.taskStatusBadgeRecommended,
-    optional: styles.taskStatusBadgeOptional,
-  }[statusTone];
-  const statusTextStyle = {
-    complete: styles.taskStatusTextComplete,
-    recommended: styles.taskStatusTextRecommended,
-    optional: styles.taskStatusTextOptional,
-  }[statusTone];
-
   return (
-    <View style={[styles.taskCard, isOpen && styles.taskCardOpen]}>
+    <Card style={isOpen && styles.taskCardOpen}>
       <TouchableOpacity
         style={styles.taskCardHeader}
         onPress={() => onPress(id)}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${statusLabel}. ${description}`}
+        accessibilityState={{ expanded: isOpen }}
       >
-        <View style={styles.taskIcon}>
-          <Ionicons
-            name={isComplete ? 'checkmark-circle' : iconName}
-            size={24}
-            color={isComplete ? Colors.secondary : Colors.primary}
-          />
-        </View>
+        <IconSurface icon={isComplete ? 'checkmark-circle' : iconName} color={isComplete ? Colors.secondary : Colors.primary} />
         <View style={styles.taskHeaderText}>
           <View style={styles.taskTitleRow}>
             <Text style={styles.taskTitle}>{title}</Text>
-            <View style={[styles.taskStatusBadge, statusBadgeStyle]}>
-              <Text style={[styles.taskStatusText, statusTextStyle]}>
-                {statusLabel}
-              </Text>
-            </View>
+            <StatusBadge label={statusLabel} tone={statusTone} />
           </View>
           <Text style={styles.taskDescription}>{description}</Text>
         </View>
@@ -80,23 +66,11 @@ export function ImportTaskCard({
           {children}
         </FadeInView>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  taskCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   taskCardOpen: {
     borderWidth: 1,
     borderColor: Colors.chipActiveBg,
@@ -105,15 +79,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 16,
-  },
-  taskIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.chipActiveBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    gap: 12,
   },
   taskHeaderText: {
     flex: 1,
@@ -135,33 +101,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
-  },
-  taskStatusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  taskStatusBadgeComplete: {
-    backgroundColor: Colors.successSurfaceCool,
-  },
-  taskStatusBadgeRecommended: {
-    backgroundColor: Colors.chipActiveBg,
-  },
-  taskStatusBadgeOptional: {
-    backgroundColor: Colors.slate50,
-  },
-  taskStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  taskStatusTextComplete: {
-    color: Colors.successDark,
-  },
-  taskStatusTextRecommended: {
-    color: Colors.primary,
-  },
-  taskStatusTextOptional: {
-    color: Colors.textSecondary,
   },
   taskContent: {
     borderTopWidth: 1,

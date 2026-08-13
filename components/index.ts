@@ -56,6 +56,4 @@ export { CurrencySelectorModal } from './profile/CurrencySelectorModal';
 export { default as InsightsPanel } from './InsightsPanel';
 export { NetworkStatusIndicator } from './NetworkStatusIndicator';
 export { default as OnboardingScreen } from './OnboardingScreen';
-export { ErrorTestingPanel } from './ErrorTestingPanel';
 export { ErrorThrower } from './ErrorThrower';
-

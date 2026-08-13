@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../services/authApi';
 import { showAlert } from '../../utils/platformAlert';
+import { toDomainError } from '../../utils/domainError';
 
 interface EmailVerificationModalProps {
   visible: boolean;
@@ -34,6 +35,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
+  const onVerifiedRef = useRef(onVerified);
+  onVerifiedRef.current = onVerified;
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
@@ -47,20 +50,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     };
   }, [resendTimer]);
 
-  useEffect(() => {
-    if (visible && email) {
-      sendVerificationCode();
-    } else if (!visible) {
-      setCode('');
-      setError(null);
-      setIsSending(false);
-      setIsVerifying(false);
-      setResendTimer(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, email]);
-
-  const sendVerificationCode = async () => {
+  const sendVerificationCode = useCallback(async () => {
     if (!email) return;
     setError(null);
     try {
@@ -68,17 +58,13 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       const response = await authApi.sendVerificationEmail({ email });
       setResendTimer(response.expiresIn || RESEND_COOLDOWN);
       // Removed alert - user can see the code input field is ready
-    } catch (err: any) {
-      // Handle backend error format: error.error?.message
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Unable to send verification email.';
+    } catch (err: unknown) {
+      const errorMessage = toDomainError(err).message;
       
       // Handle "already verified" case
       if (errorMessage.toLowerCase().includes('already verified')) {
         showAlert('Already Verified', 'This email is already verified.');
-        onVerified(); // Update state to reflect verified status
+        onVerifiedRef.current(); // Update state to reflect verified status
         return;
       }
       
@@ -86,7 +72,19 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     } finally {
       setIsSending(false);
     }
-  };
+  }, [email]);
+
+  useEffect(() => {
+    if (visible && email) {
+      void sendVerificationCode();
+    } else if (!visible) {
+      setCode('');
+      setError(null);
+      setIsSending(false);
+      setIsVerifying(false);
+      setResendTimer(0);
+    }
+  }, [email, sendVerificationCode, visible]);
 
   const handleVerify = async () => {
     if (code.length < 6) {
@@ -99,13 +97,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
       await authApi.verifyEmailCode({ email, code });
       showAlert('Email Verified', 'Your email has been verified successfully!');
       onVerified();
-    } catch (err: any) {
-      // Handle backend error format: error.error?.message
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Invalid code. Please try again.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(toDomainError(err).message);
     } finally {
       setIsVerifying(false);
     }
@@ -278,4 +271,3 @@ const styles = StyleSheet.create({
 });
 
 export default EmailVerificationModal;
-

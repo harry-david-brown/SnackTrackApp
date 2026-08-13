@@ -24,6 +24,7 @@ export const createAppQueryClient = (options: { forTests?: boolean } = {}) =>
         refetchOnWindowFocus: false,
       },
       mutations: {
+        gcTime: options.forTests ? Infinity : 5 * 60 * 1000,
         retry: false,
       },
     },

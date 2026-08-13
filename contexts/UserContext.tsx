@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockUserApi } from '../services/mockApi';
 import { authApi } from '../services/authApi';
 import { AppUser, RegisterResponse, LoginResponse } from '../types/api';
 import { 
@@ -16,6 +15,7 @@ import { logger } from '../utils/logger';
 import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '../constants';
 import { UserState, UserAction, UserContextType, initialState } from './userTypes';
 import { userReducer } from './userReducer';
+import { toDomainError } from '../utils/domainError';
 
 // Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -171,25 +171,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       
       logger.info('User registered successfully:', email);
       return response;
-    } catch (error: any) {
-      let errorMessage = 'Failed to create account';
-      
-      if (error.response?.data) {
-        // The error might be in different formats
-        const errorData = error.response.data.error || error.response.data.message || error.response.data;
-        const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
-        
-        if (apiError.toLowerCase().includes('already exists') || apiError.toLowerCase().includes('duplicate')) {
-          errorMessage = 'An account with this email already exists. Please login instead.';
-        } else if (apiError.toLowerCase().includes('password')) {
-          errorMessage = 'Password must be at least 8 characters with 1 uppercase letter and 1 number.';
-        } else {
-          errorMessage = apiError;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      const lowerMessage = domainError.message.toLowerCase();
+      const errorMessage = lowerMessage.includes('already exists') || lowerMessage.includes('duplicate')
+        ? 'An account with this email already exists. Please login instead.'
+        : lowerMessage.includes('password')
+          ? 'Password must be at least 8 characters with 1 uppercase letter and 1 number.'
+          : domainError.message;
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -233,25 +222,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       logger.info('User logged in successfully:', email);
       
       return response;
-    } catch (error: any) {
-      let errorMessage = 'Failed to login';
-      
-      if (error.response?.data) {
-        // The error might be in different formats
-        const errorData = error.response.data.error || error.response.data.message || error.response.data;
-        const apiError = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
-        
-        if (apiError.toLowerCase().includes('invalid') || apiError.toLowerCase().includes('credentials') || apiError.toLowerCase().includes('password')) {
-          errorMessage = 'Invalid email or password. Please try again.';
-        } else {
-          errorMessage = apiError;
-        }
-      } else if (error.message === 'SESSION_EXPIRED') {
-        errorMessage = 'Your session has expired. Please login again.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      const lowerMessage = domainError.message.toLowerCase();
+      const errorMessage = domainError.code === 'SESSION_EXPIRED'
+        ? 'Your session has expired. Please login again.'
+        : lowerMessage.includes('invalid') || lowerMessage.includes('credentials') || lowerMessage.includes('password')
+          ? 'Invalid email or password. Please try again.'
+          : domainError.message;
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -285,15 +263,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setSentryUser(response.userId, response.email);
 
       return response;
-    } catch (error: any) {
-      logger.error('Google Login Error:', error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        (error.response?.status === 401 ? 'Google authentication was rejected by the server.' : null) ||
-        error.message ||
-        'Failed to login with Google';
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      dispatch({ type: 'SET_ERROR', payload: domainError.message });
       throw error;
     }
   };
@@ -348,33 +320,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setSentryUser(response.userId, response.email);
 
       return response;
-    } catch (error: any) {
-      logger.error('Apple Login Error:', error);
-      
-      let errorMessage = 'Failed to login with Apple';
-      
-      // Handle network errors
-      if (!error.response) {
-        if (error.code === 'ERR_NETWORK' || error.message?.includes('Network')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-      } else if (error.response?.data) {
-        // The error might be in different formats
-        const errorData = error.response.data.error || error.response.data;
-        const apiError = typeof errorData === 'string' 
-          ? errorData 
-          : (errorData.message || JSON.stringify(errorData));
-        errorMessage = apiError;
-      } else if (error.message === 'SESSION_EXPIRED') {
-        errorMessage = 'Your session has expired. Please try again.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      const errorMessage = domainError.code === 'SESSION_EXPIRED'
+        ? 'Your session has expired. Please try again.'
+        : domainError.message;
       // Don't set error state for user cancellation
-      if (error.code !== 'ERR_REQUEST_CANCELED' && error.code !== 'ERR_CANCELED') {
+      if (domainError.code !== 'ERR_REQUEST_CANCELED' && domainError.code !== 'ERR_CANCELED') {
         dispatch({ type: 'SET_ERROR', payload: errorMessage });
       }
       

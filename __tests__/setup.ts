@@ -4,6 +4,18 @@
 process.env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://test-api.example.com';
 process.env.EXPO_PUBLIC_APP_ENV = process.env.EXPO_PUBLIC_APP_ENV || 'development';
 
+// The native Sentry package starts a module-level cleanup interval as soon as
+// it is imported. Tests exercise our adapter, not Sentry internals, so keep the
+// suite deterministic and handle-free with a small adapter-compatible mock.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  setUser: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  withScope: (callback: (scope: { setTag: jest.Mock }) => void) => callback({ setTag: jest.fn() }),
+  startSpan: (_options: unknown, callback: (span: object) => unknown) => callback({}),
+}));
+
 // Mock Expo modules
 const mockRouter = {
   push: jest.fn(),

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../services/authApi';
+import { toDomainError } from '../../utils/domainError';
 
 type ResetStep = 'request' | 'verify' | 'reset' | 'success';
 
@@ -112,13 +113,8 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       setResendTimer(response.expiresIn || RESEND_COOLDOWN);
       setAttemptLimit(response.attemptLimit ?? null);
       // Removed alert - user can see the step change to 'verify'
-    } catch (err: any) {
-      // Handle backend error format: error.error?.message
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Failed to send reset code.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(toDomainError(err).message);
     } finally {
       setIsLoading(false);
     }
@@ -140,13 +136,8 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       await authApi.verifyPasswordResetCode({ email: email.trim().toLowerCase(), code });
       setStep('reset');
       // Removed alert - user can see the step change to 'reset'
-    } catch (err: any) {
-      // Handle backend error format: error.error?.message
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Invalid code. Please try again.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(toDomainError(err).message);
     } finally {
       setIsLoading(false);
     }
@@ -171,13 +162,8 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
         newPassword,
       });
       setStep('success');
-    } catch (err: any) {
-      // Handle backend error format: error.error?.message
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message || 
-                          'Unable to reset password. Try again.';
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(toDomainError(err).message);
     } finally {
       setIsLoading(false);
     }
@@ -444,5 +430,4 @@ const styles = StyleSheet.create({
 });
 
 export default PasswordResetModal;
-
 

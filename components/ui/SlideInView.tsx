@@ -22,7 +22,7 @@ export function SlideInView({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
         duration,
@@ -35,9 +35,10 @@ export function SlideInView({
         delay,
         useNativeDriver: true,
       }),
-    ]).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [delay, distance, duration, fadeAnim, slideAnim]);
 
   const getTransform = () => {
     switch (direction) {
@@ -66,4 +67,3 @@ export function SlideInView({
     </Animated.View>
   );
 }
-

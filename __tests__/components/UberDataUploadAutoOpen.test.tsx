@@ -1,8 +1,9 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { UberDataUpload } from '../../components/upload/UberDataUpload';
 import { useUser } from '../../contexts/UserContext';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { csvApi } from '../../services/api';
 
 jest.mock('../../contexts/UserContext', () => ({ useUser: jest.fn() }));
 jest.mock('../../hooks/useNetworkStatus', () => ({ useNetworkStatus: jest.fn() }));
@@ -44,5 +45,24 @@ describe('UberDataUpload automatic picker handoff', () => {
 
     view.rerender(<UberDataUpload autoOpenToken="ready-v2" />);
     await waitFor(() => expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledTimes(2));
+  });
+
+  it('hands a file-ready picker result through upload to the wrapped navigation boundary', async () => {
+    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
+      canceled: false,
+      assets: [{
+        uri: 'file://uber-export.zip', name: 'uber-export.zip', size: 1024,
+        mimeType: 'application/zip', lastModified: Date.now(),
+      }],
+    });
+    (csvApi.importCsv as jest.Mock).mockResolvedValue({ importedCount: 12, message: 'Imported' });
+    const onUploadSuccess = jest.fn();
+    const view = render(
+      <UberDataUpload autoOpenToken="ready-v3" onUploadSuccess={onUploadSuccess} />
+    );
+
+    await waitFor(() => expect(view.getByText('Upload')).toBeTruthy());
+    fireEvent.press(view.getByText('Upload'));
+    await waitFor(() => expect(onUploadSuccess).toHaveBeenCalledWith(12));
   });
 });

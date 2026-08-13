@@ -85,7 +85,7 @@ export function useOfflineSync() {
         if (!operation.data?.userId || !operation.data?.file) {
           throw new Error('Invalid upload operation data');
         }
-        await csvApi.importCsv(operation.data.userId, operation.data.file);
+        await csvApi.importCsv(operation.data.userId, operation.data.file as File);
         break;
         
       case 'user_update':
@@ -93,7 +93,7 @@ export function useOfflineSync() {
         throw new Error('User update retry not implemented yet');
         
       default:
-        throw new Error(`Unknown operation type: ${(operation as any).type}`);
+        throw new Error(`Unknown operation type: ${String(operation.type)}`);
     }
   };
 
@@ -103,4 +103,3 @@ export function useOfflineSync() {
     syncNow: syncPendingOperations,
   };
 }
-

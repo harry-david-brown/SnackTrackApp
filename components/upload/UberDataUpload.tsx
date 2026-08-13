@@ -132,19 +132,13 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
   }, [autoOpenToken, handleFilePicker, onAutoOpenConsumed]);
 
   const handleUpload = async () => {
-    console.log('🔵 handleUpload called');
-    
     if (!state.user) {
-      console.log('❌ No user logged in');
       showAlert('Error', 'Please log in first.');
       return;
     }
-
-    console.log('🔵 Network status:', { isConnected, isInternetReachable });
     
     // Check network connection before attempting upload (use hook status - updates immediately)
     if (!isConnected || isInternetReachable === false) {
-      console.log('❌ No internet connection');
       showAlert('No Internet Connection', 'Please check your internet connection and try again.');
       return;
     }
@@ -152,7 +146,6 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
     let progressInterval: NodeJS.Timeout | null = null;
     
     try {
-      console.log('🔵 Starting upload process...');
       setUploadState(prev => ({ ...prev, isUploading: true, progress: 0 }));
 
       // Simulate progress updates
@@ -172,38 +165,28 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         throw new Error('No file selected for upload');
       }
       
-      console.log('🔵 Uploading file to API:', uploadState.fileName);
-      console.log('🔵 File URI:', uploadState.fileUri);
-      console.log('🔵 Platform:', Platform.OS);
-      
       // Create a File object for the API with correct MIME type
       const isZip = uploadState.fileName?.toLowerCase().endsWith('.zip');
-      let file: any;
+      let file: File;
       
       if (Platform.OS === 'web') {
-        console.log('🔵 Web platform - fetching blob from URI...');
         // On web, fetch the blob from the URI and create a File object
         const fetchResponse = await fetch(uploadState.fileUri);
-        console.log('🔵 Fetch response status:', fetchResponse.status);
         const blob = await fetchResponse.blob();
-        console.log('🔵 Blob size:', blob.size, 'type:', blob.type);
         file = new File([blob], uploadState.fileName, {
           type: isZip ? 'application/zip' : 'text/csv',
         });
-        console.log('🔵 Created File object:', file.name, file.size, file.type);
       } else {
         // On native, use the standard format
         file = {
           uri: uploadState.fileUri,
           type: isZip ? 'application/zip' : 'text/csv',
           name: uploadState.fileName,
-        };
+        } as unknown as File;
       }
-      
-      console.log('🔵 Calling csvApi.importCsv...');
+
       // Upload to API - will throw error if API is unavailable
       response = await csvApi.importCsv(state.user.id, file);
-      console.log('✅ File uploaded successfully to API');
       
       if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, progress: 100 }));
@@ -222,42 +205,15 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         onUploadSuccess?.(response.importedCount || 0);
       }, 500);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (progressInterval) clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, isUploading: false, progress: 0 }));
       
       // Parse error to get user-friendly message
       const parsedError = parseApiError(error);
       
-      // Log errors based on type
-      if (parsedError.type === 'validation') {
-        // Validation errors are expected user-facing errors - log minimally
-        if (__DEV__) {
-          console.log('⚠️ Upload validation error:', parsedError.message);
-        }
-      } else if (parsedError.type === 'server' || parsedError.type === 'network') {
-        // Server/network errors need detailed logging for debugging
-        if (__DEV__) {
-          console.error('❌ Upload error:', error);
-          if (error.response) {
-            console.error('❌ Response status:', error.response.status);
-            console.error('❌ Response data:', JSON.stringify(error.response.data, null, 2));
-          }
-        } else {
-          console.error('❌ Upload failed:', parsedError.message);
-        }
-      } else {
-        // Unknown errors - log in development
-        if (__DEV__) {
-          console.error('❌ Upload error:', error);
-          console.log('❌ Parsed error:', parsedError);
-        } else {
-          console.error('❌ Upload failed:', parsedError.message);
-        }
-      }
-      
       if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
-        captureException(error, {
+        captureException(error instanceof Error ? error : new Error(parsedError.message), {
           context: 'UberDataUpload',
           fileName: uploadState.fileName,
           fileSize: uploadState.fileSize,

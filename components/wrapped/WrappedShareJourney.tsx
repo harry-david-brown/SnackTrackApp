@@ -17,8 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Reanimated, {
@@ -34,7 +32,6 @@ import { useIsFocused } from '@react-navigation/native';
 import { UserSummary } from '../../types/api';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { showAlert } from '../../utils/platformAlert';
 import {
   STORY_GRADIENTS,
   STORY_SLIDE_DURATION,
@@ -60,6 +57,7 @@ import type {
   EffectiveMonitoringState,
   ExportLifecycleStatus,
 } from '../../services/gmailApi';
+import { useWrappedSharing } from './useWrappedSharing';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -145,10 +143,6 @@ export default function WrappedShareJourney({
   // progress.value in the same commit as a reset write can return the stale
   // pre-reset value (the write lands on the UI runtime asynchronously).
   const armedGenRef = useRef(-1);
-  // Off-screen share render + captured-image cache (keyed by slide index).
-  const hiddenShareShotRef = useRef<ViewShot | null>(null);
-  const shareUriCache = useRef<Map<number, string>>(new Map());
-
   const formatCurrency = useCallback((amount: number) => {
     return formatCurrencyFromContext(amount);
   }, [formatCurrencyFromContext]);
@@ -180,6 +174,11 @@ export default function WrappedShareJourney({
   slidesRef.current = slides;
   const shareTargetIndex = activeSlide?.shareTargetIndex ?? currentSlide;
   const shareTargetSlide = slides[shareTargetIndex];
+  const {
+    captureRef: hiddenShareShotRef,
+    share: handleShare,
+    saveToPhotos: handleSaveToPhotos,
+  } = useWrappedSharing(shareTargetIndex, slides);
   const shouldAutoAdvance = currentSlide < slides.length - 1;
 
   React.useEffect(() => {
@@ -194,23 +193,6 @@ export default function WrappedShareJourney({
       onExportUpsellSeen?.();
     }
   }, [postDeckStep, showPostDeckOffer, onExportUpsellSeen]);
-
-  // Captured share images go stale if the slide deck is rebuilt.
-  React.useEffect(() => {
-    shareUriCache.current.clear();
-  }, [slides]);
-
-  const captureShareImage = useCallback(async (): Promise<string | null> => {
-    const cached = shareUriCache.current.get(shareTargetIndex);
-    if (cached) {
-      return cached;
-    }
-    const uri = await hiddenShareShotRef.current?.capture?.();
-    if (uri) {
-      shareUriCache.current.set(shareTargetIndex, uri);
-    }
-    return uri ?? null;
-  }, [shareTargetIndex]);
 
   // Confetti fires per-slide, optionally delayed (the archetype launches it in
   // sync with the name reveal). Reduced motion skips it entirely.
@@ -228,20 +210,6 @@ export default function WrappedShareJourney({
     const timer = setTimeout(() => setConfettiVisible(true), delay);
     return () => clearTimeout(timer);
   }, [currentSlide, reduceMotion]);
-
-  // Pre-warm: capture the off-screen share render shortly after it mounts so
-  // the share sheet opens instantly instead of waiting on a capture round-trip.
-  React.useEffect(() => {
-    if (shareUriCache.current.has(shareTargetIndex)) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      captureShareImage().catch(() => {
-        // Best-effort warm-up; a real failure surfaces on the share tap.
-      });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [shareTargetIndex, captureShareImage]);
 
   // useLayoutEffect so the off-screen reset happens BEFORE the new slide paints.
   // Otherwise the slide briefly renders at the previous slide's resting values
@@ -424,53 +392,6 @@ export default function WrappedShareJourney({
   if (!slides || slides.length === 0) {
     return null;
   }
-
-  const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    try {
-      const uri = await captureShareImage();
-      if (!uri) {
-        throw new Error('Share image capture failed');
-      }
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Share your SnackTrack Wrapped',
-        });
-      } else {
-        showAlert('Sharing unavailable', "Sharing isn't supported on this device.");
-      }
-    } catch {
-      showAlert('Sharing failed', "Couldn't create your share image.", [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Try Again', onPress: () => { void handleShare(); } },
-      ]);
-    }
-  };
-
-  const handleSaveToPhotos = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    try {
-      // writeOnly: iOS "add photos only" permission — we never read the library.
-      const { granted } = await MediaLibrary.requestPermissionsAsync(true);
-      if (!granted) {
-        showAlert('Permission needed', 'Allow photo access to save your Wrapped card.');
-        return;
-      }
-      const uri = await captureShareImage();
-      if (!uri) {
-        throw new Error('Share image capture failed');
-      }
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      showAlert('Saved', 'Your Wrapped card is in your Photos.');
-    } catch {
-      showAlert('Save failed', "Couldn't save the image to your Photos.", [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Try Again', onPress: () => { void handleSaveToPhotos(); } },
-      ]);
-    }
-  };
 
   // The entrance useLayoutEffect resets progress on every slide change, so
   // navigation only needs to flip the index. Haptics fire here (user-initiated

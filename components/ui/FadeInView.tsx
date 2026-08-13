@@ -12,14 +12,15 @@ export function FadeInView({ children, duration = 500, delay = 0, style }: FadeI
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
+    const animation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration,
       delay,
       useNativeDriver: true,
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [delay, duration, fadeAnim]);
 
   return (
     <Animated.View style={[style, { opacity: fadeAnim }]}>
@@ -27,4 +28,3 @@ export function FadeInView({ children, duration = 500, delay = 0, style }: FadeI
     </Animated.View>
   );
 }
-

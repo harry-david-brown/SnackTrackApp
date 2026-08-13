@@ -1,12 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from './UserContext';
 import { userApi } from '../services/api';
-import { clearAnalyticsCache } from '../utils/offlineCache';
 import { resetExportUpsellForUser } from '../hooks/useExportUpsell';
 import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
 import { resetExportDownloadStateForUser } from '../utils/exportDownloadHandoff';
+import { captureException } from '../utils/sentry';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;
@@ -37,6 +37,20 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const currentUserId = userState.user?.id || null;
   const isAuthenticated = userState.isAuthenticated && !!userState.user;
 
+  const checkOnboardingStatus = useCallback(async () => {
+    try {
+      const key = isAuthenticated && currentUserId
+        ? `@snacktrack_onboarding_completed_${currentUserId}`
+        : '@snacktrack_onboarding_completed';
+      const value = await AsyncStorage.getItem(key);
+      setHasCompletedOnboarding(value === 'true');
+    } catch {
+      setHasCompletedOnboarding(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUserId, isAuthenticated]);
+
   useEffect(() => {
     // Check onboarding status when:
     // 1. Initial mount (lastCheckedUserId is null)
@@ -53,44 +67,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       }
       
       setLastCheckedUserId(currentUserId);
-    checkOnboardingStatus();
+      void checkOnboardingStatus();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userState.user?.id, userState.isAuthenticated]);
-
-  const checkOnboardingStatus = async () => {
-    try {
-      const userId = userState.user?.id || null;
-      const isAuthenticated = userState.isAuthenticated && !!userState.user;
-      
-      // CRITICAL: For authenticated users, ALWAYS check per-user onboarding
-      // Never use device-level onboarding status for authenticated users
-      // This ensures new users always see the tutorial
-      if (isAuthenticated && userId) {
-        // Authenticated user - check per-user onboarding only
-        const key = `@snacktrack_onboarding_completed_${userId}`;
-        const value = await AsyncStorage.getItem(key);
-        const completed = value === 'true';
-        setHasCompletedOnboarding(completed);
-      } else {
-        // Not authenticated - check device-level onboarding (for initial onboarding screen)
-        const key = '@snacktrack_onboarding_completed';
-        const value = await AsyncStorage.getItem(key);
-        const completed = value === 'true';
-        setHasCompletedOnboarding(completed);
-      }
-      
-      // For authenticated users, if onboarding flag doesn't exist for this user,
-      // it means it's a new user - they should see the tutorial
-      // The value check above already handles this (undefined !== 'true')
-    } catch (error) {
-      console.error('Error checking onboarding status:', error);
-      // Default to false on error (new users should see tutorial)
-      setHasCompletedOnboarding(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [checkOnboardingStatus, currentUserId, isAuthenticated, lastCheckedUserId]);
 
   const completeOnboarding = async () => {
     try {
@@ -99,7 +78,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(key, 'true');
       setHasCompletedOnboarding(true);
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      captureException(error instanceof Error ? error : new Error('Onboarding completion failed'), { context: 'onboarding-completion' });
     }
   };
 
@@ -109,7 +88,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       if (userState.isAuthenticated && userId) {
         await userApi.resetOnboarding(userId);
         await Promise.all([
-          clearAnalyticsCache(),
           resetExportUpsellForUser(userId),
           resetExportDownloadStateForUser(userId),
         ]);
@@ -122,7 +100,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.removeItem(key);
       setHasCompletedOnboarding(false);
     } catch (error) {
-      console.error('Error resetting onboarding:', error);
+      captureException(error instanceof Error ? error : new Error('Onboarding reset failed'), { context: 'onboarding-reset' });
       throw error;
     }
   };

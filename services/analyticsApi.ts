@@ -94,49 +94,6 @@ export const analyticsApi = {
     return normalizeUserSummary(response.data, includeWrapped);
   },
 
-  /**
-   * Get database statistics (admin/debug endpoint)
-   * @returns Promise resolving to database statistics object
-   * @throws {Error} If API request fails
-   */
-  getDatabaseStats: async () => {
-    try {
-      const response = await api.get('/database/stats');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  /**
-   * Get all users (admin/debug endpoint)
-   * @returns Promise resolving to array of user objects
-   * @throws {Error} If API request fails
-   */
-  getUsers: async () => {
-    try {
-      const response = await api.get('/database/users');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  /**
-   * Get receipts with pagination
-   * @param limit - Number of receipts per page (default: 20)
-   * @param offset - Offset for pagination (default: 0)
-   * @returns Promise resolving to paginated receipts data
-   * @throws {Error} If API request fails
-   */
-  getReceipts: async (limit = 20, offset = 0) => {
-    try {
-      const response = await api.get(`/receipts?limit=${limit}&offset=${offset}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
 };
 
 export default analyticsApi;

@@ -26,9 +26,16 @@ import {
   isTokenExpired,
   getAccessToken,
 } from '../utils/tokenManager';
-import { deduplicateRequest } from '../utils/requestDeduplication';
 import { logger } from '../utils/logger';
 import { JWT_CONFIG } from '../constants';
+import {
+  normalizeAuthSession,
+  normalizePasswordResetRequest,
+  normalizePasswordResetVerification,
+  normalizeRefresh,
+  normalizeSuccessMessage,
+  normalizeVerificationEmail,
+} from './normalizers/authNormalizers';
 
 /**
  * Authentication API service
@@ -42,18 +49,19 @@ export const authApi = {
    */
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
     try {
-      const response = await api.post<RegisterResponse>('/auth/register', data);
+      const response = await api.post<unknown>('/auth/register', data);
+      const result = normalizeAuthSession(response.data) as RegisterResponse;
       
       // Store tokens and user data
       await storeAuthTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
-        response.data.userId,
-        response.data.user
+        result.accessToken,
+        result.refreshToken,
+        result.userId,
+        result.user
       );
       
-      return response.data;
-    } catch (error: any) {
+      return result;
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -66,18 +74,19 @@ export const authApi = {
    */
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     try {
-      const response = await api.post<LoginResponse>('/auth/login', data);
+      const response = await api.post<unknown>('/auth/login', data);
+      const result = normalizeAuthSession(response.data) as LoginResponse;
 
       // Store tokens and user data
       await storeAuthTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
-        response.data.userId,
-        response.data.user
+        result.accessToken,
+        result.refreshToken,
+        result.userId,
+        result.user
       );
 
-      return response.data;
-    } catch (error: any) {
+      return result;
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -91,25 +100,20 @@ export const authApi = {
   googleLogin: async (idToken: string): Promise<LoginResponse> => {
     try {
       logger.debug('Sending Google Login request to API...');
-      const response = await api.post<LoginResponse>('/auth/google', { idToken });
+      const response = await api.post<unknown>('/auth/google', { idToken });
+      const result = normalizeAuthSession(response.data) as LoginResponse;
       logger.apiResponse(response.status, '/auth/google');
       
       // Store tokens and user data
       await storeAuthTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
-        response.data.userId,
-        response.data.user
+        result.accessToken,
+        result.refreshToken,
+        result.userId,
+        result.user
       );
       
-      return response.data;
-    } catch (error: any) {
-      logger.error('Google Login API Error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        message: error.response?.data?.message || error.response?.data?.error || error.message,
-        hasData: !!error.response?.data,
-      });
+      return result;
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -146,28 +150,21 @@ export const authApi = {
       logger.debug('User data:', user ? { email: '[REDACTED]', hasName: !!user.name, hasFirstName: !!user.name?.firstName, hasLastName: !!user.name?.lastName } : 'none');
 
       const requestPayload = { identityToken, user };
-      const response = await api.post<LoginResponse>('/auth/apple', requestPayload);
+      const response = await api.post<unknown>('/auth/apple', requestPayload);
+      const result = normalizeAuthSession(response.data) as LoginResponse;
       
       logger.apiResponse(response.status, '/auth/apple');
 
       // Store tokens and user data
       await storeAuthTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
-        response.data.userId,
-        response.data.user
+        result.accessToken,
+        result.refreshToken,
+        result.userId,
+        result.user
       );
 
-      return response.data;
-    } catch (error: any) {
-      // Enhanced error logging for debugging (sanitized)
-      logger.error('Apple Login API Error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        message: error.response?.data?.message || error.message,
-        hasData: !!error.response?.data,
-        // Do not log full error.data to prevent token/PII leakage
-      });
+      return result;
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -186,20 +183,21 @@ export const authApi = {
         throw new Error('No refresh token available');
       }
       
-      const response = await api.post<RefreshTokenResponse>('/auth/refresh', {
+      const response = await api.post<unknown>('/auth/refresh', {
         refreshToken,
       });
+      const result = normalizeRefresh(response.data);
       
       // Update stored tokens
       await updateAccessToken(
-        response.data.accessToken,
-        response.data.refreshToken
+        result.accessToken,
+        result.refreshToken
       );
       
       logger.debug('Token refreshed successfully');
       
-      return response.data;
-    } catch (error: any) {
+      return result;
+    } catch (error: unknown) {
       // If refresh fails, clear all tokens (user needs to login again)
       await clearAuthTokens();
       
@@ -223,7 +221,7 @@ export const authApi = {
         return { success: true, message: 'Logged out successfully' };
       }
       
-      const response = await api.post<LogoutResponse>('/auth/logout', {
+      const response = await api.post<unknown>('/auth/logout', {
         refreshToken,
       });
       
@@ -232,8 +230,8 @@ export const authApi = {
       
       logger.debug('User logged out successfully');
       
-      return response.data;
-    } catch (error: any) {
+      return normalizeSuccessMessage(response.data);
+    } catch (error: unknown) {
       // Even if logout fails on server, clear local tokens
       await clearAuthTokens();
       // Don't throw error, logout should always succeed locally
@@ -263,22 +261,15 @@ export const authApi = {
 
   /**
    * Check if the current session is valid
-   * Uses request deduplication to prevent multiple simultaneous validation calls
    * @returns Promise resolving to true if session is valid, false otherwise
    */
   validateSession: async (): Promise<boolean> => {
-    return deduplicateRequest(
-      'GET',
-      '/auth/validate',
-      async () => {
     try {
       const token = await authApi.getValidToken();
       return !!token;
     } catch (error) {
       return false;
     }
-      }
-    );
   },
 
   /**
@@ -287,8 +278,8 @@ export const authApi = {
   requestPasswordReset: async (
     data: RequestPasswordResetRequest
   ): Promise<RequestPasswordResetResponse> => {
-    const response = await api.post<RequestPasswordResetResponse>('/auth/password/reset/request', data);
-    return response.data;
+    const response = await api.post<unknown>('/auth/password/reset/request', data);
+    return normalizePasswordResetRequest(response.data);
   },
 
   /**
@@ -297,8 +288,8 @@ export const authApi = {
   verifyPasswordResetCode: async (
     data: VerifyPasswordResetCodeRequest
   ): Promise<VerifyPasswordResetCodeResponse> => {
-    const response = await api.post<VerifyPasswordResetCodeResponse>('/auth/password/reset/verify', data);
-    return response.data;
+    const response = await api.post<unknown>('/auth/password/reset/verify', data);
+    return normalizePasswordResetVerification(response.data);
   },
 
   /**
@@ -307,8 +298,8 @@ export const authApi = {
   completePasswordReset: async (
     data: CompletePasswordResetRequest
   ): Promise<CompletePasswordResetResponse> => {
-    const response = await api.post<CompletePasswordResetResponse>('/auth/password/reset/complete', data);
-    return response.data;
+    const response = await api.post<unknown>('/auth/password/reset/complete', data);
+    return normalizeSuccessMessage(response.data);
   },
 
   /**
@@ -317,8 +308,8 @@ export const authApi = {
   sendVerificationEmail: async (
     data: SendVerificationEmailRequest
   ): Promise<SendVerificationEmailResponse> => {
-    const response = await api.post<SendVerificationEmailResponse>('/auth/email/verify/send', data);
-    return response.data;
+    const response = await api.post<unknown>('/auth/email/verify/send', data);
+    return normalizeVerificationEmail(response.data);
   },
 
   /**
@@ -327,8 +318,8 @@ export const authApi = {
   verifyEmailCode: async (
     data: VerifyEmailCodeRequest
   ): Promise<VerifyEmailCodeResponse> => {
-    const response = await api.post<VerifyEmailCodeResponse>('/auth/email/verify/confirm', data);
-    return response.data;
+    const response = await api.post<unknown>('/auth/email/verify/confirm', data);
+    return normalizeSuccessMessage(response.data);
   },
 
   /**
@@ -340,19 +331,15 @@ export const authApi = {
       // If refreshToken is not provided, try to get it from storage
       const tokenToUse = refreshToken || await getRefreshToken();
       
-      const response = await api.delete<DeleteAccountResponse>('/auth/delete-account', {
+      const response = await api.delete<unknown>('/auth/delete-account', {
         data: tokenToUse ? { refreshToken: tokenToUse } : {},
       });
       
       // Clear local tokens after successful deletion
       await clearAuthTokens();
       
-      if (__DEV__) {
-        console.log('✅ Account deleted successfully');
-      }
-      
-      return response.data;
-    } catch (error: any) {
+      return normalizeSuccessMessage(response.data);
+    } catch (error: unknown) {
       // Even if deletion fails, clear local tokens for security
       await clearAuthTokens();
       throw error;

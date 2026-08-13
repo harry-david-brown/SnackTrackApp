@@ -91,20 +91,21 @@ const isPublicEndpoint = (url: string): boolean => {
 /**
  * Sanitize error data before sending to Sentry
  */
-const sanitizeErrorData = (data: any): any => {
+const sanitizeErrorData = (data: unknown): unknown => {
   if (!data) return undefined;
   
   if (typeof data === 'object' && data !== null) {
-    const sanitized = { ...data };
+    const sanitized: Record<string, unknown> = { ...(data as Record<string, unknown>) };
     // Remove potentially sensitive fields
     const sensitiveFields = ['accessToken', 'refreshToken', 'token', 'password', 'email'];
     sensitiveFields.forEach(field => {
       if (field in sanitized) sanitized[field] = '[REDACTED]';
     });
     
-    if ('user' in sanitized && sanitized.user) {
+    if ('user' in sanitized && sanitized.user && typeof sanitized.user === 'object') {
+      const user = sanitized.user as Record<string, unknown>;
       sanitized.user = {
-        id: sanitized.user.id,
+        id: user.id,
         email: '[REDACTED]',
       };
     }
@@ -158,9 +159,10 @@ api.interceptors.request.use(
     const rateLimitKey = `${method}:${url}`;
     
     if (!checkRateLimit(rateLimitKey, rateLimitType)) {
-      const error = new Error('Rate limit exceeded. Please wait before making more requests.');
-      (error as any).code = 'RATE_LIMIT_EXCEEDED';
-      (error as any).rateLimitType = rateLimitType;
+      const error = Object.assign(
+        new Error('Rate limit exceeded. Please wait before making more requests.'),
+        { code: 'RATE_LIMIT_EXCEEDED', rateLimitType }
+      );
       logger.warn(`Rate limit exceeded for ${rateLimitKey}`);
       return Promise.reject(error);
     }

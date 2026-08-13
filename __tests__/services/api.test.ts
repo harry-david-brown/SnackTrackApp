@@ -1,9 +1,8 @@
 // Simple smoke tests for API services
 describe('API Services', () => {
-  it('should have userApi with createUser method', () => {
+  it('should expose the canonical onboarding reset service', () => {
     const { userApi } = require('../../services/api');
     expect(userApi).toBeDefined();
-    expect(typeof userApi.createUser).toBe('function');
     expect(typeof userApi.resetOnboarding).toBe('function');
   });
 
@@ -11,12 +10,6 @@ describe('API Services', () => {
     const { csvApi } = require('../../services/api');
     expect(csvApi).toBeDefined();
     expect(typeof csvApi.importCsv).toBe('function');
-  });
-
-  it('should have validationApi with getUserSummary method', () => {
-    const { validationApi } = require('../../services/api');
-    expect(validationApi).toBeDefined();
-    expect(typeof validationApi.getUserSummary).toBe('function');
   });
 
   it('should have receiptApi with clearReceipts method', () => {

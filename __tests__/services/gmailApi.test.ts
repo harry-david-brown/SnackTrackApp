@@ -4,8 +4,38 @@ import {
   ONGOING_TRACKING_CONSENT_VERSION,
 } from '../../services/gmailApi';
 import api from '../../services/api';
+import type { ImportPreferencesResponse } from '../../services/gmailApi';
 
 jest.mock('../../services/api');
+
+const preferences = (
+  monitoringState: ImportPreferencesResponse['monitoring']['consentState'] = 'not_offered',
+  exportStatus: ImportPreferencesResponse['export']['status'] = 'not_started',
+): ImportPreferencesResponse => ({
+  monitoring: {
+    consentState: monitoringState,
+    consentVersion: monitoringState === 'granted' ? MONITORING_CONSENT_VERSION : null,
+    consentedAt: null,
+    revokedAt: null,
+    effectiveState: monitoringState === 'granted' ? 'enabled' : monitoringState === 'declined' ? 'declined' : 'not_offered',
+    capability: { gmailConnected: true, durableAccess: true, canMonitor: true },
+  },
+  export: { status: exportStatus, requestedAt: null, updatedAt: null },
+  gmailImport: {
+    status: 'never_started', updatedAt: null, importedCount: 0, errorCode: null,
+    receiptCount: 0, hasImported: false,
+  },
+  ongoingTracking: {
+    consentState: 'not_offered', consentVersion: null, consentedAt: null, revokedAt: null,
+    status: 'inactive', effectiveState: 'not_offered',
+    capability: { gmailConnected: true, durableAccess: true, canTrack: true },
+    activity: {
+      lastCheckAttemptAt: null, lastSuccessfulCheckAt: null, lastStatsUpdatedAt: null,
+      lastNewOrderAt: null, ordersAddedThisWeek: 0, lastErrorAt: null, lastErrorCode: null,
+    },
+  },
+  coverage: { emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false },
+});
 
 describe('gmailApi.importReceipts', () => {
   beforeEach(() => {
@@ -67,17 +97,10 @@ describe('gmailApi import preferences', () => {
   });
 
   it('records versioned monitoring consent', async () => {
-    const response = {
-      monitoring: {
-        consentState: 'granted',
-        consentVersion: MONITORING_CONSENT_VERSION,
-        effectiveState: 'enabled',
-      },
-      export: { status: 'not_started' },
-    };
+    const response = preferences('granted');
     (api.put as jest.Mock).mockResolvedValue({ data: response });
 
-    await expect(gmailApi.setMonitoringConsent('granted')).resolves.toBe(response);
+    await expect(gmailApi.setMonitoringConsent('granted')).resolves.toEqual(response);
     expect(api.put).toHaveBeenCalledWith('/gmail/preferences/monitoring-consent', {
       decision: 'granted',
       consentVersion: MONITORING_CONSENT_VERSION,
@@ -85,7 +108,7 @@ describe('gmailApi import preferences', () => {
   });
 
   it('does not attach a consent version to decline or revocation', async () => {
-    (api.put as jest.Mock).mockResolvedValue({ data: {} });
+    (api.put as jest.Mock).mockResolvedValue({ data: preferences('declined') });
 
     await gmailApi.setMonitoringConsent('declined');
     await gmailApi.setMonitoringConsent('revoked');
@@ -101,10 +124,13 @@ describe('gmailApi import preferences', () => {
   });
 
   it('records separate versioned consent for ongoing receipt tracking', async () => {
-    const response = { ongoingTracking: { effectiveState: 'active' } };
+    const response = preferences();
+    response.ongoingTracking.consentState = 'granted';
+    response.ongoingTracking.effectiveState = 'active';
+    response.ongoingTracking.status = 'active';
     (api.put as jest.Mock).mockResolvedValue({ data: response });
 
-    await expect(gmailApi.setOngoingTrackingConsent('granted')).resolves.toBe(response);
+    await expect(gmailApi.setOngoingTrackingConsent('granted')).resolves.toEqual(response);
     expect(api.put).toHaveBeenCalledWith('/gmail/preferences/ongoing-tracking-consent', {
       decision: 'granted',
       consentVersion: ONGOING_TRACKING_CONSENT_VERSION,
@@ -112,22 +138,22 @@ describe('gmailApi import preferences', () => {
   });
 
   it('can request an authenticated ongoing receipt check', async () => {
-    const response = { success: true, newOrders: 2 };
+    const response = {
+      success: true, newOrders: 2, totalEmailsFound: 2, totalReceiptsProcessed: 2,
+      totalReceiptsImported: 2, totalAmount: 24, errors: [], preferences: preferences(),
+    };
     (api.post as jest.Mock).mockResolvedValue({ data: response });
-    await expect(gmailApi.checkOngoingTracking()).resolves.toBe(response);
+    await expect(gmailApi.checkOngoingTracking()).resolves.toEqual(response);
     expect(api.post).toHaveBeenCalledWith('/gmail/tracking/check', {}, { timeout: 300000 });
   });
 
   it('loads preferences and records an export request', async () => {
-    const response = {
-      monitoring: { consentState: 'declined' },
-      export: { status: 'requested_monitoring_disabled' },
-    };
+    const response = preferences('declined', 'requested_monitoring_disabled');
     (api.get as jest.Mock).mockResolvedValue({ data: response });
     (api.post as jest.Mock).mockResolvedValue({ data: response });
 
-    await expect(gmailApi.getImportPreferences()).resolves.toBe(response);
-    await expect(gmailApi.markExportRequested()).resolves.toBe(response);
+    await expect(gmailApi.getImportPreferences()).resolves.toEqual(response);
+    await expect(gmailApi.markExportRequested()).resolves.toEqual(response);
 
     expect(api.get).toHaveBeenCalledWith('/gmail/preferences');
     expect(api.post).toHaveBeenCalledWith('/gmail/preferences/export-requested');
@@ -136,14 +162,11 @@ describe('gmailApi import preferences', () => {
   it('checks whether Uber has delivered the requested export', async () => {
     const response = {
       detected: true,
-      preferences: {
-        monitoring: { consentState: 'granted' },
-        export: { status: 'file_ready' },
-      },
+      preferences: preferences('granted', 'file_ready'),
     };
     (api.post as jest.Mock).mockResolvedValue({ data: response });
 
-    await expect(gmailApi.checkExportReady()).resolves.toBe(response);
+    await expect(gmailApi.checkExportReady()).resolves.toEqual(response);
     expect(api.post).toHaveBeenCalledWith('/gmail/preferences/check-export-ready');
   });
 
@@ -151,7 +174,15 @@ describe('gmailApi import preferences', () => {
     const response = { success: true, message: 'Gmail account disconnected successfully' };
     (api.post as jest.Mock).mockResolvedValue({ data: response });
 
-    await expect(gmailApi.disconnect({ resetImportStatus: true })).resolves.toBe(response);
+    await expect(gmailApi.disconnect({ resetImportStatus: true })).resolves.toEqual(response);
     expect(api.post).toHaveBeenCalledWith('/gmail/disconnect', { resetImportStatus: true });
+  });
+
+  it('rejects malformed lifecycle data at the service boundary', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: { ...preferences(), export: { status: 'mystery' } } });
+
+    await expect(gmailApi.getImportPreferences()).rejects.toThrow(
+      'Invalid Gmail response: preferences.export.status',
+    );
   });
 });

@@ -85,10 +85,6 @@ export function showDevFeatures(): boolean {
   if (_showDevFeatures === null) {
 	_showDevFeatures = calculateShowDevFeatures();
 
-	if (__DEV__) {
-	  const mode = getDevFeaturesMode();
-	  console.log(`🚩 Feature Flags: showDevFeatures=${_showDevFeatures} (mode=${mode})`);
-	}
   }
   return _showDevFeatures;
 }
@@ -118,11 +114,6 @@ export const featureFlags = {
   
   /** Show Reset Onboarding button in profile */
   get showResetOnboarding() {
-	return showDevFeatures();
-  },
-  
-  /** Show Test Errors tab */
-  get showTestErrors() {
 	return showDevFeatures();
   },
   

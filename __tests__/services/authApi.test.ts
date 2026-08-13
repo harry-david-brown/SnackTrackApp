@@ -116,6 +116,20 @@ describe('Auth API', () => {
         authApi.login({ email: 'test@example.com', password: 'wrong' })
       ).rejects.toThrow('Invalid credentials');
     });
+
+    it('rejects malformed sessions before storing credentials', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: {
+          userId: 'test-user-id',
+          email: 'test@example.com',
+          user: { id: 'test-user-id', email: 'test@example.com', createdAt: '2025-01-01' },
+        },
+      });
+
+      await expect(authApi.login({ email: 'test@example.com', password: 'Password123' }))
+        .rejects.toThrow('Invalid authentication response: session.accessToken');
+      expect(tokenManager.storeAuthTokens).not.toHaveBeenCalled();
+    });
   });
 
   describe('refresh', () => {
@@ -367,4 +381,3 @@ describe('Auth API', () => {
     });
   });
 });
-

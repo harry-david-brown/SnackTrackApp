@@ -21,6 +21,9 @@ const SAFE_ERROR_PATTERNS = [
   /password must be at least/i,
   /authentication required/i,
   /session expired/i,
+  /already verified/i,
+  /invalid code/i,
+  /code.*expired/i,
   
   // Validation errors
   /invalid email format/i,
@@ -90,7 +93,18 @@ const sanitizeErrorMessage = (errorMessage: string, errorType: ErrorType = 'unkn
   return GENERIC_ERROR_MESSAGES[errorType];
 };
 
-export const parseApiError = (error: any): ApiError => {
+const errorRecord = (error: unknown): Record<string, unknown> => (
+  typeof error === 'object' && error !== null ? error as Record<string, unknown> : {}
+);
+
+const errorText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  const nested = errorRecord(value);
+  return typeof nested.message === 'string' ? nested.message : '';
+};
+
+export const parseApiError = (input: unknown): ApiError => {
+  const error = errorRecord(input);
   // Network error (no response)
   if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
     return {
@@ -111,30 +125,30 @@ export const parseApiError = (error: any): ApiError => {
 
   // Axios error with response
   if (error.response) {
-    const statusCode = error.response.status;
+    const response = errorRecord(error.response);
+    const statusCode = typeof response.status === 'number' ? response.status : 0;
     // Handle both object and string responses
-    const responseData = typeof error.response.data === 'string' 
+    const responseData = typeof response.data === 'string'
       ? (() => {
           try {
-            return JSON.parse(error.response.data);
+            return errorRecord(JSON.parse(response.data as string));
           } catch {
-            return { message: error.response.data };
+            return { message: response.data };
           }
         })()
-      : error.response.data;
+      : errorRecord(response.data);
 
     switch (statusCode) {
       case 400:
         // Backend returns 'error' field, not 'message' for validation errors
-        const errorText = responseData?.error || responseData?.message || '';
-        const errorDetails = responseData?.details || [];
-        const errorHint = responseData?.hint || '';
+        const validationText = errorText(responseData.error) || errorText(responseData.message);
+        const errorHint = errorText(responseData.hint);
         
         // Sanitize the error message
-        let userMessage = sanitizeErrorMessage(errorText, 'validation');
+        let userMessage = sanitizeErrorMessage(validationText, 'validation');
         
         // If hint is provided and the main message passed sanitization, append it
-        if (errorHint && userMessage === errorText) {
+        if (errorHint && userMessage === validationText) {
           const sanitizedHint = sanitizeErrorMessage(errorHint, 'validation');
           if (sanitizedHint !== GENERIC_ERROR_MESSAGES.validation) {
             userMessage += ` ${sanitizedHint}`;
@@ -149,7 +163,7 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       case 401:
-        const unauthorizedMessage = responseData?.error || responseData?.message || '';
+        const unauthorizedMessage = errorText(responseData.error) || errorText(responseData.message);
         return {
           message: sanitizeErrorMessage(unauthorizedMessage, 'validation'),
           type: 'validation',
@@ -158,7 +172,7 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       case 403:
-        const forbiddenMessage = responseData?.error || responseData?.message || 'You don\'t have permission to perform this action.';
+        const forbiddenMessage = errorText(responseData.error) || errorText(responseData.message) || 'You don\'t have permission to perform this action.';
         return {
           message: sanitizeErrorMessage(forbiddenMessage, 'validation'),
           type: 'validation',
@@ -167,7 +181,7 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       case 404:
-        const notFoundMessage = responseData?.error || responseData?.message || 'The requested resource was not found.';
+        const notFoundMessage = errorText(responseData.error) || errorText(responseData.message) || 'The requested resource was not found.';
         return {
           message: sanitizeErrorMessage(notFoundMessage, 'validation'),
           type: 'validation',
@@ -176,7 +190,7 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       case 422:
-        const unprocessableMessage = responseData?.error || responseData?.message || 'Invalid data provided.';
+        const unprocessableMessage = errorText(responseData.error) || errorText(responseData.message) || 'Invalid data provided.';
         return {
           message: sanitizeErrorMessage(unprocessableMessage, 'validation'),
           type: 'validation',
@@ -204,7 +218,7 @@ export const parseApiError = (error: any): ApiError => {
         };
       
       default:
-        const defaultMessage = responseData?.error || responseData?.message || 'An unexpected error occurred.';
+        const defaultMessage = errorText(responseData.error) || errorText(responseData.message) || 'An unexpected error occurred.';
         return {
           message: sanitizeErrorMessage(defaultMessage, 'server'),
           type: 'server',
@@ -215,7 +229,7 @@ export const parseApiError = (error: any): ApiError => {
   }
 
   // Generic error - sanitize error message
-  const genericMessage = error.message || 'An unexpected error occurred.';
+  const genericMessage = errorText(error.message) || 'An unexpected error occurred.';
   return {
     message: sanitizeErrorMessage(genericMessage, 'unknown'),
     type: 'unknown',
@@ -223,21 +237,22 @@ export const parseApiError = (error: any): ApiError => {
   };
 };
 
-export const isNetworkError = (error: any): boolean => {
+export const isNetworkError = (input: unknown): boolean => {
+  const error = errorRecord(input);
   return error.code === 'NETWORK_ERROR' || 
          error.message === 'Network Error' || 
          error.code === 'ECONNABORTED';
 };
 
-export const isRetryableError = (error: any): boolean => {
+export const isRetryableError = (error: unknown): boolean => {
   const parsedError = parseApiError(error);
   return parsedError.isRetryable;
 };
 
-export const getErrorMessage = (error: any): string => {
+export const getErrorMessage = (error: unknown): string => {
   return parseApiError(error).message;
 };
 
-export const getErrorType = (error: any): ErrorType => {
+export const getErrorType = (error: unknown): ErrorType => {
   return parseApiError(error).type;
 };

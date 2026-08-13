@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useUser } from '../../contexts/UserContext';
-import { gmailApi } from '../../services/gmailApi';
+import { useImportPreferences } from '../../hooks/useImportPreferences';
 import { showAlert } from '../../utils/platformAlert';
 import {
   getExportDownloadHandoffState,
@@ -27,6 +27,7 @@ const NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';
 export default function ExportReadyNotifier() {
   const { state } = useUser();
   const userId = state.user?.id;
+  const { checkExportReady } = useImportPreferences(Boolean(userId));
   const isCheckingRef = useRef(false);
   const lastCheckedAtRef = useRef(0);
   const readyVersionRef = useRef<string | null>(null);
@@ -126,7 +127,7 @@ export default function ExportReadyNotifier() {
     isCheckingRef.current = true;
     lastCheckedAtRef.current = now;
     try {
-      const result = await gmailApi.checkExportReady();
+      const result = await checkExportReady();
       if (result.preferences.export.status !== 'file_ready') return;
 
       const readyVersion = result.preferences.export.updatedAt ?? 'ready';
@@ -149,7 +150,7 @@ export default function ExportReadyNotifier() {
     } finally {
       isCheckingRef.current = false;
     }
-  }, [showDownloadFollowUp, showReadyPrompt, userId]);
+  }, [checkExportReady, showDownloadFollowUp, showReadyPrompt, userId]);
 
   useEffect(() => {
     lastCheckedAtRef.current = 0;

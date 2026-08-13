@@ -18,20 +18,22 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
 
   useEffect(() => {
     // Spin animation
-    Animated.loop(
+    const spinAnimation = Animated.loop(
       Animated.timing(spinAnim, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    spinAnimation.start();
 
     // Fade in loader
-    Animated.timing(fadeAnim, {
+    const fadeAnimation = Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
-    }).start();
+    });
+    fadeAnimation.start();
 
     // Brief drumroll, then fade toward the journey's opening forest gradient
     // (no white flash between the loader and the first slide).
@@ -48,9 +50,13 @@ export default function WrappedJourneyLoader({ onComplete }: WrappedJourneyLoade
       });
     }, 900);
 
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      spinAnimation.stop();
+      fadeAnimation.stop();
+      whiteFadeAnim.stopAnimation();
+    };
+  }, [fadeAnim, onComplete, spinAnim, whiteFadeAnim]);
 
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -152,4 +158,3 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.forest850,
   },
 });
-

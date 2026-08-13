@@ -51,6 +51,9 @@ Add or update integration coverage when a change crosses multiple steps, especia
 - Avoid duplicate test files covering the same component without a distinct purpose.
 - Use fake timers deliberately and restore them after each test.
 - Fail tests on unexpected console errors where practical.
+- Mock third-party SDK adapters globally when importing the real SDK starts
+  background timers or subscriptions; test the app adapter contract and keep
+  the suite free of SDK-owned open handles.
 - Do not rely only on snapshots for behavioral state machines.
 
 ## Required checks
