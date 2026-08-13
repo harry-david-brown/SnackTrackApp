@@ -1,0 +1,4 @@
+interface:
+  display_name: "SnackTrack Frontend Engineering"
+  short_description: "Build maintainable SnackTrack frontend features"
+  default_prompt: "Use $snacktrack-frontend-engineering to implement this SnackTrack frontend change with the canonical architecture, UX, and testing standards."

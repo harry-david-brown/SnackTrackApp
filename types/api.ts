@@ -364,7 +364,28 @@ export interface UserSummary {
     issues: string[];
     recommendations: string[];
   };
+  dashboardInsights?: DashboardInsight[];
   wrappedAnalytics?: WrappedAnalytics; // Optional: only included when includeWrapped=true
+}
+
+export type DashboardInsightCategory = 'favorites' | 'habits' | 'extremes' | 'progress';
+export type DashboardInsightIcon = 'restaurant' | 'time' | 'calendar' | 'moon' | 'heart' | 'receipt' | 'meal' | 'delivery' | 'lock';
+
+export interface DashboardInsight {
+  id: string;
+  category: DashboardInsightCategory;
+  kind: 'ranking' | 'stat' | 'order' | 'locked';
+  icon: DashboardInsightIcon;
+  eyebrow: string;
+  title: string;
+  headline?: string;
+  detail?: string;
+  value?: number;
+  valueFormat?: 'currency' | 'number' | 'percent' | 'minutes';
+  rows?: { label: string; count: number; amount: number }[];
+  items?: string[];
+  locked?: boolean;
+  action?: 'open_export';
 }
 
 export interface DatabaseStats {

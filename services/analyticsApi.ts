@@ -50,6 +50,7 @@ export const analyticsApi = {
             'Review any refunded receipts for accuracy'
           ],
         },
+        dashboardInsights: Array.isArray(data.dashboardInsights) ? data.dashboardInsights : [],
       };
       
       // Include wrapped analytics if requested and available

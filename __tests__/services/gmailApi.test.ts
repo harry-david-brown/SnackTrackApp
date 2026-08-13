@@ -156,4 +156,12 @@ describe('gmailApi import preferences', () => {
     await expect(gmailApi.checkExportReady()).resolves.toBe(response);
     expect(api.post).toHaveBeenCalledWith('/gmail/preferences/check-export-ready');
   });
+
+  it('requests an import-status reset when disconnecting for onboarding', async () => {
+    const response = { success: true, message: 'Gmail account disconnected successfully' };
+    (api.post as jest.Mock).mockResolvedValue({ data: response });
+
+    await expect(gmailApi.disconnect({ resetImportStatus: true })).resolves.toBe(response);
+    expect(api.post).toHaveBeenCalledWith('/gmail/disconnect', { resetImportStatus: true });
+  });
 });

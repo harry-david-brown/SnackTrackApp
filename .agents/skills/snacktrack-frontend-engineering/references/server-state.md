@@ -1,0 +1,89 @@
+# Server state and synchronization
+
+## Target ownership
+
+Use TanStack Query as the target cache for ordinary server resources because `QueryClientProvider` is already configured in `SnackTrackApp/app/_layout.tsx`. Do not assume existing resources have been migrated; inspect their current owners first.
+
+Create domain query keys through a key factory, for example:
+
+```ts
+export const importPreferenceKeys = {
+  all: ['import-preferences'] as const,
+  current: () => [...importPreferenceKeys.all, 'current'] as const,
+};
+```
+
+Keep the actual service request in `services/` and wrap it in a feature query hook.
+
+## Query rules
+
+- Include every input affecting the result in the query key.
+- Let the query cache deduplicate concurrent reads.
+- Choose `staleTime` based on the resource, not a global convenience default.
+- Disable queries until authentication identity is ready.
+- Distinguish first-load state from background refetch state.
+- Do not clear valid rendered data merely because a background refetch starts.
+- Handle session expiration centrally in the API/auth boundary.
+
+## Mutation rules
+
+For each mutation, define before implementation:
+
+1. authoritative response returned by the API;
+2. optimistic update, if any;
+3. rollback behavior;
+4. query keys to update or invalidate;
+5. dependent analytics/receipt resources to refresh;
+6. user-visible pending, success, and failure states.
+
+Prefer writing the authoritative mutation response directly into its query cache, then invalidate broader derived resources when needed.
+
+## Avoid duplicate machinery
+
+Do not add new instances of these patterns for ordinary server state:
+
+- module-level listener sets for cache synchronization;
+- component refs used as request mutexes;
+- separate custom request-deduplication wrappers;
+- focus effects that unconditionally refetch every resource;
+- context mirrors of query data;
+- AsyncStorage copies without an offline product requirement;
+- local success booleans that override persisted server lifecycle indefinitely.
+
+A provider-specific import lock may still be necessary on the API. Frontend request prevention is a UX guard, not the durable concurrency guarantee.
+
+## Offline persistence
+
+Use offline storage only when the user experience explicitly supports it. Document:
+
+- what is stored;
+- whether it is sensitive;
+- maximum age;
+- user identity binding;
+- invalidation events;
+- reconciliation after reconnect;
+- whether queued mutations are idempotent.
+
+Never allow a stale offline completion marker to outrank current server truth.
+
+## Background work
+
+- Make effects safe when mounted twice or focused repeatedly.
+- Key one-time transitions with durable operation identifiers when available.
+- Cancel timers and subscriptions during cleanup.
+- Stop polling or timers while the app is inactive.
+- Respect reduced motion for visual timers, but not data correctness timers.
+- Surface durable failures such as reconnect-required instead of silently turning them into empty success.
+
+## Migration strategy
+
+When migrating an existing resource:
+
+1. Document its current readers, writers, cache, deduplication, and invalidation paths.
+2. Add the query hook and a one-way compatibility adapter if required.
+3. Move every consumer in the selected domain boundary.
+4. Move mutations and invalidation.
+5. Remove the old owner and cache path.
+6. Test remount, focus, mutation, logout, and stale-cache behavior.
+
+Do not leave both systems writable.

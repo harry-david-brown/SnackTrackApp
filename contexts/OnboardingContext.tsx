@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from './UserContext';
+import { gmailApi } from '../services/gmailApi';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;
@@ -99,11 +100,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const resetOnboarding = async () => {
     try {
       const userId = userState.user?.id || null;
+      if (userState.isAuthenticated && userId) {
+        await gmailApi.disconnect({ resetImportStatus: true });
+      }
       const key = getOnboardingKey(userId);
       await AsyncStorage.removeItem(key);
       setHasCompletedOnboarding(false);
     } catch (error) {
-      // Silently fail - not critical
+      console.error('Error resetting onboarding:', error);
+      throw error;
     }
   };
 
@@ -147,4 +152,3 @@ export function useOnboarding() {
   }
   return context;
 }
-

@@ -57,15 +57,22 @@ export default function ProfileScreen() {
   const handleResetOnboarding = async () => {
     showAlert(
       'Reset Onboarding',
-      'This will show the onboarding flow again. Continue?',
+      'This will show the onboarding flow again, disconnect Gmail, and reset the Gmail import step. Your existing receipts will remain. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Reset', 
           style: 'destructive',
           onPress: async () => {
-            await resetOnboarding();
-            showAlert('Success', 'Onboarding reset! Logout and login again to see it.');
+            try {
+              await resetOnboarding();
+              showAlert(
+                'Success',
+                'Onboarding and Gmail import status reset. Gmail has been disconnected.'
+              );
+            } catch {
+              showAlert('Reset Failed', 'Could not reset onboarding. Please try again.');
+            }
           }
         },
       ]
@@ -343,7 +350,7 @@ export default function ProfileScreen() {
       resetReceiptData();
       showAlert(
         'Receipts Cleared',
-        'All of your receipts have been deleted. Onboarding and your Uber export status have been reset.'
+        'All of your receipts have been deleted. Onboarding and import statuses have been reset, and Gmail has been disconnected.'
       );
     } catch (error: any) {
       let errorMessage = 'Failed to clear receipts. Please try again.';

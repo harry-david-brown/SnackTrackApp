@@ -15,6 +15,7 @@ import { DashboardTrackingCard } from '../../components/dashboard/DashboardTrack
 import { resolveDashboardTrackingState, type DashboardTrackingAction } from '../../components/dashboard/dashboardTrackingState';
 import { showAlert, showSimpleAlert } from '../../utils/platformAlert';
 import { openUberExportEmail } from '../../utils/exportDownloadHandoff';
+import { WhatWeNoticedCarousel } from '../../components/dashboard/WhatWeNoticedCarousel';
 
 export default function DashboardScreen() {
   const { state, logout, loadAnalytics } = useUser();
@@ -238,26 +239,14 @@ export default function DashboardScreen() {
             />
           </View>
 
-          {/* Recent Activity */}
+          {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            {analytics && analytics.topRestaurants.length > 0 ? (
-              <View style={styles.topRestaurantsCard}>
-                <Text style={styles.subsectionTitle}>Top Restaurants</Text>
-                {analytics.topRestaurants.slice(0, 3).map((restaurant, index) => (
-                  <View key={index} style={styles.restaurantItem}>
-                    <View style={styles.restaurantRank}>
-                      <Text style={styles.rankNumber}>{index + 1}</Text>
-                    </View>
-                    <View style={styles.restaurantInfo}>
-                      <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                      <Text style={styles.restaurantStats}>
-                        {restaurant.count} orders • {formatCurrency(restaurant.totalSpent)}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+            <Text style={styles.sectionTitle}>What we noticed</Text>
+            {analytics?.dashboardInsights?.length ? (
+              <WhatWeNoticedCarousel
+                insights={analytics.dashboardInsights}
+                onOpenExport={() => router.push({ pathname: '/(tabs)/upload', params: { focus: 'export' } })}
+              />
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={48} color={Colors.gray400} />
@@ -538,59 +527,5 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
-  },
-  topRestaurantsCard: {
-    backgroundColor: Colors.white,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  subsectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-  },
-  restaurantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
-  },
-  restaurantRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  rankNumber: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  restaurantInfo: {
-    flex: 1,
-  },
-  restaurantName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  restaurantStats: {
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
 });

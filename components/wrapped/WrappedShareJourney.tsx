@@ -27,12 +27,9 @@ import Reanimated, {
   withTiming,
   withSpring,
   cancelAnimation,
-  interpolate,
-  Extrapolation,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useIsFocused } from '@react-navigation/native';
 import { UserSummary } from '../../types/api';
 import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
@@ -66,6 +63,16 @@ import type {
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
+
+// Keep a held tap active while the finger drifts anywhere on the screen. The
+// default Pressable retention area is small, so ordinary finger movement can
+// otherwise emit onPressOut before the touch is actually released.
+const HOLD_PRESS_RETENTION_OFFSET = {
+  top: screenHeight,
+  right: screenWidth,
+  bottom: screenHeight,
+  left: screenWidth,
+};
 
 interface WrappedShareJourneyProps {
   analytics: UserSummary;
@@ -104,22 +111,21 @@ export default function WrappedShareJourney({
   const { formatCurrency: formatCurrencyFromContext } = useCurrency();
   const reduceMotion = useReducedMotion();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPressPaused, setIsPressPaused] = useState(false);
+  const isPaused = isPressPaused;
   const [confettiVisible, setConfettiVisible] = useState(false);
   const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
   const [postDeckStep, setPostDeckStep] = useState<'tracking' | 'export'>('tracking');
   const { isMuted, toggleMuted } = useWrappedAudio(isFocused && !showPostDeckOffer);
 
-  // All animation state lives in Reanimated shared values, so entrances, the
-  // progress bar, and the dismiss gesture run entirely on the UI thread.
+  // Animation state lives in Reanimated shared values, so entrances and the
+  // progress bar run entirely on the UI thread.
   const progress = useSharedValue(0);
   const slideOpacity = useSharedValue(0);
   const slideTranslateX = useSharedValue(0);
   const slideTranslateY = useSharedValue(28);
   const slideScale = useSharedValue(0.97);
   const slideRotate = useSharedValue(0);
-  const dragY = useSharedValue(0);
-  const isDismissing = useSharedValue(false);
 
   // +1 = moving forward, -1 = going back. Drives the entrance direction.
   const directionRef = useRef<1 | -1>(1);
@@ -387,77 +393,16 @@ export default function WrappedShareJourney({
     return () => cancelAnimation(progress);
   }, [currentSlide, isPaused, progress, shouldAutoAdvance, slides.length, autoAdvance]);
 
-  const setPaused = useCallback((paused: boolean) => setIsPaused(paused), []);
   const handleSlidePressIn = useCallback(() => {
     holdConsumedRef.current = false;
-    setPaused(true);
-  }, [setPaused]);
+    setIsPressPaused(true);
+  }, []);
   const handleSlideLongPress = useCallback(() => {
     holdConsumedRef.current = true;
   }, []);
   const handleSlidePressOut = useCallback(() => {
-    setPaused(false);
-  }, [setPaused]);
-  const fireLightHaptic = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setIsPressPaused(false);
   }, []);
-
-  // Swipe-down-to-dismiss (Stories/Wrapped convention). The pan only activates
-  // on clearly-vertical downward drags — horizontal movement or upward drags
-  // fail it — so tap navigation and hold-to-pause keep working untouched.
-  // Runs as a worklet: drag tracking never touches the JS thread.
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetY(12)
-        .failOffsetX([-24, 24])
-        .failOffsetY(-12)
-        .onStart(() => {
-          'worklet';
-          runOnJS(setPaused)(true);
-        })
-        .onUpdate((event) => {
-          'worklet';
-          dragY.value = Math.max(0, event.translationY);
-        })
-        .onEnd((event) => {
-          'worklet';
-          if (event.translationY > 140 || event.velocityY > 800) {
-            isDismissing.value = true;
-            runOnJS(fireLightHaptic)();
-            dragY.value = withTiming(
-              screenHeight,
-              { duration: 220, easing: Easing.in(Easing.cubic) },
-              (finished) => {
-                if (finished) {
-                  runOnJS(onClose)();
-                }
-              }
-            );
-          } else {
-            dragY.value = withSpring(0, { damping: 25, stiffness: 410 });
-          }
-        })
-        .onFinalize(() => {
-          'worklet';
-          runOnJS(setPaused)(false);
-          // Interrupted mid-drag without a dismiss: rubber-band back.
-          if (!isDismissing.value && dragY.value > 0) {
-            dragY.value = withSpring(0, { damping: 25, stiffness: 410 });
-          }
-        }),
-    [dragY, isDismissing, fireLightHaptic, onClose, setPaused]
-  );
-
-  // Container shrinks/fades slightly as you drag down — the rubber-band cue
-  // that the sheet is dismissible.
-  const dragAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(dragY.value, [0, screenHeight * 0.5], [1, 0.4], Extrapolation.CLAMP),
-    transform: [
-      { translateY: dragY.value },
-      { scale: interpolate(dragY.value, [0, screenHeight], [1, 0.85], Extrapolation.CLAMP) },
-    ],
-  }));
 
   const slideAnimatedStyle = useAnimatedStyle(() => ({
     opacity: slideOpacity.value,
@@ -679,9 +624,8 @@ export default function WrappedShareJourney({
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Slide layer — drags down to dismiss, taps left/right to navigate */}
-      <GestureDetector gesture={panGesture}>
-        <Reanimated.View style={[styles.dragLayer, dragAnimatedStyle]}>
+      {/* Slide layer — taps left/right to navigate; dragging has no action. */}
+        <Reanimated.View style={styles.dragLayer}>
           {activeSlide && (
             <View style={styles.slideContainer}>
               {renderSlideInner(activeSlide, true)}
@@ -717,6 +661,7 @@ export default function WrappedShareJourney({
             onLongPress={handleSlideLongPress}
             onPressOut={handleSlidePressOut}
             delayLongPress={250}
+            pressRetentionOffset={HOLD_PRESS_RETENTION_OFFSET}
             accessibilityRole="button"
             accessibilityLabel="Previous slide"
           />
@@ -733,11 +678,11 @@ export default function WrappedShareJourney({
             onLongPress={handleSlideLongPress}
             onPressOut={handleSlidePressOut}
             delayLongPress={250}
+            pressRetentionOffset={HOLD_PRESS_RETENTION_OFFSET}
             accessibilityRole="button"
             accessibilityLabel="Next slide"
           />
         </Reanimated.View>
-      </GestureDetector>
 
       {/* Celebratory confetti — decorative overlay, never blocks touches */}
       {confettiVisible && activeSlide?.confetti && (

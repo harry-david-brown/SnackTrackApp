@@ -203,8 +203,10 @@ export const gmailApi = {
   /**
    * Disconnect Gmail account
    */
-  disconnect: async (): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post('/gmail/disconnect');
+  disconnect: async (
+    options: { resetImportStatus?: boolean } = {}
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post('/gmail/disconnect', options);
     return response.data;
   },
 };
