@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../../constants/theme';
-import { Card } from '../ui/Card';
+import { Colors } from '@constants/theme';
+import { Card } from '@components/ui/Card';
 
 interface ProfileSummaryCardProps {
   email: string;

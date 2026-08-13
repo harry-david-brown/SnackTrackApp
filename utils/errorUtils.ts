@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios';
-import { ErrorType } from '../components/ui/ErrorMessage';
+import { ErrorType } from '@components/ui/ErrorMessage';
 import { logger } from './logger';
 
 export interface ApiError {

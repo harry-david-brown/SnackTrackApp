@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 import PasswordResetModal from './PasswordResetModal';
 import { styles } from './loginStyles';
 import { useLoginForm } from './useLoginForm';

@@ -2,7 +2,7 @@
  * User context types and interfaces
  */
 
-import { AppUser, RegisterResponse, LoginResponse } from '../types/api';
+import { AppUser, RegisterResponse, LoginResponse } from '@/types/api';
 
 // User state interface
 export interface UserState {

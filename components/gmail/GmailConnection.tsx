@@ -1,8 +1,8 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { type GmailConnectionStatus } from '../../services/gmailApi';
+import { type GmailConnectionStatus } from '@services/gmailApi';
 
 interface GmailConnectionProps {
   connectionStatus: GmailConnectionStatus;

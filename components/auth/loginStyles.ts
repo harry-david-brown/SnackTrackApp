@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /** Styles for the login/registration screen. */
 import { StyleSheet } from 'react-native';
 

@@ -3,7 +3,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef } from 'react';
 import type ViewShot from 'react-native-view-shot';
-import { showAlert } from '../../utils/platformAlert';
+import { showAlert } from '@utils/platformAlert';
 
 export function useWrappedSharing(targetIndex: number, cacheVersion: unknown) {
   const captureRef = useRef<ViewShot | null>(null);

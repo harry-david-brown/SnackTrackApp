@@ -1,9 +1,9 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useEffect, useRef } from 'react';
 
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 const { width: screenWidth } = Dimensions.get('window');
 

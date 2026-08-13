@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /**
  * Month-by-month spending column chart for the Wrapped monthly slide.
  *

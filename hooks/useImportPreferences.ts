@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useUser } from '../contexts/UserContext';
-import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
+import { useUser } from '@contexts/UserContext';
+import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
 import {
   gmailApi,
   type ImportPreferencesResponse,
-} from '../services/gmailApi';
+} from '@services/gmailApi';
 
 export function useImportPreferences(enabled = true) {
   const { state } = useUser();
@@ -67,6 +67,20 @@ export function useImportPreferences(enabled = true) {
     onSuccess: async (result) => {
       writePreferences(result.preferences);
       await invalidateImportDependents({ receipts: true, preferences: false });
+    },
+    onError: async () => {
+      // The API persists reconnect/error details before returning some failed
+      // checks. Refresh the authoritative preferences so the dashboard does
+      // not continue showing the previous healthy tracking state.
+      try {
+        await queryClient.fetchQuery({
+          queryKey,
+          queryFn: gmailApi.getImportPreferences,
+          staleTime: 0,
+        });
+      } catch {
+        await queryClient.invalidateQueries({ queryKey });
+      }
     },
   });
 

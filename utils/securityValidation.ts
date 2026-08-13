@@ -3,7 +3,7 @@
  * Provides input validation and authorization checks to prevent security vulnerabilities
  */
 
-import { UUID_REGEX } from '../constants';
+import { UUID_REGEX } from '@/constants';
 import { getUserId } from './tokenManager';
 import { logger } from './logger';
 

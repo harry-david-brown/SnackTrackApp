@@ -1,9 +1,9 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { WhatWeNoticedCarousel } from '../../components/dashboard/WhatWeNoticedCarousel';
-import type { DashboardInsight } from '../../types/api';
+import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
+import type { DashboardInsight } from '@/types/api';
 
-jest.mock('../../contexts/CurrencyContext', () => ({
+jest.mock('@contexts/CurrencyContext', () => ({
   useCurrency: () => ({ formatCurrency: (amount: number) => `$${amount.toFixed(2)}` }),
 }));
 

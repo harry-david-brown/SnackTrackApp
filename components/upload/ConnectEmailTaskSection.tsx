@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
-import { Colors } from '../../constants/theme';
-import type { ImportTaskState } from '../../features/import-flow/importFlowResolver';
-import { AppButton } from '../ui/AppButton';
+import { Colors } from '@constants/theme';
+import type { ImportTaskState } from '@features/import-flow/importFlowResolver';
+import { AppButton } from '@components/ui/AppButton';
 import { ImportTaskCard, type ImportTaskId } from './ImportTaskCard';
 
 interface ConnectEmailTaskSectionProps {

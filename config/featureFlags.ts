@@ -93,7 +93,7 @@ export function showDevFeatures(): boolean {
  * Feature flags object for easy destructuring
  * 
  * Usage:
- *   import { featureFlags } from '../config/featureFlags';
+ *   import { featureFlags } from '@config/featureFlags';
  *   const { showGoogleAuth, showAppleAuth, showGmailImport, showResetOnboarding } = featureFlags;
  */
 export const featureFlags = {

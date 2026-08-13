@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
-import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation } from '../utils/offlineCache';
-import { csvApi } from '../services/api';
-import { captureException } from '../utils/sentry';
-import { OFFLINE_SYNC } from '../constants';
+import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation } from '@utils/offlineCache';
+import { csvApi } from '@services/api';
+import { captureException } from '@utils/sentry';
+import { OFFLINE_SYNC } from '@/constants';
 
 /**
  * Hook for managing offline sync of pending operations

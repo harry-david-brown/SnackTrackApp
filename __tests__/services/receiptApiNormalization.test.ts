@@ -1,5 +1,5 @@
-import { normalizeReceiptPage } from '../../services/api/receiptApi';
-import { DataSource, ReceiptType } from '../../types/api';
+import { normalizeReceiptPage } from '@services/api/receiptApi';
+import { DataSource, ReceiptType } from '@/types/api';
 
 describe('normalizeReceiptPage', () => {
   it('maps snake-case transport fields and string item payloads', () => {

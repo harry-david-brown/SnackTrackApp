@@ -9,8 +9,8 @@ import {
   getWrappedToneDistribution,
   WRAPPED_MESSAGES,
   type WrappedMessage,
-} from '../../utils/wrappedMessages';
-import { UserSummary } from '../../types/api';
+} from '@utils/wrappedMessages';
+import { UserSummary } from '@/types/api';
 
 // Helper to create a minimal UserSummary for testing
 const createMockAnalytics = (overrides: Partial<UserSummary> = {}): UserSummary => ({

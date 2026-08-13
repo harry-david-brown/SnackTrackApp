@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /** Shared bottom-sheet shell styles for Profile screen modals. */
 import { StyleSheet } from 'react-native';
 

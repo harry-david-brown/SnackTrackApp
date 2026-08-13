@@ -16,10 +16,10 @@
  */
 import React from 'react';
 import { Text, View } from 'react-native';
-import { UserSummary } from '../../types/api';
-import { getDeterministicMessage } from '../../utils/wrappedMessages';
-import { getArchetype, ARCHETYPE_COUNT } from '../../utils/wrappedArchetype';
-import { MascotPose } from '../mascot/MascotPlaceholder';
+import { UserSummary } from '@/types/api';
+import { getDeterministicMessage } from '@utils/wrappedMessages';
+import { getArchetype, ARCHETYPE_COUNT } from '@utils/wrappedArchetype';
+import { MascotPose } from '@components/mascot/MascotPlaceholder';
 import { STORY_GRADIENTS } from './wrappedTheme';
 import { AnimatedCount, DelayedFadeIn, DelayedSlam, Spacer } from './WrappedSlideEffects';
 import { MonthlySpendChart } from './MonthlySpendChart';

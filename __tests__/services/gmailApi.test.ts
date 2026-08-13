@@ -2,11 +2,11 @@ import {
   gmailApi,
   MONITORING_CONSENT_VERSION,
   ONGOING_TRACKING_CONSENT_VERSION,
-} from '../../services/gmailApi';
-import api from '../../services/api';
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+} from '@services/gmailApi';
+import api from '@services/api';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 
-jest.mock('../../services/api');
+jest.mock('@services/api');
 
 const preferences = (
   monitoringState: ImportPreferencesResponse['monitoring']['consentState'] = 'not_offered',

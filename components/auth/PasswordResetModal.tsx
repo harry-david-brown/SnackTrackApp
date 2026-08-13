@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Modal,
@@ -11,8 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { authApi } from '../../services/authApi';
-import { toDomainError } from '../../utils/domainError';
+import { authApi } from '@services/authApi';
+import { toDomainError } from '@utils/domainError';
 
 type ResetStep = 'request' | 'verify' | 'reset' | 'success';
 

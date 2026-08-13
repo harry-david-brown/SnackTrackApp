@@ -7,7 +7,7 @@ import {
   setExportDownloadHandoffState,
   UBER_EXPORT_EMAIL_SEARCH_QUERY,
   UBER_EXPORT_GMAIL_SEARCH_URL,
-} from '../../utils/exportDownloadHandoff';
+} from '@utils/exportDownloadHandoff';
 
 describe('exportDownloadHandoff', () => {
   const originalPlatform = Platform.OS;

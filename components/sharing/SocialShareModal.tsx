@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useRef } from 'react';
 import {
   View,
@@ -13,10 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import { UserSummary } from '../../types/api';
-import { useCurrency } from '../../contexts/CurrencyContext';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
-import { showAlert } from '../../utils/platformAlert';
+import { UserSummary } from '@/types/api';
+import { useCurrency } from '@contexts/CurrencyContext';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { showAlert } from '@utils/platformAlert';
 
 interface SocialShareModalProps {
   visible: boolean;

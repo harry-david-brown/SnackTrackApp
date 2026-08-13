@@ -2,13 +2,13 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { Colors } from '../../constants/theme';
-import { parseImportRouteParams } from '../../features/import-flow/importRouteParams';
-import { useImportFlowController } from '../../hooks/useImportFlowController';
-import { ConnectEmailTaskSection } from '../../components/upload/ConnectEmailTaskSection';
-import { GmailImportTaskSection } from '../../components/upload/GmailImportTaskSection';
-import { ExportImportTaskSection } from '../../components/upload/ExportImportTaskSection';
-import { ImportWorkflowModals } from '../../components/upload/ImportWorkflowModals';
+import { Colors } from '@constants/theme';
+import { parseImportRouteParams } from '@features/import-flow/importRouteParams';
+import { useImportFlowController } from '@hooks/useImportFlowController';
+import { ConnectEmailTaskSection } from '@components/upload/ConnectEmailTaskSection';
+import { GmailImportTaskSection } from '@components/upload/GmailImportTaskSection';
+import { ExportImportTaskSection } from '@components/upload/ExportImportTaskSection';
+import { ImportWorkflowModals } from '@components/upload/ImportWorkflowModals';
 
 export default function UploadScreen() {
   const rawParams = useLocalSearchParams();

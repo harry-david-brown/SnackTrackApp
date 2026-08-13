@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { getEnvConfig } from '../config/env';
+import { getEnvConfig } from '@config/env';
 import { logger } from './logger';
 
 /**

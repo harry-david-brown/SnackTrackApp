@@ -6,7 +6,7 @@
 import { AxiosError } from 'axios';
 import { parseApiError, ApiError } from './errorUtils';
 import { logger } from './logger';
-import { HTTP_STATUS } from '../constants';
+import { HTTP_STATUS } from '@/constants';
 
 /**
  * Handle API errors with standardized logging and error transformation

@@ -9,7 +9,7 @@ import type {
   SendVerificationEmailResponse,
   VerifyEmailCodeResponse,
   VerifyPasswordResetCodeResponse,
-} from '../../types/api';
+} from '@/types/api';
 
 type UnknownRecord = Record<string, unknown>;
 const invalid = (field: string): never => { throw new Error(`Invalid authentication response: ${field}`); };

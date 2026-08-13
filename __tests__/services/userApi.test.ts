@@ -1,9 +1,8 @@
-import api from '../../services/api/client';
-import { userApi } from '../../services/api/userApi';
-import { validateAndAuthorizeUserId } from '../../utils/securityValidation';
+import api, { userApi } from '@services/api';
+import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
-jest.mock('../../services/api/client');
-jest.mock('../../utils/securityValidation', () => ({
+jest.mock('@services/api/client');
+jest.mock('@utils/securityValidation', () => ({
   validateAndAuthorizeUserId: jest.fn(),
   isValidEmail: jest.fn(() => true),
   sanitizeInput: jest.fn((value) => value),

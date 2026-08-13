@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius } from '../../constants/theme';
-import type { ImportTaskState } from '../../features/import-flow/importFlowResolver';
-import type { ExportDownloadHandoffState } from '../../utils/exportDownloadHandoff';
+import { Colors, Radius } from '@constants/theme';
+import type { ImportTaskState } from '@features/import-flow/importFlowResolver';
+import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import {
   UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS, UBER_EXPORT_EMAIL_ACTION, UBER_EXPORT_EMAIL_ADDRESS,
   UBER_EXPORT_EMAIL_SENDER_NAME, UBER_EXPORT_EMAIL_SUBJECT,
-} from '../../utils/exportDownloadHandoff';
-import { AppButton } from '../ui/AppButton';
+} from '@utils/exportDownloadHandoff';
+import { AppButton } from '@components/ui/AppButton';
 import { UberDataUpload } from './UberDataUpload';
 import { ImportTaskCard, type ImportTaskId } from './ImportTaskCard';
 

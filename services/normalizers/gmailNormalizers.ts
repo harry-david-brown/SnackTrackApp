@@ -9,7 +9,7 @@ import type {
   ImportPreferencesResponse,
   MonitoringConsentState,
   OngoingTrackingEffectiveState,
-} from '../gmailApi';
+} from '@services/gmailApi';
 
 type UnknownRecord = Record<string, unknown>;
 const invalid = (field: string): never => { throw new Error(`Invalid Gmail response: ${field}`); };

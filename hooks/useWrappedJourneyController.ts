@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { resolvePostWrappedExperience } from '../components/wrapped/postWrappedState';
-import { useUser } from '../contexts/UserContext';
+import { resolvePostWrappedExperience } from '@components/wrapped/postWrappedState';
+import { useUser } from '@contexts/UserContext';
 import { useWrappedAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useExportUpsell } from './useExportUpsell';
 import { useImportPreferences } from './useImportPreferences';
-import { showSimpleAlert } from '../utils/platformAlert';
+import { showSimpleAlert } from '@utils/platformAlert';
 
 export function useWrappedJourneyController() {
   const { state } = useUser();

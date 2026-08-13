@@ -2,7 +2,7 @@ import {
   getSlideEntranceRole,
   selectEditorialCandidates,
   type EditorialCandidate,
-} from '../../components/wrapped/wrappedSlideSelection';
+} from '@components/wrapped/wrappedSlideSelection';
 
 type Candidate = EditorialCandidate<string>;
 

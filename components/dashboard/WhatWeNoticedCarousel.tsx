@@ -1,9 +1,9 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { DashboardInsight, DashboardInsightCategory, DashboardInsightIcon } from '@/types/api';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, AppState, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useCurrency } from '../../contexts/CurrencyContext';
+import { useCurrency } from '@contexts/CurrencyContext';
 
 interface Props {
   insights: DashboardInsight[];

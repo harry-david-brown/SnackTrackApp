@@ -38,6 +38,15 @@ For each mutation, define before implementation:
 
 Prefer writing the authoritative mutation response directly into its query cache, then invalidate broader derived resources when needed.
 
+For destructive fresh-account or deletion mutations, use the contract in `snacktrack-account-data-lifecycle`:
+
+- invoke one authoritative server operation rather than sequencing partial client mutations;
+- preserve authentication/session storage unless the contract deletes the account;
+- remove affected analytics, wrapped, receipt, import-preference, and Gmail-status queries after success;
+- clear feature-local device caches such as analytics, export handoff/ready notifications, and upsell history;
+- clear the onboarding completion marker last and route to the initial authenticated experience;
+- retain existing state and provide retry when the server operation fails.
+
 ## Avoid duplicate machinery
 
 Do not add new instances of these patterns for ordinary server state:
@@ -74,6 +83,7 @@ Never allow a stale offline completion marker to outrank current server truth.
 - Stop polling or timers while the app is inactive.
 - Respect reduced motion for visual timers, but not data correctness timers.
 - Surface durable failures such as reconnect-required instead of silently turning them into empty success.
+- Treat a lock timeout during reset as retryable conflict state, not partial success.
 
 ## Migration strategy
 

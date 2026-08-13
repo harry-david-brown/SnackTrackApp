@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useState } from 'react';
 import {
   View,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useUser } from '../../contexts/UserContext';
+import { useUser } from '@contexts/UserContext';
 import EmailVerificationModal from './EmailVerificationModal';
 
 interface EmailVerificationBannerProps {

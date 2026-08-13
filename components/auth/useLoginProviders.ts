@@ -2,11 +2,11 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { getConfig } from '../../config/env';
-import { featureFlags } from '../../config/featureFlags';
-import { useUser } from '../../contexts/UserContext';
-import { getErrorMessage } from '../../utils/errorUtils';
-import { showAlert } from '../../utils/platformAlert';
+import { getConfig } from '@config/env';
+import { featureFlags } from '@config/featureFlags';
+import { useUser } from '@contexts/UserContext';
+import { getErrorMessage } from '@utils/errorUtils';
+import { showAlert } from '@utils/platformAlert';
 import { describeAppleSignInError } from './appleAuthErrors';
 import {
   checkNativeGoogleSignIn,

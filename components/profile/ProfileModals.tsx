@@ -1,6 +1,6 @@
 import { Modal } from 'react-native';
-import type { ProfileController } from '../../hooks/useProfileController';
-import UberDataTutorial from '../upload/UberDataTutorial';
+import type { ProfileController } from '@hooks/useProfileController';
+import UberDataTutorial from '@components/upload/UberDataTutorial';
 import { CurrencySelectorModal } from './CurrencySelectorModal';
 import { HelpSupportModal } from './HelpSupportModal';
 

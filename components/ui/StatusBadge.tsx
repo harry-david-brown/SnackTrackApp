@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius } from '../../constants/theme';
+import { Colors, Radius } from '@constants/theme';
 
 export type StatusTone = 'complete' | 'recommended' | 'optional' | 'warning' | 'error';
 

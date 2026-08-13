@@ -1,17 +1,17 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { appQueryClient } from '../lib/queryClient';
-import { UserProvider } from '../contexts/UserContext';
-import { OnboardingProvider } from '../contexts/OnboardingContext';
-import { CurrencyProvider } from '../contexts/CurrencyContext';
-import { ErrorBoundary } from '../components/ui/ErrorBoundary';
-import { AppAlertProvider } from '../components/ui/AppAlertProvider';
-import ExportReadyNotifier from '../components/upload/ExportReadyNotifier';
-import { ImportBackgroundController } from '../components/import/ImportBackgroundController';
-import { initSentry } from '../utils/sentry';
+import { appQueryClient } from '@lib/queryClient';
+import { UserProvider } from '@contexts/UserContext';
+import { OnboardingProvider } from '@contexts/OnboardingContext';
+import { CurrencyProvider } from '@contexts/CurrencyContext';
+import { ErrorBoundary } from '@components/ui/ErrorBoundary';
+import { AppAlertProvider } from '@components/ui/AppAlertProvider';
+import ExportReadyNotifier from '@components/upload/ExportReadyNotifier';
+import { ImportBackgroundController } from '@components/import/ImportBackgroundController';
+import { initSentry } from '@utils/sentry';
 import {
   useFonts,
   Fredoka_500Medium,

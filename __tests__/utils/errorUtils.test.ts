@@ -3,7 +3,7 @@
  * Tests for API error parsing and classification
  */
 
-import { parseApiError, isNetworkError, isRetryableError, getErrorMessage, getErrorType } from '../../utils/errorUtils';
+import { parseApiError, isNetworkError, isRetryableError, getErrorMessage, getErrorType } from '@utils/errorUtils';
 
 describe('Error Utils', () => {
   describe('parseApiError', () => {

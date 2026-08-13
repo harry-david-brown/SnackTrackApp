@@ -6,7 +6,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { Colors } from '@constants/theme';
 
 /**
  * Poses required from the mascot art team. Each pose maps 1:1 to a final

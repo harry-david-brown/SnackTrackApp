@@ -2,15 +2,15 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Colors } from '../constants/theme';
-import { useCurrency } from '../contexts/CurrencyContext';
-import { useUser } from '../contexts/UserContext';
-import { useReceiptsQuery } from '../hooks/queries/useReceiptsQuery';
-import { ReceiptCard } from '../components/receipts/ReceiptCard';
-import { AppButton } from '../components/ui/AppButton';
-import { EmptyState } from '../components/ui/EmptyState';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { Colors } from '@constants/theme';
+import { useCurrency } from '@contexts/CurrencyContext';
+import { useUser } from '@contexts/UserContext';
+import { useReceiptsQuery } from '@hooks/queries/useReceiptsQuery';
+import { ReceiptCard } from '@components/receipts/ReceiptCard';
+import { AppButton } from '@components/ui/AppButton';
+import { EmptyState } from '@components/ui/EmptyState';
+import { ErrorMessage } from '@components/ui/ErrorMessage';
+import { LoadingSpinner } from '@components/ui/LoadingSpinner';
 
 export default function ReceiptsScreen() {
   const { formatCurrency } = useCurrency();

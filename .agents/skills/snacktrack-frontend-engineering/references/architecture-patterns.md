@@ -15,6 +15,16 @@ Expo route/screen
 
 Dependencies may point downward, not back into screens. Keep shared UI primitives independent of feature services.
 
+## Import paths and public boundaries
+
+- Use configured aliases for every cross-directory application import: `@components/*`, `@hooks/*`, `@services/*`, `@utils/*`, `@contexts/*`, `@config/*`, `@constants/*`, `@features/*`, and `@lib/*`. Use `@/*` only for root modules without a narrower alias, including `@/types/*`. Do not create an `@types/*` alias because TypeScript reserves that namespace for declaration packages.
+- Prefer a module's public barrel when it exposes the required contract. Import API services from `@services/api`, not internal files such as `@services/api/userApi`.
+- Keep `./` relative imports for files within the same local module or feature folder.
+- Do not use parent traversal imports such as `../` or `../../` for TypeScript/JavaScript modules. Static asset `require()` paths may remain relative because Metro must resolve them at build time.
+- Add a public barrel export deliberately. Do not expose private implementation helpers merely to avoid an internal import in a focused test.
+
+Aliases improve readability and refactor safety; public barrels define ownership boundaries. Do not justify bypassing a barrel with assumed tree-shaking benefits—Expo production builds tree-shake unused ESM exports. Measure bundle output before introducing an optimization-specific exception.
+
 ## Responsibility boundaries
 
 ### Route or screen

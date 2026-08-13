@@ -1,4 +1,4 @@
-import { Colors, Radius, Shadows } from '@/constants/theme';
+import { Colors, Radius, Shadows } from '@constants/theme';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
@@ -8,12 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MascotPlaceholder, MascotPose } from '../mascot/MascotPlaceholder';
+import { MascotPlaceholder, MascotPose } from '@components/mascot/MascotPlaceholder';
 import {
   AppAlertButton,
   AppAlertRequest,
   setAppAlertPresenter,
-} from '../../utils/appAlert';
+} from '@utils/appAlert';
 
 type AlertTone = 'error' | 'success' | 'warning' | 'info';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
-import UberDataTutorial from '../../components/upload/UberDataTutorial';
+import UberDataTutorial from '@components/upload/UberDataTutorial';
 
 describe('UberDataTutorial', () => {
   it('confirms an Uber request only after the user reaches the final request step', () => {

@@ -3,15 +3,15 @@
  * Tests for the auth API service
  */
 
-import { authApi } from '../../services/authApi';
-import api from '../../services/api';
-import * as tokenManager from '../../utils/tokenManager';
+import { authApi } from '@services/authApi';
+import api from '@services/api';
+import * as tokenManager from '@utils/tokenManager';
 
 // Mock the API client
-jest.mock('../../services/api');
+jest.mock('@services/api');
 
 // Mock token manager
-jest.mock('../../utils/tokenManager');
+jest.mock('@utils/tokenManager');
 
 describe('Auth API', () => {
   beforeEach(() => {

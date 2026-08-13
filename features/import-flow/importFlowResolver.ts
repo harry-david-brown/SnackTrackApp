@@ -1,7 +1,7 @@
-import type { StatusTone } from '../../components/ui/StatusBadge';
-import type { ImportTaskId } from '../../components/upload/ImportTaskCard';
-import type { ExportDownloadHandoffState } from '../../utils/exportDownloadHandoff';
-import type { GmailConnectionStatus, ImportPreferencesResponse } from '../../services/gmailApi';
+import type { StatusTone } from '@components/ui/StatusBadge';
+import type { ImportTaskId } from '@components/upload/ImportTaskCard';
+import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
+import type { GmailConnectionStatus, ImportPreferencesResponse } from '@services/gmailApi';
 
 export interface ImportTaskState {
   complete: boolean;

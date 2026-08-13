@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
-import { useUser } from '../../contexts/UserContext';
-import { useImportPreferences } from '../../hooks/useImportPreferences';
-import { showAlert } from '../../utils/platformAlert';
+import { useUser } from '@contexts/UserContext';
+import { useImportPreferences } from '@hooks/useImportPreferences';
+import { showAlert } from '@utils/platformAlert';
 import {
   getExportDownloadHandoffState,
   openUberExportEmail,
@@ -14,7 +14,7 @@ import {
   UBER_EXPORT_EMAIL_ADDRESS,
   UBER_EXPORT_EMAIL_SEARCH_QUERY,
   UBER_EXPORT_EMAIL_SUBJECT,
-} from '../../utils/exportDownloadHandoff';
+} from '@utils/exportDownloadHandoff';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 const NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';

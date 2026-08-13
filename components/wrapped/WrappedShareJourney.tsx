@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import {
   View,
@@ -29,9 +29,9 @@ import Reanimated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
-import { UserSummary } from '../../types/api';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
-import { useCurrency } from '../../contexts/CurrencyContext';
+import { UserSummary } from '@/types/api';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { useCurrency } from '@contexts/CurrencyContext';
 import {
   STORY_GRADIENTS,
   STORY_SLIDE_DURATION,
@@ -56,7 +56,7 @@ import {
 import type {
   EffectiveMonitoringState,
   ExportLifecycleStatus,
-} from '../../services/gmailApi';
+} from '@services/gmailApi';
 import { useWrappedSharing } from './useWrappedSharing';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).

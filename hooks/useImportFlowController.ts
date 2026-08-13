@@ -3,27 +3,27 @@ import { type LayoutChangeEvent, type ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { featureFlags } from '../config/featureFlags';
-import { useUser } from '../contexts/UserContext';
-import type { ImportTaskId } from '../components/upload/ImportTaskCard';
-import type { GmailConnectPhase } from '../components/gmail/GmailImportLoadingModal';
-import type { GmailImportResponse } from '../services/gmailApi';
-import { analyticsApi } from '../services/analyticsApi';
-import { analyticsKeys } from '../lib/queryKeys';
-import { invalidateReceiptDerivedData } from '../lib/queryInvalidation';
+import { featureFlags } from '@config/featureFlags';
+import { useUser } from '@contexts/UserContext';
+import type { ImportTaskId } from '@components/upload/ImportTaskCard';
+import type { GmailConnectPhase } from '@components/gmail/GmailImportLoadingModal';
+import type { GmailImportResponse } from '@services/gmailApi';
+import { analyticsApi } from '@services/analyticsApi';
+import { analyticsKeys } from '@lib/queryKeys';
+import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
 import { useOfflineSync } from './useOfflineSync';
 import { useGmailImport } from './useGmailImport';
 import { useExportUpsell } from './useExportUpsell';
 import { useImportPreferences } from './useImportPreferences';
-import type { ImportRouteParams } from '../features/import-flow/importRouteParams';
-import { resolveImportFlowState } from '../features/import-flow/importFlowResolver';
-import { showAlert, showSimpleAlert } from '../utils/platformAlert';
+import type { ImportRouteParams } from '@features/import-flow/importRouteParams';
+import { resolveImportFlowState } from '@features/import-flow/importFlowResolver';
+import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import {
   type ExportDownloadHandoffState, getExportDownloadHandoffState, openUberExportEmail,
   setExportDownloadHandoffState, UBER_EXPORT_EMAIL_SEARCH_QUERY,
-} from '../utils/exportDownloadHandoff';
-import type { DataPlatform } from '../components/upload/UberDataTutorial';
-import { captureException } from '../utils/sentry';
+} from '@utils/exportDownloadHandoff';
+import type { DataPlatform } from '@components/upload/UberDataTutorial';
+import { captureException } from '@utils/sentry';
 
 export function useImportFlowController(route: ImportRouteParams) {
   const { state: userState } = useUser();

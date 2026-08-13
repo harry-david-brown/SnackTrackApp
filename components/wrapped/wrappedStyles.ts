@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /** Styles for the Wrapped share journey (slides, chrome, share frame). */
 import { StyleSheet } from 'react-native';
 import {

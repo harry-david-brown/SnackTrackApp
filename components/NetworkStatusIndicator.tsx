@@ -1,8 +1,8 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useNetworkStatus } from '@hooks/useNetworkStatus';
 
 interface NetworkStatusIndicatorProps {
   showWhenConnected?: boolean;

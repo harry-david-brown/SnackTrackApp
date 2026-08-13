@@ -1,11 +1,11 @@
 import { Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold, useFonts } from '@expo-google-fonts/fredoka';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { MascotPlaceholder } from '../../components/mascot/MascotPlaceholder';
-import WrappedShareJourney from '../../components/wrapped/WrappedShareJourney';
-import { Colors } from '../../constants/theme';
-import { useWrappedJourneyController } from '../../hooks/useWrappedJourneyController';
-import type { UserSummary } from '../../types/api';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import WrappedShareJourney from '@components/wrapped/WrappedShareJourney';
+import { Colors } from '@constants/theme';
+import { useWrappedJourneyController } from '@hooks/useWrappedJourneyController';
+import type { UserSummary } from '@/types/api';
 
 type WrappedSummary = UserSummary & { wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']> };
 const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary =>

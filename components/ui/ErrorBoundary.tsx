@@ -1,9 +1,9 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { captureException } from '../../utils/sentry';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { captureException } from '@utils/sentry';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 interface Props {
   children: ReactNode;

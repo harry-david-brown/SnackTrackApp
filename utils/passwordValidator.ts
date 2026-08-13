@@ -1,10 +1,10 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /**
  * Password validation utility
  * Provides comprehensive password strength validation
  */
 
-import { PASSWORD_RULES } from '../constants';
+import { PASSWORD_RULES } from '@/constants';
 
 export interface PasswordValidationResult {
   isValid: boolean;

@@ -4,10 +4,11 @@
  */
 
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { getConfig } from '../../config/env';
-import { API_CONFIG, PUBLIC_ENDPOINTS, HTTP_STATUS } from '../../constants';
-import { logger } from '../../utils/logger';
-import { checkRateLimit, RATE_LIMITS } from '../../utils/rateLimiter';
+import { getConfig } from '@config/env';
+import { API_CONFIG, PUBLIC_ENDPOINTS, HTTP_STATUS } from '@/constants';
+import { logger } from '@utils/logger';
+import { checkRateLimit, RATE_LIMITS } from '@utils/rateLimiter';
+import { notifySessionExpired } from '@services/authSessionCoordinator';
 
 // Get validated API URL from environment configuration
 const config = getConfig();
@@ -49,6 +50,16 @@ const onRefreshFailed = () => {
 
 const addRefreshSubscriber = (callback: (token: string) => void) => {
   refreshSubscribers.push(callback);
+};
+
+const expireLocalSession = async () => {
+  try {
+    const { clearAuthTokens } = await import('@utils/tokenManager');
+    await clearAuthTokens();
+  } catch (error) {
+    logger.error('Failed to clear expired authentication tokens:', error);
+  }
+  await notifySessionExpired();
 };
 
 /**
@@ -171,7 +182,7 @@ api.interceptors.request.use(
     // Skip auth for public endpoints
     if (!isPublicEndpoint(url)) {
       // Import token utilities directly (avoid circular dependency)
-      const { getAccessToken } = await import('../../utils/tokenManager');
+      const { getAccessToken } = await import('@utils/tokenManager');
       const token = await getAccessToken();
 
       if (token) {
@@ -208,8 +219,7 @@ api.interceptors.response.use(
       // Check if we've exceeded max refresh attempts
       if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
         logger.error('Max token refresh attempts exceeded');
-        const { clearAuthTokens } = await import('../../utils/tokenManager');
-        await clearAuthTokens();
+        await expireLocalSession();
         refreshAttempts = 0;
         return Promise.reject(new Error('SESSION_EXPIRED'));
       }
@@ -245,7 +255,7 @@ api.interceptors.response.use(
           }
 
           // Dynamically import to avoid circular dependency
-          const { authApi } = await import('../authApi');
+          const { authApi } = await import('@services/authApi');
           const response = await authApi.refresh();
 
           logger.debug('Token refresh successful');
@@ -261,8 +271,7 @@ api.interceptors.response.use(
           onRefreshFailed();
 
           // Refresh failed - clear tokens
-          const { clearAuthTokens } = await import('../../utils/tokenManager');
-          await clearAuthTokens();
+          await expireLocalSession();
 
           throw new Error('SESSION_EXPIRED');
         }
@@ -288,7 +297,7 @@ api.interceptors.response.use(
 
     // Report server errors (5xx) to Sentry
     if (error.response && error.response.status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
-      const { captureException } = await import('../../utils/sentry');
+      const { captureException } = await import('@utils/sentry');
       const apiError = new Error(`API Server Error: ${error.response.status} ${originalRequest?.url || 'unknown'}`);
       
       captureException(apiError, {

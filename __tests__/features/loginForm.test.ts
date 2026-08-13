@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useLoginForm } from '../../components/auth/useLoginForm';
+import { useLoginForm } from '@components/auth/useLoginForm';
 
 const mockLogin = jest.fn();
 const mockRegister = jest.fn();
 const mockClearError = jest.fn();
 
-jest.mock('../../contexts/UserContext', () => ({
+jest.mock('@contexts/UserContext', () => ({
   useUser: () => ({
     login: mockLogin,
     register: mockRegister,

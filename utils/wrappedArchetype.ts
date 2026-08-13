@@ -1,4 +1,4 @@
-import { UserSummary } from '../types/api';
+import { UserSummary } from '@/types/api';
 
 // Gradient keys must match STORY_GRADIENTS in the wrapped event palette.
 export type ArchetypeGradient =

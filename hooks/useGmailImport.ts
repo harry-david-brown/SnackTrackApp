@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { gmailApi, GmailConnectionStatus, type GmailImportResponse } from '../services/gmailApi';
-import { useUser } from '../contexts/UserContext';
-import { showAlert, showSimpleAlert } from '../utils/platformAlert';
-import { gmailStatusKeys } from '../lib/queryKeys';
-import { toDomainError } from '../utils/domainError';
-import { captureException } from '../utils/sentry';
-import { invalidateImportState, invalidateReceiptDerivedData } from '../lib/queryInvalidation';
+import { gmailApi, GmailConnectionStatus, type GmailImportResponse } from '@services/gmailApi';
+import { useUser } from '@contexts/UserContext';
+import { showAlert, showSimpleAlert } from '@utils/platformAlert';
+import { gmailStatusKeys } from '@lib/queryKeys';
+import { toDomainError } from '@utils/domainError';
+import { captureException } from '@utils/sentry';
+import { invalidateImportState, invalidateReceiptDerivedData } from '@lib/queryInvalidation';
 
 WebBrowser.maybeCompleteAuthSession();
 

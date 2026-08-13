@@ -3,7 +3,7 @@
  */
 
 import api from './client';
-import { validateAndAuthorizeUserId } from '../../utils/securityValidation';
+import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 export interface ResetOnboardingResponse {
   success: boolean;

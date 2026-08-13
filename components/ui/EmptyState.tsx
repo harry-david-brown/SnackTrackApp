@@ -1,8 +1,8 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MascotPlaceholder, MascotPose } from '../mascot/MascotPlaceholder';
+import { MascotPlaceholder, MascotPose } from '@components/mascot/MascotPlaceholder';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;

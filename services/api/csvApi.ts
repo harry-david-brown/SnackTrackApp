@@ -3,8 +3,8 @@
  */
 
 import api from './client';
-import { CSVImportResponse } from '../../types/api';
-import { validateAndAuthorizeUserId } from '../../utils/securityValidation';
+import { CSVImportResponse } from '@/types/api';
+import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 /**
  * CSV/ZIP import API endpoints

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../../constants/theme';
-import { DataSource, ReceiptType, type Receipt } from '../../types/api';
-import { Card } from '../ui/Card';
-import { StatusBadge } from '../ui/StatusBadge';
+import { Colors } from '@constants/theme';
+import { DataSource, ReceiptType, type Receipt } from '@/types/api';
+import { Card } from '@components/ui/Card';
+import { StatusBadge } from '@components/ui/StatusBadge';
 
 const sourcePresentation = (receipt: Receipt) => {
   if (receipt.receiptType === ReceiptType.UBER_EATS) return { label: 'Uber Eats', icon: 'car-outline' as const };

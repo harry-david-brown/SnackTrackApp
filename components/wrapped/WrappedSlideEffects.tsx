@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /**
  * Reusable presentation effects for Wrapped slides: count-up numbers,
  * the animated nebula background, and layout spacers.

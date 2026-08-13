@@ -1,12 +1,13 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
-import { useUser } from '../contexts/UserContext';
-import { useOnboarding } from '../contexts/OnboardingContext';
-import { LoginScreen } from '../components/auth/LoginScreen';
-import OnboardingScreen from '../components/OnboardingScreen';
-import { useAnalyticsQuery } from '../hooks/queries/useAnalyticsQueries';
+import { useUser } from '@contexts/UserContext';
+import { useOnboarding } from '@contexts/OnboardingContext';
+import { LoginScreen } from '@components/auth/LoginScreen';
+import OnboardingScreen from '@components/OnboardingScreen';
+import { useAnalyticsQuery } from '@hooks/queries/useAnalyticsQueries';
+import { ErrorMessage } from '@components/ui/ErrorMessage';
 
 /**
  * Entry route. Everything here is derived directly from auth/onboarding
@@ -40,6 +41,20 @@ export default function HomeScreen() {
     );
   }
 
+  if (state.isAuthenticated && state.user && analyticsQuery.isError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <ErrorMessage
+            type="network"
+            error="We couldn’t load your SnackTrack history. Check your connection and try again."
+            onRetry={() => { void analyticsQuery.refetch(); }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (state.isAuthenticated && state.user) {
     const totalImportedReceipts = analyticsQuery.data?.totalReceipts ?? 0;
     return <Redirect href={totalImportedReceipts > 0 ? '/(tabs)' : '/(tabs)/upload'} />;
@@ -61,5 +76,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
   },
 });

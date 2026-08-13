@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../../constants/theme';
-import { SlideInView } from '../ui/SlideInView';
-import { Card } from '../ui/Card';
+import { Colors } from '@constants/theme';
+import { SlideInView } from '@components/ui/SlideInView';
+import { Card } from '@components/ui/Card';
 
 interface DashboardSummaryCardsProps {
   totalSpent: string;

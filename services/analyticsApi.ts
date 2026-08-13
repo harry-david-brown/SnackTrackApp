@@ -1,6 +1,12 @@
 import api from './api';
-import { DashboardInsight, UserSummary, WrappedAnalytics } from '../types/api';
-import { validateAndAuthorizeUserId } from '../utils/securityValidation';
+import {
+  DashboardInsight,
+  type DashboardInsightCategory,
+  type DashboardInsightIcon,
+  UserSummary,
+  WrappedAnalytics,
+} from '@/types/api';
+import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -27,6 +33,235 @@ const asString = (value: unknown, field: string) => {
 
 const asStringArray = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const asBoolean = (value: unknown, field: string) => {
+  if (typeof value !== 'boolean') throw new Error(`Invalid analytics response: ${field}`);
+  return value;
+};
+
+const asNullableString = (value: unknown, field: string) =>
+  value === null ? null : asString(value, field);
+
+const asMember = <T extends string>(value: unknown, values: readonly T[], field: string): T => {
+  if (typeof value !== 'string' || !values.includes(value as T)) {
+    throw new Error(`Invalid analytics response: ${field}`);
+  }
+  return value as T;
+};
+
+const optional = <T>(
+  value: unknown,
+  field: string,
+  normalize: (value: unknown, field: string) => T,
+): T | undefined => value === undefined ? undefined : normalize(value, field);
+
+const categories = ['favorites', 'habits', 'extremes', 'progress'] as const satisfies readonly DashboardInsightCategory[];
+const insightKinds = ['ranking', 'stat', 'order', 'locked'] as const;
+const insightIcons = ['restaurant', 'time', 'calendar', 'moon', 'heart', 'receipt', 'meal', 'delivery', 'lock'] as const satisfies readonly DashboardInsightIcon[];
+const valueFormats = ['currency', 'number', 'percent', 'minutes'] as const;
+
+export const normalizeDashboardInsight = (value: unknown, index = 0): DashboardInsight => {
+  const field = `dashboardInsights.${index}`;
+  const insight = asRecord(value, field);
+  const rows = optional(insight.rows, `${field}.rows`, (candidate, rowsField) => {
+    if (!Array.isArray(candidate)) throw new Error(`Invalid analytics response: ${rowsField}`);
+    return candidate.map((rowValue, rowIndex) => {
+      const rowField = `${rowsField}.${rowIndex}`;
+      const row = asRecord(rowValue, rowField);
+      return {
+        label: asString(row.label, `${rowField}.label`),
+        count: asNumber(row.count, `${rowField}.count`),
+        amount: asNumber(row.amount, `${rowField}.amount`),
+      };
+    });
+  });
+  const items = optional(insight.items, `${field}.items`, (candidate, itemsField) => {
+    if (!Array.isArray(candidate)) throw new Error(`Invalid analytics response: ${itemsField}`);
+    return candidate.map((item, itemIndex) => asString(item, `${itemsField}.${itemIndex}`));
+  });
+
+  return {
+    id: asString(insight.id, `${field}.id`),
+    category: asMember(insight.category, categories, `${field}.category`),
+    kind: asMember(insight.kind, insightKinds, `${field}.kind`),
+    icon: asMember(insight.icon, insightIcons, `${field}.icon`),
+    eyebrow: asString(insight.eyebrow, `${field}.eyebrow`),
+    title: asString(insight.title, `${field}.title`),
+    headline: optional(insight.headline, `${field}.headline`, asString),
+    detail: optional(insight.detail, `${field}.detail`, asString),
+    value: optional(insight.value, `${field}.value`, asNumber),
+    valueFormat: optional(insight.valueFormat, `${field}.valueFormat`, (candidate, memberField) => asMember(candidate, valueFormats, memberField)),
+    rows,
+    items,
+    locked: optional(insight.locked, `${field}.locked`, asBoolean),
+    action: optional(insight.action, `${field}.action`, (candidate, memberField) => asMember(candidate, ['open_export'] as const, memberField)),
+  };
+};
+
+const normalizeStanding = (value: unknown, field: string) => {
+  const standing = asRecord(value, field);
+  return {
+    percentile: asNumber(standing.percentile, `${field}.percentile`),
+    topPercent: asNumber(standing.topPercent, `${field}.topPercent`),
+  };
+};
+
+export const normalizeWrappedAnalytics = (value: unknown): WrappedAnalytics => {
+  const wrapped = asRecord(value, 'wrappedAnalytics');
+  const shame = asRecord(wrapped.shame, 'wrappedAnalytics.shame');
+  const flex = asRecord(wrapped.flex, 'wrappedAnalytics.flex');
+  const comparative = asRecord(wrapped.comparative, 'wrappedAnalytics.comparative');
+  const patterns = asRecord(wrapped.patterns, 'wrappedAnalytics.patterns');
+
+  const normalizeLateNight = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    const offender = asRecord(block.worstOffender, `${field}.worstOffender`);
+    return {
+      count: asNumber(block.count, `${field}.count`),
+      totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`),
+      latestOrder: asString(block.latestOrder, `${field}.latestOrder`),
+      worstOffender: {
+        restaurant: asString(offender.restaurant, `${field}.worstOffender.restaurant`),
+        time: asString(offender.time, `${field}.worstOffender.time`),
+        amount: asNumber(offender.amount, `${field}.worstOffender.amount`),
+        items: Array.isArray(offender.items)
+          ? offender.items.map((item, index) => asString(item, `${field}.worstOffender.items.${index}`))
+          : (() => { throw new Error(`Invalid analytics response: ${field}.worstOffender.items`); })(),
+      },
+    };
+  };
+  const normalizeLaziestDay = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    if (!Array.isArray(block.restaurants)) throw new Error(`Invalid analytics response: ${field}.restaurants`);
+    return {
+      date: asString(block.date, `${field}.date`), dayOfWeek: asString(block.dayOfWeek, `${field}.dayOfWeek`),
+      orderCount: asNumber(block.orderCount, `${field}.orderCount`), totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`),
+      restaurants: block.restaurants.map((item, index) => asString(item, `${field}.restaurants.${index}`)),
+      message: asString(block.message, `${field}.message`),
+    };
+  };
+  const normalizeLongestStreak = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { days: asNumber(block.days, `${field}.days`), startDate: asString(block.startDate, `${field}.startDate`), endDate: asString(block.endDate, `${field}.endDate`), totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeSingleItems = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { count: asNumber(block.count, `${field}.count`), totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), averageAmount: asNumber(block.averageAmount, `${field}.averageAmount`), message: asString(block.message, `${field}.message`), mostCommon: asString(block.mostCommon, `${field}.mostCommon`) };
+  };
+  const normalizeChain = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    if (!Array.isArray(block.allChains)) throw new Error(`Invalid analytics response: ${field}.allChains`);
+    return {
+      worstOffender: asString(block.worstOffender, `${field}.worstOffender`), orderCount: asNumber(block.orderCount, `${field}.orderCount`),
+      totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), percentage: asNumber(block.percentage, `${field}.percentage`), message: asString(block.message, `${field}.message`),
+      allChains: block.allChains.map((item, index) => {
+        const chainField = `${field}.allChains.${index}`;
+        const chain = asRecord(item, chainField);
+        return { name: asString(chain.name, `${chainField}.name`), count: asNumber(chain.count, `${chainField}.count`), spent: asNumber(chain.spent, `${chainField}.spent`) };
+      }),
+    };
+  };
+  const normalizeExpensiveOrder = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    if (!Array.isArray(block.items)) throw new Error(`Invalid analytics response: ${field}.items`);
+    return {
+      amount: asNumber(block.amount, `${field}.amount`), restaurant: asString(block.restaurant, `${field}.restaurant`), date: asString(block.date, `${field}.date`),
+      items: block.items.map((item, index) => {
+        const itemField = `${field}.items.${index}`;
+        const orderItem = asRecord(item, itemField);
+        return { name: asString(orderItem.name, `${itemField}.name`), price: asNumber(orderItem.price, `${itemField}.price`) };
+      }),
+      message: asString(block.message, `${field}.message`),
+    };
+  };
+  const normalizeCoffee = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { orderCount: asNumber(block.orderCount, `${field}.orderCount`), totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), averagePrice: asNumber(block.averagePrice, `${field}.averagePrice`), mostOrdered: asString(block.mostOrdered, `${field}.mostOrdered`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeNightOwl = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { percentage: asNumber(block.percentage, `${field}.percentage`), count: asNumber(block.count, `${field}.count`), totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), latestOrder: asString(block.latestOrder, `${field}.latestOrder`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeSpentYear = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), year: asNumber(block.year, `${field}.year`), orderCount: asNumber(block.orderCount, `${field}.orderCount`), averagePerOrder: asNumber(block.averagePerOrder, `${field}.averagePerOrder`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeCouldHaveBought = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    if (!Array.isArray(block.comparisons)) throw new Error(`Invalid analytics response: ${field}.comparisons`);
+    return { totalSpent: asNumber(block.totalSpent, `${field}.totalSpent`), comparisons: block.comparisons.map((item, index) => {
+      const itemField = `${field}.comparisons.${index}`;
+      const comparison = asRecord(item, itemField);
+      return { item: asString(comparison.item, `${itemField}.item`), quantity: asNumber(comparison.quantity, `${itemField}.quantity`), message: asString(comparison.message, `${itemField}.message`) };
+    }) };
+  };
+  const normalizeInvestment = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { amountSpent: asNumber(block.amountSpent, `${field}.amountSpent`), firstOrderDate: asString(block.firstOrderDate, `${field}.firstOrderDate`), daysElapsed: asNumber(block.daysElapsed, `${field}.daysElapsed`), sp500Return: asNumber(block.sp500Return, `${field}.sp500Return`), wouldBeWorth: asNumber(block.wouldBeWorth, `${field}.wouldBeWorth`), missedGains: asNumber(block.missedGains, `${field}.missedGains`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeCostPerMeal = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { totalDeliveryFees: asNumber(block.totalDeliveryFees, `${field}.totalDeliveryFees`), averageDeliveryFee: asNumber(block.averageDeliveryFee, `${field}.averageDeliveryFee`), averageDeliveryFeePerMeal: asNumber(block.averageDeliveryFeePerMeal, `${field}.averageDeliveryFeePerMeal`), totalOrders: asNumber(block.totalOrders, `${field}.totalOrders`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizePeakHour = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { hour: asNumber(block.hour, `${field}.hour`), hourDisplay: asString(block.hourDisplay, `${field}.hourDisplay`), orderCount: asNumber(block.orderCount, `${field}.orderCount`), percentageOfTotal: asNumber(block.percentageOfTotal, `${field}.percentageOfTotal`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeWeekend = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    return { weekendOrders: asNumber(block.weekendOrders, `${field}.weekendOrders`), weekdayOrders: asNumber(block.weekdayOrders, `${field}.weekdayOrders`), weekendSpending: asNumber(block.weekendSpending, `${field}.weekendSpending`), weekdaySpending: asNumber(block.weekdaySpending, `${field}.weekdaySpending`), ratio: asNumber(block.ratio, `${field}.ratio`), message: asString(block.message, `${field}.message`) };
+  };
+  const normalizeDeliveryWaits = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    const normalizeLongest = (item: unknown, itemField: string) => {
+      const wait = asRecord(item, itemField);
+      return { minutes: asNumber(wait.minutes, `${itemField}.minutes`), restaurant: asString(wait.restaurant, `${itemField}.restaurant`), amount: asNumber(wait.amount, `${itemField}.amount`), message: asString(wait.message, `${itemField}.message`) };
+    };
+    const normalizeFastest = (item: unknown, itemField: string) => {
+      const wait = asRecord(item, itemField);
+      return { minutes: asNumber(wait.minutes, `${itemField}.minutes`), restaurant: asString(wait.restaurant, `${itemField}.restaurant`) };
+    };
+    return { totalMinutes: asNumber(block.totalMinutes, `${field}.totalMinutes`), averageMinutes: asNumber(block.averageMinutes, `${field}.averageMinutes`), totalOrders: asNumber(block.totalOrders, `${field}.totalOrders`), longestWait: optional(block.longestWait, `${field}.longestWait`, normalizeLongest), fastestDelivery: optional(block.fastestDelivery, `${field}.fastestDelivery`, normalizeFastest) };
+  };
+
+  const coverage = optional(wrapped.coverage, 'wrappedAnalytics.coverage', (candidate, field) => {
+    const block = asRecord(candidate, field);
+    if (!Array.isArray(block.dataSources)) throw new Error(`Invalid analytics response: ${field}.dataSources`);
+    return { orderCount: asNumber(block.orderCount, `${field}.orderCount`), earliestOrderDate: asNullableString(block.earliestOrderDate, `${field}.earliestOrderDate`), latestOrderDate: asNullableString(block.latestOrderDate, `${field}.latestOrderDate`), dataSources: block.dataSources.map((item, index) => asString(item, `${field}.dataSources.${index}`)), hasExportData: asBoolean(block.hasExportData, `${field}.hasExportData`) };
+  });
+  const percentiles = optional(wrapped.percentiles, 'wrappedAnalytics.percentiles', (candidate, field) => {
+    const block = asRecord(candidate, field);
+    return { sampleSize: asNumber(block.sampleSize, `${field}.sampleSize`), totalSpent: optional(block.totalSpent, `${field}.totalSpent`, normalizeStanding), orderCount: optional(block.orderCount, `${field}.orderCount`, normalizeStanding), nightOwl: optional(block.nightOwl, `${field}.nightOwl`, normalizeStanding) };
+  });
+
+  return {
+    coverage,
+    percentiles,
+    shame: {
+      lateNightOrders: optional(shame.lateNightOrders, 'wrappedAnalytics.shame.lateNightOrders', normalizeLateNight),
+      laziestDay: optional(shame.laziestDay, 'wrappedAnalytics.shame.laziestDay', normalizeLaziestDay),
+      longestStreak: optional(shame.longestStreak, 'wrappedAnalytics.shame.longestStreak', normalizeLongestStreak),
+      singleItemOrders: optional(shame.singleItemOrders, 'wrappedAnalytics.shame.singleItemOrders', normalizeSingleItems),
+      chainDependency: optional(shame.chainDependency, 'wrappedAnalytics.shame.chainDependency', normalizeChain),
+    },
+    flex: {
+      mostExpensiveOrder: optional(flex.mostExpensiveOrder, 'wrappedAnalytics.flex.mostExpensiveOrder', normalizeExpensiveOrder),
+      coffeeAddiction: optional(flex.coffeeAddiction, 'wrappedAnalytics.flex.coffeeAddiction', normalizeCoffee),
+      nightOwl: optional(flex.nightOwl, 'wrappedAnalytics.flex.nightOwl', normalizeNightOwl),
+    },
+    comparative: {
+      spentThisYear: optional(comparative.spentThisYear, 'wrappedAnalytics.comparative.spentThisYear', normalizeSpentYear),
+      couldHaveBought: optional(comparative.couldHaveBought, 'wrappedAnalytics.comparative.couldHaveBought', normalizeCouldHaveBought),
+      missedInvestment: optional(comparative.missedInvestment, 'wrappedAnalytics.comparative.missedInvestment', normalizeInvestment),
+      costPerMeal: optional(comparative.costPerMeal, 'wrappedAnalytics.comparative.costPerMeal', normalizeCostPerMeal),
+    },
+    patterns: {
+      peakHungerHour: optional(patterns.peakHungerHour, 'wrappedAnalytics.patterns.peakHungerHour', normalizePeakHour),
+      weekendWarrior: optional(patterns.weekendWarrior, 'wrappedAnalytics.patterns.weekendWarrior', normalizeWeekend),
+      deliveryWaits: optional(patterns.deliveryWaits, 'wrappedAnalytics.patterns.deliveryWaits', normalizeDeliveryWaits),
+    },
+  };
+};
 
 export const normalizeUserSummary = (value: unknown, includeWrapped = false): UserSummary => {
   const root = asRecord(value, 'root');
@@ -67,14 +302,15 @@ export const normalizeUserSummary = (value: unknown, includeWrapped = false): Us
         'Review any refunded receipts for accuracy',
       ],
     },
-    dashboardInsights: Array.isArray(root.dashboardInsights)
-      ? root.dashboardInsights.filter((item): item is DashboardInsight => Boolean(item && typeof item === 'object'))
-      : [],
+    dashboardInsights: root.dashboardInsights === undefined
+      ? []
+      : Array.isArray(root.dashboardInsights)
+        ? root.dashboardInsights.map(normalizeDashboardInsight)
+        : (() => { throw new Error('Invalid analytics response: dashboardInsights'); })(),
   };
 
   if (includeWrapped && root.wrappedAnalytics) {
-    asRecord(root.wrappedAnalytics, 'wrappedAnalytics');
-    summary.wrappedAnalytics = root.wrappedAnalytics as WrappedAnalytics;
+    summary.wrappedAnalytics = normalizeWrappedAnalytics(root.wrappedAnalytics);
   }
   return summary;
 };

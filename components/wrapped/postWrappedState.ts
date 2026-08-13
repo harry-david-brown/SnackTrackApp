@@ -1,5 +1,5 @@
-import type { WrappedCoverage } from '../../types/api';
-import type { EffectiveMonitoringState } from '../../services/gmailApi';
+import type { WrappedCoverage } from '@/types/api';
+import type { EffectiveMonitoringState } from '@services/gmailApi';
 
 export type PostWrappedExportEligibility = 'loading' | 'show' | 'hide';
 export type ImportedCoverageAssessment = 'sparse' | 'standard' | 'unknown';

@@ -1,4 +1,4 @@
-import { UserSummary } from '../types/api';
+import { UserSummary } from '@/types/api';
 
 // Simple seeded PRNG for deterministic randomness
 class SeededRandom {

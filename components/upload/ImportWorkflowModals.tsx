@@ -1,13 +1,13 @@
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
-import type { GmailConnectionStatus, GmailImportResponse } from '../../services/gmailApi';
-import { GmailConnection } from '../gmail/GmailConnection';
-import { GmailImportLoadingModal, type GmailConnectPhase } from '../gmail/GmailImportLoadingModal';
-import { AppButton } from '../ui/AppButton';
-import WrappedJourneyLoader from '../wrapped/WrappedJourneyLoader';
+import { Colors } from '@constants/theme';
+import type { GmailConnectionStatus, GmailImportResponse } from '@services/gmailApi';
+import { GmailConnection } from '@components/gmail/GmailConnection';
+import { GmailImportLoadingModal, type GmailConnectPhase } from '@components/gmail/GmailImportLoadingModal';
+import { AppButton } from '@components/ui/AppButton';
+import WrappedJourneyLoader from '@components/wrapped/WrappedJourneyLoader';
 import UberDataTutorial, { type DataPlatform } from './UberDataTutorial';
-import type { GmailPrimaryFlowState } from '../../hooks/useGmailImport';
+import type { GmailPrimaryFlowState } from '@hooks/useGmailImport';
 
 interface ImportWorkflowModalsProps {
   tutorialVisible: boolean;

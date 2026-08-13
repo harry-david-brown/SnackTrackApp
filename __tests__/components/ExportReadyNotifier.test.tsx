@@ -1,18 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { render, waitFor } from '@testing-library/react-native';
-import ExportReadyNotifier from '../../components/upload/ExportReadyNotifier';
-import { useUser } from '../../contexts/UserContext';
-import { useImportPreferences } from '../../hooks/useImportPreferences';
-import { showAlert } from '../../utils/platformAlert';
+import ExportReadyNotifier from '@components/upload/ExportReadyNotifier';
+import { useUser } from '@contexts/UserContext';
+import { useImportPreferences } from '@hooks/useImportPreferences';
+import { showAlert } from '@utils/platformAlert';
 import { router } from 'expo-router';
 
-jest.mock('../../contexts/UserContext', () => ({
+jest.mock('@contexts/UserContext', () => ({
   useUser: jest.fn(),
 }));
-jest.mock('../../hooks/useImportPreferences', () => ({
+jest.mock('@hooks/useImportPreferences', () => ({
   useImportPreferences: jest.fn(),
 }));
-jest.mock('../../utils/platformAlert', () => ({
+jest.mock('@utils/platformAlert', () => ({
   showAlert: jest.fn(),
 }));
 

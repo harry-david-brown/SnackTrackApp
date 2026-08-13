@@ -17,7 +17,7 @@ import {
   VerifyEmailCodeRequest,
   VerifyEmailCodeResponse,
   DeleteAccountResponse,
-} from '../types/api';
+} from '@/types/api';
 import {
   storeAuthTokens,
   getRefreshToken,
@@ -25,9 +25,9 @@ import {
   clearAuthTokens,
   isTokenExpired,
   getAccessToken,
-} from '../utils/tokenManager';
-import { logger } from '../utils/logger';
-import { JWT_CONFIG } from '../constants';
+} from '@utils/tokenManager';
+import { logger } from '@utils/logger';
+import { JWT_CONFIG } from '@/constants';
 import {
   normalizeAuthSession,
   normalizePasswordResetRequest,

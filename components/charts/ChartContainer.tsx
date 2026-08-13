@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

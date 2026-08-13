@@ -1,11 +1,11 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import EmailVerificationBanner from '../../components/auth/EmailVerificationBanner';
-import { ProfileModals } from '../../components/profile/ProfileModals';
-import { ProfileSettingsCard } from '../../components/profile/ProfileSettingsCard';
-import { ProfileSummaryCard } from '../../components/profile/ProfileSummaryCard';
-import { Colors } from '../../constants/theme';
-import { useProfileController } from '../../hooks/useProfileController';
+import EmailVerificationBanner from '@components/auth/EmailVerificationBanner';
+import { ProfileModals } from '@components/profile/ProfileModals';
+import { ProfileSettingsCard } from '@components/profile/ProfileSettingsCard';
+import { ProfileSummaryCard } from '@components/profile/ProfileSummaryCard';
+import { Colors } from '@constants/theme';
+import { useProfileController } from '@hooks/useProfileController';
 
 export default function ProfileScreen() {
   const profile = useProfileController();

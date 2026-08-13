@@ -1,8 +1,8 @@
 /** Receipt API endpoints and transport normalization. */
 import api from './client';
-import { DataSource, ReceiptType, type DeleteReceiptsResponse, type PaginationResponse, type Receipt, type ReceiptItem } from '../../types/api';
-import { API_CONFIG } from '../../constants';
-import { validateAndAuthorizeUserId } from '../../utils/securityValidation';
+import { DataSource, ReceiptType, type DeleteReceiptsResponse, type PaginationResponse, type Receipt, type ReceiptItem } from '@/types/api';
+import { API_CONFIG } from '@/constants';
+import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 type UnknownRecord = Record<string, unknown>;
 

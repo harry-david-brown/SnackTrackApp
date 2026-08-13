@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 /**
  * Shared layout constants, type scales, and story gradients for the
  * Wrapped share journey. Split out of WrappedShareJourney.tsx so slides,

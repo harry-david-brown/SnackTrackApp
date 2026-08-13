@@ -1,8 +1,8 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text, TouchableOpacity } from 'react-native';
-import { AppAlertProvider } from '../../components/ui/AppAlertProvider';
-import { presentAppAlert } from '../../utils/appAlert';
+import { AppAlertProvider } from '@components/ui/AppAlertProvider';
+import { presentAppAlert } from '@utils/appAlert';
 
 const AlertTrigger = ({
   title,

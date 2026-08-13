@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
-import { CurrencyCode, DEFAULT_CURRENCY, detectCurrency, detectCurrencyFromLocale, formatCurrency as formatCurrencyUtil } from '../utils/currency';
+import { CurrencyCode, DEFAULT_CURRENCY, detectCurrency, detectCurrencyFromLocale, formatCurrency as formatCurrencyUtil } from '@utils/currency';
 
 interface CurrencyContextType {
   currency: CurrencyCode;

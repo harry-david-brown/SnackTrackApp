@@ -1,7 +1,7 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SUPPORTED_CURRENCIES, CurrencyCode } from '../../utils/currency';
+import { SUPPORTED_CURRENCIES, CurrencyCode } from '@utils/currency';
 import { modalShellStyles } from './profileModalStyles';
 
 interface CurrencySelectorModalProps {

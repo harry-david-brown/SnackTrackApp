@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Colors } from '../../constants/theme';
-import type { CurrencyCode } from '../../utils/currency';
-import { SUPPORTED_CURRENCIES } from '../../utils/currency';
-import { Card } from '../ui/Card';
+import { Colors } from '@constants/theme';
+import type { CurrencyCode } from '@utils/currency';
+import { SUPPORTED_CURRENCIES } from '@utils/currency';
+import { Card } from '@components/ui/Card';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 

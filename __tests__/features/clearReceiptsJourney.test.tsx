@@ -1,22 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Text, TouchableOpacity } from 'react-native';
-import { OnboardingProvider, useOnboarding } from '../../contexts/OnboardingContext';
-import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../../lib/queryKeys';
-import { userApi } from '../../services/api';
-import { createQueryTestWrapper } from '../utils/queryTestUtils';
+import { OnboardingProvider, useOnboarding } from '@contexts/OnboardingContext';
+import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
+import { userApi } from '@services/api';
+import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
 
 const mockResetExportUpsellForUser = jest.fn();
 const mockResetExportDownloadStateForUser = jest.fn();
 
-jest.mock('../../contexts/UserContext', () => ({
+jest.mock('@contexts/UserContext', () => ({
   useUser: () => ({ state: { isAuthenticated: true, user: { id: 'user-1' } } }),
 }));
-jest.mock('../../services/api', () => ({ userApi: { resetOnboarding: jest.fn() } }));
-jest.mock('../../hooks/useExportUpsell', () => ({
+jest.mock('@services/api', () => ({ userApi: { resetOnboarding: jest.fn() } }));
+jest.mock('@hooks/useExportUpsell', () => ({
   resetExportUpsellForUser: (...args: unknown[]) => mockResetExportUpsellForUser(...args),
 }));
-jest.mock('../../utils/exportDownloadHandoff', () => ({
+jest.mock('@utils/exportDownloadHandoff', () => ({
   resetExportDownloadStateForUser: (...args: unknown[]) => mockResetExportDownloadStateForUser(...args),
 }));
 

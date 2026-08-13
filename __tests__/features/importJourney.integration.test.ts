@@ -1,7 +1,7 @@
-import { resolveDashboardTrackingState } from '../../components/dashboard/dashboardTrackingState';
-import { resolvePostWrappedExperience } from '../../components/wrapped/postWrappedState';
-import { resolveImportFlowState } from '../../features/import-flow/importFlowResolver';
-import type { GmailConnectionStatus, ImportPreferencesResponse } from '../../services/gmailApi';
+import { resolveDashboardTrackingState } from '@components/dashboard/dashboardTrackingState';
+import { resolvePostWrappedExperience } from '@components/wrapped/postWrappedState';
+import { resolveImportFlowState } from '@features/import-flow/importFlowResolver';
+import type { GmailConnectionStatus, ImportPreferencesResponse } from '@services/gmailApi';
 
 const preferences = (): ImportPreferencesResponse => ({
   monitoring: {

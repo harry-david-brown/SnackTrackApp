@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { receiptKeys } from '../../lib/queryKeys';
-import { receiptApi } from '../../services/api/receiptApi';
+import { receiptKeys } from '@lib/queryKeys';
+import { receiptApi } from '@services/api';
 
 export const useReceiptsQuery = (userId?: string | null, pageSize = 20) =>
   useInfiniteQuery({
@@ -14,4 +14,3 @@ export const useReceiptsQuery = (userId?: string | null, pageSize = 20) =>
       return hasMore ? loaded : undefined;
     },
   });
-

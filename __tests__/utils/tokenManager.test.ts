@@ -17,7 +17,7 @@ import {
   isAuthenticated,
   AUTH_STORAGE_KEYS,
   TOKEN_EXPIRY,
-} from '../../utils/tokenManager';
+} from '@utils/tokenManager';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({

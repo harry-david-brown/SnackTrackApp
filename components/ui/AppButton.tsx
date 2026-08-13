@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
-import { Colors, Radius, Shadows } from '../../constants/theme';
+import { Colors, Radius, Shadows } from '@constants/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'icon';
 

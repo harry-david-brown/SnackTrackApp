@@ -1,4 +1,4 @@
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 
 export interface ProfileSettingsState {
   exportAlertsLabel: 'Checking...' | 'On' | 'Off' | 'Reconnect' | 'Not set';

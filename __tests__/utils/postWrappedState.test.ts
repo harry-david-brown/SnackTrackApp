@@ -2,8 +2,8 @@ import {
   assessImportedCoverage,
   resolvePostWrappedExperience,
   resolveTrackingPropositionCopy,
-} from '../../components/wrapped/postWrappedState';
-import type { WrappedCoverage } from '../../types/api';
+} from '@components/wrapped/postWrappedState';
+import type { WrappedCoverage } from '@/types/api';
 
 const coverage = (
   overrides: Partial<WrappedCoverage> = {}

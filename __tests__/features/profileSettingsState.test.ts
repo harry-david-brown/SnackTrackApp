@@ -1,5 +1,5 @@
-import { resolveProfileSettingsState } from '../../features/profile/profileSettingsState';
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+import { resolveProfileSettingsState } from '@features/profile/profileSettingsState';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 
 const preferences = (): ImportPreferencesResponse => ({
   monitoring: {

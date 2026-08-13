@@ -1,4 +1,4 @@
-import { toDomainError } from '../../utils/domainError';
+import { toDomainError } from '@utils/domainError';
 
 export type AppleSignInErrorOutcome =
   | { kind: 'silent' } // user cancelled — show nothing

@@ -5,22 +5,22 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { UberDataUpload } from '../../components/upload/UberDataUpload';
-import { useUser } from '../../contexts/UserContext';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { csvApi } from '../../services/api';
+import { UberDataUpload } from '@components/upload/UberDataUpload';
+import { useUser } from '@contexts/UserContext';
+import { useNetworkStatus } from '@hooks/useNetworkStatus';
+import { csvApi } from '@services/api';
 import * as DocumentPicker from 'expo-document-picker';
-import * as offlineCache from '../../utils/offlineCache';
-import { showAlert } from '../../utils/platformAlert';
+import * as offlineCache from '@utils/offlineCache';
+import { showAlert } from '@utils/platformAlert';
 
 // Mock dependencies
-jest.mock('../../contexts/UserContext');
-jest.mock('../../hooks/useNetworkStatus');
-jest.mock('../../services/api');
+jest.mock('@contexts/UserContext');
+jest.mock('@hooks/useNetworkStatus');
+jest.mock('@services/api');
 jest.mock('expo-document-picker');
-jest.mock('../../utils/offlineCache');
-jest.mock('../../utils/platformAlert', () => ({ showAlert: jest.fn() }));
-jest.mock('../../utils/sentry', () => ({
+jest.mock('@utils/offlineCache');
+jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn() }));
+jest.mock('@utils/sentry', () => ({
   captureException: jest.fn(),
   captureMessage: jest.fn(),
 }));

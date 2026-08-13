@@ -1,7 +1,7 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useUser } from '../../contexts/UserContext';
+import { useUser } from '@contexts/UserContext';
 
 export default function TabLayout() {
   const { state } = useUser();

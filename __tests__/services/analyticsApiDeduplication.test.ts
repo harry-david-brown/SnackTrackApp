@@ -1,10 +1,10 @@
-import { analyticsApi, normalizeUserSummary } from '../../services/analyticsApi';
-import api from '../../services/api';
-import { createAppQueryClient } from '../../lib/queryClient';
-import { analyticsKeys } from '../../lib/queryKeys';
+import { analyticsApi, normalizeUserSummary } from '@services/analyticsApi';
+import api from '@services/api';
+import { createAppQueryClient } from '@lib/queryClient';
+import { analyticsKeys } from '@lib/queryKeys';
 
-jest.mock('../../services/api');
-jest.mock('../../utils/securityValidation', () => ({
+jest.mock('@services/api');
+jest.mock('@utils/securityValidation', () => ({
   validateAndAuthorizeUserId: jest.fn((userId: string) => Promise.resolve(userId)),
 }));
 
@@ -69,5 +69,56 @@ describe('analytics query ownership', () => {
       ...response,
       statistics: { ...response.statistics, totalSpent: '1000' },
     })).toThrow('Invalid analytics response: statistics.totalSpent');
+  });
+
+  it('normalizes dashboard insights instead of trusting arbitrary objects', () => {
+    const normalized = normalizeUserSummary({
+      ...response,
+      dashboardInsights: [{
+        id: 'favorite-day', category: 'habits', kind: 'stat', icon: 'calendar',
+        eyebrow: 'Weekly ritual', title: 'Your delivery day', headline: 'Friday',
+      }],
+    });
+
+    expect(normalized.dashboardInsights?.[0]).toMatchObject({
+      id: 'favorite-day', category: 'habits', icon: 'calendar',
+    });
+  });
+
+  it('rejects unsupported dashboard insight enums before rendering', () => {
+    expect(() => normalizeUserSummary({
+      ...response,
+      dashboardInsights: [{
+        id: 'broken', category: 'unknown', kind: 'stat', icon: 'calendar',
+        eyebrow: 'Broken', title: 'Broken',
+      }],
+    })).toThrow('Invalid analytics response: dashboardInsights.0.category');
+  });
+
+  it('validates wrapped analytics recursively at the service boundary', () => {
+    const normalized = normalizeUserSummary({
+      ...response,
+      wrappedAnalytics: {
+        shame: {}, flex: {}, comparative: {}, patterns: {
+          peakHungerHour: {
+            hour: 18, hourDisplay: '6 PM', orderCount: 4,
+            percentageOfTotal: 40, message: 'Dinner time.',
+          },
+        },
+      },
+    }, true);
+
+    expect(normalized.wrappedAnalytics?.patterns.peakHungerHour?.hour).toBe(18);
+    expect(() => normalizeUserSummary({
+      ...response,
+      wrappedAnalytics: {
+        shame: {}, flex: {}, comparative: {}, patterns: {
+          peakHungerHour: {
+            hour: '18', hourDisplay: '6 PM', orderCount: 4,
+            percentageOfTotal: 40, message: 'Dinner time.',
+          },
+        },
+      },
+    }, true)).toThrow('Invalid analytics response: wrappedAnalytics.patterns.peakHungerHour.hour');
   });
 });

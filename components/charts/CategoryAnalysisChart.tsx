@@ -1,10 +1,10 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
-import { UserSummary } from '../../types/api';
-import { useCurrency } from '../../contexts/CurrencyContext';
+import { UserSummary } from '@/types/api';
+import { useCurrency } from '@contexts/CurrencyContext';
 
 const screenWidth = Dimensions.get('window').width;
 const chartWidth = screenWidth - 120; // Account for container margin (20) + padding (40) + extra space (60)

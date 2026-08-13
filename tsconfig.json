@@ -8,10 +8,12 @@
       "@components/*": ["./components/*"],
       "@hooks/*": ["./hooks/*"],
       "@services/*": ["./services/*"],
-      "@types/*": ["./types/*"],
       "@utils/*": ["./utils/*"],
       "@contexts/*": ["./contexts/*"],
-      "@config/*": ["./config/*"]
+      "@config/*": ["./config/*"],
+      "@constants/*": ["./constants/*"],
+      "@features/*": ["./features/*"],
+      "@lib/*": ["./lib/*"]
     }
   }
 }

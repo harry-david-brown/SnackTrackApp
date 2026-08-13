@@ -1,11 +1,11 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, AppState, StyleSheet, Text, View } from 'react-native';
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 import type { DashboardTrackingAction, DashboardTrackingCardState } from './dashboardTrackingState';
-import { Card } from '../ui/Card';
-import { AppButton } from '../ui/AppButton';
+import { Card } from '@components/ui/Card';
+import { AppButton } from '@components/ui/AppButton';
 
 const TONES = {
   brand: { accent: Colors.primary, surface: Colors.infoBg },

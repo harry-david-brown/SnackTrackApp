@@ -1,6 +1,6 @@
-import { resolveImportFlowState } from '../../features/import-flow/importFlowResolver';
-import { parseImportRouteParams } from '../../features/import-flow/importRouteParams';
-import type { ExportLifecycleStatus, ImportPreferencesResponse, MonitoringConsentState } from '../../services/gmailApi';
+import { resolveImportFlowState } from '@features/import-flow/importFlowResolver';
+import { parseImportRouteParams } from '@features/import-flow/importRouteParams';
+import type { ExportLifecycleStatus, ImportPreferencesResponse, MonitoringConsentState } from '@services/gmailApi';
 
 function preferences(
   exportStatus: ExportLifecycleStatus = 'not_started',

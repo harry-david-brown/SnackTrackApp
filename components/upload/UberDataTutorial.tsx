@@ -1,4 +1,4 @@
-import { Colors, Radius, Shadows } from '@/constants/theme';
+import { Colors, Radius, Shadows } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { showSimpleAlert } from '../../utils/platformAlert';
+import { showSimpleAlert } from '@utils/platformAlert';
 
 export type DataPlatform = 'uber' | 'doordash';
 export type DataTutorialMode = 'request' | 'download';

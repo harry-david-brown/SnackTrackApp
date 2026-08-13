@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { analyticsApi } from '../../services/analyticsApi';
-import { analyticsKeys } from '../../lib/queryKeys';
+import { analyticsApi } from '@services/analyticsApi';
+import { analyticsKeys } from '@lib/queryKeys';
 
 export const useAnalyticsQuery = (userId?: string | null) =>
   useQuery({

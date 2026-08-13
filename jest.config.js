@@ -32,7 +32,11 @@ module.exports = {
     '^@components/(.*)$': '<rootDir>/components/$1',
     '^@hooks/(.*)$': '<rootDir>/hooks/$1',
     '^@services/(.*)$': '<rootDir>/services/$1',
-    '^@types/(.*)$': '<rootDir>/types/$1',
-    '^@utils/(.*)$': '<rootDir>/utils/$1'
+    '^@utils/(.*)$': '<rootDir>/utils/$1',
+    '^@contexts/(.*)$': '<rootDir>/contexts/$1',
+    '^@config/(.*)$': '<rootDir>/config/$1',
+    '^@constants/(.*)$': '<rootDir>/constants/$1',
+    '^@features/(.*)$': '<rootDir>/features/$1',
+    '^@lib/(.*)$': '<rootDir>/lib/$1'
   }
 };

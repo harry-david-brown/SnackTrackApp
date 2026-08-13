@@ -1,4 +1,4 @@
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 
 export type DashboardTrackingAction =
   | 'open_imports'

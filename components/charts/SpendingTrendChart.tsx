@@ -1,10 +1,10 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
-import { UserSummary } from '../../types/api';
-import { useCurrency } from '../../contexts/CurrencyContext';
+import { UserSummary } from '@/types/api';
+import { useCurrency } from '@contexts/CurrencyContext';
 import SimpleChart from './SimpleChart';
 
 const screenWidth = Dimensions.get('window').width;

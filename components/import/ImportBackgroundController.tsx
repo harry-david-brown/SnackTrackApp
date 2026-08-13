@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useUser } from '../../contexts/UserContext';
-import { useImportPreferences } from '../../hooks/useImportPreferences';
+import { useUser } from '@contexts/UserContext';
+import { useImportPreferences } from '@hooks/useImportPreferences';
 
 const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
 

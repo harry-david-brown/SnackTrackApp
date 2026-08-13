@@ -1,12 +1,12 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FadeInView } from '../ui/FadeInView';
-import { Card } from '../ui/Card';
-import { StatusBadge } from '../ui/StatusBadge';
-import { IconSurface } from '../ui/IconSurface';
-import type { StatusTone } from '../ui/StatusBadge';
+import { FadeInView } from '@components/ui/FadeInView';
+import { Card } from '@components/ui/Card';
+import { StatusBadge } from '@components/ui/StatusBadge';
+import { IconSurface } from '@components/ui/IconSurface';
+import type { StatusTone } from '@components/ui/StatusBadge';
 
 export type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
 

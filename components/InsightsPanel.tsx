@@ -1,10 +1,10 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { UserSummary } from '../types/api';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { UserSummary } from '@/types/api';
+import { useCurrency } from '@contexts/CurrencyContext';
 
 interface InsightsPanelProps {
   analytics: UserSummary;

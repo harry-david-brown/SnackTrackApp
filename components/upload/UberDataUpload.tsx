@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { csvApi } from '../../services/api';
-import { useUser } from '../../contexts/UserContext';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { parseApiError } from '../../utils/errorUtils';
-import { captureException } from '../../utils/sentry';
-import { showAlert } from '../../utils/platformAlert';
+import { csvApi } from '@services/api';
+import { useUser } from '@contexts/UserContext';
+import { useNetworkStatus } from '@hooks/useNetworkStatus';
+import { parseApiError } from '@utils/errorUtils';
+import { captureException } from '@utils/sentry';
+import { showAlert } from '@utils/platformAlert';
 
 interface UberDataUploadProps {
   onUploadSuccess?: (receiptsCount: number) => void;

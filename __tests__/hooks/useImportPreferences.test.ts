@@ -1,13 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { useImportPreferences } from '../../hooks/useImportPreferences';
-import { gmailApi, type ImportPreferencesResponse } from '../../services/gmailApi';
-import { createQueryTestWrapper } from '../utils/queryTestUtils';
+import { useImportPreferences } from '@hooks/useImportPreferences';
+import { gmailApi, type ImportPreferencesResponse } from '@services/gmailApi';
+import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
 
-jest.mock('../../contexts/UserContext', () => ({
+jest.mock('@contexts/UserContext', () => ({
   useUser: () => ({ state: { user: { id: 'user-123' } } }),
 }));
 
-jest.mock('../../services/gmailApi', () => ({
+jest.mock('@services/gmailApi', () => ({
   gmailApi: {
     getImportPreferences: jest.fn(),
     setMonitoringConsent: jest.fn(),
@@ -170,6 +170,33 @@ describe('useImportPreferences', () => {
     });
 
     await waitFor(() => expect(result.current.preferences?.gmailImport.hasImported).toBe(true));
+  });
+
+  it('refreshes authoritative preferences when a tracking check fails', async () => {
+    const failedPreferences = preferences();
+    failedPreferences.ongoingTracking = {
+      ...failedPreferences.ongoingTracking,
+      status: 'error',
+      effectiveState: 'error',
+      activity: {
+        ...failedPreferences.ongoingTracking.activity,
+        lastErrorCode: 'GMAIL_RECONNECT_REQUIRED',
+      },
+    };
+    (gmailApi.getImportPreferences as jest.Mock)
+      .mockResolvedValueOnce(preferences())
+      .mockResolvedValueOnce(failedPreferences);
+    (gmailApi.checkOngoingTracking as jest.Mock).mockRejectedValueOnce(new Error('Tracking failed'));
+
+    const { result } = renderPreferencesHook();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.checkOngoingTracking()).rejects.toThrow('Tracking failed');
+    });
+
+    await waitFor(() => expect(result.current.preferences?.ongoingTracking.effectiveState).toBe('error'));
+    expect(gmailApi.getImportPreferences).toHaveBeenCalledTimes(2);
   });
 
   it('does not load when disabled', async () => {

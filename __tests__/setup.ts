@@ -75,7 +75,7 @@ jest.mock('expo-constants', () => ({
 afterAll(async () => {
   // Cleanup rate limiter interval
   try {
-    const rateLimiterModule = require('../utils/rateLimiter');
+    const rateLimiterModule = require('@utils/rateLimiter');
     if (rateLimiterModule.destroyRateLimiter) {
       rateLimiterModule.destroyRateLimiter();
     }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useUser } from '../../contexts/UserContext';
+import { useUser } from '@contexts/UserContext';
 import { validateEmail, validatePassword } from './authValidation';
 
 export function useLoginForm(onSuccess?: () => void) {

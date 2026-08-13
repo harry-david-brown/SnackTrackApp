@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { useGmailImport } from '../../hooks/useGmailImport';
-import { gmailApi } from '../../services/gmailApi';
+import { useGmailImport } from '@hooks/useGmailImport';
+import { gmailApi } from '@services/gmailApi';
 import * as WebBrowser from 'expo-web-browser';
-import { showSimpleAlert } from '../../utils/platformAlert';
-import { createQueryTestWrapper } from '../utils/queryTestUtils';
+import { showSimpleAlert } from '@utils/platformAlert';
+import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
 
 const mockInvalidateReceiptDerivedData = jest.fn();
 
@@ -16,7 +16,7 @@ jest.mock('expo-web-browser', () => ({
   openAuthSessionAsync: jest.fn(),
 }));
 
-jest.mock('../../services/gmailApi', () => ({
+jest.mock('@services/gmailApi', () => ({
   gmailApi: {
     getAuthUrl: jest.fn(),
     getStatus: jest.fn(),
@@ -25,24 +25,24 @@ jest.mock('../../services/gmailApi', () => ({
   },
 }));
 
-jest.mock('../../contexts/UserContext', () => ({
+jest.mock('@contexts/UserContext', () => ({
   useUser: jest.fn(() => ({
     state: { user: { id: 'user-123' } },
   })),
 }));
 
-jest.mock('../../services/analyticsApi', () => ({
+jest.mock('@services/analyticsApi', () => ({
   analyticsApi: {
     getUserSummary: jest.fn(),
   },
 }));
 
-jest.mock('../../utils/platformAlert', () => ({
+jest.mock('@utils/platformAlert', () => ({
   showAlert: jest.fn(),
   showSimpleAlert: jest.fn(),
 }));
 
-jest.mock('../../lib/queryInvalidation', () => ({
+jest.mock('@lib/queryInvalidation', () => ({
   invalidateImportState: jest.fn(),
   invalidateReceiptDerivedData: (...args: unknown[]) => mockInvalidateReceiptDerivedData(...args),
 }));

@@ -1,21 +1,22 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi } from '../services/authApi';
-import { AppUser, RegisterResponse, LoginResponse } from '../types/api';
+import { authApi } from '@services/authApi';
+import { AppUser, RegisterResponse, LoginResponse } from '@/types/api';
 import { 
   getUserData, 
   getUserId, 
   isAuthenticated as checkIsAuthenticated,
   clearAuthTokens,
   AUTH_STORAGE_KEYS 
-} from '../utils/tokenManager';
-import { setSentryUser, clearSentryUser } from '../utils/sentry';
-import { logger } from '../utils/logger';
-import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '../constants';
+} from '@utils/tokenManager';
+import { setSentryUser, clearSentryUser } from '@utils/sentry';
+import { logger } from '@utils/logger';
+import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '@/constants';
 import { UserState, UserAction, UserContextType, initialState } from './userTypes';
 import { userReducer } from './userReducer';
-import { toDomainError } from '../utils/domainError';
+import { toDomainError } from '@utils/domainError';
+import { registerSessionExpiredHandler } from '@services/authSessionCoordinator';
 
 // Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -40,10 +41,32 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
   const queryClient = useQueryClient();
 
+  const clearUserStorage = useCallback(async () => {
+    try {
+      // Clear both new auth tokens and legacy storage
+      await Promise.all([
+        clearAuthTokens(),
+        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_DATA),
+        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_ID),
+        AsyncStorage.removeItem(STORAGE_KEYS.ANALYTICS_CACHE),
+        AsyncStorage.removeItem(STORAGE_KEYS.LAST_SYNC),
+      ]);
+    } catch {
+      // Local cleanup remains best-effort; auth state is still cleared below.
+    }
+  }, []);
+
   // Load user data from storage on app start
   useEffect(() => {
     loadUserFromStorage();
   }, []);
+
+  useEffect(() => registerSessionExpiredHandler(async () => {
+    await clearUserStorage();
+    clearSentryUser();
+    queryClient.clear();
+    dispatch({ type: 'LOGOUT' });
+  }), [clearUserStorage, queryClient]);
 
   // Clear storage if user ID is not a valid UUID
   useEffect(() => {
@@ -113,21 +136,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const clearUserStorage = async () => {
-    try {
-      // Clear both new auth tokens and legacy storage
-      await Promise.all([
-        clearAuthTokens(),
-        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_DATA),
-        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_ID),
-        AsyncStorage.removeItem(STORAGE_KEYS.ANALYTICS_CACHE),
-        AsyncStorage.removeItem(STORAGE_KEYS.LAST_SYNC),
-      ]);
-    } catch (error) {
-      // Silently fail - we tried our best to clear storage
-    }
-  };
-
   const register = async (email: string, password: string): Promise<RegisterResponse> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -136,12 +144,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Register with the new auth API
       const response = await authApi.register({ email, password });
 
-      // Debug: Log response structure in development
-      logger.debug('Registration response:', JSON.stringify(response, null, 2));
-
       // Validate response structure
       if (!response.user) {
-        logger.error('Registration response missing user object:', response);
+        logger.error('Registration response missing user object', { userId: response.userId });
         throw new Error('Invalid registration response from server');
       }
       
@@ -162,14 +167,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       logger.debug('[UserContext] User registered and set:', {
         userId: user.id,
-        email: user.email,
         isAuthenticated: true, // Will be set by reducer
       });
       
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
       
-      logger.info('User registered successfully:', email);
+      logger.info('User registered successfully', { userId: user.id });
       return response;
     } catch (error: unknown) {
       const domainError = toDomainError(error);
@@ -192,12 +196,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
 
-      // Debug: Log response structure in development
-      logger.debug('Login response:', JSON.stringify(response, null, 2));
-
       // Validate response structure
       if (!response.user) {
-        logger.error('Login response missing user object:', response);
+        logger.error('Login response missing user object', { userId: response.userId });
         throw new Error('Invalid login response from server');
       }
       
@@ -219,7 +220,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Set Sentry user context for error tracking
       setSentryUser(response.userId, response.email);
       
-      logger.info('User logged in successfully:', email);
+      logger.info('User logged in successfully', { userId: user.id });
       
       return response;
     } catch (error: unknown) {
@@ -243,8 +244,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_ERROR', payload: null });
 
       const response = await authApi.googleLogin(idToken);
-
-      logger.debug('Google Login response:', JSON.stringify(response, null, 2));
 
       if (!response.user) {
         throw new Error('Invalid login response from server');
@@ -281,8 +280,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       }
 
       const response = await authApi.appleLogin(identityToken, user);
-
-      logger.debug('Apple Login response:', JSON.stringify(response, null, 2));
 
       // Validate response structure
       if (!response) {

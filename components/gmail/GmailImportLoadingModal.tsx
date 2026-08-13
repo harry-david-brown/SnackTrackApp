@@ -1,10 +1,10 @@
-import { Colors } from '@/constants/theme';
+import { Colors } from '@constants/theme';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { type GmailPrimaryFlowState } from '../../hooks/useGmailImport';
-import { type GmailImportResponse } from '../../services/gmailApi';
-import { MascotPlaceholder } from '../mascot/MascotPlaceholder';
+import { type GmailPrimaryFlowState } from '@hooks/useGmailImport';
+import { type GmailImportResponse } from '@services/gmailApi';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 const GMAIL_IMPORT_MESSAGES = [
   'This can take up to 1-2 minutes depending on your gluttony.',

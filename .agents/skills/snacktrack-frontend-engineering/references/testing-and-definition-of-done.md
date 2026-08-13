@@ -43,6 +43,7 @@ Add or update integration coverage when a change crosses multiple steps, especia
 - upload completion into wrapped/slideshow;
 - ongoing tracking and reconnect recovery;
 - clearing receipts and resetting source coverage.
+- fresh-account reset during active Gmail sync/export upload, including removal of stale query and device caches.
 
 ## Test hygiene
 
@@ -80,7 +81,9 @@ Run focused tests during development, then run the full relevant checks before h
 - [ ] Repeated visual patterns use canonical tokens/primitives.
 - [ ] Interactive controls include accessibility semantics and sufficient touch targets.
 - [ ] No raw sensitive data or avoidable debug logging was introduced.
+- [ ] Cross-directory imports use configured aliases and public module barrels; no parent-traversal module imports remain.
 - [ ] Focused regression tests cover the decision point.
 - [ ] Relevant journey integration coverage was considered.
 - [ ] Type-check, lint, theme check, and tests pass.
 - [ ] Obsolete state, styles, imports, flags, and compatibility code were removed when safe.
+- [ ] Destructive reset tests prove authentication is preserved while imported data and all affected caches are removed.

@@ -1,5 +1,5 @@
-import { resolveDashboardTrackingState } from '../../components/dashboard/dashboardTrackingState';
-import type { ImportPreferencesResponse } from '../../services/gmailApi';
+import { resolveDashboardTrackingState } from '@components/dashboard/dashboardTrackingState';
+import type { ImportPreferencesResponse } from '@services/gmailApi';
 
 const preferences = (): ImportPreferencesResponse => ({
   monitoring: {

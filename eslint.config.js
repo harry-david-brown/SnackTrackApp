@@ -6,5 +6,18 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^\\.\\./",
+              message: "Use a configured path alias for cross-directory imports.",
+            },
+          ],
+        },
+      ],
+    },
   }
 ]);

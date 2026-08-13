@@ -6,7 +6,7 @@
  */
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { getConfig } from '../../config/env';
+import { getConfig } from '@config/env';
 
 let GoogleSignin: any = null;
 let statusCodes: any = null;

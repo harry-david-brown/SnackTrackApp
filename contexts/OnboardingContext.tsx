@@ -2,11 +2,11 @@ import React, { createContext, useCallback, useContext, useState, useEffect, Rea
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from './UserContext';
-import { userApi } from '../services/api';
-import { resetExportUpsellForUser } from '../hooks/useExportUpsell';
-import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '../lib/queryKeys';
-import { resetExportDownloadStateForUser } from '../utils/exportDownloadHandoff';
-import { captureException } from '../utils/sentry';
+import { userApi } from '@services/api';
+import { resetExportUpsellForUser } from '@hooks/useExportUpsell';
+import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
+import { resetExportDownloadStateForUser } from '@utils/exportDownloadHandoff';
+import { captureException } from '@utils/sentry';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;

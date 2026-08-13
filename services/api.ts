@@ -1,9 +1,7 @@
 /**
- * API services - main export file
- * Re-exports all API modules for backward compatibility
- * 
- * @deprecated Import from './api' submodules directly for better tree-shaking
- * Example: import { userApi } from './api/userApi'
+ * Public API-service boundary.
+ * Consumers should import named services from `@services/api` rather than
+ * reaching into the implementation files under `services/api/`.
  */
 
 export { default as api, userApi, csvApi, receiptApi } from './api/index';
