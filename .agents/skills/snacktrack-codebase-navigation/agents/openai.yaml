@@ -1,0 +1,4 @@
+interface:
+  display_name: "SnackTrack Codebase Navigation"
+  short_description: "Navigate SnackTrack app and API architecture"
+  default_prompt: "Use $snacktrack-codebase-navigation to locate the canonical SnackTrack files and trace the full feature path before making changes."
