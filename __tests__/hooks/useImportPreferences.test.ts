@@ -53,6 +53,10 @@ const preferences = (
   },
   coverage: {
     emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false,
+    exportProviders: {
+      uberEats: { receiptCount: 0, hasData: false },
+      doorDash: { receiptCount: 0, hasData: false },
+    },
   },
   ...overrides,
 });
@@ -114,8 +118,10 @@ describe('useImportPreferences', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
-      await result.current.markExportRequested();
+      await result.current.markExportRequested('uber_eats');
     });
+
+    expect(gmailApi.markExportRequested).toHaveBeenCalledWith('uber_eats');
 
     await waitFor(() => expect(result.current.preferences?.export.status).toBe('requested_monitoring_disabled'));
   });
@@ -140,7 +146,7 @@ describe('useImportPreferences', () => {
     await waitFor(() => expect(result.current.preferences?.ongoingTracking.effectiveState).toBe('active'));
   });
 
-  it('marks an automatic Gmail scan as importing and refreshes its completion state', async () => {
+  it('marks an explicit Gmail import as importing and refreshes its completion state', async () => {
     let finishImport!: (value: { success: boolean }) => void;
     (gmailApi.importReceipts as jest.Mock).mockImplementation(() => new Promise((resolve) => {
       finishImport = resolve;

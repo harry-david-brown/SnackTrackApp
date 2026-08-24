@@ -139,7 +139,7 @@ const getRateLimitType = (url: string, method: string): keyof typeof RATE_LIMITS
   if (url.includes('/auth/refresh')) return 'AUTH_REFRESH';
   
   // Data fetching endpoints
-  if (url.includes('/summary') && upperMethod === 'GET') return 'GET_ANALYTICS';
+  if ((url.includes('/summary') || url.includes('/dashboard-insights')) && upperMethod === 'GET') return 'GET_ANALYTICS';
   if (url.includes('/receipts') && upperMethod === 'GET') return 'GET_RECEIPTS';
   if (url.includes('/users/') && upperMethod === 'GET') return 'GET_USER_DATA';
   

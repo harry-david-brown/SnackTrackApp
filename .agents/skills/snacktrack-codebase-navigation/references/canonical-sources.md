@@ -16,29 +16,23 @@
 
 README and planning documents explain intent but can lag implementation. If they conflict with executable source and tests, establish whether the source is wrong before updating documentation.
 
-## Common checks
+## Verification commands
 
-Run commands from the relevant repository.
+For ordinary code changes, run only the relevant TypeScript command from the affected repository. Do not run focused tests, full suites, lint, theme validation, or CI unless the user explicitly requests those specific checks.
 
 ### App
 
 ```sh
 npm run type-check
-npm run lint
-npm run check:theme
-npm test -- --watchAll=false --runInBand --no-watchman
 ```
-
-Prefer a focused test command first when the full suite is expensive.
 
 ### API
 
 ```sh
 npm run build
-npm test
 ```
 
-Inspect `SnackTrackAPI/package.json` and `SnackTrackAPI/tests/` for narrower regression scripts associated with the touched domain.
+Treat `npm run build` as the API TypeScript check. Tests remain available for user-requested verification but are not part of the default handoff.
 
 ## Cache checklist
 

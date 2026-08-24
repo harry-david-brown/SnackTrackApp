@@ -1,8 +1,11 @@
 import type { ImportPreferencesResponse } from '@services/gmailApi';
+import { resolveTrackingEligibility } from '@features/import-flow/trackingEligibility';
 
 export type DashboardTrackingAction =
-  | 'open_imports'
-  | 'open_export'
+  | 'connect_gmail'
+  | 'import_gmail'
+  | 'request_export'
+  | 'continue_export'
   | 'open_gmail'
   | 'enable_tracking'
   | 'retry_tracking';
@@ -38,6 +41,9 @@ export const resolveDashboardTrackingState = (
   }
 
   const { export: exportState, gmailImport, ongoingTracking, coverage, monitoring } = preferences;
+  const trackingEligibility = resolveTrackingEligibility(preferences);
+  const uberExportStatus = exportState.providers?.uberEats.status;
+  const doorDashExportStatus = exportState.providers?.doorDash.status;
   const gmailConnected = ongoingTracking.capability.gmailConnected || monitoring.capability.gmailConnected;
   const gmailNeedsReconnect = ongoingTracking.capability.needsReconnect === true
     || monitoring.capability.needsReconnect === true
@@ -49,7 +55,7 @@ export const resolveDashboardTrackingState = (
       id: 'export_ready', sectionLabel: 'Next step', eyebrow: 'YOUR FILE IS READY',
       title: 'Download your Uber data',
       body: 'Open Uber’s email, download the archive, then bring it back to SnackTrack.',
-      icon: 'mail-unread-outline', tone: 'success', primaryAction: 'open_export', primaryLabel: 'Continue',
+      icon: 'mail-unread-outline', tone: 'success', primaryAction: 'continue_export', primaryLabel: 'Continue',
     };
   }
   if (exportState.status === 'import_processing') {
@@ -70,7 +76,7 @@ export const resolveDashboardTrackingState = (
     return {
       id: 'export_failed', sectionLabel: 'Next step', eyebrow: 'IMPORT NEEDS ATTENTION',
       title: 'We couldn’t add that export', body: 'Try the file again or review the download instructions.',
-      icon: 'alert-circle-outline', tone: 'error', primaryAction: 'open_export', primaryLabel: 'Try again',
+      icon: 'alert-circle-outline', tone: 'error', primaryAction: 'continue_export', primaryLabel: 'Try again',
     };
   }
   if (gmailImport.status === 'failed' && !coverage.hasEmailData) {
@@ -82,31 +88,42 @@ export const resolveDashboardTrackingState = (
         ? 'Google no longer accepts the saved connection. Your existing history is safe.'
         : 'Retry the import to get your recent orders.',
       icon: reconnectRequired ? 'link-outline' : 'refresh-circle-outline', tone: reconnectRequired ? 'warning' : 'error',
-      primaryAction: 'open_imports', primaryLabel: reconnectRequired ? 'Reconnect Gmail' : 'Try again',
+      primaryAction: reconnectRequired ? 'connect_gmail' : 'import_gmail', primaryLabel: reconnectRequired ? 'Reconnect Gmail' : 'Try again',
     };
   }
 
-  const exportRequested = exportState.status === 'requested_monitoring_enabled'
-    || exportState.status === 'requested_monitoring_disabled';
+  const uberExportRequested = uberExportStatus === 'requested';
+  const doorDashExportRequested = doorDashExportStatus === 'requested';
+  const exportRequested = uberExportRequested || doorDashExportRequested;
   if (exportRequested) {
-    if (monitoring.effectiveState === 'reconnect_required') {
+    if (uberExportRequested && monitoring.effectiveState === 'reconnect_required') {
       return {
         id: 'export_reconnect', sectionLabel: 'Next step', eyebrow: 'EXPORT ALERTS PAUSED',
         title: 'Reconnect Gmail to restore alerts', body: 'Uber may still be preparing your file. Reconnect so SnackTrack can recognize the ready email.',
-        icon: 'link-outline', tone: 'warning', primaryAction: 'open_imports', primaryLabel: 'Reconnect Gmail',
+        icon: 'link-outline', tone: 'warning', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
       };
     }
     return {
-      id: exportState.status, sectionLabel: 'In progress', eyebrow: 'WAITING FOR UBER',
-      title: 'Uber is preparing your file',
-      body: exportState.status === 'requested_monitoring_enabled'
-        ? 'SnackTrack will recognize Uber’s data-ready email while monitoring is available.'
-        : 'This can take a few days. Check Gmail for “Your Uber data is ready for download.”',
+      id: uberExportRequested && doorDashExportRequested
+        ? 'exports_requested'
+        : uberExportRequested ? 'uber_export_requested' : 'doordash_export_requested',
+      sectionLabel: 'In progress',
+      eyebrow: uberExportRequested && doorDashExportRequested
+        ? 'WAITING FOR YOUR EXPORTS'
+        : uberExportRequested ? 'WAITING FOR UBER' : 'WAITING FOR DOORDASH',
+      title: uberExportRequested && doorDashExportRequested
+        ? 'Your delivery exports are being prepared'
+        : `${uberExportRequested ? 'Uber' : 'DoorDash'} is preparing your file`,
+      body: uberExportRequested
+        ? monitoring.effectiveState === 'enabled'
+          ? 'SnackTrack will check for Uber’s data-ready email while the app is active.'
+          : 'Check your inbox for Uber’s data-ready email. DoorDash will send its own archive-ready email separately.'
+        : 'DoorDash typically emails a “View Your Data Archive” link when the file is ready.',
       icon: 'time-outline', tone: 'progress', passive: true,
-      primaryAction: exportState.status === 'requested_monitoring_disabled' ? 'open_gmail' : undefined,
-      primaryLabel: exportState.status === 'requested_monitoring_disabled' ? 'Open Gmail' : undefined,
-      secondaryAction: exportState.status === 'requested_monitoring_enabled' ? 'open_gmail' : undefined,
-      secondaryLabel: exportState.status === 'requested_monitoring_enabled' ? 'Check Gmail manually' : undefined,
+      primaryAction: uberExportRequested && monitoring.effectiveState !== 'enabled' ? 'open_gmail' : undefined,
+      primaryLabel: uberExportRequested && monitoring.effectiveState !== 'enabled' ? 'Open Gmail' : undefined,
+      secondaryAction: uberExportRequested && monitoring.effectiveState === 'enabled' ? 'open_gmail' : undefined,
+      secondaryLabel: uberExportRequested && monitoring.effectiveState === 'enabled' ? 'Check Gmail manually' : undefined,
     };
   }
 
@@ -117,21 +134,13 @@ export const resolveDashboardTrackingState = (
       body: gmailImport.hasImported
         ? 'Your imported history is safe. Reconnect Gmail so SnackTrack can keep future orders current.'
         : 'Google no longer accepts the saved connection. Reconnect before SnackTrack scans for delivery receipts.',
-      icon: 'link-outline', tone: 'warning', primaryAction: 'open_imports', primaryLabel: 'Reconnect Gmail',
+      icon: 'link-outline', tone: 'warning', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
     };
   }
 
   const gmailHasRun = gmailImport.hasImported;
   if (!gmailHasRun) {
     const hasExistingExport = coverage.hasExportData;
-    if (hasExistingExport && gmailConnected && ongoingTracking.capability.canTrack) {
-      return {
-        id: 'gmail_auto_scan_pending', sectionLabel: 'In progress', eyebrow: 'FINISHING YOUR SETUP',
-        title: 'Checking Gmail for new orders',
-        body: 'Your export history is complete. SnackTrack is automatically checking for any newer delivery receipts.',
-        icon: 'sync-outline', tone: 'progress', passive: true,
-      };
-    }
     return {
       id: gmailConnected ? 'import_gmail' : 'connect_gmail', sectionLabel: 'Next step',
       eyebrow: hasExistingExport ? 'KEEP YOUR STATS GROWING' : 'START WITH YOUR INBOX',
@@ -144,7 +153,7 @@ export const resolveDashboardTrackingState = (
           : 'Your full history is already here. Connect Gmail so SnackTrack can recognize new delivery receipts going forward.'
         : 'SnackTrack can quickly find your recent delivery receipts before you add a full export.',
       icon: gmailConnected ? 'mail-open-outline' : 'mail-outline', tone: 'brand',
-      primaryAction: 'open_imports', primaryLabel: gmailConnected
+      primaryAction: gmailConnected ? 'import_gmail' : 'connect_gmail', primaryLabel: gmailConnected
         ? hasExistingExport ? 'Scan Gmail' : 'Import receipts'
         : 'Connect Gmail',
     };
@@ -154,11 +163,11 @@ export const resolveDashboardTrackingState = (
     return {
       id: coverage.emailReceiptCount <= 5 ? 'sparse_export' : 'request_export',
       sectionLabel: 'Next step', eyebrow: coverage.emailReceiptCount <= 5 ? 'YOUR INBOX ONLY TELLS PART OF THE STORY' : 'UNLOCK YOUR FULL HISTORY',
-      title: 'Add your Uber data export',
+      title: 'Add a delivery data export',
       body: coverage.emailReceiptCount <= 5
-        ? `Gmail found ${coverage.emailReceiptCount} ${coverage.emailReceiptCount === 1 ? 'order' : 'orders'}. An Uber export can recover older or deleted receipts.`
+        ? `Gmail found ${coverage.emailReceiptCount} ${coverage.emailReceiptCount === 1 ? 'order' : 'orders'}. An Uber Eats or DoorDash export can recover older history.`
         : 'Fill in older orders and make your long-term trends more complete.',
-      icon: 'cloud-download-outline', tone: 'brand', primaryAction: 'open_export', primaryLabel: 'Request Uber data',
+      icon: 'cloud-download-outline', tone: 'brand', primaryAction: 'request_export', primaryLabel: 'Choose a provider',
     };
   }
 
@@ -166,7 +175,7 @@ export const resolveDashboardTrackingState = (
     return {
       id: 'tracking_reconnect', sectionLabel: 'Next step', eyebrow: 'UPDATES ARE PAUSED',
       title: 'Reconnect Gmail to resume tracking', body: 'Your imported history is safe, but new receipts cannot be checked until Gmail is reconnected.',
-      icon: 'link-outline', tone: 'warning', primaryAction: 'open_imports', primaryLabel: 'Reconnect Gmail',
+      icon: 'link-outline', tone: 'warning', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
     };
   }
   if (ongoingTracking.effectiveState === 'error') {
@@ -188,15 +197,15 @@ export const resolveDashboardTrackingState = (
       id: 'tracking_paused', sectionLabel: 'Tracking status', eyebrow: 'ONGOING UPDATES ARE OFF',
       title: 'Your imported history is safe', body: 'Turn tracking back on whenever you want SnackTrack to check for new receipts.',
       icon: 'pause-circle-outline', tone: 'warning',
-      primaryAction: ongoingTracking.capability.canTrack ? 'enable_tracking' : 'open_imports',
-      primaryLabel: ongoingTracking.capability.canTrack ? 'Turn on tracking' : 'Reconnect to enable',
+      primaryAction: trackingEligibility.eligible ? 'enable_tracking' : 'connect_gmail',
+      primaryLabel: trackingEligibility.eligible ? 'Turn on tracking' : 'Reconnect to enable',
     };
   }
-  if (!ongoingTracking.capability.canTrack) {
+  if (!trackingEligibility.eligible) {
     return {
       id: 'tracking_setup_reconnect', sectionLabel: 'Next step', eyebrow: 'SET UP ONGOING UPDATES',
       title: 'Reconnect Gmail for future orders', body: 'Your imports are complete. Durable Gmail access is needed before you can allow periodic receipt checks.',
-      icon: 'link-outline', tone: 'brand', primaryAction: 'open_imports', primaryLabel: 'Reconnect Gmail',
+      icon: 'link-outline', tone: 'brand', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
     };
   }
 

@@ -9,6 +9,7 @@ import type {
   ImportPreferencesResponse,
   MonitoringConsentState,
   OngoingTrackingEffectiveState,
+  ProviderExportLifecycleStatus,
 } from '@services/gmailApi';
 
 type UnknownRecord = Record<string, unknown>;
@@ -28,6 +29,8 @@ const member = <T extends string>(value: unknown, values: readonly T[], field: s
 const consentStates = ['not_offered', 'declined', 'granted', 'revoked'] as const satisfies readonly MonitoringConsentState[];
 const monitoringStates = ['not_offered', 'declined', 'enabled', 'disabled', 'reconnect_required'] as const satisfies readonly EffectiveMonitoringState[];
 const exportStates = ['not_started', 'requested_monitoring_enabled', 'requested_monitoring_disabled', 'file_ready', 'import_processing', 'completed', 'failed'] as const satisfies readonly ExportLifecycleStatus[];
+const providerExportStates = ['not_started', 'requested', 'file_ready', 'import_processing', 'completed', 'failed'] as const satisfies readonly ProviderExportLifecycleStatus[];
+const exportProviderNames = ['uber_eats', 'doordash'] as const;
 const gmailImportStates = ['never_started', 'importing', 'completed', 'failed'] as const satisfies readonly GmailImportLifecycleStatus[];
 const trackingEffectiveStates = ['not_offered', 'declined', 'active', 'paused', 'reconnect_required', 'error'] as const satisfies readonly OngoingTrackingEffectiveState[];
 const trackingStates = ['inactive', 'active', 'paused', 'reconnect_required', 'error'] as const;
@@ -56,11 +59,17 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
   const monitoring = record(data.monitoring, 'preferences.monitoring');
   const monitoringCapability = record(monitoring.capability, 'preferences.monitoring.capability');
   const exportState = record(data.export, 'preferences.export');
+  const providerStates = record(exportState.providers, 'preferences.export.providers');
+  const uberEatsProvider = record(providerStates.uberEats, 'preferences.export.providers.uberEats');
+  const doorDashProvider = record(providerStates.doorDash, 'preferences.export.providers.doorDash');
   const gmailImport = record(data.gmailImport, 'preferences.gmailImport');
   const tracking = record(data.ongoingTracking, 'preferences.ongoingTracking');
   const trackingCapability = record(tracking.capability, 'preferences.ongoingTracking.capability');
   const activity = record(tracking.activity, 'preferences.ongoingTracking.activity');
   const coverage = record(data.coverage, 'preferences.coverage');
+  const exportProviders = record(coverage.exportProviders, 'preferences.coverage.exportProviders');
+  const uberEatsExport = record(exportProviders.uberEats, 'preferences.coverage.exportProviders.uberEats');
+  const doorDashExport = record(exportProviders.doorDash, 'preferences.coverage.exportProviders.doorDash');
 
   return {
     monitoring: {
@@ -82,6 +91,22 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
       status: member(exportState.status, exportStates, 'preferences.export.status'),
       requestedAt: nullableString(exportState.requestedAt, 'preferences.export.requestedAt'),
       updatedAt: nullableString(exportState.updatedAt, 'preferences.export.updatedAt'),
+      providers: {
+        uberEats: {
+          provider: member(uberEatsProvider.provider, exportProviderNames, 'preferences.export.providers.uberEats.provider'),
+          status: member(uberEatsProvider.status, providerExportStates, 'preferences.export.providers.uberEats.status'),
+          requestedAt: nullableString(uberEatsProvider.requestedAt, 'preferences.export.providers.uberEats.requestedAt'),
+          updatedAt: nullableString(uberEatsProvider.updatedAt, 'preferences.export.providers.uberEats.updatedAt'),
+          errorCode: nullableString(uberEatsProvider.errorCode, 'preferences.export.providers.uberEats.errorCode'),
+        },
+        doorDash: {
+          provider: member(doorDashProvider.provider, exportProviderNames, 'preferences.export.providers.doorDash.provider'),
+          status: member(doorDashProvider.status, providerExportStates, 'preferences.export.providers.doorDash.status'),
+          requestedAt: nullableString(doorDashProvider.requestedAt, 'preferences.export.providers.doorDash.requestedAt'),
+          updatedAt: nullableString(doorDashProvider.updatedAt, 'preferences.export.providers.doorDash.updatedAt'),
+          errorCode: nullableString(doorDashProvider.errorCode, 'preferences.export.providers.doorDash.errorCode'),
+        },
+      },
     },
     gmailImport: {
       status: member(gmailImport.status, gmailImportStates, 'preferences.gmailImport.status'),
@@ -121,6 +146,16 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
       exportReceiptCount: number(coverage.exportReceiptCount, 'preferences.coverage.exportReceiptCount'),
       hasEmailData: boolean(coverage.hasEmailData, 'preferences.coverage.hasEmailData'),
       hasExportData: boolean(coverage.hasExportData, 'preferences.coverage.hasExportData'),
+      exportProviders: {
+        uberEats: {
+          receiptCount: number(uberEatsExport.receiptCount, 'preferences.coverage.exportProviders.uberEats.receiptCount'),
+          hasData: boolean(uberEatsExport.hasData, 'preferences.coverage.exportProviders.uberEats.hasData'),
+        },
+        doorDash: {
+          receiptCount: number(doorDashExport.receiptCount, 'preferences.coverage.exportProviders.doorDash.receiptCount'),
+          hasData: boolean(doorDashExport.hasData, 'preferences.coverage.exportProviders.doorDash.hasData'),
+        },
+      },
     },
   };
 }

@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type GmailPrimaryFlowState } from '@hooks/useGmailImport';
-import { type GmailImportResponse } from '@services/gmailApi';
 import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 const GMAIL_IMPORT_MESSAGES = [
@@ -20,26 +19,22 @@ export type GmailConnectPhase = 'idle' | 'connecting' | 'connected';
 
 interface GmailImportLoadingModalProps {
   flowState: GmailPrimaryFlowState;
-  importResult: GmailImportResponse | null;
   connectPhase: GmailConnectPhase;
   visible: boolean;
 }
 
 /**
- * Full-screen modal covering the Gmail connect + import lifecycle:
- * connecting → connected (wave beat) and preparing/importing → imported
- * (celebration beat). Success feedback lives here, not in native alerts,
- * so nothing pops over the mascot.
+ * Full-screen progress modal for Gmail connection and manual imports.
+ * Import results are presented separately with explicit navigation choices.
  */
 export function GmailImportLoadingModal({
   flowState,
-  importResult,
   connectPhase,
   visible,
 }: GmailImportLoadingModalProps) {
   // A successful connect gets its own celebratory beat, distinct from an import.
-  const showConnectSuccess = !importResult && connectPhase === 'connected';
-  const showSuccess = importResult !== null || showConnectSuccess;
+  const showConnectSuccess = connectPhase === 'connected';
+  const showSuccess = showConnectSuccess;
   const [messageIndex, setMessageIndex] = useState(0);
   const cardScale = useRef(new Animated.Value(0.92)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -108,8 +103,6 @@ export function GmailImportLoadingModal({
     : flowState === 'preparing_import'
       ? 'Warming up the inbox...'
       : 'Importing receipt evidence...';
-  const importedReceiptCount = importResult?.totalReceiptsImported ?? 0;
-
   return (
     <Modal
       visible={visible}
@@ -128,28 +121,7 @@ export function GmailImportLoadingModal({
             },
           ]}
         >
-          {importResult ? (
-            <>
-              {/* MASCOT: import success — arms-up celebration */}
-              <Animated.View
-                style={[
-                  styles.successMascotWrap,
-                  {
-                    transform: [{ scale: successScale }],
-                  },
-                ]}
-              >
-                <MascotPlaceholder pose="celebrate" size={96} />
-              </Animated.View>
-
-              <Text style={styles.loadingModalTitle}>
-                {importedReceiptCount} receipt{importedReceiptCount === 1 ? '' : 's'} found
-              </Text>
-              <Text style={styles.loadingModalSuccessText}>
-                Receipt evidence secured. Preparing your summary...
-              </Text>
-            </>
-          ) : showConnectSuccess ? (
+          {showConnectSuccess ? (
             <>
               {/* MASCOT: connect success — friendly wave (replaces the old native alert) */}
               <Animated.View

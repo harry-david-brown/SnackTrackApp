@@ -2,6 +2,7 @@ export const analyticsKeys = {
   all: ['analytics'] as const,
   summary: (userId: string) => [...analyticsKeys.all, userId, 'summary'] as const,
   wrapped: (userId: string) => [...analyticsKeys.all, userId, 'wrapped'] as const,
+  dashboardInsights: (userId: string, localDate: string, devDayOffset = 0) => [...analyticsKeys.all, userId, 'dashboard-insights', localDate, devDayOffset] as const,
 };
 
 export const receiptKeys = {
@@ -18,4 +19,3 @@ export const gmailStatusKeys = {
   all: ['gmail-status'] as const,
   current: (userId: string) => [...gmailStatusKeys.all, userId, 'current'] as const,
 };
-

@@ -71,30 +71,6 @@ describe('analytics query ownership', () => {
     })).toThrow('Invalid analytics response: statistics.totalSpent');
   });
 
-  it('normalizes dashboard insights instead of trusting arbitrary objects', () => {
-    const normalized = normalizeUserSummary({
-      ...response,
-      dashboardInsights: [{
-        id: 'favorite-day', category: 'habits', kind: 'stat', icon: 'calendar',
-        eyebrow: 'Weekly ritual', title: 'Your delivery day', headline: 'Friday',
-      }],
-    });
-
-    expect(normalized.dashboardInsights?.[0]).toMatchObject({
-      id: 'favorite-day', category: 'habits', icon: 'calendar',
-    });
-  });
-
-  it('rejects unsupported dashboard insight enums before rendering', () => {
-    expect(() => normalizeUserSummary({
-      ...response,
-      dashboardInsights: [{
-        id: 'broken', category: 'unknown', kind: 'stat', icon: 'calendar',
-        eyebrow: 'Broken', title: 'Broken',
-      }],
-    })).toThrow('Invalid analytics response: dashboardInsights.0.category');
-  });
-
   it('validates wrapped analytics recursively at the service boundary', () => {
     const normalized = normalizeUserSummary({
       ...response,

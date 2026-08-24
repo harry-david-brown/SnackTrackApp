@@ -18,9 +18,10 @@ import { useNetworkStatus } from '@hooks/useNetworkStatus';
 import { parseApiError } from '@utils/errorUtils';
 import { captureException } from '@utils/sentry';
 import { showAlert } from '@utils/platformAlert';
+import type { CSVImportResponse } from '@/types/api';
 
 interface UberDataUploadProps {
-  onUploadSuccess?: (receiptsCount: number) => void;
+  onUploadSuccess?: (result: CSVImportResponse) => void;
   onUploadError?: (error: string) => void;
   autoOpenToken?: string | null;
   onAutoOpenConsumed?: () => void;
@@ -202,7 +203,7 @@ export const UberDataUpload: React.FC<UberDataUploadProps> = ({
         setShowModal(false);
 
         // Let the parent component handle the success message
-        onUploadSuccess?.(response.importedCount || 0);
+        onUploadSuccess?.(response);
       }, 500);
 
     } catch (error: unknown) {

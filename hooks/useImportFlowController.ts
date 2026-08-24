@@ -7,7 +7,8 @@ import { featureFlags } from '@config/featureFlags';
 import { useUser } from '@contexts/UserContext';
 import type { ImportTaskId } from '@components/upload/ImportTaskCard';
 import type { GmailConnectPhase } from '@components/gmail/GmailImportLoadingModal';
-import type { GmailImportResponse } from '@services/gmailApi';
+import type { ExportProvider } from '@services/gmailApi';
+import type { CSVImportResponse } from '@/types/api';
 import { analyticsApi } from '@services/analyticsApi';
 import { analyticsKeys } from '@lib/queryKeys';
 import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
@@ -20,10 +21,12 @@ import { resolveImportFlowState } from '@features/import-flow/importFlowResolver
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import {
   type ExportDownloadHandoffState, getExportDownloadHandoffState, openUberExportEmail,
-  setExportDownloadHandoffState, UBER_EXPORT_EMAIL_SEARCH_QUERY,
+  setExportDownloadHandoffState, UBER_EXPORT_EMAIL_ADDRESS, UBER_EXPORT_EMAIL_SEARCH_QUERY,
+  UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
 import type { DataPlatform } from '@components/upload/UberDataTutorial';
 import { captureException } from '@utils/sentry';
+import { createWrappedRestartHref } from '@features/wrapped/wrappedNavigation';
 
 export function useImportFlowController(route: ImportRouteParams) {
   const { state: userState } = useUser();
@@ -33,15 +36,14 @@ export function useImportFlowController(route: ImportRouteParams) {
   const connectSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tutorialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRequest = useRef(0);
-  const autoImportKey = useRef<string | null>(null);
   const handledFocusKey = useRef<string | null>(null);
+  const handledActionIntent = useRef<string | null>(null);
   const initialTaskApplied = useRef(false);
-  const [showLoader, setShowLoader] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialPlatform, setTutorialPlatform] = useState<DataPlatform | undefined>();
   const [showGmailModal, setShowGmailModal] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<ImportTaskId | null>(null);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
-  const [gmailImportResult, setGmailImportResult] = useState<GmailImportResponse | null>(null);
   const [gmailConnectPhase, setGmailConnectPhase] = useState<GmailConnectPhase>('idle');
   const [exportDownloadState, setExportDownloadState] = useState<ExportDownloadHandoffState>('not_downloaded');
   const [autoOpenExportPickerToken, setAutoOpenExportPickerToken] = useState<string | null>(null);
@@ -51,7 +53,19 @@ export function useImportFlowController(route: ImportRouteParams) {
   const gmail = useGmailImport({
     onImportSuccess: (result) => {
       setShowGmailModal(false);
-      setGmailImportResult(result);
+      const newOrders = result.newOrders ?? result.totalReceiptsImported;
+      const updatedOrders = result.updatedOrders ?? 0;
+      const unchangedOrders = result.unchangedOrders ?? 0;
+      const title = result.totalReceiptsProcessed === 0
+        ? 'Gmail scan complete'
+        : 'Gmail history imported';
+      const message = result.totalReceiptsProcessed === 0
+        ? 'No supported delivery receipts were found. You can scan again later or add an Uber Eats or DoorDash export.'
+        : `${newOrders} new, ${updatedOrders} updated, and ${unchangedOrders} unchanged order${newOrders + updatedOrders + unchangedOrders === 1 ? '' : 's'} processed (${result.totalReceiptsProcessed} total).`;
+      setTimeout(() => showAlert(title, message, [
+        { text: 'Add Another Source', style: 'cancel', onPress: () => setActiveTaskId('uber_export') },
+        { text: 'View My Stats', onPress: () => router.replace(createWrappedRestartHref()) },
+      ]), 0);
     },
   });
   const exportUpsell = useExportUpsell(userId);
@@ -60,21 +74,20 @@ export function useImportFlowController(route: ImportRouteParams) {
     preferences: preferences.preferences,
     gmailStatus: gmail.connectionStatus,
     localExportComplete: exportUpsell.hasCompletedExport,
-    gmailImportSucceeded: gmailImportResult?.success ?? false,
     downloadState: exportDownloadState,
     gmailFeatureEnabled,
     focusExport: route.focus === 'export',
     showExportTutorial: route.showExportTutorial,
   }), [
     exportDownloadState, exportUpsell.hasCompletedExport, gmail.connectionStatus,
-    gmailFeatureEnabled, gmailImportResult?.success, preferences.preferences,
+    gmailFeatureEnabled, preferences.preferences,
     route.focus, route.showExportTutorial,
   ]);
 
   const exportReadyVersion = preferences.preferences?.export.updatedAt ?? 'ready';
   const busy = gmail.primaryFlowState !== 'idle' || gmail.isChecking;
-  const showGmailImportLoadingModal = gmailFeatureEnabled && !showLoader && (
-    gmailImportResult !== null || gmailConnectPhase !== 'idle'
+  const showGmailImportLoadingModal = gmailFeatureEnabled && (
+    gmailConnectPhase !== 'idle'
     || gmail.primaryFlowState === 'preparing_import' || gmail.primaryFlowState === 'importing'
   );
 
@@ -84,8 +97,8 @@ export function useImportFlowController(route: ImportRouteParams) {
 
   useEffect(() => {
     initialTaskApplied.current = false;
-    autoImportKey.current = null;
     handledFocusKey.current = null;
+    handledActionIntent.current = null;
   }, [userId]);
 
   useEffect(() => () => {
@@ -111,13 +124,6 @@ export function useImportFlowController(route: ImportRouteParams) {
       setAutoOpenExportPickerToken(route.downloadedVersion);
     }
   }, [exportReadyVersion, flow.exportFileReady, route.downloadedVersion]);
-
-  useEffect(() => {
-    if (!gmailFeatureEnabled || !route.autoImportGmail || !route.autoImportFlowId || gmail.isChecking) return;
-    if (autoImportKey.current === route.autoImportFlowId) return;
-    autoImportKey.current = route.autoImportFlowId;
-    void gmail.resumeAutoImport(route.autoImportFlowId);
-  }, [gmail, gmailFeatureEnabled, route.autoImportFlowId, route.autoImportGmail]);
 
   useEffect(() => {
     if (gmailFeatureEnabled && showGmailModal) void gmail.refreshConnectionStatus();
@@ -150,22 +156,13 @@ export function useImportFlowController(route: ImportRouteParams) {
           queryFn: () => analyticsApi.getUserSummary(userId, true),
         });
       }
-      router.replace('/(tabs)/wrapped-journey');
+      router.replace(createWrappedRestartHref());
     } catch (error) {
       captureException(error instanceof Error ? error : new Error('Wrapped preload failed'), { context: 'import-flow-completion' });
-      router.replace('/(tabs)/wrapped-journey');
+      router.replace(createWrappedRestartHref());
     } finally {
-      setShowLoader(false);
     }
   }, [queryClient, userId]);
-
-  useEffect(() => {
-    if (!gmailImportResult) return;
-    const timer = setTimeout(() => {
-      void completeWrappedNavigation().finally(() => setGmailImportResult(null));
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [completeWrappedNavigation, gmailImportResult]);
 
   const toggleTask = useCallback((taskId: ImportTaskId) => {
     setActiveTaskId((current) => current === taskId ? null : taskId);
@@ -175,28 +172,60 @@ export function useImportFlowController(route: ImportRouteParams) {
     if (busy) return;
     if (connectSuccessTimer.current) clearTimeout(connectSuccessTimer.current);
     setGmailConnectPhase('connecting');
-    const connected = await gmail.connectAndImportGmail();
+    const connected = await gmail.connectGmail();
     if (!connected) {
       setGmailConnectPhase('idle');
       return;
     }
-    setActiveTaskId(flow.exportComplete ? null : 'uber_export');
+    setActiveTaskId('gmail_import');
     setGmailConnectPhase('connected');
     connectSuccessTimer.current = setTimeout(() => {
       setGmailConnectPhase('idle');
       connectSuccessTimer.current = null;
     }, 2200);
-  }, [busy, flow.exportComplete, gmail.connectAndImportGmail]);
+  }, [busy, gmail.connectGmail]);
 
   const importEmail = useCallback(async () => {
     if (busy || !flow.hasConnectedEmail || !flow.canImportFromGmail) return;
     await gmail.importReceipts();
   }, [busy, flow.canImportFromGmail, flow.hasConnectedEmail, gmail.importReceipts]);
 
-  const saveExportRequest = useCallback(async (decision?: 'granted' | 'declined') => {
+  useEffect(() => {
+    if (!route.action || !route.intentId || handledActionIntent.current === route.intentId) return;
+    if (gmail.isChecking || exportUpsell.isLoading || preferences.isLoading || busy) return;
+    handledActionIntent.current = route.intentId;
+
+    if (route.action === 'connect_gmail') {
+      setActiveTaskId('connect_email');
+      void connectEmail();
+    } else if (route.action === 'import_gmail') {
+      setActiveTaskId(flow.hasConnectedEmail ? 'gmail_import' : 'connect_email');
+      if (flow.hasConnectedEmail) void importEmail();
+      else void connectEmail();
+    } else {
+      setActiveTaskId('uber_export');
+      requestAnimationFrame(() => {
+        if (exportSectionY !== null) {
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, exportSectionY - 16), animated: true });
+        }
+      });
+      if (route.action === 'request_export' && !flow.exportRequested && !flow.exportComplete) {
+        tutorialTimer.current = setTimeout(() => setShowTutorial(true), 300);
+      }
+    }
+
+    router.setParams({ action: undefined, intentId: undefined });
+  }, [
+    busy, connectEmail, exportSectionY, exportUpsell.isLoading, flow.exportComplete,
+    flow.exportRequested, flow.hasConnectedEmail, gmail.isChecking, importEmail,
+    preferences.isLoading, route.action, route.intentId,
+  ]);
+
+  const saveExportRequest = useCallback(async (platform: DataPlatform, decision?: 'granted' | 'declined') => {
     try {
       if (decision) await preferences.setMonitoringConsent(decision);
-      await preferences.markExportRequested();
+      const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
+      await preferences.markExportRequested(provider);
     } catch {
       showSimpleAlert('Could not save your export status', 'Your tutorial is complete, but we could not save this status. Please try again from Import.');
     }
@@ -204,23 +233,60 @@ export function useImportFlowController(route: ImportRouteParams) {
 
   const completeTutorial = useCallback((platform: DataPlatform) => {
     setShowTutorial(false);
+    setTutorialPlatform(undefined);
     if (platform === 'doordash' || preferences.preferences?.monitoring.consentState === 'granted') {
-      void saveExportRequest();
+      void saveExportRequest(platform);
       return;
     }
     showAlert('Notify you when it’s ready?', 'Allow SnackTrack to check only for Uber’s data-ready email and let you know when the download is available. SnackTrack will not open the link or download the file.', [
-      { text: 'Not Now', style: 'cancel', onPress: () => { void saveExportRequest('declined'); } },
-      { text: 'Notify Me', onPress: () => { void saveExportRequest('granted'); } },
+      { text: 'Not Now', style: 'cancel', onPress: () => { void saveExportRequest(platform, 'declined'); } },
+      { text: 'Notify Me', onPress: () => { void saveExportRequest(platform, 'granted'); } },
     ]);
   }, [preferences.preferences?.monitoring.consentState, saveExportRequest]);
 
+  const tutorialStillWaiting = useCallback((platform: DataPlatform) => {
+    setShowTutorial(false);
+    setTutorialPlatform(undefined);
+
+    if (platform === 'doordash') {
+      void saveExportRequest(platform);
+      showSimpleAlert(
+        'Your DoorDash export is on the way',
+        'DoorDash typically prepares your archive within a few hours, though it can take longer. Keep an eye on your email for a message from DoorDash saying your data archive is ready. The email should include “View Your Data Archive.”',
+      );
+      return;
+    }
+
+    const message = `Uber typically prepares your archive within a few hours, though it can take longer. Keep an eye on your email for “${UBER_EXPORT_EMAIL_SUBJECT}” from ${UBER_EXPORT_EMAIL_ADDRESS}.`;
+    if (preferences.preferences?.monitoring.consentState === 'granted') {
+      void saveExportRequest(platform);
+      showSimpleAlert('Your Uber export is on the way', message);
+      return;
+    }
+
+    showAlert(
+      'Your Uber export is on the way',
+      `${message}\n\nSnackTrack can check only for that data-ready email and let you know when it arrives.`,
+      [
+        { text: 'I’ll Check Myself', style: 'cancel', onPress: () => { void saveExportRequest(platform, 'declined'); } },
+        { text: 'Notify Me', onPress: () => { void saveExportRequest(platform, 'granted'); } },
+      ],
+    );
+  }, [preferences.preferences?.monitoring.consentState, saveExportRequest]);
+
   const reportDownloaded = useCallback(async () => {
-    if (!userId || !flow.exportFileReady) return;
+    if (!userId) return;
     await setExportDownloadHandoffState(userId, exportReadyVersion, 'downloaded');
     setExportDownloadState('downloaded');
     pickerRequest.current += 1;
     setAutoOpenExportPickerToken(`${exportReadyVersion}:local:${pickerRequest.current}`);
-  }, [exportReadyVersion, flow.exportFileReady, userId]);
+  }, [exportReadyVersion, userId]);
+
+  const tutorialArchiveDownloaded = useCallback((_platform: DataPlatform) => {
+    setShowTutorial(false);
+    setTutorialPlatform(undefined);
+    void reportDownloaded();
+  }, [reportDownloaded]);
 
   const openExportEmail = useCallback(async () => {
     if (!userId || !flow.exportFileReady) return;
@@ -235,11 +301,41 @@ export function useImportFlowController(route: ImportRouteParams) {
     }
   }, [exportReadyVersion, flow.exportFileReady, userId]);
 
-  const uploadSucceeded = useCallback(async (_count: number) => {
+  const uploadSucceeded = useCallback(async (result: CSVImportResponse) => {
     await exportUpsell.markCompleted();
     if (userId) await invalidateReceiptDerivedData(queryClient, userId);
-    setShowLoader(true);
-  }, [exportUpsell.markCompleted, queryClient, userId]);
+    const refreshedPreferences = await preferences.refresh();
+    const providerCoverage = refreshedPreferences?.coverage.exportProviders;
+    const importedProviderCount = Number(providerCoverage?.uberEats.hasData)
+      + Number(providerCoverage?.doorDash.hasData);
+
+    setActiveTaskId('uber_export');
+    const missingProvider = providerCoverage
+      ? providerCoverage.uberEats.hasData ? 'DoorDash' : 'Uber Eats'
+      : null;
+    const providerName = result.provider === 'uber_eats' ? 'Uber Eats' : 'DoorDash';
+    const message = importedProviderCount >= 2
+      ? `${providerName} added ${result.importedCount} receipts. Both delivery exports are now included in your stats.`
+      : `${providerName} added ${result.importedCount} receipts.${missingProvider ? ` You can also add ${missingProvider} for more complete history.` : ''}`;
+    showAlert('Export imported', message, [
+      {
+        text: importedProviderCount >= 2 ? 'Stay on Import' : 'Add Another Source',
+        style: 'cancel',
+        onPress: () => setActiveTaskId('uber_export'),
+      },
+      { text: 'View My Stats', onPress: () => { void completeWrappedNavigation(); } },
+    ]);
+  }, [completeWrappedNavigation, exportUpsell.markCompleted, preferences.refresh, queryClient, userId]);
+
+  const openTutorial = useCallback((platform?: DataPlatform) => {
+    setTutorialPlatform(platform);
+    setShowTutorial(true);
+  }, []);
+
+  const closeTutorial = useCallback(() => {
+    setShowTutorial(false);
+    setTutorialPlatform(undefined);
+  }, []);
 
   const autoOpenConsumed = useCallback(() => {
     setAutoOpenExportPickerToken(null);
@@ -266,8 +362,6 @@ export function useImportFlowController(route: ImportRouteParams) {
     showTutorial,
     showGmailModal,
     showGmailImportLoadingModal,
-    showLoader,
-    gmailImportResult,
     gmailConnectPhase,
     primaryFlowState: gmail.primaryFlowState,
     gmailConnectionStatus: gmail.connectionStatus,
@@ -278,13 +372,17 @@ export function useImportFlowController(route: ImportRouteParams) {
     importEmail: () => { void importEmail(); },
     openGmailSettings: () => setShowGmailModal(true),
     closeGmailSettings: () => setShowGmailModal(false),
-    closeTutorial: () => setShowTutorial(false),
-    openTutorial: () => setShowTutorial(true),
+    tutorialPlatform,
+    closeTutorial,
+    openTutorial: () => openTutorial(),
+    openProviderTutorial: openTutorial,
     completeTutorial,
+    tutorialStillWaiting,
+    tutorialArchiveDownloaded,
     reportDownloaded: () => { void reportDownloaded(); },
     openExportEmail: () => { void openExportEmail(); },
     autoOpenConsumed,
-    uploadSucceeded: (count: number) => { void uploadSucceeded(count); },
+    uploadSucceeded: (result: CSVImportResponse) => { void uploadSucceeded(result); },
     uploadFailed: (_message: string) => undefined,
     recordExportLayout: (event: LayoutChangeEvent) => setExportSectionY(event.nativeEvent.layout.y),
     disconnectGmail: gmail.disconnectGmail,

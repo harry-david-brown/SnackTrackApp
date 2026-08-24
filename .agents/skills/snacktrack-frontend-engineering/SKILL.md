@@ -21,7 +21,7 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 5. For destructive account-data mutations, load `snacktrack-account-data-lifecycle` and inventory every query/device cache while preserving authentication storage.
 6. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
 7. Add regression coverage at the pure decision point and integration boundary.
-8. Run the required checks and inspect the final diff for duplicate state, stale code, raw styling, and suppressed errors.
+8. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, and suppressed errors, and run no tests or other checks unless the user explicitly requests them.
 
 ## Core rules
 
@@ -57,5 +57,5 @@ Summarize:
 - every user-visible state handled;
 - cache invalidation or refetch behavior;
 - accessibility considerations;
-- tests and checks run;
+- the TypeScript check result and any user-requested verification;
 - any intentionally retained legacy boundary.

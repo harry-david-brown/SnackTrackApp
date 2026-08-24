@@ -78,7 +78,7 @@ export function DashboardTrackingCard({
         <View style={styles.activityNote}>
           <Ionicons name="receipt-outline" size={17} color={tone.accent} />
           <Text style={[styles.activityNoteText, { color: tone.accent }]}>
-            {ordersAddedThisWeek} new {ordersAddedThisWeek === 1 ? 'order' : 'orders'} added this week
+            {ordersAddedThisWeek} {ordersAddedThisWeek === 1 ? 'order' : 'orders'} placed this week
           </Text>
         </View>
       ) : null}

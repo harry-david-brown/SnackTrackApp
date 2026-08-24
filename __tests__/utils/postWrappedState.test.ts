@@ -1,5 +1,6 @@
 import {
   assessImportedCoverage,
+  resolveInitialPostDeckStep,
   resolvePostWrappedExperience,
   resolveTrackingPropositionCopy,
 } from '@components/wrapped/postWrappedState';
@@ -17,6 +18,11 @@ const coverage = (
 });
 
 describe('resolvePostWrappedExperience', () => {
+  it('puts export request before any tracking proposition until export completion is confirmed', () => {
+    expect(resolveInitialPostDeckStep('show')).toBe('export');
+    expect(resolveInitialPostDeckStep('loading')).toBe('export');
+    expect(resolveInitialPostDeckStep('hide')).toBe('tracking');
+  });
   it('shows the export proposition whenever export state is loaded and incomplete', () => {
     expect(resolvePostWrappedExperience({
       isExportStateLoading: false,
@@ -93,26 +99,31 @@ describe('assessImportedCoverage', () => {
 });
 
 describe('resolveTrackingPropositionCopy', () => {
-  it('replaces export-ready alerts with ongoing value after an export completes', () => {
+  it('shows truthful active-tracking copy only when tracking is active', () => {
     const copy = resolveTrackingPropositionCopy({
-      hasCompletedExport: true,
-      monitoringState: 'enabled',
+      trackingState: 'active',
     });
 
     expect(copy.title).toBe('Your stats will keep growing');
-    expect(copy.body).toContain('continue to track new Uber Eats orders');
-    expect(copy.body).toContain('keeping your spending stats up to date');
+    expect(copy.body).toContain('periodically check Gmail');
+    expect(copy.body).toContain('keep your spending stats up to date');
     expect(copy.body).not.toContain('installed');
     expect(copy.body).not.toContain('data-ready email');
   });
 
-  it('keeps export-ready messaging while an export is incomplete', () => {
+  it('asks for ongoing consent without claiming it is already enabled', () => {
     const copy = resolveTrackingPropositionCopy({
-      hasCompletedExport: false,
-      monitoringState: 'enabled',
+      trackingState: 'not_offered',
     });
 
-    expect(copy.title).toBe('We’ll let you know when it’s ready');
-    expect(copy.body).toContain('data-ready email');
+    expect(copy.title).toBe('Keep your stats growing');
+    expect(copy.body).toContain('Allow SnackTrack');
+    expect(copy.body).not.toContain('will continue');
+    expect(copy.body).not.toContain('data-ready email');
+  });
+
+  it.each(['reconnect_required', 'error'] as const)('provides recovery copy for %s', (trackingState) => {
+    const copy = resolveTrackingPropositionCopy({ trackingState });
+    expect(copy.body).toContain('history is safe');
   });
 });

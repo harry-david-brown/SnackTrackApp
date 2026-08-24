@@ -7,6 +7,7 @@ import { resetExportUpsellForUser } from '@hooks/useExportUpsell';
 import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
 import { resetExportDownloadStateForUser } from '@utils/exportDownloadHandoff';
 import { captureException } from '@utils/sentry';
+import { removePendingOperationsForUser } from '@utils/offlineCache';
 
 interface OnboardingContextType {
   hasCompletedOnboarding: boolean;
@@ -90,6 +91,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         await Promise.all([
           resetExportUpsellForUser(userId),
           resetExportDownloadStateForUser(userId),
+          removePendingOperationsForUser(userId),
         ]);
         queryClient.removeQueries({ queryKey: [...analyticsKeys.all, userId] });
         queryClient.removeQueries({ queryKey: [...receiptKeys.all, userId] });

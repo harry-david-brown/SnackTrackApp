@@ -3,6 +3,7 @@ import { useUser } from '@contexts/UserContext';
 import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
 import {
   gmailApi,
+  type ExportProvider,
   type ImportPreferencesResponse,
 } from '@services/gmailApi';
 
@@ -45,7 +46,7 @@ export function useImportPreferences(enabled = true) {
   });
 
   const exportRequested = useMutation({
-    mutationFn: () => gmailApi.markExportRequested(),
+    mutationFn: (provider: ExportProvider) => gmailApi.markExportRequested(provider),
     onSuccess: writePreferences,
   });
 

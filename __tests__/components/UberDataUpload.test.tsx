@@ -360,7 +360,7 @@ describe('UberDataUpload', () => {
         }],
       });
 
-      mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success' }), 100)));
+      mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success', provider: 'uber_eats' }), 100)));
 
       const { getByText } = render(<UberDataUpload />);
       
@@ -392,7 +392,7 @@ describe('UberDataUpload', () => {
         }],
       });
 
-      mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success' }), 100)));
+      mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success', provider: 'uber_eats' }), 100)));
 
       const { getByText } = render(<UberDataUpload />);
       
@@ -514,7 +514,7 @@ describe('UberDataUpload', () => {
         }],
       });
 
-      mockImportCsv.mockResolvedValue({ importedCount: 15, message: 'Success' });
+      mockImportCsv.mockResolvedValue({ importedCount: 15, message: 'Success', provider: 'uber_eats' });
 
       const { getByText } = render(<UberDataUpload onUploadSuccess={onUploadSuccess} />);
       

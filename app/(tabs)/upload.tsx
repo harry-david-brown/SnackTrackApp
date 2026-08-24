@@ -49,7 +49,7 @@ export default function UploadScreen() {
 
           <View style={styles.header}>
             <Text style={styles.title}>Build your SnackTrack history</Text>
-            <Text style={styles.subtitle}>Start with email, then add an optional Uber export for more complete insights.</Text>
+            <Text style={styles.subtitle}>Start with email, then optionally add Uber Eats or DoorDash exports for more complete insights.</Text>
           </View>
 
           <View style={styles.taskList}>
@@ -81,16 +81,18 @@ export default function UploadScreen() {
             ) : null}
             <ExportImportTaskSection
               state={controller.flow.exportImport}
+              providerProgress={controller.flow.exportProviderProgress}
               isOpen={controller.activeTaskId === 'uber_export'}
               fileReady={controller.flow.exportFileReady}
+              exportRequested={controller.flow.exportRequested}
               downloadState={controller.exportDownloadState}
-              showDownloadGuide={controller.flow.showDownloadGuide}
               autoOpenToken={controller.autoOpenExportPickerToken}
               onToggle={controller.toggleTask}
               onLayout={controller.recordExportLayout}
               onOpenEmail={controller.openExportEmail}
               onDownloaded={controller.reportDownloaded}
               onShowTutorial={controller.openTutorial}
+              onImportProvider={controller.openProviderTutorial}
               onAutoOpenConsumed={controller.autoOpenConsumed}
               onUploadSuccess={controller.uploadSucceeded}
               onUploadError={controller.uploadFailed}
@@ -101,22 +103,22 @@ export default function UploadScreen() {
 
       <ImportWorkflowModals
         tutorialVisible={controller.showTutorial}
-        tutorialMode={controller.flow.showDownloadGuide ? 'download' : 'request'}
+        tutorialMode={controller.flow.exportFileReady ? 'download' : 'request'}
+        tutorialInitialPlatform={controller.tutorialPlatform}
         gmailFeatureEnabled={controller.gmailFeatureEnabled}
         gmailVisible={controller.showGmailModal}
         loadingVisible={controller.showGmailImportLoadingModal}
-        wrappedLoaderVisible={controller.showLoader}
         primaryFlowState={controller.primaryFlowState}
-        gmailImportResult={controller.gmailImportResult}
         gmailConnectPhase={controller.gmailConnectPhase}
         gmailConnectionStatus={controller.gmailConnectionStatus}
         isGmailLoading={controller.isGmailLoading}
         isGmailChecking={controller.isGmailChecking}
         onCloseTutorial={controller.closeTutorial}
         onTutorialComplete={controller.completeTutorial}
+        onTutorialStillWaiting={controller.tutorialStillWaiting}
+        onTutorialArchiveDownloaded={controller.tutorialArchiveDownloaded}
         onCloseGmail={controller.closeGmailSettings}
         onGmailDisconnect={controller.disconnectGmail}
-        onWrappedLoaderComplete={controller.completeWrappedNavigation}
       />
     </SafeAreaView>
   );

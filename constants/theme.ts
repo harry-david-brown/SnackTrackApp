@@ -218,11 +218,21 @@ export const ChartSeries: string[] = [
 ];
 
 export const Radius = {
+  md: 14,
   card: 24,
   button: 16,
   input: 14,
   chart: 24,
   fab: 999,
+  pill: 999,
+} as const;
+
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 20,
+  xl: 24,
 } as const;
 
 /** RN shadow presets mirroring the design-system CSS shadows. */

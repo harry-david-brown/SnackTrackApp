@@ -5,23 +5,18 @@ import { useLocalSearchParams, router } from 'expo-router';
 
 export default function OAuthCallback() {
   const params = useLocalSearchParams();
+  const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
+  const error = typeof params.error === 'string' ? params.error : undefined;
 
   useEffect(() => {
-    const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
-    const error = typeof params.error === 'string' ? params.error : undefined;
-    const autoImportGmail = typeof params.autoImportGmail === 'string' ? params.autoImportGmail : undefined;
-    const autoImportFlowId = autoImportGmail ? `${Date.now()}` : undefined;
-
     router.replace({
       pathname: '/(tabs)/upload',
       params: {
         ...(gmail ? { gmail } : {}),
         ...(error ? { error } : {}),
-        ...(autoImportGmail ? { autoImportGmail } : {}),
-        ...(autoImportFlowId ? { autoImportFlowId } : {}),
       },
     });
-  }, [params]);
+  }, [error, gmail]);
 
   return (
     <View style={styles.container}>

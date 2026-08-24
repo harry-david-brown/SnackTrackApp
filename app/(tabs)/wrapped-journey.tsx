@@ -1,11 +1,13 @@
 import { Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold, useFonts } from '@expo-google-fonts/fredoka';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 import WrappedShareJourney from '@components/wrapped/WrappedShareJourney';
 import { Colors } from '@constants/theme';
 import { useWrappedJourneyController } from '@hooks/useWrappedJourneyController';
 import type { UserSummary } from '@/types/api';
+import { resolveWrappedJourneyInstanceKey } from '@features/wrapped/wrappedNavigation';
 
 type WrappedSummary = UserSummary & { wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']> };
 const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary =>
@@ -13,6 +15,7 @@ const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary 
 
 export default function WrappedJourneyScreen() {
   const [fontsLoaded] = useFonts({ Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold });
+  const route = useLocalSearchParams<{ restart?: string | string[] }>();
   const journey = useWrappedJourneyController();
 
   if (journey.isLoading || !fontsLoaded) {
@@ -24,7 +27,7 @@ export default function WrappedJourneyScreen() {
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIcon}><MascotPlaceholder pose="pointing" size={120} /></View>
         <Text style={styles.emptyTitle}>Your Wrapped Journey Awaits</Text>
-        <Text style={styles.emptySubtitle}>Import receipts with Gmail to unlock your first recap fast, or upload a full export for deeper history.</Text>
+        <Text style={styles.emptySubtitle}>Import receipts with Gmail to unlock your first recap fast, or upload an Uber Eats or DoorDash export for deeper history.</Text>
         <TouchableOpacity style={styles.emptyButton} onPress={journey.openImport} accessibilityRole="button" accessibilityLabel="Import receipts">
           <Ionicons name="cloud-upload-outline" size={20} color={Colors.white} />
           <Text style={styles.emptyButtonText}>Import Receipts</Text>
@@ -35,13 +38,14 @@ export default function WrappedJourneyScreen() {
 
   return (
     <WrappedShareJourney
-      key={journey.dataUpdatedAt}
+      key={resolveWrappedJourneyInstanceKey(journey.dataUpdatedAt, route.restart)}
       analytics={journey.analytics}
       postWrappedExperience={journey.postWrappedExperience}
-      monitoringState={journey.monitoringState}
+      trackingState={journey.trackingState}
+      trackingEligibility={journey.trackingEligibility}
       exportStatus={journey.exportStatus}
       areImportPreferencesUpdating={journey.areImportPreferencesUpdating}
-      onMonitoringDecision={journey.decideMonitoring}
+      onTrackingDecision={journey.decideTracking}
       onManageGmail={journey.openImport}
       onExportUpsellSeen={journey.markExportOfferSeen}
       onExportUpgrade={journey.openExportUpgrade}

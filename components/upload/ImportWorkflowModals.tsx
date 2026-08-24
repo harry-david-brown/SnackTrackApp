@@ -1,39 +1,45 @@
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@constants/theme';
-import type { GmailConnectionStatus, GmailImportResponse } from '@services/gmailApi';
+import type { GmailConnectionStatus } from '@services/gmailApi';
 import { GmailConnection } from '@components/gmail/GmailConnection';
 import { GmailImportLoadingModal, type GmailConnectPhase } from '@components/gmail/GmailImportLoadingModal';
 import { AppButton } from '@components/ui/AppButton';
-import WrappedJourneyLoader from '@components/wrapped/WrappedJourneyLoader';
 import UberDataTutorial, { type DataPlatform } from './UberDataTutorial';
 import type { GmailPrimaryFlowState } from '@hooks/useGmailImport';
 
 interface ImportWorkflowModalsProps {
   tutorialVisible: boolean;
   tutorialMode: 'request' | 'download';
+  tutorialInitialPlatform?: DataPlatform;
   gmailFeatureEnabled: boolean;
   gmailVisible: boolean;
   loadingVisible: boolean;
-  wrappedLoaderVisible: boolean;
   primaryFlowState: GmailPrimaryFlowState;
-  gmailImportResult: GmailImportResponse | null;
   gmailConnectPhase: GmailConnectPhase;
   gmailConnectionStatus: GmailConnectionStatus;
   isGmailLoading: boolean;
   isGmailChecking: boolean;
   onCloseTutorial: () => void;
   onTutorialComplete: (platform: DataPlatform) => void;
+  onTutorialStillWaiting: (platform: DataPlatform) => void;
+  onTutorialArchiveDownloaded: (platform: DataPlatform) => void;
   onCloseGmail: () => void;
   onGmailDisconnect: () => void;
-  onWrappedLoaderComplete: () => void;
 }
 
 export function ImportWorkflowModals(props: ImportWorkflowModalsProps) {
   return (
     <>
       <Modal visible={props.tutorialVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={props.onCloseTutorial}>
-        <UberDataTutorial mode={props.tutorialMode} onRequestConfirmed={props.onTutorialComplete} onClose={props.onCloseTutorial} />
+        <UberDataTutorial
+          mode={props.tutorialMode}
+          initialPlatform={props.tutorialInitialPlatform}
+          onRequestConfirmed={props.onTutorialComplete}
+          onStillWaiting={props.onTutorialStillWaiting}
+          onArchiveDownloaded={props.onTutorialArchiveDownloaded}
+          onClose={props.onCloseTutorial}
+        />
       </Modal>
       {props.gmailFeatureEnabled && props.gmailVisible ? (
         <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={props.onCloseGmail}>
@@ -57,10 +63,8 @@ export function ImportWorkflowModals(props: ImportWorkflowModalsProps) {
       <GmailImportLoadingModal
         visible={props.loadingVisible}
         flowState={props.primaryFlowState}
-        importResult={props.gmailImportResult}
         connectPhase={props.gmailConnectPhase}
       />
-      {props.wrappedLoaderVisible ? <WrappedJourneyLoader onComplete={props.onWrappedLoaderComplete} /> : null}
     </>
   );
 }

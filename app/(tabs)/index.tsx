@@ -15,16 +15,20 @@ import { resolveDashboardTrackingState, type DashboardTrackingAction } from '@co
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { openUberExportEmail } from '@utils/exportDownloadHandoff';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
-import { useAnalyticsQuery } from '@hooks/queries/useAnalyticsQueries';
+import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { DashboardSummaryCards } from '@components/dashboard/DashboardSummaryCards';
 import { AppButton } from '@components/ui/AppButton';
 import { Card } from '@components/ui/Card';
 import { SectionHeader } from '@components/ui/SectionHeader';
+import { resolveDashboardInsightsState } from '@components/dashboard/dashboardInsightsState';
+import { DashboardInsightsDevControls } from '@components/dashboard/DashboardInsightsDevControls';
 
 export default function DashboardScreen() {
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
+  const [insightsDayOffset, setInsightsDayOffset] = React.useState(0);
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
+  const insightsQuery = useDashboardInsightsQuery(state.user?.id, __DEV__ ? insightsDayOffset : 0);
   const { data: analytics, refetch: loadAnalytics } = analyticsQuery;
   const {
     preferences: importPreferences,
@@ -35,6 +39,13 @@ export default function DashboardScreen() {
     checkOngoingTracking,
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
+  const insightSectionState = resolveDashboardInsightsState({
+    edition: insightsQuery.data,
+    isLoading: insightsQuery.isLoading,
+    isFetching: insightsQuery.isFetching,
+    isError: insightsQuery.isError,
+    receiptCount: analytics?.totalReceipts ?? (analyticsQuery.isLoading ? null : 0),
+  });
   
   useFocusEffect(
     React.useCallback(() => {
@@ -56,12 +67,12 @@ export default function DashboardScreen() {
   };
 
   const handleTrackingAction = (action: DashboardTrackingAction) => {
-    if (action === 'open_imports') {
-      router.push('/(tabs)/upload');
-      return;
-    }
-    if (action === 'open_export') {
-      router.push({ pathname: '/(tabs)/upload', params: { focus: 'export' } });
+    if (action === 'connect_gmail' || action === 'import_gmail'
+      || action === 'request_export' || action === 'continue_export') {
+      router.push({
+        pathname: '/(tabs)/upload',
+        params: { action, intentId: `${action}:${Date.now()}` },
+      });
       return;
     }
     if (action === 'open_gmail') {
@@ -156,18 +167,41 @@ export default function DashboardScreen() {
 
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
-            <SectionHeader title="What we noticed" />
-            {analytics?.dashboardInsights?.length ? (
+            <SectionHeader title={insightSectionState.title} subtitle={insightSectionState.subtitle} />
+            {__DEV__ ? (
+              <DashboardInsightsDevControls
+                dayOffset={insightsDayOffset}
+                isFetching={insightsQuery.isFetching}
+                onChangeDayOffset={setInsightsDayOffset}
+              />
+            ) : null}
+            {insightSectionState.id === 'success' || insightSectionState.id === 'stale-success' ? (
               <WhatWeNoticedCarousel
-                insights={analytics.dashboardInsights}
-                onOpenExport={() => router.push({ pathname: '/(tabs)/upload', params: { focus: 'export' } })}
+                insights={insightSectionState.edition.insights}
+                onOpenExport={() => router.push({
+                  pathname: '/(tabs)/upload',
+                  params: { action: 'request_export', intentId: `request_export:${Date.now()}` },
+                })}
+              />
+            ) : insightSectionState.id === 'loading' ? (
+              <Card style={styles.emptyState} accessibilityLabel="Preparing today’s dashboard insights">
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.emptyStateSubtitle}>Looking for patterns worth sharing…</Text>
+              </Card>
+            ) : insightSectionState.id === 'error' ? (
+              <ErrorMessage
+                error="Today’s observations couldn’t be loaded."
+                type="network"
+                onRetry={() => { void insightsQuery.refetch(); }}
               />
             ) : (
               <Card style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={48} color={Colors.gray400} />
-                <Text style={styles.emptyStateTitle}>No receipts yet</Text>
+                <Text style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</Text>
                 <Text style={styles.emptyStateSubtitle}>
-                  Connect Gmail to get started fast, or upload a full export for deeper history
+                  {insightSectionState.id === 'empty'
+                    ? 'Connect Gmail to get started fast, or upload an Uber Eats or DoorDash export for deeper history.'
+                    : 'A few more tracked orders will unlock stronger, stranger patterns.'}
                 </Text>
               </Card>
             )}

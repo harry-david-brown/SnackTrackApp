@@ -57,6 +57,21 @@ export type ExportLifecycleStatus =
   | 'import_processing'
   | 'completed'
   | 'failed';
+export type ExportProvider = 'uber_eats' | 'doordash';
+export type ProviderExportLifecycleStatus =
+  | 'not_started'
+  | 'requested'
+  | 'file_ready'
+  | 'import_processing'
+  | 'completed'
+  | 'failed';
+export interface ProviderExportState {
+  provider: ExportProvider;
+  status: ProviderExportLifecycleStatus;
+  requestedAt: string | null;
+  updatedAt: string | null;
+  errorCode: string | null;
+}
 export type GmailImportLifecycleStatus = 'never_started' | 'importing' | 'completed' | 'failed';
 export type OngoingTrackingEffectiveState =
   | 'not_offered' | 'declined' | 'active' | 'paused' | 'reconnect_required' | 'error';
@@ -81,6 +96,10 @@ export interface ImportPreferencesResponse {
     status: ExportLifecycleStatus;
     requestedAt: string | null;
     updatedAt: string | null;
+    providers?: {
+      uberEats: ProviderExportState;
+      doorDash: ProviderExportState;
+    };
   };
   gmailImport: {
     status: GmailImportLifecycleStatus;
@@ -120,6 +139,16 @@ export interface ImportPreferencesResponse {
     exportReceiptCount: number;
     hasEmailData: boolean;
     hasExportData: boolean;
+    exportProviders: {
+      uberEats: {
+        receiptCount: number;
+        hasData: boolean;
+      };
+      doorDash: {
+        receiptCount: number;
+        hasData: boolean;
+      };
+    };
   };
 }
 
@@ -132,8 +161,8 @@ export const MONITORING_CONSENT_VERSION = '2026-08-04.v2';
 export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-10.v1';
 
 export const gmailApi = {
-  getAuthUrl: async (redirectUri: string, autoImportGmail = true): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri, autoImportGmail });
+  getAuthUrl: async (redirectUri: string): Promise<GmailAuthUrlResponse> => {
+    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri });
     return normalizeGmailAuthUrl(response.data);
   },
 
@@ -176,8 +205,8 @@ export const gmailApi = {
     return { ...normalizeGmailImportResponse(data), preferences: normalizeImportPreferences(data.preferences) };
   },
 
-  markExportRequested: async (): Promise<ImportPreferencesResponse> => {
-    const response = await api.post<unknown>('/gmail/preferences/export-requested');
+  markExportRequested: async (provider: ExportProvider): Promise<ImportPreferencesResponse> => {
+    const response = await api.post<unknown>('/gmail/preferences/export-requested', { provider });
     return normalizeImportPreferences(response.data);
   },
 

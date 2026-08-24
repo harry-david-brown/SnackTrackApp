@@ -21,7 +21,13 @@ const preferences = (): ImportPreferencesResponse => ({
       lastNewOrderAt: null, ordersAddedThisWeek: 0, lastErrorAt: null, lastErrorCode: null,
     },
   },
-  coverage: { emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false },
+  coverage: {
+    emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false,
+    exportProviders: {
+      uberEats: { receiptCount: 0, hasData: false },
+      doorDash: { receiptCount: 0, hasData: false },
+    },
+  },
 });
 
 describe('resolveProfileSettingsState', () => {

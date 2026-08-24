@@ -1,5 +1,5 @@
 import type { WrappedCoverage } from '@/types/api';
-import type { EffectiveMonitoringState } from '@services/gmailApi';
+import type { OngoingTrackingEffectiveState } from '@services/gmailApi';
 
 export type PostWrappedExportEligibility = 'loading' | 'show' | 'hide';
 export type ImportedCoverageAssessment = 'sparse' | 'standard' | 'unknown';
@@ -14,6 +14,10 @@ export interface TrackingPropositionCopy {
   title: string;
   body: string;
 }
+
+export const resolveInitialPostDeckStep = (
+  exportEligibility: PostWrappedExportEligibility
+): 'tracking' | 'export' => exportEligibility === 'hide' ? 'tracking' : 'export';
 
 // Intentionally conservative starting thresholds. A tiny order history is
 // sparse on its own; a short date window is only sparse when the order count is
@@ -85,39 +89,34 @@ export const resolvePostWrappedExperience = ({
 });
 
 export const resolveTrackingPropositionCopy = ({
-  hasCompletedExport,
-  monitoringState,
+  trackingState,
 }: {
-  hasCompletedExport: boolean;
-  monitoringState: EffectiveMonitoringState;
+  trackingState: OngoingTrackingEffectiveState;
 }): TrackingPropositionCopy => {
-  if (hasCompletedExport) {
+  if (trackingState === 'active') {
     return {
-      eyebrow: 'READY FOR WHAT’S NEXT',
+      eyebrow: 'ONGOING TRACKING IS ON',
       title: 'Your stats will keep growing',
-      body: 'SnackTrack will continue to track new Uber Eats orders as receipts are imported, keeping your spending stats up to date.',
+      body: 'SnackTrack can periodically check Gmail for new delivery receipts and keep your spending stats up to date.',
     };
   }
-
-  if (monitoringState === 'enabled') {
+  if (trackingState === 'reconnect_required') {
     return {
-      eyebrow: 'EXPORT ALERTS ON',
-      title: 'We’ll let you know when it’s ready',
-      body: 'When SnackTrack is active, it can check for Uber’s data-ready email and tell you when to download the file. It will never download the archive itself.',
+      eyebrow: 'ONGOING UPDATES ARE PAUSED',
+      title: 'Reconnect Gmail to keep tracking',
+      body: 'Your history is safe, but SnackTrack needs a healthy Gmail connection before it can check for future receipts.',
     };
   }
-
-  if (monitoringState === 'reconnect_required') {
+  if (trackingState === 'error') {
     return {
-      eyebrow: 'DON’T MISS YOUR EXPORT',
-      title: 'Reconnect to restore alerts',
-      body: 'Your permission is saved, but Gmail needs to be reconnected before SnackTrack can check for the data-ready email.',
+      eyebrow: 'TRACKING NEEDS ATTENTION',
+      title: 'We couldn’t start ongoing updates',
+      body: 'Your imported history is safe. Reconnect Gmail or try again from the dashboard.',
     };
   }
-
   return {
-    eyebrow: 'DON’T MISS YOUR EXPORT',
-    title: 'Know when Uber’s file is ready',
-    body: 'Allow SnackTrack to check only for Uber’s data-ready email while the app is active. You’ll still sign in to Uber and download the file yourself.',
+    eyebrow: 'ONE LAST CHOICE',
+    title: 'Keep your stats growing',
+    body: 'Allow SnackTrack to periodically check your connected Gmail for new delivery receipts. You can turn this off at any time.',
   };
 };

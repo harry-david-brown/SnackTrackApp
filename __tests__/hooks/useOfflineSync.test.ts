@@ -84,7 +84,7 @@ describe('useOfflineSync', () => {
       return Promise.resolve([]);
     });
     
-    mockImportCsv.mockResolvedValue({ importedCount: 10, message: 'Success' });
+    mockImportCsv.mockResolvedValue({ importedCount: 10, message: 'Success', provider: 'uber_eats' });
     mockRemoveOperation.mockResolvedValue();
     
     const { result } = renderHook(() => useOfflineSync());
@@ -198,8 +198,8 @@ describe('useOfflineSync', () => {
     });
     
     mockImportCsv
-      .mockResolvedValueOnce({ importedCount: 10, message: 'Success' })
-      .mockResolvedValueOnce({ importedCount: 20, message: 'Success' });
+      .mockResolvedValueOnce({ importedCount: 10, message: 'Success', provider: 'uber_eats' })
+      .mockResolvedValueOnce({ importedCount: 20, message: 'Success', provider: 'doordash' });
     mockRemoveOperation.mockResolvedValue();
     
     const { result } = renderHook(() => useOfflineSync());
@@ -226,7 +226,7 @@ describe('useOfflineSync', () => {
     };
     
     mockGetPendingOperations.mockResolvedValue([pendingOp]);
-    mockImportCsv.mockResolvedValue({ importedCount: 10, message: 'Success' });
+    mockImportCsv.mockResolvedValue({ importedCount: 10, message: 'Success', provider: 'uber_eats' });
     mockRemoveOperation.mockResolvedValue();
     
     const { result } = renderHook(() => useOfflineSync());
@@ -249,7 +249,7 @@ describe('useOfflineSync', () => {
     };
     
     mockGetPendingOperations.mockResolvedValue([pendingOp]);
-    mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success' }), 100)));
+    mockImportCsv.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ importedCount: 10, message: 'Success', provider: 'uber_eats' }), 100)));
     mockRemoveOperation.mockResolvedValue();
     
     mockUseNetworkStatus.mockReturnValue({
@@ -276,4 +276,3 @@ describe('useOfflineSync', () => {
     expect(result.current.isSyncing).toBe(true);
   });
 });
-

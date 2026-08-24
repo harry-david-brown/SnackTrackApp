@@ -20,7 +20,7 @@ export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
     <ImportTaskCard
       id="connect_email"
       title="Connect email"
-      description="Connect Gmail so SnackTrack can find delivery receipts."
+      description="Authorize Gmail access. Nothing is imported until you start the next step."
       iconName="mail-outline"
       statusLabel={props.state.label}
       statusTone={props.state.tone}
@@ -41,7 +41,7 @@ export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
           ? 'Google no longer accepts the saved authorization. Reconnect Gmail to continue.'
           : props.connected
             ? 'Gmail is connected. You can manage the connection below if needed.'
-            : 'We only use your receipt data to generate your personal spending insights.'}
+            : 'Connecting Gmail does not start a receipt scan. You choose when to import in the next step.'}
       </Text>
       {props.connected && !props.needsReconnect ? (
         <AppButton label="Manage Gmail connection" variant="secondary" disabled={props.busy} onPress={props.onManage} />

@@ -8,7 +8,13 @@ const preferences = (): ImportPreferencesResponse => ({
     consentState: 'not_offered', consentVersion: null, consentedAt: null, revokedAt: null,
     effectiveState: 'not_offered', capability: { gmailConnected: false, durableAccess: false, canMonitor: false },
   },
-  export: { status: 'not_started', requestedAt: null, updatedAt: null },
+  export: {
+    status: 'not_started', requestedAt: null, updatedAt: null,
+    providers: {
+      uberEats: { provider: 'uber_eats', status: 'not_started', requestedAt: null, updatedAt: null, errorCode: null },
+      doorDash: { provider: 'doordash', status: 'not_started', requestedAt: null, updatedAt: null, errorCode: null },
+    },
+  },
   gmailImport: { status: 'never_started', updatedAt: null, importedCount: 0, errorCode: null, receiptCount: 0, hasImported: false },
   ongoingTracking: {
     consentState: 'not_offered', consentVersion: null, consentedAt: null, revokedAt: null,
@@ -19,7 +25,13 @@ const preferences = (): ImportPreferencesResponse => ({
       lastNewOrderAt: null, ordersAddedThisWeek: 0, lastErrorAt: null, lastErrorCode: null,
     },
   },
-  coverage: { emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false },
+  coverage: {
+    emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false,
+    exportProviders: {
+      uberEats: { receiptCount: 0, hasData: false },
+      doorDash: { receiptCount: 0, hasData: false },
+    },
+  },
 });
 
 const resolveUpload = (value: ImportPreferencesResponse, gmailStatus: GmailConnectionStatus, downloadState: 'not_downloaded' | 'downloaded' = 'not_downloaded') =>
@@ -27,7 +39,6 @@ const resolveUpload = (value: ImportPreferencesResponse, gmailStatus: GmailConne
     preferences: value,
     gmailStatus,
     localExportComplete: false,
-    gmailImportSucceeded: false,
     downloadState,
     gmailFeatureEnabled: true,
     focusExport: false,
@@ -60,16 +71,26 @@ describe('canonical import journey', () => {
     value.monitoring.effectiveState = 'enabled';
     value.monitoring.capability.canMonitor = true;
     value.export.status = 'requested_monitoring_enabled';
-    expect(resolveDashboardTrackingState(value, false).id).toBe('requested_monitoring_enabled');
+    value.export.providers!.uberEats.status = 'requested';
+    expect(resolveDashboardTrackingState(value, false).id).toBe('uber_export_requested');
 
     value.export.status = 'file_ready';
+    value.export.providers!.uberEats.status = 'file_ready';
     expect(resolveUpload(value, healthyGmail).exportImport.label).toBe('Ready to download');
     expect(resolveUpload(value, healthyGmail, 'downloaded').exportImport.label).toBe('Ready to upload');
     expect(resolveDashboardTrackingState(value, false).id).toBe('export_ready');
 
     value.export.status = 'completed';
+    value.export.providers!.uberEats.status = 'completed';
     value.coverage = { ...value.coverage, hasExportData: true, exportReceiptCount: 40 };
+    value.coverage.exportProviders.uberEats = { hasData: true, receiptCount: 40 };
     value.ongoingTracking = { ...value.ongoingTracking, consentState: 'granted', status: 'active', effectiveState: 'active' };
+    expect(resolveUpload(value, healthyGmail).exportImport.label).toBe('1 of 2 imported');
+    expect(resolveUpload(value, healthyGmail).initialOpenTask).toBeNull();
+
+    value.coverage.exportReceiptCount = 52;
+    value.coverage.exportProviders.doorDash = { hasData: true, receiptCount: 12 };
+    expect(resolveUpload(value, healthyGmail).exportImport.label).toBe('2 of 2 imported');
     expect(resolveUpload(value, healthyGmail).initialOpenTask).toBeNull();
     expect(resolveDashboardTrackingState(value, false).id).toBe('tracking_active');
   });

@@ -6,6 +6,7 @@ import { useWrappedAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useExportUpsell } from './useExportUpsell';
 import { useImportPreferences } from './useImportPreferences';
 import { showSimpleAlert } from '@utils/platformAlert';
+import { resolveTrackingEligibility } from '@features/import-flow/trackingEligibility';
 
 export function useWrappedJourneyController() {
   const { state } = useUser();
@@ -16,7 +17,7 @@ export function useWrappedJourneyController() {
     preferences,
     isLoading: arePreferencesLoading,
     isUpdating: arePreferencesUpdating,
-    setMonitoringConsent,
+    setOngoingTrackingConsent,
   } = useImportPreferences(Boolean(userId));
 
   const postWrappedExperience = useMemo(() => resolvePostWrappedExperience({
@@ -30,6 +31,10 @@ export function useWrappedJourneyController() {
     preferences?.export.status,
     wrappedQuery.data?.wrappedAnalytics?.coverage,
   ]);
+  const trackingEligibility = useMemo(
+    () => resolveTrackingEligibility(preferences),
+    [preferences],
+  );
 
   const openExport = useCallback((showTutorial = false) => {
     void markClicked();
@@ -39,27 +44,28 @@ export function useWrappedJourneyController() {
     });
   }, [markClicked]);
 
-  const decideMonitoring = useCallback(async (decision: 'granted' | 'declined') => {
+  const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
     try {
-      const next = await setMonitoringConsent(decision);
-      if (decision === 'granted' && next.monitoring.effectiveState === 'reconnect_required') {
-        showSimpleAlert('Permission saved', 'Reconnect Gmail from Import before export-ready alerts can work.');
+      const next = await setOngoingTrackingConsent(decision);
+      if (decision === 'granted' && next.ongoingTracking.effectiveState === 'reconnect_required') {
+        showSimpleAlert('Permission saved', 'Reconnect Gmail from Import before ongoing tracking can work.');
       }
     } catch {
       showSimpleAlert('Could not save your choice', 'Please check your connection and try again.');
       throw new Error('monitoring_consent_update_failed');
     }
-  }, [setMonitoringConsent]);
+  }, [setOngoingTrackingConsent]);
 
   return {
     analytics: wrappedQuery.data ?? null,
     isLoading: wrappedQuery.isPending,
     dataUpdatedAt: wrappedQuery.dataUpdatedAt,
     postWrappedExperience,
-    monitoringState: preferences?.monitoring.effectiveState ?? 'not_offered',
+    trackingState: preferences?.ongoingTracking.effectiveState ?? 'not_offered',
+    trackingEligibility,
     exportStatus: preferences?.export.status ?? 'not_started',
     areImportPreferencesUpdating: arePreferencesLoading || arePreferencesUpdating,
-    decideMonitoring,
+    decideTracking,
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
     openExportTutorial: () => openExport(true),

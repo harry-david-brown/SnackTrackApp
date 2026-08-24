@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import ExportReadyNotifier from '@components/upload/ExportReadyNotifier';
 import { useUser } from '@contexts/UserContext';
 import { useImportPreferences } from '@hooks/useImportPreferences';
@@ -117,6 +118,39 @@ describe('ExportReadyNotifier', () => {
 
     render(<ExportReadyNotifier />);
 
+    await waitFor(() => expect(showAlert).toHaveBeenCalledWith(
+      'Did you save the Uber ZIP?',
+      expect.stringContaining('Go to Download Page'),
+      expect.any(Array)
+    ));
+  });
+
+  it('runs the download follow-up on an actual app background-to-active transition', async () => {
+    let listener: ((state: string) => void) | undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, nextListener) => {
+      listener = nextListener as (state: string) => void;
+      return { remove: jest.fn() } as never;
+    });
+    let handoffReads = 0;
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === 'uber-export-download-handoff:user-1') {
+        handoffReads += 1;
+        return Promise.resolve(JSON.stringify({
+          readyVersion: '2026-08-04T12:00:00.000Z',
+          state: handoffReads === 1 ? 'not_downloaded' : 'checking_email',
+        }));
+      }
+      return Promise.resolve('2026-08-04T12:00:00.000Z');
+    });
+    checkExportReady.mockResolvedValue({
+      detected: false,
+      preferences: { export: { status: 'file_ready', updatedAt: '2026-08-04T12:00:00.000Z' } },
+    });
+
+    render(<ExportReadyNotifier />);
+    await waitFor(() => expect(checkExportReady).toHaveBeenCalledTimes(1));
+    expect(showAlert).not.toHaveBeenCalled();
+    act(() => listener?.('active'));
     await waitFor(() => expect(showAlert).toHaveBeenCalledWith(
       'Did you save the Uber ZIP?',
       expect.stringContaining('Go to Download Page'),

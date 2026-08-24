@@ -3,6 +3,7 @@ const CACHE_KEYS = {
   LAST_SYNC: '@snacktrack_last_sync',
   PENDING_OPERATIONS: '@snacktrack_pending_operations',
 };
+const resetBlockedUsers = new Set<string>();
 
 export interface PendingUploadFile {
   uri?: string;
@@ -21,6 +22,7 @@ export interface PendingOperation {
 // Pending operations queue (for offline support)
 export const queueOperation = async (operation: Omit<PendingOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> => {
   try {
+    if (operation.data.userId) resetBlockedUsers.delete(operation.data.userId);
     const pending = await getPendingOperations();
     const newOperation: PendingOperation = {
       ...operation,
@@ -33,6 +35,24 @@ export const queueOperation = async (operation: Omit<PendingOperation, 'id' | 't
   } catch (error) {
     // Silently fail - not critical
   }
+};
+
+/** Remove retryable work that could repopulate a freshly reset account. */
+export const removePendingOperationsForUser = async (userId: string): Promise<void> => {
+  resetBlockedUsers.add(userId);
+  const pending = await getPendingOperations();
+  await AsyncStorage.setItem(
+    CACHE_KEYS.PENDING_OPERATIONS,
+    JSON.stringify(pending.filter(operation => operation.data.userId !== userId))
+  );
+};
+
+/** Re-check immediately before a retry so a reset can cancel an in-memory loop. */
+export const shouldProcessPendingOperation = async (operation: PendingOperation): Promise<boolean> => {
+  const userId = operation.data.userId;
+  if (userId && resetBlockedUsers.has(userId)) return false;
+  const pending = await getPendingOperations();
+  return pending.some(candidate => candidate.id === operation.id);
 };
 
 export const getPendingOperations = async (): Promise<PendingOperation[]> => {

@@ -50,14 +50,16 @@ import { getSlideEntranceRole } from './wrappedSlideSelection';
 import { useWrappedAudio } from './useWrappedAudio';
 import { styles } from './wrappedStyles';
 import {
+  resolveInitialPostDeckStep,
   resolveTrackingPropositionCopy,
   type PostWrappedExperience,
 } from './postWrappedState';
 import type {
-  EffectiveMonitoringState,
   ExportLifecycleStatus,
+  OngoingTrackingEffectiveState,
 } from '@services/gmailApi';
 import { useWrappedSharing } from './useWrappedSharing';
+import type { TrackingEligibility } from '@features/import-flow/trackingEligibility';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -78,10 +80,11 @@ interface WrappedShareJourneyProps {
   /** First name for personalized cards; omitted until the API exposes one. */
   userName?: string;
   postWrappedExperience: PostWrappedExperience;
-  monitoringState: EffectiveMonitoringState;
+  trackingState: OngoingTrackingEffectiveState;
+  trackingEligibility: TrackingEligibility;
   exportStatus: ExportLifecycleStatus;
   areImportPreferencesUpdating?: boolean;
-  onMonitoringDecision?: (decision: 'granted' | 'declined') => Promise<void>;
+  onTrackingDecision?: (decision: 'granted' | 'declined') => Promise<void>;
   onManageGmail?: () => void;
   onExportUpsellSeen?: () => void;
   onExportUpgrade?: () => void;
@@ -94,10 +97,11 @@ export default function WrappedShareJourney({
   onClose,
   userName,
   postWrappedExperience,
-  monitoringState,
+  trackingState,
+  trackingEligibility,
   exportStatus,
   areImportPreferencesUpdating = false,
-  onMonitoringDecision,
+  onTrackingDecision,
   onManageGmail,
   onExportUpsellSeen,
   onExportUpgrade,
@@ -426,9 +430,9 @@ export default function WrappedShareJourney({
     }
   };
 
-  const handleMonitoringDecision = async (decision: 'granted' | 'declined') => {
+  const handleTrackingDecision = async (decision: 'granted' | 'declined') => {
     try {
-      await onMonitoringDecision?.(decision);
+      await onTrackingDecision?.(decision);
       continueFromTracking();
     } catch {
       // The screen displays the error. Keep this step open so the user can retry.
@@ -439,11 +443,8 @@ export default function WrappedShareJourney({
     analytics.wrappedAnalytics?.coverage?.orderCount ?? analytics.totalReceipts;
   const hasRequestedExport = exportStatus === 'requested_monitoring_enabled'
     || exportStatus === 'requested_monitoring_disabled';
-  const hasCompletedHistory = exportStatus === 'completed'
-    || postWrappedExperience.exportEligibility === 'hide';
   const trackingPropositionCopy = resolveTrackingPropositionCopy({
-    hasCompletedExport: hasCompletedHistory,
-    monitoringState,
+    trackingState,
   });
 
   // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
@@ -670,7 +671,7 @@ export default function WrappedShareJourney({
           <TouchableOpacity
             style={styles.doneCtaButton}
             onPress={() => {
-              setPostDeckStep('tracking');
+              setPostDeckStep(resolveInitialPostDeckStep(postWrappedExperience.exportEligibility));
               setShowPostDeckOffer(true);
             }}
             accessibilityRole="button"
@@ -726,11 +727,7 @@ export default function WrappedShareJourney({
               <>
                 <View style={styles.offerIcon}>
                   <Ionicons
-                    name={hasCompletedHistory
-                      ? 'stats-chart-outline'
-                      : monitoringState === 'enabled'
-                        ? 'checkmark-circle-outline'
-                        : 'notifications-outline'}
+                    name={trackingState === 'active' ? 'checkmark-circle-outline' : 'stats-chart-outline'}
                     size={26}
                     color={Colors.textPrimary}
                   />
@@ -738,13 +735,13 @@ export default function WrappedShareJourney({
                 <Text style={styles.offerEyebrow}>{trackingPropositionCopy.eyebrow}</Text>
                 <Text style={styles.offerTitle}>{trackingPropositionCopy.title}</Text>
                 <Text style={styles.offerBody}>{trackingPropositionCopy.body}</Text>
-                {!hasCompletedHistory
-                  && monitoringState !== 'enabled'
-                  && monitoringState !== 'reconnect_required' && (
+                {trackingState !== 'active'
+                  && trackingState !== 'reconnect_required'
+                  && trackingState !== 'error' && (
                   <View style={styles.consentDetails}>
                     <View style={styles.consentDetailRow}>
                       <Ionicons name="search-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Only Uber’s matching data-ready email</Text>
+                      <Text style={styles.consentDetailText}>Only supported delivery receipt emails</Text>
                     </View>
                     <View style={styles.consentDetailRow}>
                       <Ionicons name="shield-checkmark-outline" size={17} color={Colors.mascotHighlight} />
@@ -757,7 +754,7 @@ export default function WrappedShareJourney({
                   </View>
                 )}
                 <View style={styles.exportActionStack}>
-                  {hasCompletedHistory ? (
+                  {trackingState === 'active' ? (
                     <TouchableOpacity
                       style={styles.affiliateButton}
                       onPress={finishPostWrapped}
@@ -767,7 +764,7 @@ export default function WrappedShareJourney({
                       <Text style={styles.affiliateButtonText}>Finish</Text>
                       <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
                     </TouchableOpacity>
-                  ) : monitoringState === 'reconnect_required' ? (
+                  ) : trackingState === 'reconnect_required' || trackingState === 'error' || !trackingEligibility.eligible ? (
                     <>
                       <TouchableOpacity
                         style={styles.affiliateButton}
@@ -776,31 +773,23 @@ export default function WrappedShareJourney({
                           onManageGmail?.();
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel="Reconnect Gmail from the import screen"
+                        accessibilityLabel={trackingEligibility.reason === 'gmail_history_required'
+                          ? 'Import Gmail history from the import screen'
+                          : 'Reconnect Gmail from the import screen'}
                       >
                         <Ionicons name="mail-outline" size={20} style={styles.affiliateButtonIcon} />
-                        <Text style={styles.affiliateButtonText}>Reconnect Gmail</Text>
+                        <Text style={styles.affiliateButtonText}>
+                          {trackingEligibility.reason === 'gmail_history_required' ? 'Import Gmail History' : 'Reconnect Gmail'}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.offerSecondaryButton}
-                        onPress={continueFromTracking}
+                        onPress={finishPostWrapped}
                         accessibilityRole="button"
                       >
                         <Text style={styles.offerSecondaryButtonText}>Continue for now</Text>
                       </TouchableOpacity>
                     </>
-                  ) : monitoringState === 'enabled' ? (
-                    <TouchableOpacity
-                      style={styles.affiliateButton}
-                      onPress={continueFromTracking}
-                      accessibilityRole="button"
-                      accessibilityLabel="Continue to the next step"
-                    >
-                      <Text style={styles.affiliateButtonText}>
-                        {postWrappedExperience.exportEligibility === 'show' ? 'Continue' : 'Finish'}
-                      </Text>
-                      <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
-                    </TouchableOpacity>
                   ) : (
                     <>
                       <TouchableOpacity
@@ -808,24 +797,24 @@ export default function WrappedShareJourney({
                           styles.affiliateButton,
                           areImportPreferencesUpdating && styles.offerButtonDisabled,
                         ]}
-                        onPress={() => void handleMonitoringDecision('granted')}
+                        onPress={() => void handleTrackingDecision('granted')}
                         disabled={areImportPreferencesUpdating}
                         accessibilityRole="button"
-                        accessibilityLabel="Notify me when my Uber export is ready"
+                        accessibilityLabel="Enable ongoing receipt tracking"
                       >
                         {areImportPreferencesUpdating ? (
                           <ActivityIndicator size="small" color={Colors.textPrimary} />
                         ) : (
                           <Ionicons name="mail-open-outline" size={20} style={styles.affiliateButtonIcon} />
                         )}
-                        <Text style={styles.affiliateButtonText}>Notify Me When Ready</Text>
+                        <Text style={styles.affiliateButtonText}>Enable Ongoing Tracking</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.offerSecondaryButton}
-                        onPress={() => void handleMonitoringDecision('declined')}
+                        onPress={() => void handleTrackingDecision('declined')}
                         disabled={areImportPreferencesUpdating}
                         accessibilityRole="button"
-                        accessibilityLabel="Do not enable export-ready alerts"
+                        accessibilityLabel="Do not enable ongoing tracking"
                       >
                         <Text style={styles.offerSecondaryButtonText}>Not now</Text>
                       </TouchableOpacity>
@@ -853,7 +842,7 @@ export default function WrappedShareJourney({
                 </Text>
                 <Text style={styles.offerTitle}>
                   {hasRequestedExport
-                    ? 'Your Uber request is saved'
+                    ? 'Your export request is saved'
                     : exportStatus === 'file_ready'
                       ? 'Your export is ready to finish'
                     : exportStatus === 'import_processing'
@@ -866,19 +855,33 @@ export default function WrappedShareJourney({
                 </Text>
                 <Text style={styles.offerBody}>
                   {hasRequestedExport
-                    ? exportStatus === 'requested_monitoring_enabled'
-                      ? 'When SnackTrack is active, it will check for Uber’s matching data-ready email and let you know when to finish the download. It will not download the file itself.'
-                      : 'When Uber emails you, return to Import and upload the ZIP file. You can enable export-ready alerts from Profile later.'
+                    ? 'When your provider emails that the archive is ready, return to Import to download and upload it. Uber-ready email checks can be enabled separately.'
                     : exportStatus === 'file_ready'
                       ? 'SnackTrack found the matching export delivery. Open Import to finish adding the file to your history.'
                     : exportStatus === 'import_processing'
                       ? 'Your file is being processed. Your history will update when the import finishes.'
                       : exportStatus === 'failed'
-                        ? 'The last file did not finish importing. Try the upload again with a fresh Uber export.'
+                        ? 'The last file did not finish importing. Try again with a fresh Uber Eats or DoorDash export.'
                         : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? `We only found ${exportOrderCount} Uber Eats ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. Older emails may no longer be available, so your Uber data export is the best way to recover more history.`
-                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add your Uber data export to uncover older orders and fill in the gaps.`}
+                          ? `We only found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. An Uber Eats or DoorDash export can recover older history.`
+                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add another delivery export to uncover older orders and fill in gaps.`}
                 </Text>
+                {!hasRequestedExport && exportStatus === 'not_started' ? (
+                  <View style={styles.consentDetails} accessibilityLabel="Examples of insights unlocked by a delivery data export">
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="repeat-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>Your exact repeat order and menu soulmate</Text>
+                    </View>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="fast-food-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>Item obsessions, quantities, and favorite sauces</Text>
+                    </View>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="time-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>Your fastest and longest delivery records</Text>
+                    </View>
+                  </View>
+                ) : null}
                 <View style={styles.exportActionStack}>
                   {exportStatus !== 'import_processing' && (
                     <>
@@ -890,13 +893,13 @@ export default function WrappedShareJourney({
                             onExportTutorial?.();
                           }}
                           accessibilityRole="button"
-                          accessibilityLabel="See how to request your Uber data"
+                          accessibilityLabel="Choose a provider and see how to request delivery data"
                         >
                           <Ionicons name="download-outline" size={20} style={styles.affiliateButtonIcon} />
                           <Text style={styles.affiliateButtonText}>
                             {postWrappedExperience.coverageAssessment === 'sparse'
-                              ? 'Get My Uber History'
-                              : 'Request My Uber Data'}
+                              ? 'Get More Delivery History'
+                              : 'Request Delivery Data'}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -909,7 +912,7 @@ export default function WrappedShareJourney({
                           onExportUpgrade?.();
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel="Upload an Uber export you already have"
+                        accessibilityLabel="Upload an Uber Eats or DoorDash export you already have"
                       >
                         <Ionicons
                           name="cloud-upload-outline"

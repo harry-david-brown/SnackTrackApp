@@ -10,35 +10,16 @@ const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
  */
 export function ImportBackgroundController() {
   const { state } = useUser();
-  const initialScanKey = useRef<string | null>(null);
   const trackingCheckKey = useRef<string | null>(null);
   const {
     preferences,
     isUpdating,
-    importGmailReceipts,
     checkOngoingTracking,
   } = useImportPreferences(Boolean(state.user?.id));
 
   useEffect(() => {
-    initialScanKey.current = null;
     trackingCheckKey.current = null;
   }, [state.user?.id]);
-
-  useEffect(() => {
-    if (
-      !preferences
-      || preferences.export.status !== 'completed'
-      || preferences.gmailImport.hasImported
-      || preferences.gmailImport.status === 'importing'
-      || !preferences.ongoingTracking.capability.canTrack
-      || isUpdating
-    ) return;
-
-    const operationKey = preferences.export.updatedAt ?? 'completed-export';
-    if (initialScanKey.current === operationKey) return;
-    initialScanKey.current = operationKey;
-    void importGmailReceipts().catch(() => undefined);
-  }, [importGmailReceipts, isUpdating, preferences]);
 
   useEffect(() => {
     if (preferences?.ongoingTracking.effectiveState !== 'active' || isUpdating) return;

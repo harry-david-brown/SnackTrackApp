@@ -11,6 +11,7 @@ export interface ReceiptItem {
   name: string;
   quantity: number;
   price: number;
+  customizations?: string[];
 }
 
 export enum DataSource {
@@ -175,6 +176,7 @@ export interface CSVImportResponse {
   importedCount: number;
   totalAmount?: number;
   fileType?: 'csv' | 'zip';
+  provider: 'uber_eats' | 'doordash';
   message: string;
 }
 
@@ -364,28 +366,100 @@ export interface UserSummary {
     issues: string[];
     recommendations: string[];
   };
-  dashboardInsights?: DashboardInsight[];
   wrappedAnalytics?: WrappedAnalytics; // Optional: only included when includeWrapped=true
 }
 
 export type DashboardInsightCategory = 'favorites' | 'habits' | 'extremes' | 'progress';
-export type DashboardInsightIcon = 'restaurant' | 'time' | 'calendar' | 'moon' | 'heart' | 'receipt' | 'meal' | 'delivery' | 'lock';
+export type DashboardInsightIcon = 'restaurant' | 'time' | 'calendar' | 'moon' | 'heart' | 'receipt' | 'meal' | 'delivery' | 'lock' | 'repeat' | 'trend' | 'trophy' | 'sparkles';
+export type DashboardInsightValueFormat = 'currency' | 'number' | 'percent' | 'minutes' | 'hours' | 'days';
 
-export interface DashboardInsight {
+export interface DashboardInsightMethodology {
+  estimated?: boolean;
+  sampleSize?: number;
+  assumption?: string;
+  disclaimer?: string;
+}
+
+export interface DashboardInsightPeriod {
+  startDate: string;
+  endDate?: string;
+}
+
+interface DashboardInsightBase {
   id: string;
   category: DashboardInsightCategory;
-  kind: 'ranking' | 'stat' | 'order' | 'locked';
   icon: DashboardInsightIcon;
   eyebrow: string;
   title: string;
-  headline?: string;
   detail?: string;
-  value?: number;
-  valueFormat?: 'currency' | 'number' | 'percent' | 'minutes';
-  rows?: { label: string; count: number; amount: number }[];
-  items?: string[];
-  locked?: boolean;
-  action?: 'open_export';
+  methodology?: DashboardInsightMethodology;
+  period?: DashboardInsightPeriod;
+}
+
+export interface DashboardHeroInsight extends DashboardInsightBase {
+  presentation: 'hero';
+  value: number;
+  valueFormat: DashboardInsightValueFormat;
+  headline?: string;
+}
+
+export interface DashboardComparisonInsight extends DashboardInsightBase {
+  presentation: 'comparison';
+  comparison: {
+    variant?: 'investment';
+    current: number;
+    previous: number;
+    delta: number;
+    percentDelta: number | null;
+    direction: 'up' | 'down' | 'flat';
+    valueFormat: 'currency' | 'number';
+    currentLabel: string;
+    previousLabel: string;
+    driver?: 'frequency' | 'basket' | 'outlier' | 'mixed';
+    subject?: {
+      kind: 'meal' | 'item';
+      name: string;
+      restaurant?: string;
+      occurrences: number;
+    };
+  };
+}
+
+export interface DashboardRankingInsight extends DashboardInsightBase {
+  presentation: 'ranking';
+  rows: { label: string; count: number; amount?: number; context?: string }[];
+}
+
+export interface DashboardOrderInsight extends DashboardInsightBase {
+  presentation: 'order';
+  order: { restaurant: string; restaurants?: string[]; amount: number; orderedAt?: string; items: string[] };
+}
+
+export interface DashboardTimelineInsight extends DashboardInsightBase {
+  presentation: 'timeline';
+  events: { label: string; value: string | number; valueFormat?: DashboardInsightValueFormat; detail?: string }[];
+}
+
+export interface DashboardYearlyChampionsInsight extends DashboardInsightBase {
+  presentation: 'yearly-champions';
+  years: { year: number; winners: string[]; orderCount: number; currentYear: boolean }[];
+}
+
+export interface DashboardLockedInsight extends DashboardInsightBase {
+  presentation: 'locked';
+  action: 'open_export';
+}
+
+export type DashboardInsight = DashboardHeroInsight | DashboardComparisonInsight | DashboardRankingInsight | DashboardOrderInsight | DashboardTimelineInsight | DashboardYearlyChampionsInsight | DashboardLockedInsight;
+
+export interface DashboardInsightEdition {
+  localDate: string;
+  timezone: string;
+  generatedAt: string;
+  nextRefreshAt: string;
+  metricVersion: string;
+  availableCandidateCount: number;
+  insights: DashboardInsight[];
 }
 
 export interface DatabaseStats {

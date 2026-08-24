@@ -5,15 +5,42 @@ import type { ExportLifecycleStatus, ImportPreferencesResponse, MonitoringConsen
 function preferences(
   exportStatus: ExportLifecycleStatus = 'not_started',
   consentState: MonitoringConsentState = 'not_offered',
-  overrides: { hasEmailData?: boolean; hasExportData?: boolean; hasImported?: boolean } = {}
+  overrides: {
+    hasEmailData?: boolean;
+    hasExportData?: boolean;
+    hasUberEatsExportData?: boolean;
+    hasDoorDashExportData?: boolean;
+    hasImported?: boolean;
+  } = {}
 ): ImportPreferencesResponse {
+  const hasUberEatsExportData = overrides.hasUberEatsExportData ?? false;
+  const hasDoorDashExportData = overrides.hasDoorDashExportData ?? false;
+  const hasExportData = overrides.hasExportData ?? (hasUberEatsExportData || hasDoorDashExportData);
+  const providerStatus = exportStatus === 'requested_monitoring_enabled'
+    || exportStatus === 'requested_monitoring_disabled'
+    ? 'requested'
+    : exportStatus;
   return {
     monitoring: {
       consentState, consentVersion: null, consentedAt: null, revokedAt: null,
       effectiveState: consentState === 'granted' ? 'enabled' : consentState === 'revoked' ? 'disabled' : consentState,
       capability: { gmailConnected: true, durableAccess: true, canMonitor: true },
     },
-    export: { status: exportStatus, requestedAt: null, updatedAt: null },
+    export: {
+      status: exportStatus,
+      requestedAt: null,
+      updatedAt: null,
+      providers: {
+        uberEats: {
+          provider: 'uber_eats', status: providerStatus,
+          requestedAt: null, updatedAt: null, errorCode: null,
+        },
+        doorDash: {
+          provider: 'doordash', status: hasDoorDashExportData ? 'completed' : 'not_started',
+          requestedAt: null, updatedAt: null, errorCode: null,
+        },
+      },
+    },
     gmailImport: {
       status: overrides.hasImported ? 'completed' : 'never_started', updatedAt: null,
       importedCount: 0, errorCode: null, receiptCount: 0, hasImported: overrides.hasImported ?? false,
@@ -29,9 +56,13 @@ function preferences(
     },
     coverage: {
       emailReceiptCount: overrides.hasEmailData ? 1 : 0,
-      exportReceiptCount: overrides.hasExportData ? 1 : 0,
+      exportReceiptCount: Number(hasUberEatsExportData) + Number(hasDoorDashExportData),
       hasEmailData: overrides.hasEmailData ?? false,
-      hasExportData: overrides.hasExportData ?? false,
+      hasExportData,
+      exportProviders: {
+        uberEats: { receiptCount: hasUberEatsExportData ? 1 : 0, hasData: hasUberEatsExportData },
+        doorDash: { receiptCount: hasDoorDashExportData ? 1 : 0, hasData: hasDoorDashExportData },
+      },
     },
   };
 }
@@ -39,7 +70,6 @@ function preferences(
 const baseInput = {
   gmailStatus: { connected: true, canImport: true },
   localExportComplete: false,
-  gmailImportSucceeded: false,
   downloadState: 'not_downloaded' as const,
   gmailFeatureEnabled: true,
   focusExport: false,
@@ -49,11 +79,20 @@ const baseInput = {
 describe('parseImportRouteParams', () => {
   it('normalizes arrays, flags, and unsupported focus values', () => {
     expect(parseImportRouteParams({
-      autoImportGmail: ['true'], autoImportFlowId: ['flow-1', 'ignored'],
       showExportTutorial: 'true', focus: 'gmail', downloadedVersion: 'ready-1',
     })).toEqual({
-      autoImportGmail: true, autoImportFlowId: 'flow-1', showExportTutorial: true,
+      showExportTutorial: true,
       focus: null, downloadedVersion: 'ready-1',
+      action: null, intentId: null,
+    });
+  });
+
+  it('accepts only supported one-shot import actions', () => {
+    expect(parseImportRouteParams({ action: 'connect_gmail', intentId: 'intent-1' })).toMatchObject({
+      action: 'connect_gmail', intentId: 'intent-1',
+    });
+    expect(parseImportRouteParams({ action: 'delete_everything', intentId: 'intent-2' })).toMatchObject({
+      action: null, intentId: 'intent-2',
     });
   });
 });
@@ -84,10 +123,37 @@ describe('resolveImportFlowState', () => {
   it('lets actual source coverage outrank stale lifecycle rows', () => {
     const result = resolveImportFlowState({
       ...baseInput,
-      preferences: preferences('not_started', 'not_offered', { hasEmailData: true, hasExportData: true }),
+      preferences: preferences('not_started', 'not_offered', {
+        hasEmailData: true,
+        hasUberEatsExportData: true,
+        hasDoorDashExportData: true,
+      }),
     });
     expect(result.gmailImport.complete).toBe(true);
     expect(result.exportImport.complete).toBe(true);
+    expect(result.initialOpenTask).toBeNull();
+  });
+
+  it('keeps the export task actionable after only one provider is imported', () => {
+    const result = resolveImportFlowState({
+      ...baseInput,
+      preferences: preferences('completed', 'not_offered', {
+        hasEmailData: true,
+        hasImported: true,
+        hasUberEatsExportData: true,
+      }),
+    });
+
+    expect(result.exportImport).toEqual({
+      complete: false,
+      label: '1 of 2 imported',
+      tone: 'optional',
+    });
+    expect(result.exportProviderProgress).toMatchObject({
+      importedCount: 1,
+      uberEats: { imported: true },
+      doorDash: { imported: false },
+    });
     expect(result.initialOpenTask).toBeNull();
   });
 

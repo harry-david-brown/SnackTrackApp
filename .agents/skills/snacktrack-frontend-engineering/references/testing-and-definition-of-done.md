@@ -57,18 +57,15 @@ Add or update integration coverage when a change crosses multiple steps, especia
   the suite free of SDK-owned open handles.
 - Do not rely only on snapshots for behavioral state machines.
 
-## Required checks
+## Verification
 
-Run from `SnackTrackApp/`:
+For ordinary code changes, run only:
 
 ```sh
 npm run type-check
-npm run lint
-npm run check:theme
-npm test -- --watchAll=false --runInBand --no-watchman
 ```
 
-Run focused tests during development, then run the full relevant checks before handoff. If a check cannot run, report the exact reason and what remains unverified.
+Do not run focused tests, the full test suite, lint, theme validation, or `npm run ci` unless the user explicitly requests those checks. Adding regression coverage does not imply running it.
 
 ## Definition of done
 
@@ -84,6 +81,7 @@ Run focused tests during development, then run the full relevant checks before h
 - [ ] Cross-directory imports use configured aliases and public module barrels; no parent-traversal module imports remain.
 - [ ] Focused regression tests cover the decision point.
 - [ ] Relevant journey integration coverage was considered.
-- [ ] Type-check, lint, theme check, and tests pass.
+- [ ] The app TypeScript check passes.
+- [ ] Tests, lint, theme validation, or CI were run only when the user explicitly requested them.
 - [ ] Obsolete state, styles, imports, flags, and compatibility code were removed when safe.
 - [ ] Destructive reset tests prove authentication is preserved while imported data and all affected caches are removed.

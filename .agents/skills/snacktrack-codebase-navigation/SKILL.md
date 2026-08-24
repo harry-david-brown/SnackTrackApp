@@ -37,9 +37,9 @@ Orient in SnackTrack quickly and trace a feature from persistence to UI without 
 
 ### Verify proportionally
 
-- App-only: run focused tests, type-check, and lint the touched surface.
-- API-only: run focused regression tests, build/type-check, and relevant database checks.
-- Cross-stack: verify both response construction and client normalization before UI tests.
+- App-only: run `npm run type-check` only.
+- API-only: run `npm run build` only as the TypeScript check.
+- Cross-stack: run those two TypeScript checks. Do not run tests, lint, theme validation, or full suites unless the user explicitly requests them.
 - Use the exact commands in [references/canonical-sources.md](references/canonical-sources.md).
 
 ## Working rules

@@ -101,10 +101,29 @@ describe('useGmailImport', () => {
     });
   });
 
-  it('returns to idle after a failed resumed auto-import', async () => {
+  it('connects the upload checklist without starting an automatic Gmail import', async () => {
+    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({ authUrl: 'https://example.com/auth' });
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: 'success',
+      url: 'snacktrack://oauth-callback?gmail=success',
+    });
     (gmailApi.getStatus as jest.Mock)
       .mockResolvedValueOnce({ connected: false })
       .mockResolvedValueOnce({ connected: true, canImport: true });
+
+    const { result } = renderGmailHook();
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+
+    await act(async () => {
+      await result.current.connectGmail();
+    });
+
+    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback');
+    expect(gmailApi.importReceipts).not.toHaveBeenCalled();
+  });
+
+  it('returns to idle after a failed explicit import', async () => {
+    (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: true, canImport: true });
     (gmailApi.importReceipts as jest.Mock).mockRejectedValue(new Error('Import failed'));
 
     const { result } = renderGmailHook();
@@ -113,14 +132,8 @@ describe('useGmailImport', () => {
       expect(result.current.isChecking).toBe(false);
     });
 
-    let resumePromise!: Promise<boolean>;
-
     await act(async () => {
-      resumePromise = result.current.resumeAutoImport('flow-failure-test');
-    });
-
-    await act(async () => {
-      await resumePromise;
+      await result.current.importReceipts();
     });
 
     await waitFor(() => {

@@ -2,6 +2,7 @@ import type { StatusTone } from '@components/ui/StatusBadge';
 import type { ImportTaskId } from '@components/upload/ImportTaskCard';
 import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import type { GmailConnectionStatus, ImportPreferencesResponse } from '@services/gmailApi';
+import { resolveTrackingEligibility, type TrackingEligibility } from './trackingEligibility';
 
 export interface ImportTaskState {
   complete: boolean;
@@ -20,16 +21,21 @@ export interface ImportFlowState {
   canImportFromGmail: boolean;
   hasImportedEmailData: boolean;
   exportComplete: boolean;
+  exportProviderProgress: {
+    importedCount: 0 | 1 | 2;
+    uberEats: { imported: boolean; receiptCount: number; status: string };
+    doorDash: { imported: boolean; receiptCount: number; status: string };
+  };
   exportFileReady: boolean;
   exportRequested: boolean;
   showDownloadGuide: boolean;
+  trackingEligibility: TrackingEligibility;
 }
 
 interface ResolveImportFlowInput {
   preferences: ImportPreferencesResponse | null;
   gmailStatus: GmailConnectionStatus;
   localExportComplete: boolean;
-  gmailImportSucceeded: boolean;
   downloadState: ExportDownloadHandoffState;
   gmailFeatureEnabled: boolean;
   focusExport: boolean;
@@ -46,8 +52,7 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
   const gmailTemporarilyUnavailable = hasConnectedEmail
     && gmailStatus.connectionHealth === 'unavailable';
   const hasImportedEmailData = Boolean(
-    input.gmailImportSucceeded
-    || preferences?.gmailImport.hasImported
+    preferences?.gmailImport.hasImported
     || preferences?.coverage.hasEmailData
   );
   const exportComplete = Boolean(
@@ -55,9 +60,15 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
     || preferences?.export.status === 'completed'
     || preferences?.coverage.hasExportData
   );
-  const exportFileReady = preferences?.export.status === 'file_ready';
-  const exportRequested = preferences?.export.status === 'requested_monitoring_enabled'
-    || preferences?.export.status === 'requested_monitoring_disabled';
+  const uberEatsImported = preferences?.coverage.exportProviders.uberEats.hasData ?? false;
+  const doorDashImported = preferences?.coverage.exportProviders.doorDash.hasData ?? false;
+  const importedProviderCount = (
+    Number(uberEatsImported) + Number(doorDashImported)
+  ) as 0 | 1 | 2;
+  const uberExportStatus = preferences?.export.providers?.uberEats.status;
+  const doorDashExportStatus = preferences?.export.providers?.doorDash.status;
+  const exportFileReady = uberExportStatus === 'file_ready';
+  const exportRequested = uberExportStatus === 'requested' || doorDashExportStatus === 'requested';
 
   const connectEmail: ImportTaskState = hasConnectedEmail && !needsReconnect
     ? { complete: true, label: 'Complete', tone: 'complete' }
@@ -75,8 +86,10 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
         ? { complete: false, label: 'Recommended', tone: 'recommended' }
         : { complete: false, label: 'Connect email first', tone: 'recommended' };
 
-  const exportImport: ImportTaskState = exportComplete
-    ? { complete: true, label: 'Complete', tone: 'complete' }
+  const exportImport: ImportTaskState = importedProviderCount === 2
+    ? { complete: true, label: '2 of 2 imported', tone: 'complete' }
+    : importedProviderCount === 1
+      ? { complete: false, label: '1 of 2 imported', tone: 'optional' }
     : exportFileReady
       ? {
           complete: false,
@@ -105,8 +118,25 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
     canImportFromGmail,
     hasImportedEmailData,
     exportComplete,
+    exportProviderProgress: {
+      importedCount: importedProviderCount,
+      uberEats: {
+        imported: uberEatsImported,
+        receiptCount: preferences?.coverage.exportProviders.uberEats.receiptCount ?? 0,
+        status: uberExportStatus ?? 'not_started',
+      },
+      doorDash: {
+        imported: doorDashImported,
+        receiptCount: preferences?.coverage.exportProviders.doorDash.receiptCount ?? 0,
+        status: doorDashExportStatus ?? 'not_started',
+      },
+    },
     exportFileReady,
     exportRequested,
-    showDownloadGuide: Boolean(preferences && !['not_started', 'completed'].includes(preferences.export.status)),
+    showDownloadGuide: Boolean(preferences && (
+      uberExportStatus && !['not_started', 'completed'].includes(uberExportStatus)
+      || doorDashExportStatus && !['not_started', 'completed'].includes(doorDashExportStatus)
+    )),
+    trackingEligibility: resolveTrackingEligibility(preferences),
   };
 }

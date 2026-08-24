@@ -6,6 +6,7 @@ import { Colors } from '@constants/theme';
 import { useCurrency } from '@contexts/CurrencyContext';
 import { useUser } from '@contexts/UserContext';
 import { useReceiptsQuery } from '@hooks/queries/useReceiptsQuery';
+import { useImportPreferences } from '@hooks/useImportPreferences';
 import { ReceiptCard } from '@components/receipts/ReceiptCard';
 import { AppButton } from '@components/ui/AppButton';
 import { EmptyState } from '@components/ui/EmptyState';
@@ -17,8 +18,12 @@ export default function ReceiptsScreen() {
   const { state } = useUser();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const receiptsQuery = useReceiptsQuery(state.user?.id, 20);
+  const { preferences } = useImportPreferences(Boolean(state.user?.id));
   const receipts = receiptsQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const total = receiptsQuery.data?.pages[0]?.pagination.total ?? receipts.length;
+  const emptyMessage = preferences?.gmailImport.hasImported
+    ? 'Your Gmail history scan completed but found no supported receipts. Scan again later or add an Uber Eats or DoorDash export.'
+    : 'Connect Gmail and run a history scan, or upload an Uber Eats or DoorDash export.';
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile');
   const refresh = async () => { setExpandedId(null); await receiptsQuery.refetch(); };
@@ -41,7 +46,7 @@ export default function ReceiptsScreen() {
           renderItem={({ item }) => <ReceiptCard receipt={item} expanded={expandedId === item.id} formatCurrency={formatCurrency} onToggle={(id) => setExpandedId((current) => current === id ? null : id)} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<EmptyState icon="receipt-outline" title="No receipts yet" message="Connect Gmail to start importing receipts, or upload a full export for deeper history." actionText="Import Receipts" onAction={() => router.push('/(tabs)/upload')} />}
+          ListEmptyComponent={<EmptyState icon="receipt-outline" title="No receipts yet" message={emptyMessage} actionText="Import Receipts" onAction={() => router.push('/(tabs)/upload')} />}
           ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator color={Colors.primary} /> : null}
           refreshControl={<RefreshControl refreshing={receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage} onRefresh={refresh} tintColor={Colors.primary} />}
           onEndReached={loadMore}

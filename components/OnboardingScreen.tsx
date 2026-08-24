@@ -25,7 +25,7 @@ const highlights = [
   {
     icon: 'document-attach-outline' as const,
     title: 'Go deeper later',
-    description: 'Upload a full export when you want more complete historical detail.',
+    description: 'Add Uber Eats or DoorDash exports when you want more complete historical detail.',
   },
 ];
 

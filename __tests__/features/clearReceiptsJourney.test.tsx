@@ -8,6 +8,7 @@ import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
 
 const mockResetExportUpsellForUser = jest.fn();
 const mockResetExportDownloadStateForUser = jest.fn();
+const mockRemovePendingOperationsForUser = jest.fn();
 
 jest.mock('@contexts/UserContext', () => ({
   useUser: () => ({ state: { isAuthenticated: true, user: { id: 'user-1' } } }),
@@ -18,6 +19,9 @@ jest.mock('@hooks/useExportUpsell', () => ({
 }));
 jest.mock('@utils/exportDownloadHandoff', () => ({
   resetExportDownloadStateForUser: (...args: unknown[]) => mockResetExportDownloadStateForUser(...args),
+}));
+jest.mock('@utils/offlineCache', () => ({
+  removePendingOperationsForUser: (...args: unknown[]) => mockRemovePendingOperationsForUser(...args),
 }));
 
 function ResetHarness() {
@@ -37,6 +41,7 @@ describe('clear receipts journey', () => {
     (userApi.resetOnboarding as jest.Mock).mockResolvedValue({ success: true, deletedReceipts: 10, message: 'reset' });
     mockResetExportUpsellForUser.mockResolvedValue(undefined);
     mockResetExportDownloadStateForUser.mockResolvedValue(undefined);
+    mockRemovePendingOperationsForUser.mockResolvedValue(undefined);
   });
 
   it('clears onboarding and every user-bound source cache after the server reset', async () => {
@@ -54,6 +59,7 @@ describe('clear receipts journey', () => {
     expect(userApi.resetOnboarding).toHaveBeenCalledWith('user-1');
     expect(mockResetExportUpsellForUser).toHaveBeenCalledWith('user-1');
     expect(mockResetExportDownloadStateForUser).toHaveBeenCalledWith('user-1');
+    expect(mockRemovePendingOperationsForUser).toHaveBeenCalledWith('user-1');
     expect(queryClient.getQueriesData({ queryKey: [...analyticsKeys.all, 'user-1'] })).toHaveLength(0);
     expect(queryClient.getQueriesData({ queryKey: [...receiptKeys.all, 'user-1'] })).toHaveLength(0);
     expect(queryClient.getQueryData(importPreferenceKeys.current('user-1'))).toBeUndefined();

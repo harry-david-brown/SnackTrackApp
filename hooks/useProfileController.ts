@@ -8,10 +8,12 @@ import { useCurrency } from '@contexts/CurrencyContext';
 import { useOnboarding } from '@contexts/OnboardingContext';
 import { useUser } from '@contexts/UserContext';
 import { resolveProfileSettingsState } from '@features/profile/profileSettingsState';
+import { resolveTrackingEligibility } from '@features/import-flow/trackingEligibility';
 import { useAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useImportPreferences } from './useImportPreferences';
 import { authApi } from '@services/authApi';
 import type { CurrencyCode } from '@utils/currency';
+import type { ExportProvider } from '@services/gmailApi';
 import { toDomainError } from '@utils/domainError';
 import { showAlert } from '@utils/platformAlert';
 import { getRefreshToken } from '@utils/tokenManager';
@@ -45,6 +47,10 @@ export function useProfileController() {
     () => resolveProfileSettingsState(preferences, arePreferencesLoading),
     [arePreferencesLoading, preferences],
   );
+  const trackingEligibility = useMemo(
+    () => resolveTrackingEligibility(preferences),
+    [preferences],
+  );
 
   const performReset = useCallback(async (successTitle: string, failureTitle: string) => {
     if (!state.user || isClearingReceipts) return;
@@ -64,7 +70,7 @@ export function useProfileController() {
     if (!state.user || isClearingReceipts) return;
     showAlert(
       'Reset Imported Data',
-      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears Uber export progress. Your login remains active.\n\nThis action cannot be undone.',
+      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears Uber Eats and DoorDash export progress. Your login remains active.\n\nThis action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Reset Data', style: 'destructive', onPress: () => void performReset('Receipts Cleared', 'Clear Failed') },
@@ -76,7 +82,7 @@ export function useProfileController() {
     if (isClearingReceipts) return;
     showAlert(
       'Reset Onboarding',
-      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears your Uber export progress. Your login remains active. Continue?',
+      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears your Uber Eats and DoorDash export progress. Your login remains active. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Reset', style: 'destructive', onPress: () => void performReset('Account Reset', 'Reset Failed') },
@@ -132,14 +138,14 @@ export function useProfileController() {
       ]);
       return;
     }
-    if (!preferences?.gmailImport.hasImported || preferences.export.status !== 'completed') {
-      showAlert('Finish your imports first', 'Connect Gmail and add your full export before setting up ongoing order tracking.', [
+    if (trackingEligibility.reason === 'gmail_history_required') {
+      showAlert('Import Gmail history first', 'Run the one-time Gmail receipt import before enabling ongoing order tracking. Delivery exports remain optional.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
       ]);
       return;
     }
-    if (!preferences.ongoingTracking.capability.canTrack) {
+    if (trackingEligibility.reason === 'gmail_reconnect_required') {
       showAlert('Reconnect Gmail first', 'Ongoing tracking needs durable Gmail access. Reconnect from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
@@ -150,12 +156,13 @@ export function useProfileController() {
       { text: 'Not Now', style: 'cancel' },
       { text: 'Allow tracking', onPress: () => void setOngoingTrackingConsent('granted') },
     ]);
-  }, [preferences, setOngoingTrackingConsent]);
+  }, [preferences?.ongoingTracking.consentState, setOngoingTrackingConsent, trackingEligibility.reason]);
 
-  const saveExportRequest = useCallback(async (decision?: 'granted' | 'declined') => {
+  const saveExportRequest = useCallback(async (platform: DataPlatform, decision?: 'granted' | 'declined') => {
     try {
       if (decision) await setMonitoringConsent(decision);
-      await markExportRequested();
+      const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
+      await markExportRequested(provider);
     } catch {
       showAlert('Status Not Saved', 'The tutorial is complete, but we could not save your export request status.');
     }
@@ -164,12 +171,12 @@ export function useProfileController() {
   const completeTutorial = useCallback((platform: DataPlatform) => {
     setActiveModal(null);
     if (platform === 'doordash' || preferences?.monitoring.consentState === 'granted') {
-      void saveExportRequest();
+      void saveExportRequest(platform);
       return;
     }
     showAlert('Notify you when it’s ready?', 'Allow SnackTrack to check only for Uber’s data-ready email and let you know when the download is available. SnackTrack will not open the link or download the file.', [
-      { text: 'Not Now', style: 'cancel', onPress: () => void saveExportRequest('declined') },
-      { text: 'Notify Me', onPress: () => void saveExportRequest('granted') },
+      { text: 'Not Now', style: 'cancel', onPress: () => void saveExportRequest(platform, 'declined') },
+      { text: 'Notify Me', onPress: () => void saveExportRequest(platform, 'granted') },
     ]);
   }, [preferences?.monitoring.consentState, saveExportRequest]);
 

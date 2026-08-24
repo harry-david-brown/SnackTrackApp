@@ -7,7 +7,13 @@ const preferences = (): ImportPreferencesResponse => ({
     effectiveState: 'not_offered',
     capability: { gmailConnected: false, durableAccess: false, canMonitor: false },
   },
-  export: { status: 'not_started', requestedAt: null, updatedAt: null },
+  export: {
+    status: 'not_started', requestedAt: null, updatedAt: null,
+    providers: {
+      uberEats: { provider: 'uber_eats', status: 'not_started', requestedAt: null, updatedAt: null, errorCode: null },
+      doorDash: { provider: 'doordash', status: 'not_started', requestedAt: null, updatedAt: null, errorCode: null },
+    },
+  },
   gmailImport: {
     status: 'never_started', updatedAt: null, importedCount: 0, errorCode: null,
     receiptCount: 0, hasImported: false,
@@ -23,6 +29,10 @@ const preferences = (): ImportPreferencesResponse => ({
   },
   coverage: {
     emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false,
+    exportProviders: {
+      uberEats: { receiptCount: 0, hasData: false },
+      doorDash: { receiptCount: 0, hasData: false },
+    },
   },
 });
 
@@ -30,6 +40,7 @@ describe('dashboard tracking state resolver', () => {
   it('starts with Gmail and advances to the export path', () => {
     const initial = preferences();
     expect(resolveDashboardTrackingState(initial, false).id).toBe('connect_gmail');
+    expect(resolveDashboardTrackingState(initial, false).primaryAction).toBe('connect_gmail');
 
     initial.gmailImport = { ...initial.gmailImport, status: 'completed', hasImported: true, receiptCount: 3 };
     initial.coverage = { ...initial.coverage, hasEmailData: true, emailReceiptCount: 3 };
@@ -37,14 +48,19 @@ describe('dashboard tracking state resolver', () => {
   });
 
   it.each([
-    ['requested_monitoring_enabled', 'requested_monitoring_enabled'],
-    ['requested_monitoring_disabled', 'requested_monitoring_disabled'],
+    ['requested_monitoring_enabled', 'uber_export_requested'],
+    ['requested_monitoring_disabled', 'uber_export_requested'],
     ['file_ready', 'export_ready'],
     ['import_processing', 'export_processing'],
     ['failed', 'export_failed'],
   ] as const)('maps export status %s to %s', (status, expected) => {
     const value = preferences();
     value.export.status = status;
+    value.export.providers!.uberEats.status = status === 'requested_monitoring_enabled'
+      || status === 'requested_monitoring_disabled'
+      ? 'requested'
+      : status;
+    if (status === 'requested_monitoring_enabled') value.monitoring.effectiveState = 'enabled';
     expect(resolveDashboardTrackingState(value, false).id).toBe(expected);
   });
 
@@ -57,7 +73,7 @@ describe('dashboard tracking state resolver', () => {
     expect(resolveDashboardTrackingState(value, false).id).toBe('enable_tracking');
   });
 
-  it('automatically finishes the Gmail scan when export history and durable access exist', () => {
+  it('requires an explicit Gmail history import even when export history and durable access exist', () => {
     const value = preferences();
     value.export.status = 'completed';
     value.coverage = { ...value.coverage, hasExportData: true, exportReceiptCount: 942 };
@@ -68,10 +84,10 @@ describe('dashboard tracking state resolver', () => {
     };
 
     const resolved = resolveDashboardTrackingState(value, false);
-    expect(resolved.id).toBe('gmail_auto_scan_pending');
-    expect(resolved.title).toBe('Checking Gmail for new orders');
-    expect(resolved.primaryAction).toBeUndefined();
-    expect(resolved.passive).toBe(true);
+    expect(resolved.id).toBe('import_gmail');
+    expect(resolved.title).toBe('Scan Gmail for future orders');
+    expect(resolved.primaryAction).toBe('import_gmail');
+    expect(resolved.primaryLabel).toBe('Scan Gmail');
   });
 
   it('shows a passive active state only when tracking is actually active', () => {
@@ -135,6 +151,6 @@ describe('dashboard tracking state resolver', () => {
 
     const resolved = resolveDashboardTrackingState(value, false);
     expect(resolved.id).toBe('gmail_connection_reconnect');
-    expect(resolved.primaryAction).toBe('open_imports');
+    expect(resolved.primaryAction).toBe('connect_gmail');
   });
 });

@@ -29,6 +29,9 @@ function normalizeItem(value: unknown): ReceiptItem {
     name: typeof item.name === 'string' && item.name ? item.name : 'Unknown item',
     quantity: optionalNumber(item.quantity, 1),
     price: optionalNumber(item.price, 0),
+    customizations: Array.isArray(item.customizations)
+      ? item.customizations.filter((value): value is string => typeof value === 'string' && Boolean(value.trim())).map(value => value.trim())
+      : undefined,
   };
 }
 

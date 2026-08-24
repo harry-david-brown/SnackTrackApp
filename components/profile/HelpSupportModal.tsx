@@ -42,8 +42,8 @@ export function HelpSupportModal({
                 1. Go to the Import Receipts screen{'\n'}
                 2. Tap the Gmail button{'\n'}
                 3. Connect the inbox tied to your delivery apps{'\n'}
-                4. SnackTrack will connect Gmail and start importing automatically{'\n\n'}
-                Want deeper history? You can also request an Uber Eats export, download the ZIP file, and upload it from the same screen.
+                4. Start the one-time Gmail history import when you are ready{'\n\n'}
+                Want deeper history? You can also request an Uber Eats or DoorDash export and upload it from the same screen.
               </Text>
             </View>
 
@@ -51,7 +51,7 @@ export function HelpSupportModal({
               <Text style={styles.helpSectionTitle}>❓ Frequently Asked Questions</Text>
               <Text style={styles.helpSectionText}>
                 <Text style={styles.helpQuestion}>Q: How long does it take to process my data?</Text>{'\n'}
-                A: Gmail imports usually start right away after connection. Full export uploads usually process within a few seconds after upload.{'\n\n'}
+                A: Gmail imports begin when you press Import from Gmail. Full export uploads usually process within a few seconds after upload.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
                 A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}

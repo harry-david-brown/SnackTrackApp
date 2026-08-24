@@ -36,7 +36,12 @@ export const csvApi = {
     const data = typeof response.data === 'object' && response.data !== null
       ? response.data as Record<string, unknown>
       : {};
-    if (typeof data.importedCount !== 'number' || !Number.isFinite(data.importedCount) || typeof data.message !== 'string') {
+    if (
+      typeof data.importedCount !== 'number'
+      || !Number.isFinite(data.importedCount)
+      || typeof data.message !== 'string'
+      || (data.provider !== 'uber_eats' && data.provider !== 'doordash')
+    ) {
       throw new Error('Invalid import response');
     }
     const fileType = data.fileType === 'csv' || data.fileType === 'zip' ? data.fileType : undefined;
@@ -45,6 +50,7 @@ export const csvApi = {
       importedCount: data.importedCount,
       totalAmount: typeof data.totalAmount === 'number' && Number.isFinite(data.totalAmount) ? data.totalAmount : undefined,
       fileType,
+      provider: data.provider,
       message: data.message,
     };
   },

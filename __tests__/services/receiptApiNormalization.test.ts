@@ -7,7 +7,7 @@ describe('normalizeReceiptPage', () => {
       data: [{
         id: 'receipt-1', user_id: 'user-1', restaurant_name: 'Noodle House',
         order_date: '2026-08-01', amount_spent: 24,
-        items: '[{"name":"Soup","quantity":2,"price":8}]',
+        items: '[{"name":"Soup","quantity":2,"price":8,"customizations":["Hot Mustard"]}]',
         data_source: 'email', receipt_type: 'uber_eats', created_at: '2026-08-01T12:00:00Z',
       }],
       pagination: { total: 1, limit: 20, offset: 0, hasMore: false },
@@ -15,7 +15,7 @@ describe('normalizeReceiptPage', () => {
     expect(result.data[0]).toMatchObject({
       id: 'receipt-1', userId: 'user-1', restaurantName: 'Noodle House',
       dataSource: DataSource.EMAIL, receiptType: ReceiptType.UBER_EATS,
-      items: [{ name: 'Soup', quantity: 2, price: 8 }],
+      items: [{ name: 'Soup', quantity: 2, price: 8, customizations: ['Hot Mustard'] }],
     });
   });
 

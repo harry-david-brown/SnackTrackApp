@@ -34,7 +34,13 @@ const preferences = (
       lastNewOrderAt: null, ordersAddedThisWeek: 0, lastErrorAt: null, lastErrorCode: null,
     },
   },
-  coverage: { emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false },
+  coverage: {
+    emailReceiptCount: 0, exportReceiptCount: 0, hasEmailData: false, hasExportData: false,
+    exportProviders: {
+      uberEats: { receiptCount: 0, hasData: false },
+      doorDash: { receiptCount: 0, hasData: false },
+    },
+  },
 });
 
 describe('gmailApi.importReceipts', () => {
@@ -153,10 +159,12 @@ describe('gmailApi import preferences', () => {
     (api.post as jest.Mock).mockResolvedValue({ data: response });
 
     await expect(gmailApi.getImportPreferences()).resolves.toEqual(response);
-    await expect(gmailApi.markExportRequested()).resolves.toEqual(response);
+    await expect(gmailApi.markExportRequested('uber_eats')).resolves.toEqual(response);
 
     expect(api.get).toHaveBeenCalledWith('/gmail/preferences');
-    expect(api.post).toHaveBeenCalledWith('/gmail/preferences/export-requested');
+    expect(api.post).toHaveBeenCalledWith('/gmail/preferences/export-requested', {
+      provider: 'uber_eats',
+    });
   });
 
   it('checks whether Uber has delivered the requested export', async () => {

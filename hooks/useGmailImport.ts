@@ -37,7 +37,6 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [primaryFlowState, setPrimaryFlowState] = useState<GmailPrimaryFlowState>('idle');
   const activePrimaryFlowPromise = useRef<Promise<boolean> | null>(null);
-  const handledAutoImportFlowIds = useRef(new Set<string>());
   const safetyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -139,7 +138,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     return latestStatus;
   }, [refreshConnectionStatus]);
 
-  const connectGmailInternal = useCallback(async (autoImportGmail = true): Promise<GmailConnectionStatus | null> => {
+  const connectGmailInternal = useCallback(async (): Promise<GmailConnectionStatus | null> => {
     try {
       setIsLoading(true);
       setPrimaryFlowState('connecting');
@@ -149,7 +148,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         path: 'oauth-callback',
       });
 
-      const { authUrl } = await gmailApi.getAuthUrl(redirectUri, autoImportGmail);
+      const { authUrl } = await gmailApi.getAuthUrl(redirectUri);
       const authResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (authResult.type !== 'success' || !authResult.url) {
@@ -168,7 +167,6 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         return null;
       }
 
-      setPrimaryFlowState('preparing_import');
       const readyStatus = await waitForImportReady();
 
       if (!readyStatus?.connected) {
@@ -221,7 +219,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
 
   const connectGmail = useCallback(async () => {
     return runPrimaryFlow(async () => {
-      const readyStatus = await connectGmailInternal(false);
+      const readyStatus = await connectGmailInternal();
 
       if (!readyStatus) {
         return false;
@@ -234,52 +232,12 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     });
   }, [connectGmailInternal, runPrimaryFlow]);
 
-  // Not used by the current Upload checklist. Kept for future one-step flows
-  // where connecting Gmail should immediately run an import.
-  const connectAndImportGmail = useCallback(async () => {
-    return runPrimaryFlow(async () => {
-      const readyStatus = await connectGmailInternal(true);
-
-      if (!readyStatus) {
-        return false;
-      }
-
-      setPrimaryFlowState('importing');
-      return importReceiptsInternal(readyStatus);
-    });
-  }, [connectGmailInternal, importReceiptsInternal, runPrimaryFlow]);
-
   const importReceipts = useCallback(async (statusOverride?: GmailConnectionStatus | null) => {
     return runPrimaryFlow(async () => {
       setPrimaryFlowState('importing');
       return importReceiptsInternal(statusOverride);
     });
   }, [importReceiptsInternal, runPrimaryFlow]);
-
-  const resumeAutoImport = useCallback(async (flowId: string) => {
-    if (handledAutoImportFlowIds.current.has(flowId)) {
-      return false;
-    }
-
-    handledAutoImportFlowIds.current.add(flowId);
-
-    return runPrimaryFlow(async () => {
-      setPrimaryFlowState('preparing_import');
-      const readyStatus = await waitForImportReady();
-
-      if (!readyStatus?.connected) {
-        return false;
-      }
-
-      if (readyStatus.canImport === false) {
-        showSimpleAlert('Reconnect Gmail', readyStatus.statusMessage || 'Reconnect Gmail before importing receipts.');
-        return false;
-      }
-
-      setPrimaryFlowState('importing');
-      return importReceiptsInternal(readyStatus);
-    });
-  }, [importReceiptsInternal, runPrimaryFlow, waitForImportReady]);
 
   const disconnectGmail = useCallback(async () => {
     showAlert(
@@ -316,9 +274,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     primaryFlowState,
     isPrimaryActionInProgress,
     connectGmail,
-    connectAndImportGmail,
     importReceipts,
-    resumeAutoImport,
     disconnectGmail,
     refreshConnectionStatus,
   };

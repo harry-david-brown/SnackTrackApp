@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
-import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation } from '@utils/offlineCache';
+import { getPendingOperations, removeOperation, incrementRetryCount, PendingOperation, shouldProcessPendingOperation } from '@utils/offlineCache';
 import { csvApi } from '@services/api';
 import { captureException } from '@utils/sentry';
 import { OFFLINE_SYNC } from '@/constants';
@@ -47,6 +47,7 @@ export function useOfflineSync() {
 
     for (const operation of pending) {
       try {
+        if ((await shouldProcessPendingOperation(operation)) === false) continue;
         // Skip if max retries exceeded
         if (operation.retryCount >= OFFLINE_SYNC.MAX_RETRIES) {
           await removeOperation(operation.id);

@@ -1,8 +1,5 @@
 import api from './api';
 import {
-  DashboardInsight,
-  type DashboardInsightCategory,
-  type DashboardInsightIcon,
   UserSummary,
   WrappedAnalytics,
 } from '@/types/api';
@@ -54,49 +51,6 @@ const optional = <T>(
   field: string,
   normalize: (value: unknown, field: string) => T,
 ): T | undefined => value === undefined ? undefined : normalize(value, field);
-
-const categories = ['favorites', 'habits', 'extremes', 'progress'] as const satisfies readonly DashboardInsightCategory[];
-const insightKinds = ['ranking', 'stat', 'order', 'locked'] as const;
-const insightIcons = ['restaurant', 'time', 'calendar', 'moon', 'heart', 'receipt', 'meal', 'delivery', 'lock'] as const satisfies readonly DashboardInsightIcon[];
-const valueFormats = ['currency', 'number', 'percent', 'minutes'] as const;
-
-export const normalizeDashboardInsight = (value: unknown, index = 0): DashboardInsight => {
-  const field = `dashboardInsights.${index}`;
-  const insight = asRecord(value, field);
-  const rows = optional(insight.rows, `${field}.rows`, (candidate, rowsField) => {
-    if (!Array.isArray(candidate)) throw new Error(`Invalid analytics response: ${rowsField}`);
-    return candidate.map((rowValue, rowIndex) => {
-      const rowField = `${rowsField}.${rowIndex}`;
-      const row = asRecord(rowValue, rowField);
-      return {
-        label: asString(row.label, `${rowField}.label`),
-        count: asNumber(row.count, `${rowField}.count`),
-        amount: asNumber(row.amount, `${rowField}.amount`),
-      };
-    });
-  });
-  const items = optional(insight.items, `${field}.items`, (candidate, itemsField) => {
-    if (!Array.isArray(candidate)) throw new Error(`Invalid analytics response: ${itemsField}`);
-    return candidate.map((item, itemIndex) => asString(item, `${itemsField}.${itemIndex}`));
-  });
-
-  return {
-    id: asString(insight.id, `${field}.id`),
-    category: asMember(insight.category, categories, `${field}.category`),
-    kind: asMember(insight.kind, insightKinds, `${field}.kind`),
-    icon: asMember(insight.icon, insightIcons, `${field}.icon`),
-    eyebrow: asString(insight.eyebrow, `${field}.eyebrow`),
-    title: asString(insight.title, `${field}.title`),
-    headline: optional(insight.headline, `${field}.headline`, asString),
-    detail: optional(insight.detail, `${field}.detail`, asString),
-    value: optional(insight.value, `${field}.value`, asNumber),
-    valueFormat: optional(insight.valueFormat, `${field}.valueFormat`, (candidate, memberField) => asMember(candidate, valueFormats, memberField)),
-    rows,
-    items,
-    locked: optional(insight.locked, `${field}.locked`, asBoolean),
-    action: optional(insight.action, `${field}.action`, (candidate, memberField) => asMember(candidate, ['open_export'] as const, memberField)),
-  };
-};
 
 const normalizeStanding = (value: unknown, field: string) => {
   const standing = asRecord(value, field);
@@ -302,11 +256,6 @@ export const normalizeUserSummary = (value: unknown, includeWrapped = false): Us
         'Review any refunded receipts for accuracy',
       ],
     },
-    dashboardInsights: root.dashboardInsights === undefined
-      ? []
-      : Array.isArray(root.dashboardInsights)
-        ? root.dashboardInsights.map(normalizeDashboardInsight)
-        : (() => { throw new Error('Invalid analytics response: dashboardInsights'); })(),
   };
 
   if (includeWrapped && root.wrappedAnalytics) {
