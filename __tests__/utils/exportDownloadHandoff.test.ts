@@ -23,13 +23,30 @@ describe('exportDownloadHandoff', () => {
 
   it('uses local download state only for the matching ready event', async () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
-    await setExportDownloadHandoffState('user-1', 'ready-v1', 'downloaded');
+    await setExportDownloadHandoffState('user-1', 'uber_eats', 'ready-v1', 'downloaded');
 
     const storedValue = JSON.stringify({ readyVersion: 'ready-v1', state: 'downloaded' });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(storedValue);
 
-    await expect(getExportDownloadHandoffState('user-1', 'ready-v1')).resolves.toBe('downloaded');
-    await expect(getExportDownloadHandoffState('user-1', 'ready-v2')).resolves.toBe('not_downloaded');
+    await expect(getExportDownloadHandoffState('user-1', 'uber_eats', 'ready-v1')).resolves.toBe('downloaded');
+    await expect(getExportDownloadHandoffState('user-1', 'uber_eats', 'ready-v2')).resolves.toBe('not_downloaded');
+  });
+
+  it('scopes simultaneous handoffs by provider', async () => {
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    await setExportDownloadHandoffState('user-1', 'uber_eats', 'uber-v1', 'downloaded');
+    await setExportDownloadHandoffState('user-1', 'doordash', 'door-v1', 'checking_email');
+
+    expect(AsyncStorage.setItem).toHaveBeenNthCalledWith(
+      1,
+      'export-download-handoff:user-1:uber_eats',
+      JSON.stringify({ readyVersion: 'uber-v1', state: 'downloaded' }),
+    );
+    expect(AsyncStorage.setItem).toHaveBeenNthCalledWith(
+      2,
+      'export-download-handoff:user-1:doordash',
+      JSON.stringify({ readyVersion: 'door-v1', state: 'checking_email' }),
+    );
   });
 
   it('opens the Gmail app when its URL scheme succeeds', async () => {
@@ -56,11 +73,11 @@ describe('exportDownloadHandoff', () => {
 
     expect(AsyncStorage.removeItem).toHaveBeenNthCalledWith(
       1,
-      'uber-export-download-handoff:user-1'
+      'export-download-handoff:user-1:uber_eats'
     );
     expect(AsyncStorage.removeItem).toHaveBeenNthCalledWith(
       2,
-      'uber-export-ready-notified:user-1'
+      'export-download-handoff:user-1:doordash'
     );
   });
 });

@@ -22,6 +22,7 @@ import { Card } from '@components/ui/Card';
 import { SectionHeader } from '@components/ui/SectionHeader';
 import { resolveDashboardInsightsState } from '@components/dashboard/dashboardInsightsState';
 import { DashboardInsightsDevControls } from '@components/dashboard/DashboardInsightsDevControls';
+import { resolveGmailImportResult } from '@features/import-flow/gmailImportResult';
 
 export default function DashboardScreen() {
   const { state, logout } = useUser();
@@ -67,11 +68,20 @@ export default function DashboardScreen() {
   };
 
   const handleTrackingAction = (action: DashboardTrackingAction) => {
+    if (action === 'open_import') {
+      router.push('/(tabs)/upload');
+      return;
+    }
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
       router.push({
         pathname: '/(tabs)/upload',
-        params: { action, intentId: `${action}:${Date.now()}` },
+        params: {
+          action,
+          intentId: `${action}:${Date.now()}`,
+          ...(trackingCardState.primaryProvider ? { provider: trackingCardState.primaryProvider } : {}),
+          ...(trackingCardState.gmailPurpose ? { gmailPurpose: trackingCardState.gmailPurpose } : {}),
+        },
       });
       return;
     }
@@ -100,7 +110,11 @@ export default function DashboardScreen() {
       return;
     }
     void checkOngoingTracking()
-      .then(() => loadAnalytics())
+      .then((result) => {
+        const presentation = resolveGmailImportResult(result);
+        showSimpleAlert(presentation.title, presentation.message);
+        return loadAnalytics();
+      })
       .catch(() => showSimpleAlert('Couldn’t check for orders', 'Please try again in a moment.'));
   };
 

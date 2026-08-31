@@ -18,15 +18,15 @@ const coverage = (
 });
 
 describe('resolvePostWrappedExperience', () => {
-  it('puts export request before any tracking proposition until export completion is confirmed', () => {
-    expect(resolveInitialPostDeckStep('show')).toBe('export');
+  it('puts ongoing updates before an optional export once export state is known', () => {
+    expect(resolveInitialPostDeckStep('show')).toBe('tracking');
     expect(resolveInitialPostDeckStep('loading')).toBe('export');
     expect(resolveInitialPostDeckStep('hide')).toBe('tracking');
   });
   it('shows the export proposition whenever export state is loaded and incomplete', () => {
     expect(resolvePostWrappedExperience({
       isExportStateLoading: false,
-      hasCompletedExport: false,
+      hasCompletedAllExports: false,
       coverage: coverage(),
     }).exportEligibility).toBe('show');
   });
@@ -34,7 +34,7 @@ describe('resolvePostWrappedExperience', () => {
   it('does not use prior dismissals or summary-view count as eligibility inputs', () => {
     const input = {
       isExportStateLoading: false,
-      hasCompletedExport: false,
+      hasCompletedAllExports: false,
       coverage: coverage(),
     };
 
@@ -45,7 +45,7 @@ describe('resolvePostWrappedExperience', () => {
   it('hides the export proposition only after export completion', () => {
     expect(resolvePostWrappedExperience({
       isExportStateLoading: false,
-      hasCompletedExport: true,
+      hasCompletedAllExports: true,
       coverage: coverage({ hasExportData: true }),
     }).exportEligibility).toBe('hide');
   });
@@ -53,7 +53,7 @@ describe('resolvePostWrappedExperience', () => {
   it('waits for export completion state before deciding', () => {
     expect(resolvePostWrappedExperience({
       isExportStateLoading: true,
-      hasCompletedExport: false,
+      hasCompletedAllExports: false,
       coverage: coverage(),
     }).exportEligibility).toBe('loading');
   });
@@ -90,11 +90,11 @@ describe('assessImportedCoverage', () => {
     }))).toBe('unknown');
   });
 
-  it('does not assess an already exported history as sparse', () => {
+  it('still assesses sparse coverage when only some export data exists', () => {
     expect(assessImportedCoverage(coverage({
       orderCount: 2,
       hasExportData: true,
-    }))).toBe('unknown');
+    }))).toBe('sparse');
   });
 });
 

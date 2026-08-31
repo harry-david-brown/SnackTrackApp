@@ -37,46 +37,85 @@ const preferences = (): ImportPreferencesResponse => ({
 });
 
 describe('dashboard tracking state resolver', () => {
-  it('starts with Gmail and advances to the export path', () => {
+  const completeBothExports = (value: ImportPreferencesResponse) => {
+    value.export.status = 'completed';
+    value.coverage.hasExportData = true;
+    value.coverage.exportProviders.uberEats = { hasData: true, receiptCount: 20 };
+    value.coverage.exportProviders.doorDash = { hasData: true, receiptCount: 20 };
+  };
+
+  it('starts with a source choice and advances to ongoing updates after Gmail', () => {
     const initial = preferences();
-    expect(resolveDashboardTrackingState(initial, false).id).toBe('connect_gmail');
-    expect(resolveDashboardTrackingState(initial, false).primaryAction).toBe('connect_gmail');
+    expect(resolveDashboardTrackingState(initial, false).id).toBe('choose_import_source');
+    expect(resolveDashboardTrackingState(initial, false).primaryAction).toBe('open_import');
 
     initial.gmailImport = { ...initial.gmailImport, status: 'completed', hasImported: true, receiptCount: 3 };
     initial.coverage = { ...initial.coverage, hasEmailData: true, emailReceiptCount: 3 };
-    expect(resolveDashboardTrackingState(initial, false).id).toBe('sparse_export');
+    initial.ongoingTracking.capability = { gmailConnected: true, durableAccess: true, canTrack: true };
+    expect(resolveDashboardTrackingState(initial, false).id).toBe('enable_tracking');
   });
 
   it.each([
-    ['requested_monitoring_enabled', 'uber_export_requested'],
-    ['requested_monitoring_disabled', 'uber_export_requested'],
-    ['file_ready', 'export_ready'],
-    ['import_processing', 'export_processing'],
-    ['failed', 'export_failed'],
+    ['file_ready', 'export_ready_uber_eats'],
+    ['import_processing', 'export_processing_uber_eats'],
+    ['failed', 'export_failed_uber_eats'],
   ] as const)('maps export status %s to %s', (status, expected) => {
     const value = preferences();
     value.export.status = status;
-    value.export.providers!.uberEats.status = status === 'requested_monitoring_enabled'
-      || status === 'requested_monitoring_disabled'
-      ? 'requested'
-      : status;
-    if (status === 'requested_monitoring_enabled') value.monitoring.effectiveState = 'enabled';
+    value.export.providers!.uberEats.status = status;
     expect(resolveDashboardTrackingState(value, false).id).toBe(expected);
   });
+
+  it.each(['requested_monitoring_enabled', 'requested_monitoring_disabled'] as const)(
+    'keeps useful setup primary while export status %s remains visible',
+    (status) => {
+      const value = preferences();
+      value.export.status = status;
+      value.export.providers!.uberEats.status = 'requested';
+      if (status === 'requested_monitoring_enabled') value.monitoring.effectiveState = 'enabled';
+      const result = resolveDashboardTrackingState(value, false);
+      expect(result.id).toBe('choose_import_source');
+      expect(result.progress?.id).toBe('uber_export_requested');
+    },
+  );
 
   it('asks for explicit tracking permission after both imports', () => {
     const value = preferences();
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
-    value.export.status = 'completed';
-    value.coverage.hasExportData = true;
+    completeBothExports(value);
     value.ongoingTracking.capability = { gmailConnected: true, durableAccess: true, canTrack: true };
     expect(resolveDashboardTrackingState(value, false).id).toBe('enable_tracking');
   });
 
-  it('requires an explicit Gmail history import even when export history and durable access exist', () => {
+  it('moves email to ongoing setup after one provider is imported', () => {
     const value = preferences();
-    value.export.status = 'completed';
-    value.coverage = { ...value.coverage, hasExportData: true, exportReceiptCount: 942 };
+    value.coverage.hasExportData = true;
+    value.coverage.exportProviders.uberEats = { hasData: true, receiptCount: 20 };
+
+    const resolved = resolveDashboardTrackingState(value, false);
+    expect(resolved.id).toBe('history_complete_optional_freshness');
+    expect(resolved.title).toBe('Uber Eats export is included');
+    expect(resolved.primaryAction).toBe('connect_gmail');
+    expect(resolved.primaryLabel).toBe('Connect Gmail for updates');
+    expect(resolved.primaryProvider).toBeUndefined();
+  });
+
+  it('names a failed provider without hiding the completed provider', () => {
+    const value = preferences();
+    value.coverage.hasExportData = true;
+    value.coverage.exportProviders.uberEats = { hasData: true, receiptCount: 20 };
+    value.export.providers!.doorDash.status = 'failed';
+
+    const resolved = resolveDashboardTrackingState(value, false);
+    expect(resolved.id).toBe('export_failed_doordash');
+    expect(resolved.title).toContain('DoorDash');
+    expect(resolved.primaryProvider).toBe('doordash');
+  });
+
+  it('offers ongoing updates directly when both exports and durable Gmail access exist', () => {
+    const value = preferences();
+    completeBothExports(value);
+    value.coverage.exportReceiptCount = 942;
     value.ongoingTracking.capability = {
       gmailConnected: true,
       durableAccess: true,
@@ -84,17 +123,16 @@ describe('dashboard tracking state resolver', () => {
     };
 
     const resolved = resolveDashboardTrackingState(value, false);
-    expect(resolved.id).toBe('import_gmail');
-    expect(resolved.title).toBe('Scan Gmail for future orders');
-    expect(resolved.primaryAction).toBe('import_gmail');
-    expect(resolved.primaryLabel).toBe('Scan Gmail');
+    expect(resolved.id).toBe('history_complete_optional_freshness');
+    expect(resolved.title).toBe('Both provider exports are included');
+    expect(resolved.primaryAction).toBe('enable_tracking');
+    expect(resolved.primaryLabel).toBe('Enable ongoing updates');
   });
 
   it('shows a passive active state only when tracking is actually active', () => {
     const value = preferences();
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
-    value.export.status = 'completed';
-    value.coverage.hasExportData = true;
+    completeBothExports(value);
     value.ongoingTracking.capability = { gmailConnected: true, durableAccess: true, canTrack: true };
     value.ongoingTracking.consentState = 'granted';
     value.ongoingTracking.effectiveState = 'active';
@@ -108,8 +146,7 @@ describe('dashboard tracking state resolver', () => {
   it('prioritizes repair states over the completed experience', () => {
     const value = preferences();
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
-    value.export.status = 'completed';
-    value.coverage.hasExportData = true;
+    completeBothExports(value);
     value.ongoingTracking.consentState = 'granted';
     value.ongoingTracking.effectiveState = 'reconnect_required';
     expect(resolveDashboardTrackingState(value, false).id).toBe('tracking_reconnect');
@@ -117,8 +154,7 @@ describe('dashboard tracking state resolver', () => {
 
   it('turns an invalid Gmail grant into an explicit reconnect action', () => {
     const value = preferences();
-    value.export.status = 'completed';
-    value.coverage.hasExportData = true;
+    completeBothExports(value);
     value.gmailImport = {
       ...value.gmailImport,
       status: 'failed',
@@ -133,8 +169,7 @@ describe('dashboard tracking state resolver', () => {
   it('prioritizes proactively validated reconnect health over active tracking', () => {
     const value = preferences();
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true };
-    value.export.status = 'completed';
-    value.coverage.hasExportData = true;
+    completeBothExports(value);
     value.ongoingTracking = {
       ...value.ongoingTracking,
       consentState: 'granted',

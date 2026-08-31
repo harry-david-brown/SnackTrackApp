@@ -75,7 +75,7 @@ describe('useGmailImport', () => {
       expect(result.current.isChecking).toBe(false);
     });
 
-    let connectPromise!: Promise<boolean>;
+    let connectPromise!: ReturnType<typeof result.current.connectGmail>;
 
     await act(async () => {
       connectPromise = result.current.connectGmail();
@@ -105,7 +105,7 @@ describe('useGmailImport', () => {
     (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({ authUrl: 'https://example.com/auth' });
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
       type: 'success',
-      url: 'snacktrack://oauth-callback?gmail=success',
+      url: 'snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import',
     });
     (gmailApi.getStatus as jest.Mock)
       .mockResolvedValueOnce({ connected: false })
@@ -118,8 +118,30 @@ describe('useGmailImport', () => {
       await result.current.connectGmail();
     });
 
-    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback');
+    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback', 'receipt_import');
     expect(gmailApi.importReceipts).not.toHaveBeenCalled();
+  });
+
+  it('round-trips the signed Gmail connection purpose', async () => {
+    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({ authUrl: 'https://example.com/auth' });
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: 'success',
+      url: 'snacktrack://oauth-callback?gmail=success&gmailPurpose=export_ready_alerts',
+    });
+    (gmailApi.getStatus as jest.Mock)
+      .mockResolvedValueOnce({ connected: false })
+      .mockResolvedValueOnce({ connected: true, canImport: true });
+
+    const { result } = renderGmailHook();
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+
+    let connectionResult;
+    await act(async () => {
+      connectionResult = await result.current.connectGmail('export_ready_alerts');
+    });
+
+    expect(connectionResult).toMatchObject({ purpose: 'export_ready_alerts' });
+    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback', 'export_ready_alerts');
   });
 
   it('returns to idle after a failed explicit import', async () => {

@@ -18,6 +18,7 @@ interface ExportImportTaskSectionProps {
   providerProgress: ImportFlowState['exportProviderProgress'];
   isOpen: boolean;
   fileReady: boolean;
+  readyProvider?: 'uber_eats' | 'doordash' | null;
   exportRequested: boolean;
   downloadState: ExportDownloadHandoffState;
   autoOpenToken: string | null;
@@ -39,8 +40,26 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
   const missingProviderName = props.providerProgress.uberEats.imported ? 'DoorDash' : 'Uber Eats';
   const importedPlatform: DataPlatform = props.providerProgress.uberEats.imported ? 'uber' : 'doordash';
   const missingPlatform: DataPlatform = props.providerProgress.uberEats.imported ? 'doordash' : 'uber';
+  const missingProviderStatus = props.providerProgress.uberEats.imported
+    ? props.providerProgress.doorDash.status
+    : props.providerProgress.uberEats.status;
+  const processingPlatform: DataPlatform | null = props.providerProgress.uberEats.status === 'import_processing'
+    ? 'uber'
+    : props.providerProgress.doorDash.status === 'import_processing' ? 'doordash' : null;
+  const processingProviderName = processingPlatform === 'uber' ? 'Uber Eats' : 'DoorDash';
+  const failedPlatform: DataPlatform | null = props.providerProgress.uberEats.status === 'failed'
+    ? 'uber'
+    : props.providerProgress.doorDash.status === 'failed' ? 'doordash' : null;
+  const failedProviderName = failedPlatform === 'uber' ? 'Uber Eats' : 'DoorDash';
+  const requestedPlatform: DataPlatform | null = props.providerProgress.uberEats.status === 'requested'
+    ? 'uber'
+    : props.providerProgress.doorDash.status === 'requested' ? 'doordash' : null;
+  const requestedProviderName = requestedPlatform === 'uber' ? 'Uber Eats' : 'DoorDash';
+  const readyProvider = props.readyProvider
+    ?? (props.providerProgress.doorDash.status === 'file_ready' ? 'doordash' : 'uber_eats');
   const waitingForDownload = props.fileReady && props.downloadState !== 'downloaded';
   const readyToUpload = props.downloadState === 'downloaded';
+  const readyProviderName = readyProvider === 'doordash' ? 'DoorDash' : 'Uber Eats';
   return (
     <View onLayout={props.onLayout}>
       <ImportTaskCard
@@ -58,9 +77,17 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
           {readyToUpload
             ? 'Your delivery ZIP is downloaded. Choose it to finish importing your history.'
             : props.fileReady
-              ? `Uber says your export is ready. Its download link is available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.`
-              : importComplete
-                ? 'Uber Eats and DoorDash export history are both included in your SnackTrack stats.'
+              ? readyProvider === 'doordash'
+                ? 'DoorDash says your data archive is ready. Download the ZIP from its email, then return here.'
+                : `Uber says your export is ready. Its download link is available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.`
+              : processingPlatform
+                  ? `${processingProviderName} is being added to your SnackTrack history.`
+                  : failedPlatform
+                    ? `${failedProviderName} was not imported. Your existing SnackTrack history is unchanged.`
+                  : requestedPlatform
+                    ? `${requestedProviderName} is preparing a newer archive. Your existing imported history remains available.`
+                : importComplete
+                  ? 'Uber Eats and DoorDash export history are both included in your SnackTrack stats.'
                 : hasImportedProvider
                   ? `${importedProviderName} is included in your stats. Add ${missingProviderName} for more complete history.`
               : props.exportRequested
@@ -73,24 +100,40 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
             <View style={styles.headerText}>
               <Text style={styles.title}>
                 {waitingForDownload
-                  ? 'Find Uber’s data-ready email'
+                  ? `Find ${readyProviderName}’s data-ready email`
                   : readyToUpload
                     ? 'Upload your export'
-                    : importComplete
-                      ? 'All exports imported'
+                    : processingPlatform
+                        ? `Importing ${processingProviderName}`
+                        : failedPlatform
+                          ? `${failedProviderName} import needs attention`
+                        : requestedPlatform
+                          ? `${requestedProviderName} update requested`
+                      : importComplete
+                        ? 'Your export history is complete'
                       : hasImportedProvider
                         ? 'One export imported'
                     : props.exportRequested ? 'Continue your data request' : 'Request your delivery data'}
               </Text>
               <Text style={styles.subtitle}>
                 {waitingForDownload
-                  ? `Open the email below and tap “${UBER_EXPORT_EMAIL_ACTION}” to save the original ZIP.`
+                  ? readyProvider === 'doordash'
+                    ? 'Open DoorDash’s ready email, tap “View Your Data Archive,” and save the original ZIP.'
+                    : `Open the email below and tap “${UBER_EXPORT_EMAIL_ACTION}” to save the original ZIP.`
                   : readyToUpload
                     ? 'Choose the ZIP you downloaded. Keep the archive zipped.'
-                    : importComplete
-                      ? 'You can update either provider whenever you download a newer archive.'
+                    : processingPlatform
+                        ? 'Keep this screen open while SnackTrack finishes processing the archive.'
+                        : failedPlatform
+                          ? 'Try the archive again. Any previously imported receipts are still safe.'
+                        : requestedPlatform
+                          ? 'Keep an eye on your email. You can continue this provider’s guide whenever the newer archive is ready.'
+                      : importComplete
+                        ? 'Uber Eats and DoorDash are both included. Import a newer archive whenever you want to refresh your history.'
                       : hasImportedProvider
-                        ? `${missingProviderName} is still available to import.`
+                        ? missingProviderStatus === 'failed'
+                          ? `${missingProviderName} needs another attempt.`
+                          : `${missingProviderName} is still available to import.`
                     : 'Answer a couple of quick questions and SnackTrack will take you to the right step.'}
               </Text>
             </View>
@@ -102,14 +145,16 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
           </View>
           {waitingForDownload ? (
             <View style={styles.actionStack}>
-              <View style={styles.emailCard} accessible accessibilityLabel={`Email from ${UBER_EXPORT_EMAIL_SENDER_NAME}, subject ${UBER_EXPORT_EMAIL_SUBJECT}, then tap ${UBER_EXPORT_EMAIL_ACTION}`}>
-                <EmailRow label="From" value={UBER_EXPORT_EMAIL_SENDER_NAME} detail={UBER_EXPORT_EMAIL_ADDRESS} />
-                <View style={styles.divider} />
-                <EmailRow label="Subject" value={UBER_EXPORT_EMAIL_SUBJECT} />
-                <View style={styles.divider} />
-                <EmailRow label="Tap" value={UBER_EXPORT_EMAIL_ACTION} />
-              </View>
-              <AppButton label={props.downloadState === 'checking_email' ? 'Open Gmail Again' : 'Open Gmail and Find This Email'} icon="mail-outline" onPress={props.onOpenEmail} />
+              {readyProvider === 'uber_eats' ? (
+                <View style={styles.emailCard} accessible accessibilityLabel={`Email from ${UBER_EXPORT_EMAIL_SENDER_NAME}, subject ${UBER_EXPORT_EMAIL_SUBJECT}, then tap ${UBER_EXPORT_EMAIL_ACTION}`}>
+                  <EmailRow label="From" value={UBER_EXPORT_EMAIL_SENDER_NAME} detail={UBER_EXPORT_EMAIL_ADDRESS} />
+                  <View style={styles.divider} />
+                  <EmailRow label="Subject" value={UBER_EXPORT_EMAIL_SUBJECT} />
+                  <View style={styles.divider} />
+                  <EmailRow label="Tap" value={UBER_EXPORT_EMAIL_ACTION} />
+                </View>
+              ) : null}
+              <AppButton label={readyProvider === 'doordash' ? 'Show DoorDash Email Instructions' : props.downloadState === 'checking_email' ? 'Open Gmail Again' : 'Open Gmail and Find This Email'} icon="mail-outline" onPress={props.onOpenEmail} />
               <AppButton label="I Already Downloaded It" variant="secondary" icon="checkmark-circle-outline" onPress={props.onDownloaded} />
               <Text style={styles.locationHint}>Downloaded it on a computer? Move the ZIP to Files, iCloud Drive, or Google Drive on this device first.</Text>
             </View>
@@ -123,15 +168,40 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
               />
               {props.fileReady ? <AppButton label="Still need to download it? Open Gmail" variant="secondary" icon="mail-outline" onPress={props.onOpenEmail} /> : null}
             </>
+          ) : processingPlatform ? (
+            <AppButton
+              label={`Importing ${processingProviderName}…`}
+              variant="secondary"
+              icon="hourglass-outline"
+              disabled
+            />
+          ) : failedPlatform ? (
+            <AppButton
+              label={`Try ${failedProviderName} Again`}
+              icon="refresh-outline"
+              onPress={() => props.onImportProvider(failedPlatform)}
+            />
+          ) : requestedPlatform ? (
+            <AppButton
+              label={`Continue ${requestedProviderName} Update`}
+              icon="arrow-forward"
+              onPress={() => props.onImportProvider(requestedPlatform)}
+            />
           ) : importComplete ? (
-            <View style={styles.actionStack}>
-              <AppButton label="Update Uber Eats" icon="refresh-outline" onPress={() => props.onImportProvider('uber')} />
-              <AppButton label="Update DoorDash" variant="secondary" icon="refresh-outline" onPress={() => props.onImportProvider('doordash')} />
-            </View>
+            <AppButton
+              label="Import a Newer Export"
+              variant="secondary"
+              icon="refresh-outline"
+              onPress={props.onShowTutorial}
+            />
           ) : hasImportedProvider ? (
             <View style={styles.actionStack}>
-              <AppButton label={`Import ${missingProviderName}`} icon="add-circle-outline" onPress={() => props.onImportProvider(missingPlatform)} />
-              <AppButton label={`Update ${importedProviderName}`} variant="secondary" icon="refresh-outline" onPress={() => props.onImportProvider(importedPlatform)} />
+              <AppButton
+                label={missingProviderStatus === 'failed' ? `Try ${missingProviderName} Again` : `Import ${missingProviderName}`}
+                icon={missingProviderStatus === 'failed' ? 'refresh-outline' : 'add-circle-outline'}
+                onPress={() => props.onImportProvider(missingPlatform)}
+              />
+              <AppButton label={`Import Newer ${importedProviderName} Export`} variant="secondary" icon="refresh-outline" onPress={() => props.onImportProvider(importedPlatform)} />
             </View>
           ) : (
             <AppButton
@@ -161,26 +231,25 @@ function ProviderStatusRow({
   status: string;
 }) {
   const accent = platform === 'uber' ? Colors.uberDark : Colors.doorDash;
-  const statusLabel = imported
-    ? 'Imported'
-    : status === 'requested' ? 'Requested'
+  const statusLabel = status === 'requested' ? imported ? 'Update requested' : 'Requested'
       : status === 'file_ready' ? 'Ready'
         : status === 'import_processing' ? 'Importing'
           : status === 'failed' ? 'Needs retry'
-            : 'Not imported';
+            : imported ? 'Imported' : 'Not imported';
+  const statusComplete = imported && status === 'completed';
   return (
     <View style={styles.providerRow} accessibilityLabel={`${name}: ${statusLabel}`}>
       <View style={[styles.providerIcon, { backgroundColor: Colors.alpha(accent, 0.12) }]}>
         <Ionicons name={platform === 'uber' ? 'car-outline' : 'bag-handle-outline'} size={20} color={accent} />
       </View>
       <Text style={styles.providerName}>{name}</Text>
-      <View style={[styles.providerStatus, imported ? styles.providerStatusImported : styles.providerStatusPending]}>
+      <View style={[styles.providerStatus, statusComplete ? styles.providerStatusImported : styles.providerStatusPending]}>
         <Ionicons
-          name={imported ? 'checkmark-circle' : 'ellipse-outline'}
+          name={statusComplete ? 'checkmark-circle' : 'ellipse-outline'}
           size={15}
-          color={imported ? Colors.successDark : Colors.textSecondary}
+          color={statusComplete ? Colors.successDark : Colors.textSecondary}
         />
-        <Text style={[styles.providerStatusText, imported && styles.providerStatusTextImported]}>
+        <Text style={[styles.providerStatusText, statusComplete && styles.providerStatusTextImported]}>
           {statusLabel}
         </Text>
       </View>

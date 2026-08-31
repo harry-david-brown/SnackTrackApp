@@ -38,7 +38,6 @@ const resolveUpload = (value: ImportPreferencesResponse, gmailStatus: GmailConne
   resolveImportFlowState({
     preferences: value,
     gmailStatus,
-    localExportComplete: false,
     downloadState,
     gmailFeatureEnabled: true,
     focusExport: false,
@@ -48,7 +47,7 @@ const resolveUpload = (value: ImportPreferencesResponse, gmailStatus: GmailConne
 describe('canonical import journey', () => {
   it('moves from Gmail connection through sparse import and export-ready upload', () => {
     const value = preferences();
-    expect(resolveUpload(value, { connected: false }).initialOpenTask).toBe('connect_email');
+    expect(resolveUpload(value, { connected: false }).initialOpenTask).toBeNull();
 
     value.monitoring.capability.gmailConnected = true;
     value.ongoingTracking.capability.gmailConnected = true;
@@ -59,11 +58,12 @@ describe('canonical import journey', () => {
 
     value.gmailImport = { ...value.gmailImport, status: 'completed', hasImported: true, receiptCount: 3, importedCount: 3 };
     value.coverage = { ...value.coverage, hasEmailData: true, emailReceiptCount: 3 };
-    expect(resolveUpload(value, healthyGmail).initialOpenTask).toBe('uber_export');
-    expect(resolveDashboardTrackingState(value, false).id).toBe('sparse_export');
+    expect(resolveUpload(value, healthyGmail).initialOpenTask).toBeNull();
+    expect(resolveUpload(value, healthyGmail).gmailImportPresentation.passive).toBe(true);
+    expect(resolveDashboardTrackingState(value, false).id).toBe('enable_tracking');
     expect(resolvePostWrappedExperience({
       isExportStateLoading: false,
-      hasCompletedExport: false,
+      hasCompletedAllExports: false,
       coverage: { orderCount: 3, earliestOrderDate: null, latestOrderDate: null, dataSources: ['email'], hasExportData: false },
     })).toEqual({ exportEligibility: 'show', coverageAssessment: 'sparse' });
 
@@ -72,13 +72,13 @@ describe('canonical import journey', () => {
     value.monitoring.capability.canMonitor = true;
     value.export.status = 'requested_monitoring_enabled';
     value.export.providers!.uberEats.status = 'requested';
-    expect(resolveDashboardTrackingState(value, false).id).toBe('uber_export_requested');
+    expect(resolveDashboardTrackingState(value, false).progress?.id).toBe('uber_export_requested');
 
     value.export.status = 'file_ready';
     value.export.providers!.uberEats.status = 'file_ready';
     expect(resolveUpload(value, healthyGmail).exportImport.label).toBe('Ready to download');
     expect(resolveUpload(value, healthyGmail, 'downloaded').exportImport.label).toBe('Ready to upload');
-    expect(resolveDashboardTrackingState(value, false).id).toBe('export_ready');
+    expect(resolveDashboardTrackingState(value, false).id).toBe('export_ready_uber_eats');
 
     value.export.status = 'completed';
     value.export.providers!.uberEats.status = 'completed';
@@ -86,7 +86,7 @@ describe('canonical import journey', () => {
     value.coverage.exportProviders.uberEats = { hasData: true, receiptCount: 40 };
     value.ongoingTracking = { ...value.ongoingTracking, consentState: 'granted', status: 'active', effectiveState: 'active' };
     expect(resolveUpload(value, healthyGmail).exportImport.label).toBe('1 of 2 imported');
-    expect(resolveUpload(value, healthyGmail).initialOpenTask).toBeNull();
+    expect(resolveUpload(value, healthyGmail).initialOpenTask).toBe('uber_export');
 
     value.coverage.exportReceiptCount = 52;
     value.coverage.exportProviders.doorDash = { hasData: true, receiptCount: 12 };
@@ -103,7 +103,7 @@ describe('canonical import journey', () => {
     value.ongoingTracking.capability = { gmailConnected: true, durableAccess: false, canTrack: false, needsReconnect: true, connectionHealth: 'reconnect_required' };
     const expired = { connected: true, canImport: false, needsReconnect: true, connectionHealth: 'reconnect_required' as const };
     expect(resolveUpload(value, expired).gmailImport.complete).toBe(true);
-    expect(resolveUpload(value, expired).initialOpenTask).toBe('connect_email');
+    expect(resolveUpload(value, expired).initialOpenTask).toBe('uber_export');
     expect(resolveDashboardTrackingState(value, false).id).toBe('gmail_connection_reconnect');
   });
 });

@@ -44,9 +44,10 @@ export default function WrappedJourneyScreen() {
       trackingState={journey.trackingState}
       trackingEligibility={journey.trackingEligibility}
       exportStatus={journey.exportStatus}
+      exportProviderName={journey.exportProviderName}
       areImportPreferencesUpdating={journey.areImportPreferencesUpdating}
       onTrackingDecision={journey.decideTracking}
-      onManageGmail={journey.openImport}
+      onManageGmail={journey.openTrackingSetup}
       onExportUpsellSeen={journey.markExportOfferSeen}
       onExportUpgrade={journey.openExportUpgrade}
       onExportTutorial={journey.openExportTutorial}

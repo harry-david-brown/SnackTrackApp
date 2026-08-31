@@ -67,7 +67,7 @@ describe('ExportImportTaskSection', () => {
 
     expect(screen.getByText('One export imported')).toBeTruthy();
     expect(screen.getByText('Import DoorDash')).toBeTruthy();
-    expect(screen.getByText('Update Uber Eats')).toBeTruthy();
+    expect(screen.getByText('Import Newer Uber Eats Export')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Import DoorDash'));
     expect(baseProps.onImportProvider).toHaveBeenCalledWith('doordash');
@@ -89,7 +89,7 @@ describe('ExportImportTaskSection', () => {
     expect(screen.getByText('Choose Export File')).toBeTruthy();
   });
 
-  it('keeps both providers available to update after both are imported', () => {
+  it('treats newer archives as one neutral maintenance action after both are imported', () => {
     const screen = render(<ExportImportTaskSection
       {...baseProps}
       state={{ complete: true, label: '2 of 2 imported', tone: 'complete' }}
@@ -100,8 +100,42 @@ describe('ExportImportTaskSection', () => {
       }}
     />);
 
-    expect(screen.getByText('All exports imported')).toBeTruthy();
-    expect(screen.getByText('Update Uber Eats')).toBeTruthy();
-    expect(screen.getByText('Update DoorDash')).toBeTruthy();
+    expect(screen.getByText('Your export history is complete')).toBeTruthy();
+    expect(screen.getByText('Import a Newer Export')).toBeTruthy();
+    expect(screen.queryByText('Update Uber Eats')).toBeNull();
+    expect(screen.queryByText('Update DoorDash')).toBeNull();
+
+    fireEvent.press(screen.getByText('Import a Newer Export'));
+    expect(baseProps.onShowTutorial).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes a failed provider retry the primary action', () => {
+    const screen = render(<ExportImportTaskSection
+      {...baseProps}
+      state={{ complete: false, label: 'Needs attention', tone: 'warning' }}
+      providerProgress={{
+        importedCount: 1,
+        uberEats: { imported: true, receiptCount: 15, status: 'completed' },
+        doorDash: { imported: false, receiptCount: 0, status: 'failed' },
+      }}
+    />);
+
+    fireEvent.press(screen.getByText('Try DoorDash Again'));
+    expect(baseProps.onImportProvider).toHaveBeenCalledWith('doordash');
+  });
+
+  it('disables the provider action while an import is processing', () => {
+    const screen = render(<ExportImportTaskSection
+      {...baseProps}
+      state={{ complete: false, label: 'Importing', tone: 'recommended' }}
+      providerProgress={{
+        importedCount: 0,
+        uberEats: { imported: false, receiptCount: 0, status: 'import_processing' },
+        doorDash: { imported: false, receiptCount: 0, status: 'not_started' },
+      }}
+    />);
+
+    expect(screen.getByRole('button', { name: 'Importing Uber Eats…' }).props.accessibilityState)
+      .toEqual({ disabled: true, busy: false });
   });
 });

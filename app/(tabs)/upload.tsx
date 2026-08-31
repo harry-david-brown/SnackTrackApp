@@ -9,6 +9,7 @@ import { ConnectEmailTaskSection } from '@components/upload/ConnectEmailTaskSect
 import { GmailImportTaskSection } from '@components/upload/GmailImportTaskSection';
 import { ExportImportTaskSection } from '@components/upload/ExportImportTaskSection';
 import { ImportWorkflowModals } from '@components/upload/ImportWorkflowModals';
+import { OngoingUpdatesSection } from '@components/upload/OngoingUpdatesSection';
 
 export default function UploadScreen() {
   const rawParams = useLocalSearchParams();
@@ -48,8 +49,14 @@ export default function UploadScreen() {
           ) : null}
 
           <View style={styles.header}>
-            <Text style={styles.title}>Build your SnackTrack history</Text>
-            <Text style={styles.subtitle}>Start with email, then optionally add Uber Eats or DoorDash exports for more complete insights.</Text>
+            <Text style={styles.title}>{controller.flow.exportComplete || controller.flow.hasImportedEmailData ? 'Keep your SnackTrack stats current' : 'Build your SnackTrack history'}</Text>
+            <Text style={styles.subtitle}>
+              {controller.flow.exportComplete
+                ? 'Both provider exports are included. Set up optional Gmail updates to catch supported newer orders automatically.'
+                : controller.flow.hasImportedEmailData
+                  ? 'Your Gmail history is included. Enable ongoing updates to catch new orders automatically, or add an export for deeper history.'
+                : 'Choose email for a quick start, provider exports for detailed history, or use both in any order.'}
+            </Text>
           </View>
 
           <View style={styles.taskList}>
@@ -65,17 +72,28 @@ export default function UploadScreen() {
                   onConnect={controller.connectEmail}
                   onManage={controller.openGmailSettings}
                 />
-                <GmailImportTaskSection
-                  state={controller.flow.gmailImport}
-                  isOpen={controller.activeTaskId === 'gmail_import'}
-                  connected={controller.flow.hasConnectedEmail}
-                  canImport={controller.flow.canImportFromGmail}
-                  needsReconnect={controller.flow.needsReconnect}
-                  temporarilyUnavailable={controller.flow.gmailTemporarilyUnavailable}
+                {controller.flow.showGmailImportSection ? (
+                  <GmailImportTaskSection
+                    state={controller.flow.gmailImport}
+                    isOpen={controller.activeTaskId === 'gmail_import'}
+                    connected={controller.flow.hasConnectedEmail}
+                    canImport={controller.flow.canImportFromGmail}
+                    needsReconnect={controller.flow.needsReconnect}
+                    temporarilyUnavailable={controller.flow.gmailTemporarilyUnavailable}
+                    busy={controller.busy}
+                    buttonLabel={controller.gmailButtonLabel}
+                    title={controller.flow.gmailImportPresentation.title}
+                    description={controller.flow.gmailImportPresentation.description}
+                    disconnectedHelper={controller.flow.gmailImportPresentation.disconnectedHelper}
+                    passive={controller.flow.gmailImportPresentation.passive}
+                    onToggle={controller.toggleTask}
+                    onImport={controller.importEmail}
+                  />
+                ) : null}
+                <OngoingUpdatesSection
+                  presentation={controller.ongoingUpdatesPresentation}
                   busy={controller.busy}
-                  buttonLabel={controller.gmailButtonLabel}
-                  onToggle={controller.toggleTask}
-                  onImport={controller.importEmail}
+                  onSetup={controller.setupOngoingUpdates}
                 />
               </>
             ) : null}
@@ -84,6 +102,7 @@ export default function UploadScreen() {
               providerProgress={controller.flow.exportProviderProgress}
               isOpen={controller.activeTaskId === 'uber_export'}
               fileReady={controller.flow.exportFileReady}
+              readyProvider={controller.flow.exportReadyProvider}
               exportRequested={controller.flow.exportRequested}
               downloadState={controller.exportDownloadState}
               autoOpenToken={controller.autoOpenExportPickerToken}
@@ -103,8 +122,13 @@ export default function UploadScreen() {
 
       <ImportWorkflowModals
         tutorialVisible={controller.showTutorial}
-        tutorialMode={controller.flow.exportFileReady ? 'download' : 'request'}
+        tutorialMode={controller.tutorialMode}
         tutorialInitialPlatform={controller.tutorialPlatform}
+        tutorialProviderStatuses={{
+          uber: controller.flow.exportProviderProgress.uberEats.status,
+          doordash: controller.flow.exportProviderProgress.doorDash.status,
+        }}
+        tutorialEntryJob={controller.tutorialEntryJob}
         gmailFeatureEnabled={controller.gmailFeatureEnabled}
         gmailVisible={controller.showGmailModal}
         loadingVisible={controller.showGmailImportLoadingModal}
@@ -113,10 +137,13 @@ export default function UploadScreen() {
         gmailConnectionStatus={controller.gmailConnectionStatus}
         isGmailLoading={controller.isGmailLoading}
         isGmailChecking={controller.isGmailChecking}
+        canCheckForNewOrders={controller.canCheckForNewOrders}
+        onCheckForNewOrders={controller.checkForNewOrders}
         onCloseTutorial={controller.closeTutorial}
         onTutorialComplete={controller.completeTutorial}
         onTutorialStillWaiting={controller.tutorialStillWaiting}
         onTutorialArchiveDownloaded={controller.tutorialArchiveDownloaded}
+        onTutorialReadyConfirmed={controller.tutorialReadyConfirmed}
         onCloseGmail={controller.closeGmailSettings}
         onGmailDisconnect={controller.disconnectGmail}
       />

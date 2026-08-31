@@ -31,9 +31,11 @@ const monitoringStates = ['not_offered', 'declined', 'enabled', 'disabled', 'rec
 const exportStates = ['not_started', 'requested_monitoring_enabled', 'requested_monitoring_disabled', 'file_ready', 'import_processing', 'completed', 'failed'] as const satisfies readonly ExportLifecycleStatus[];
 const providerExportStates = ['not_started', 'requested', 'file_ready', 'import_processing', 'completed', 'failed'] as const satisfies readonly ProviderExportLifecycleStatus[];
 const exportProviderNames = ['uber_eats', 'doordash'] as const;
+const exportReadySources = ['detected_email', 'user_confirmed'] as const;
 const gmailImportStates = ['never_started', 'importing', 'completed', 'failed'] as const satisfies readonly GmailImportLifecycleStatus[];
-const trackingEffectiveStates = ['not_offered', 'declined', 'active', 'paused', 'reconnect_required', 'error'] as const satisfies readonly OngoingTrackingEffectiveState[];
-const trackingStates = ['inactive', 'active', 'paused', 'reconnect_required', 'error'] as const;
+const trackingEffectiveStates = ['not_offered', 'declined', 'setting_up', 'active', 'paused', 'reconnect_required', 'error'] as const satisfies readonly OngoingTrackingEffectiveState[];
+const trackingStates = ['inactive', 'setting_up', 'active', 'paused', 'reconnect_required', 'error'] as const;
+const trackingBaselineSources = ['gmail', 'exports', 'none'] as const;
 const healthStates = ['disconnected', 'valid', 'reconnect_required', 'unavailable'] as const;
 const connectionModes = ['none', 'temporary', 'offline'] as const;
 
@@ -63,8 +65,17 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
   const uberEatsProvider = record(providerStates.uberEats, 'preferences.export.providers.uberEats');
   const doorDashProvider = record(providerStates.doorDash, 'preferences.export.providers.doorDash');
   const gmailImport = record(data.gmailImport, 'preferences.gmailImport');
+  const gmailBaseline = data.gmailBaseline === undefined
+    ? null
+    : record(data.gmailBaseline, 'preferences.gmailBaseline');
+  const latestGmailAttempt = gmailBaseline
+    ? record(gmailBaseline.latestAttempt, 'preferences.gmailBaseline.latestAttempt')
+    : null;
   const tracking = record(data.ongoingTracking, 'preferences.ongoingTracking');
   const trackingCapability = record(tracking.capability, 'preferences.ongoingTracking.capability');
+  const trackingBaseline = data.ongoingTracking && tracking.baseline !== undefined
+    ? record(tracking.baseline, 'preferences.ongoingTracking.baseline')
+    : null;
   const activity = record(tracking.activity, 'preferences.ongoingTracking.activity');
   const coverage = record(data.coverage, 'preferences.coverage');
   const exportProviders = record(coverage.exportProviders, 'preferences.coverage.exportProviders');
@@ -98,6 +109,9 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
           requestedAt: nullableString(uberEatsProvider.requestedAt, 'preferences.export.providers.uberEats.requestedAt'),
           updatedAt: nullableString(uberEatsProvider.updatedAt, 'preferences.export.providers.uberEats.updatedAt'),
           errorCode: nullableString(uberEatsProvider.errorCode, 'preferences.export.providers.uberEats.errorCode'),
+          readySource: uberEatsProvider.readySource == null
+            ? null
+            : member(uberEatsProvider.readySource, exportReadySources, 'preferences.export.providers.uberEats.readySource'),
         },
         doorDash: {
           provider: member(doorDashProvider.provider, exportProviderNames, 'preferences.export.providers.doorDash.provider'),
@@ -105,6 +119,9 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
           requestedAt: nullableString(doorDashProvider.requestedAt, 'preferences.export.providers.doorDash.requestedAt'),
           updatedAt: nullableString(doorDashProvider.updatedAt, 'preferences.export.providers.doorDash.updatedAt'),
           errorCode: nullableString(doorDashProvider.errorCode, 'preferences.export.providers.doorDash.errorCode'),
+          readySource: doorDashProvider.readySource == null
+            ? null
+            : member(doorDashProvider.readySource, exportReadySources, 'preferences.export.providers.doorDash.readySource'),
         },
       },
     },
@@ -116,6 +133,27 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
       receiptCount: number(gmailImport.receiptCount, 'preferences.gmailImport.receiptCount'),
       hasImported: boolean(gmailImport.hasImported, 'preferences.gmailImport.hasImported'),
     },
+    gmailBaseline: gmailBaseline && latestGmailAttempt ? {
+      hasCompleted: boolean(gmailBaseline.hasCompleted, 'preferences.gmailBaseline.hasCompleted'),
+      completedAt: nullableString(gmailBaseline.completedAt, 'preferences.gmailBaseline.completedAt'),
+      latestAttempt: {
+        status: member(latestGmailAttempt.status, gmailImportStates, 'preferences.gmailBaseline.latestAttempt.status'),
+        updatedAt: nullableString(latestGmailAttempt.updatedAt, 'preferences.gmailBaseline.latestAttempt.updatedAt'),
+        importedCount: number(latestGmailAttempt.importedCount, 'preferences.gmailBaseline.latestAttempt.importedCount'),
+        errorCode: nullableString(latestGmailAttempt.errorCode, 'preferences.gmailBaseline.latestAttempt.errorCode'),
+      },
+    } : {
+      hasCompleted: boolean(gmailImport.hasImported, 'preferences.gmailImport.hasImported'),
+      completedAt: boolean(gmailImport.hasImported, 'preferences.gmailImport.hasImported')
+        ? nullableString(gmailImport.updatedAt, 'preferences.gmailImport.updatedAt')
+        : null,
+      latestAttempt: {
+        status: member(gmailImport.status, gmailImportStates, 'preferences.gmailImport.status'),
+        updatedAt: nullableString(gmailImport.updatedAt, 'preferences.gmailImport.updatedAt'),
+        importedCount: number(gmailImport.importedCount, 'preferences.gmailImport.importedCount'),
+        errorCode: nullableString(gmailImport.errorCode, 'preferences.gmailImport.errorCode'),
+      },
+    },
     ongoingTracking: {
       consentState: member(tracking.consentState, consentStates, 'preferences.ongoingTracking.consentState'),
       consentVersion: nullableString(tracking.consentVersion, 'preferences.ongoingTracking.consentVersion'),
@@ -123,6 +161,10 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
       revokedAt: nullableString(tracking.revokedAt, 'preferences.ongoingTracking.revokedAt'),
       status: member(tracking.status, trackingStates, 'preferences.ongoingTracking.status'),
       effectiveState: member(tracking.effectiveState, trackingEffectiveStates, 'preferences.ongoingTracking.effectiveState'),
+      baseline: trackingBaseline ? {
+        eligible: boolean(trackingBaseline.eligible, 'preferences.ongoingTracking.baseline.eligible'),
+        source: member(trackingBaseline.source, trackingBaselineSources, 'preferences.ongoingTracking.baseline.source'),
+      } : undefined,
       capability: {
         gmailConnected: boolean(trackingCapability.gmailConnected, 'preferences.ongoingTracking.capability.gmailConnected'),
         durableAccess: boolean(trackingCapability.durableAccess, 'preferences.ongoingTracking.capability.durableAccess'),
@@ -150,10 +192,14 @@ export function normalizeImportPreferences(value: unknown): ImportPreferencesRes
         uberEats: {
           receiptCount: number(uberEatsExport.receiptCount, 'preferences.coverage.exportProviders.uberEats.receiptCount'),
           hasData: boolean(uberEatsExport.hasData, 'preferences.coverage.exportProviders.uberEats.hasData'),
+          earliestOrderDate: uberEatsExport.earliestOrderDate === undefined ? undefined : nullableString(uberEatsExport.earliestOrderDate, 'preferences.coverage.exportProviders.uberEats.earliestOrderDate'),
+          latestOrderDate: uberEatsExport.latestOrderDate === undefined ? undefined : nullableString(uberEatsExport.latestOrderDate, 'preferences.coverage.exportProviders.uberEats.latestOrderDate'),
         },
         doorDash: {
           receiptCount: number(doorDashExport.receiptCount, 'preferences.coverage.exportProviders.doorDash.receiptCount'),
           hasData: boolean(doorDashExport.hasData, 'preferences.coverage.exportProviders.doorDash.hasData'),
+          earliestOrderDate: doorDashExport.earliestOrderDate === undefined ? undefined : nullableString(doorDashExport.earliestOrderDate, 'preferences.coverage.exportProviders.doorDash.earliestOrderDate'),
+          latestOrderDate: doorDashExport.latestOrderDate === undefined ? undefined : nullableString(doorDashExport.latestOrderDate, 'preferences.coverage.exportProviders.doorDash.latestOrderDate'),
         },
       },
     },
@@ -169,6 +215,21 @@ export function normalizeGmailImportResponse(value: unknown): GmailImportRespons
     message: optionalString(data.message, 'import.message'),
     totalEmailsFound: number(data.totalEmailsFound, 'import.totalEmailsFound'),
     totalReceiptsProcessed: number(data.totalReceiptsProcessed, 'import.totalReceiptsProcessed'),
+    emailsExamined: data.emailsExamined === undefined
+      ? number(data.totalEmailsFound, 'import.totalEmailsFound')
+      : number(data.emailsExamined, 'import.emailsExamined'),
+    supportedReceiptsFound: data.supportedReceiptsFound === undefined
+      ? number(data.totalReceiptsProcessed, 'import.totalReceiptsProcessed')
+      : number(data.supportedReceiptsFound, 'import.supportedReceiptsFound'),
+    exportCoveredReceipts: data.exportCoveredReceipts === undefined
+      ? 0
+      : number(data.exportCoveredReceipts, 'import.exportCoveredReceipts'),
+    eligibleReceipts: data.eligibleReceipts === undefined
+      ? number(data.totalReceiptsProcessed, 'import.totalReceiptsProcessed')
+      : number(data.eligibleReceipts, 'import.eligibleReceipts'),
+    deduplicatedReceipts: data.deduplicatedReceipts === undefined
+      ? number(data.totalReceiptsImported, 'import.totalReceiptsImported')
+      : number(data.deduplicatedReceipts, 'import.deduplicatedReceipts'),
     totalReceiptsImported: number(data.totalReceiptsImported, 'import.totalReceiptsImported'),
     totalAmount: number(data.totalAmount, 'import.totalAmount'),
     errors,

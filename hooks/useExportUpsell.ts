@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useImportPreferences } from './useImportPreferences';
+import { resolveImportCoverage } from '@features/import-flow/importJourneyState';
 
 const EXPORT_UPSELL_STORAGE_PREFIX = '@snacktrack_export_upsell';
 const EXPORT_UPSELL_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -84,9 +85,8 @@ export function useExportUpsell(userId?: string | null) {
     isLoading: arePreferencesLoading,
     refresh: refreshPreferences,
   } = useImportPreferences(Boolean(userId));
-  const hasCompletedExport = Boolean(
-    preferences?.coverage.hasExportData || preferences?.export.status === 'completed'
-  );
+  const exportCoverage = resolveImportCoverage(preferences);
+  const hasCompletedAllExports = exportCoverage.allProvidersImported;
 
   useEffect(() => {
     if (!userId) {
@@ -174,12 +174,13 @@ export function useExportUpsell(userId?: string | null) {
 
   const isPermanentlyDismissed = upsellState.dismissCount >= EXPORT_UPSELL_MAX_DISMISSALS;
   const isSnoozed = isWithinSnoozeWindow(upsellState.lastDismissedAt);
-  const shouldShowDashboardCard = !isLoading && !arePreferencesLoading && !hasCompletedExport && Boolean(upsellState.wrappedSeenAt) && !isPermanentlyDismissed && !isSnoozed;
+  const shouldShowDashboardCard = !isLoading && !arePreferencesLoading && !hasCompletedAllExports && Boolean(upsellState.wrappedSeenAt) && !isPermanentlyDismissed && !isSnoozed;
 
   return {
     upsellState,
     isLoading: isLoading || arePreferencesLoading,
-    hasCompletedExport,
+    hasCompletedAllExports,
+    exportCoverage,
     shouldShowDashboardCard,
     markSeen,
     markClicked,

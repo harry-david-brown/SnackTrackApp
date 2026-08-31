@@ -35,7 +35,10 @@ describe('resolveProfileSettingsState', () => {
     expect(resolveProfileSettingsState(null, true)).toEqual({
       exportAlertsLabel: 'Checking...',
       ongoingTrackingLabel: 'Checking...',
+      providerExportLabel: 'Checking...',
       tutorialMode: 'request',
+      tutorialPlatform: undefined,
+      tutorialProviderStatuses: { uber: 'not_started', doordash: 'not_started' },
     });
   });
 
@@ -66,9 +69,13 @@ describe('resolveProfileSettingsState', () => {
 
   it('opens the download tutorial only for an export in progress', () => {
     const value = preferences();
-    value.export.status = 'file_ready';
+    value.export.providers = {
+      uberEats: { provider: 'uber_eats', status: 'file_ready', requestedAt: null, updatedAt: null, errorCode: null },
+      doorDash: { provider: 'doordash', status: 'not_started', requestedAt: null, updatedAt: null, errorCode: null },
+    };
     expect(resolveProfileSettingsState(value, false).tutorialMode).toBe('download');
-    value.export.status = 'completed';
+    expect(resolveProfileSettingsState(value, false).tutorialPlatform).toBe('uber');
+    value.export.providers.uberEats.status = 'completed';
     expect(resolveProfileSettingsState(value, false).tutorialMode).toBe('request');
   });
 });

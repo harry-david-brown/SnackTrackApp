@@ -9,6 +9,9 @@ type ProfileModalsProps = Pick<ProfileController,
   | 'closeModal'
   | 'settings'
   | 'completeTutorial'
+  | 'tutorialReadyConfirmed'
+  | 'tutorialStillWaiting'
+  | 'tutorialArchiveDownloaded'
   | 'openPrivacyPolicy'
   | 'requestAccountDeletion'
   | 'isDeleting'
@@ -27,7 +30,13 @@ export function ProfileModals(props: ProfileModalsProps) {
       >
         <UberDataTutorial
           mode={props.settings.tutorialMode}
+          initialPlatform={props.settings.tutorialPlatform}
+          providerStatuses={props.settings.tutorialProviderStatuses}
+          entryJob={props.settings.tutorialEntryJob}
           onRequestConfirmed={props.completeTutorial}
+          onReadyConfirmed={props.tutorialReadyConfirmed}
+          onStillWaiting={props.tutorialStillWaiting}
+          onArchiveDownloaded={props.tutorialArchiveDownloaded}
           onClose={props.closeModal}
         />
       </Modal>

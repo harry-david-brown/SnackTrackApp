@@ -3,11 +3,14 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type GmailConnectionStatus } from '@services/gmailApi';
+import { AppButton } from '@components/ui/AppButton';
 
 interface GmailConnectionProps {
   connectionStatus: GmailConnectionStatus;
   isLoading: boolean;
   isChecking: boolean;
+  canCheckForNewOrders: boolean;
+  onCheckForNewOrders: () => void;
   onDisconnect: () => void;
   onClose?: () => void;
 }
@@ -16,6 +19,8 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
   connectionStatus,
   isLoading,
   isChecking,
+  canCheckForNewOrders,
+  onCheckForNewOrders,
   onDisconnect,
   onClose,
 }) => {
@@ -53,8 +58,8 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
             <Text style={styles.heroTitle}>{needsReconnect ? 'Reconnect required' : 'Your Gmail is ready'}</Text>
             <Text style={styles.heroDescription}>
               {needsReconnect
-                ? 'Your Gmail access expired. Reconnect before importing new receipts.'
-                : 'Import Uber Eats receipts from the inbox tied to your delivery apps.'}
+                ? 'Your Gmail access expired. Reconnect before checking for new receipts.'
+                : 'Review the inbox connection used for receipt imports and optional ongoing updates.'}
             </Text>
           </View>
         </View>
@@ -88,12 +93,23 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
             </Text>
           </View>
         ) : (
-          <View style={styles.manageNotice}>
-            <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
-            <Text style={styles.manageNoticeText}>
-              Gmail is connected. Start imports from the main upload page.
-            </Text>
-          </View>
+          <>
+            <View style={styles.manageNotice}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
+              <Text style={styles.manageNoticeText}>
+                Gmail is connected. Ongoing updates handle new receipts automatically when enabled.
+              </Text>
+            </View>
+            {canCheckForNewOrders ? (
+              <AppButton
+                label="Check for new orders"
+                variant="secondary"
+                icon="refresh-outline"
+                pending={isLoading}
+                onPress={onCheckForNewOrders}
+              />
+            ) : null}
+          </>
         )}
 
         <TouchableOpacity
@@ -124,7 +140,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoNumber}>3</Text>
-          <Text style={styles.infoText}>Disconnect Gmail if you no longer want inbox imports</Text>
+          <Text style={styles.infoText}>Run an optional manual check or disconnect Gmail when needed</Text>
         </View>
       </View>
 

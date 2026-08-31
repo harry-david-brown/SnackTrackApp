@@ -55,8 +55,8 @@ import {
   type PostWrappedExperience,
 } from './postWrappedState';
 import type {
-  ExportLifecycleStatus,
   OngoingTrackingEffectiveState,
+  ProviderExportLifecycleStatus,
 } from '@services/gmailApi';
 import { useWrappedSharing } from './useWrappedSharing';
 import type { TrackingEligibility } from '@features/import-flow/trackingEligibility';
@@ -82,7 +82,8 @@ interface WrappedShareJourneyProps {
   postWrappedExperience: PostWrappedExperience;
   trackingState: OngoingTrackingEffectiveState;
   trackingEligibility: TrackingEligibility;
-  exportStatus: ExportLifecycleStatus;
+  exportStatus: ProviderExportLifecycleStatus;
+  exportProviderName?: string | null;
   areImportPreferencesUpdating?: boolean;
   onTrackingDecision?: (decision: 'granted' | 'declined') => Promise<void>;
   onManageGmail?: () => void;
@@ -100,6 +101,7 @@ export default function WrappedShareJourney({
   trackingState,
   trackingEligibility,
   exportStatus,
+  exportProviderName,
   areImportPreferencesUpdating = false,
   onTrackingDecision,
   onManageGmail,
@@ -441,8 +443,8 @@ export default function WrappedShareJourney({
 
   const exportOrderCount =
     analytics.wrappedAnalytics?.coverage?.orderCount ?? analytics.totalReceipts;
-  const hasRequestedExport = exportStatus === 'requested_monitoring_enabled'
-    || exportStatus === 'requested_monitoring_disabled';
+  const hasRequestedExport = exportStatus === 'requested';
+  const providerName = exportProviderName ?? 'delivery provider';
   const trackingPropositionCopy = resolveTrackingPropositionCopy({
     trackingState,
   });
@@ -736,6 +738,7 @@ export default function WrappedShareJourney({
                 <Text style={styles.offerTitle}>{trackingPropositionCopy.title}</Text>
                 <Text style={styles.offerBody}>{trackingPropositionCopy.body}</Text>
                 {trackingState !== 'active'
+                  && trackingState !== 'setting_up'
                   && trackingState !== 'reconnect_required'
                   && trackingState !== 'error' && (
                   <View style={styles.consentDetails}>
@@ -754,14 +757,18 @@ export default function WrappedShareJourney({
                   </View>
                 )}
                 <View style={styles.exportActionStack}>
-                  {trackingState === 'active' ? (
+                  {trackingState === 'active' || trackingState === 'setting_up' ? (
                     <TouchableOpacity
                       style={styles.affiliateButton}
-                      onPress={finishPostWrapped}
+                      onPress={continueFromTracking}
                       accessibilityRole="button"
-                      accessibilityLabel="Finish and return to the dashboard"
+                      accessibilityLabel={postWrappedExperience.exportEligibility === 'show'
+                        ? 'Continue to optional export history'
+                        : 'Finish and return to the dashboard'}
                     >
-                      <Text style={styles.affiliateButtonText}>Finish</Text>
+                      <Text style={styles.affiliateButtonText}>
+                        {postWrappedExperience.exportEligibility === 'show' ? 'Continue' : 'Finish'}
+                      </Text>
                       <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
                     </TouchableOpacity>
                   ) : trackingState === 'reconnect_required' || trackingState === 'error' || !trackingEligibility.eligible ? (
@@ -773,18 +780,24 @@ export default function WrappedShareJourney({
                           onManageGmail?.();
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel={trackingEligibility.reason === 'gmail_history_required'
-                          ? 'Import Gmail history from the import screen'
-                          : 'Reconnect Gmail from the import screen'}
+                        accessibilityLabel={trackingEligibility.reason === 'historical_baseline_required'
+                          ? 'Check email from the import screen'
+                          : trackingEligibility.reason === 'gmail_temporarily_unavailable'
+                            ? 'Gmail is temporarily unavailable'
+                            : 'Reconnect Gmail from the import screen'}
                       >
                         <Ionicons name="mail-outline" size={20} style={styles.affiliateButtonIcon} />
                         <Text style={styles.affiliateButtonText}>
-                          {trackingEligibility.reason === 'gmail_history_required' ? 'Import Gmail History' : 'Reconnect Gmail'}
+                          {trackingEligibility.reason === 'historical_baseline_required'
+                            ? 'Add Import History First'
+                            : trackingEligibility.reason === 'gmail_temporarily_unavailable'
+                              ? 'Try Again Later'
+                              : 'Reconnect Gmail'}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.offerSecondaryButton}
-                        onPress={finishPostWrapped}
+                        onPress={continueFromTracking}
                         accessibilityRole="button"
                       >
                         <Text style={styles.offerSecondaryButtonText}>Continue for now</Text>
@@ -838,30 +851,30 @@ export default function WrappedShareJourney({
                   />
                 </View>
                 <Text style={styles.offerEyebrow}>
-                  {hasRequestedExport ? 'EXPORT REQUESTED' : 'COMPLETE THE PICTURE'}
+                  {hasRequestedExport ? `${providerName.toUpperCase()} REQUESTED` : 'COMPLETE THE PICTURE'}
                 </Text>
                 <Text style={styles.offerTitle}>
                   {hasRequestedExport
-                    ? 'Your export request is saved'
+                    ? `Your ${providerName} export request is saved`
                     : exportStatus === 'file_ready'
-                      ? 'Your export is ready to finish'
+                      ? `Your ${providerName} export is ready to finish`
                     : exportStatus === 'import_processing'
-                      ? "We're processing your export"
+                      ? `We're processing your ${providerName} export`
                       : exportStatus === 'failed'
-                        ? 'That import needs another try'
+                        ? `Your ${providerName} import needs another try`
                         : postWrappedExperience.coverageAssessment === 'sparse'
                           ? 'Your inbox may be missing history'
                           : 'Make your history more complete'}
                 </Text>
                 <Text style={styles.offerBody}>
                   {hasRequestedExport
-                    ? 'When your provider emails that the archive is ready, return to Import to download and upload it. Uber-ready email checks can be enabled separately.'
+                    ? `When ${providerName} emails that the archive is ready, return to Import to download and upload it. Uber-ready email checks can be enabled separately.`
                     : exportStatus === 'file_ready'
                       ? 'SnackTrack found the matching export delivery. Open Import to finish adding the file to your history.'
                     : exportStatus === 'import_processing'
                       ? 'Your file is being processed. Your history will update when the import finishes.'
                       : exportStatus === 'failed'
-                        ? 'The last file did not finish importing. Try again with a fresh Uber Eats or DoorDash export.'
+                        ? `The last ${providerName} file did not finish importing. Try again with a fresh export.`
                         : postWrappedExperience.coverageAssessment === 'sparse'
                           ? `We only found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. An Uber Eats or DoorDash export can recover older history.`
                           : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add another delivery export to uncover older orders and fill in gaps.`}
@@ -898,8 +911,8 @@ export default function WrappedShareJourney({
                           <Ionicons name="download-outline" size={20} style={styles.affiliateButtonIcon} />
                           <Text style={styles.affiliateButtonText}>
                             {postWrappedExperience.coverageAssessment === 'sparse'
-                              ? 'Get More Delivery History'
-                              : 'Request Delivery Data'}
+                              ? `Get More ${providerName} History`
+                              : `Request ${providerName} Data`}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -912,7 +925,7 @@ export default function WrappedShareJourney({
                           onExportUpgrade?.();
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel="Upload an Uber Eats or DoorDash export you already have"
+                        accessibilityLabel={`Upload a ${providerName} export you already have`}
                       >
                         <Ionicons
                           name="cloud-upload-outline"

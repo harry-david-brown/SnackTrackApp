@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showSimpleAlert } from '@utils/platformAlert';
+import { resolveProviderTutorialEntry, type ProviderTutorialJob } from '@features/import-flow/providerTutorialEntry';
 
 export type DataPlatform = 'uber' | 'doordash';
 export type DataTutorialMode = 'request' | 'download';
@@ -151,25 +152,34 @@ const PLATFORM_DETAILS = {
 interface UberDataTutorialProps {
   mode?: DataTutorialMode;
   initialPlatform?: DataPlatform;
+  providerStatuses?: Partial<Record<DataPlatform, string>>;
+  entryJob?: ProviderTutorialJob;
   onRequestConfirmed: (platform: DataPlatform) => void;
   onStillWaiting?: (platform: DataPlatform) => void;
   onArchiveDownloaded?: (platform: DataPlatform) => void;
+  onReadyConfirmed?: (platform: DataPlatform) => void;
   onClose: () => void;
 }
 
 export default function UberDataTutorial({
   mode = 'request',
   initialPlatform,
+  providerStatuses,
+  entryJob,
   onRequestConfirmed,
   onStillWaiting,
   onArchiveDownloaded,
+  onReadyConfirmed,
   onClose,
 }: UberDataTutorialProps) {
   const [platform, setPlatform] = useState<DataPlatform>(initialPlatform ?? 'uber');
   const [hasChosenPlatform, setHasChosenPlatform] = useState(Boolean(initialPlatform));
+  const initialProviderStatus = initialPlatform ? providerStatuses?.[initialPlatform] : undefined;
+  const initialEntry = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
   const [tutorialMode, setTutorialMode] = useState<DataTutorialMode>(mode);
-  const [showProgressQuestion, setShowProgressQuestion] = useState(mode === 'request' && Boolean(initialPlatform));
-  const [showRequestedQuestion, setShowRequestedQuestion] = useState(false);
+  const [activeJob, setActiveJob] = useState<ProviderTutorialJob>(initialEntry);
+  const [showProgressQuestion, setShowProgressQuestion] = useState(false);
+  const [showRequestedQuestion, setShowRequestedQuestion] = useState(initialEntry === 'waiting');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<TutorialStep | null>(null);
   const [awaitingVendorReturn, setAwaitingVendorReturn] = useState(false);
@@ -182,12 +192,14 @@ export default function UberDataTutorial({
     setPlatform(initialPlatform ?? 'uber');
     setHasChosenPlatform(Boolean(initialPlatform));
     setTutorialMode(mode);
-    setShowProgressQuestion(mode === 'request' && Boolean(initialPlatform));
-    setShowRequestedQuestion(false);
+    const nextJob = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
+    setActiveJob(nextJob);
+    setShowProgressQuestion(false);
+    setShowRequestedQuestion(nextJob === 'waiting');
     setCurrentIndex(0);
     setAwaitingVendorReturn(false);
     setShowRequestConfirmation(false);
-  }, [initialPlatform, mode]);
+  }, [entryJob, initialPlatform, initialProviderStatus, mode]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -222,12 +234,14 @@ export default function UberDataTutorial({
   }, [currentStep, windowHeight, windowWidth]);
 
   const choosePlatform = (nextPlatform: DataPlatform) => {
+    const nextEntry = resolveProviderTutorialEntry(providerStatuses?.[nextPlatform]);
     setPlatform(nextPlatform);
     setCurrentIndex(0);
     setHasChosenPlatform(true);
-    setTutorialMode(mode);
-    setShowProgressQuestion(mode === 'request');
-    setShowRequestedQuestion(false);
+    setTutorialMode(nextEntry.mode);
+    setActiveJob(nextEntry.job);
+    setShowProgressQuestion(false);
+    setShowRequestedQuestion(nextEntry.job === 'waiting');
   };
 
   const showRequestedStatusQuestion = () => {
@@ -235,16 +249,18 @@ export default function UberDataTutorial({
     setShowRequestConfirmation(false);
     setShowProgressQuestion(false);
     setShowRequestedQuestion(true);
+    setActiveJob('waiting');
   };
 
   const goBack = () => {
     if (currentIndex > 0) {
       setCurrentIndex((index) => index - 1);
-    } else if (mode === 'request') {
+    } else if (initialPlatform) {
       const returningFromDownloadGuide = tutorialMode === 'download';
       setTutorialMode('request');
       setShowProgressQuestion(!returningFromDownloadGuide);
       setShowRequestedQuestion(returningFromDownloadGuide);
+      setActiveJob(returningFromDownloadGuide ? 'waiting' : activeJob);
     } else {
       setHasChosenPlatform(false);
     }
@@ -303,13 +319,25 @@ export default function UberDataTutorial({
           <View style={styles.platformStack}>
             {(Object.keys(PLATFORM_DETAILS) as DataPlatform[]).map((option) => {
               const optionDetails = PLATFORM_DETAILS[option];
+              const providerStatus = providerStatuses?.[option];
+              const statusDescription = providerStatus === 'completed'
+                ? 'Imported — update with a newer archive'
+                : providerStatus === 'requested'
+                  ? 'Requested — check what to do next'
+                  : providerStatus === 'file_ready'
+                    ? 'Ready — continue to download and upload'
+                    : providerStatus === 'import_processing'
+                      ? 'Import is processing'
+                      : providerStatus === 'failed'
+                        ? 'Needs attention — review or retry'
+                        : mode === 'request' ? 'Show me the request steps' : 'Show me the download steps';
               return (
                 <TouchableOpacity
                   key={option}
                   style={[styles.platformCard, { backgroundColor: optionDetails.surface }]}
                   onPress={() => choosePlatform(option)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Choose ${optionDetails.name}`}
+                  accessibilityLabel={`Choose ${optionDetails.name}. ${statusDescription}`}
                 >
                   <View style={[styles.platformIcon, { backgroundColor: optionDetails.accent }]}>
                     <Ionicons name={optionDetails.icon} size={25} color={Colors.white} />
@@ -317,7 +345,7 @@ export default function UberDataTutorial({
                   <View style={styles.platformCardText}>
                     <Text style={styles.platformName}>{optionDetails.name}</Text>
                     <Text style={styles.platformDescription}>
-                      {mode === 'request' ? 'Show me the request steps' : 'Show me the download steps'}
+                      {statusDescription}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={22} color={optionDetails.accent} />
@@ -325,6 +353,30 @@ export default function UberDataTutorial({
               );
             })}
           </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (activeJob === 'processing') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <View style={[styles.providerChip, { backgroundColor: details.surface }]}>
+            <Text style={[styles.providerChipText, { color: details.accent }]}>{details.name}</Text>
+          </View>
+          <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
+            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.questionContent}>
+          <Text style={[styles.platformEyebrow, { color: details.accent }]}>IMPORT IN PROGRESS</Text>
+          <Text style={styles.platformTitle}>Your {details.name} archive is processing</Text>
+          <Text style={styles.platformBody}>SnackTrack is adding this provider’s history. You do not need to upload the file again.</Text>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: details.accent }]} onPress={onClose} accessibilityRole="button">
+            <Text style={styles.primaryButtonText}>Done</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -382,6 +434,8 @@ export default function UberDataTutorial({
                   description="Show me how to download the archive."
                   accent={details.accent}
                   onPress={() => {
+                    onReadyConfirmed?.(platform);
+                    setActiveJob('download');
                     setTutorialMode('download');
                     setCurrentIndex(0);
                     setShowRequestedQuestion(false);

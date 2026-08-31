@@ -17,7 +17,7 @@ import {
 } from '@utils/exportDownloadHandoff';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
-const NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';
+const NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
 
 /**
  * Checks for a requested Uber export when the signed-in app becomes active.
@@ -35,9 +35,9 @@ export default function ExportReadyNotifier() {
 
   const openImportForUpload = useCallback(async (readyVersion: string) => {
     if (!userId) return;
-    await setExportDownloadHandoffState(userId, readyVersion, 'downloaded');
+    await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'downloaded');
     router.push(
-      `/(tabs)/upload?focus=export&downloadedVersion=${encodeURIComponent(readyVersion)}`
+      `/(tabs)/upload?focus=export&provider=uber_eats&downloadedVersion=${encodeURIComponent(readyVersion)}`
     );
   }, [userId]);
 
@@ -54,7 +54,7 @@ export default function ExportReadyNotifier() {
           style: 'cancel',
           onPress: () => {
             isShowingDownloadPromptRef.current = false;
-            void setExportDownloadHandoffState(userId, readyVersion, 'not_downloaded');
+            void setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'not_downloaded');
           },
         },
         {
@@ -71,11 +71,11 @@ export default function ExportReadyNotifier() {
   const openEmailForDownload = useCallback(async (readyVersion: string) => {
     if (!userId) return;
 
-    await setExportDownloadHandoffState(userId, readyVersion, 'checking_email');
+    await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'checking_email');
     try {
       await openUberExportEmail();
     } catch {
-      await setExportDownloadHandoffState(userId, readyVersion, 'not_downloaded');
+      await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'not_downloaded');
       showAlert(
         'Could not open Gmail',
         `Open your email app and search for ${UBER_EXPORT_EMAIL_SEARCH_QUERY}.`,
@@ -97,7 +97,7 @@ export default function ExportReadyNotifier() {
           style: 'cancel',
           onPress: () => {
             isShowingDownloadPromptRef.current = false;
-            void setExportDownloadHandoffState(userId, readyVersion, 'not_downloaded');
+            void setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'not_downloaded');
           },
         },
         {
@@ -128,18 +128,19 @@ export default function ExportReadyNotifier() {
     lastCheckedAtRef.current = now;
     try {
       const result = await checkExportReady();
-      if (result.preferences.export.status !== 'file_ready') return;
+      const uberExport = result.preferences.export.providers?.uberEats;
+      if (uberExport?.status !== 'file_ready') return;
 
-      const readyVersion = result.preferences.export.updatedAt ?? 'ready';
+      const readyVersion = uberExport.updatedAt ?? 'ready';
       readyVersionRef.current = readyVersion;
-      const handoffState = await getExportDownloadHandoffState(userId, readyVersion);
+      const handoffState = await getExportDownloadHandoffState(userId, 'uber_eats', readyVersion);
       if (handoffState === 'checking_email') {
         showDownloadFollowUp(readyVersion);
         return;
       }
       if (handoffState === 'downloaded') return;
 
-      const notificationKey = `${NOTIFICATION_KEY_PREFIX}:${userId}`;
+      const notificationKey = `${NOTIFICATION_KEY_PREFIX}:${userId}:uber_eats`;
       const previouslyNotifiedVersion = await AsyncStorage.getItem(notificationKey);
       if (previouslyNotifiedVersion === readyVersion) return;
 
@@ -168,7 +169,7 @@ export default function ExportReadyNotifier() {
       if (nextState === 'active') {
         const readyVersion = readyVersionRef.current;
         if (readyVersion && userId) {
-          void getExportDownloadHandoffState(userId, readyVersion).then((handoffState) => {
+          void getExportDownloadHandoffState(userId, 'uber_eats', readyVersion).then((handoffState) => {
             if (handoffState === 'checking_email') {
               showDownloadFollowUp(readyVersion);
             } else {

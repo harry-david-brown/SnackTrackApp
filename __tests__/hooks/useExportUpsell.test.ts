@@ -3,13 +3,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetExportUpsellForUser, useExportUpsell } from '@hooks/useExportUpsell';
 
 const mockRefreshPreferences = jest.fn();
+let mockPreferences = {
+  export: { status: 'completed' },
+  coverage: {
+    hasExportData: true,
+    hasEmailData: false,
+    exportProviders: {
+      uberEats: { hasData: true, receiptCount: 1 },
+      doorDash: { hasData: true, receiptCount: 1 },
+    },
+  },
+};
 
 jest.mock('@hooks/useImportPreferences', () => ({
   useImportPreferences: () => ({
-    preferences: {
-      export: { status: 'completed' },
-      coverage: { hasExportData: true },
-    },
+    preferences: mockPreferences,
     isLoading: false,
     refresh: mockRefreshPreferences,
   }),
@@ -28,6 +36,17 @@ describe('useExportUpsell server ownership', () => {
     }));
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     mockRefreshPreferences.mockResolvedValue(undefined);
+    mockPreferences = {
+      export: { status: 'completed' },
+      coverage: {
+        hasExportData: true,
+        hasEmailData: false,
+        exportProviders: {
+          uberEats: { hasData: true, receiptCount: 1 },
+          doorDash: { hasData: true, receiptCount: 1 },
+        },
+      },
+    };
   });
 
   it('derives completion from server coverage and ignores a legacy device marker', async () => {
@@ -35,11 +54,20 @@ describe('useExportUpsell server ownership', () => {
     const { result } = renderHook(() => useExportUpsell(userId));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.hasCompletedExport).toBe(true);
+    expect(result.current.hasCompletedAllExports).toBe(true);
     expect(result.current.upsellState).not.toHaveProperty('completedAt');
 
     await act(async () => resetExportUpsellForUser(userId));
-    expect(result.current.hasCompletedExport).toBe(true);
+    expect(result.current.hasCompletedAllExports).toBe(true);
+  });
+
+  it('keeps the missing provider opportunity after only one export', async () => {
+    mockPreferences.coverage.exportProviders.doorDash = { hasData: false, receiptCount: 0 };
+    const { result } = renderHook(() => useExportUpsell('user-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.hasCompletedAllExports).toBe(false);
+    expect(result.current.exportCoverage.missingProviders).toEqual(['doordash']);
   });
 
   it('refreshes canonical preferences after an upload completes', async () => {

@@ -60,11 +60,11 @@ Checkboxes reflect the completed implementation and verification work.
 
 ## Phase 6 — Make completion behavior consistent
 
-- [x] Remove the timed navigation to Recap after Gmail import.
+- [x] Navigate a healthy first Gmail import directly to a freshly restarted Recap; keep sparse/zero results and later manual checks explicit.
 - [x] Remove automatic Recap navigation after the second export.
 - [x] Create one post-import result pattern for Gmail, Uber Eats, and DoorDash.
 - [x] Show new, updated, unchanged, and total receipt counts where available.
-- [x] Provide explicit “View my stats” and “Add another source” actions.
+- [x] Keep explicit result actions for sparse/zero imports while healthy first imports continue directly to stats.
 - [x] Add a successful-zero-results Gmail state with retry and export options.
 - [x] Keep the user on Upload unless they explicitly choose to leave.
 - [x] Announce asynchronous success and failure to accessibility services.

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, Platform } from 'react-native';
+import type { ExportProvider } from '@services/gmailApi';
 
 export type ExportDownloadHandoffState = 'not_downloaded' | 'checking_email' | 'downloaded';
 
@@ -8,8 +9,10 @@ interface StoredExportDownloadHandoff {
   state: ExportDownloadHandoffState;
 }
 
-const STORAGE_KEY_PREFIX = 'uber-export-download-handoff';
-const READY_NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';
+const STORAGE_KEY_PREFIX = 'export-download-handoff';
+const LEGACY_STORAGE_KEY_PREFIX = 'uber-export-download-handoff';
+const READY_NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
+const LEGACY_READY_NOTIFICATION_KEY_PREFIX = 'uber-export-ready-notified';
 const GMAIL_APP_URL = 'googlegmail://';
 
 export const UBER_EXPORT_EMAIL_SENDER_NAME = 'Uber – Download Your Data';
@@ -22,13 +25,18 @@ export const UBER_EXPORT_EMAIL_SEARCH_QUERY =
 export const UBER_EXPORT_GMAIL_SEARCH_URL =
   `https://mail.google.com/mail/#search/${encodeURIComponent(UBER_EXPORT_EMAIL_SEARCH_QUERY)}`;
 
-const storageKey = (userId: string) => `${STORAGE_KEY_PREFIX}:${userId}`;
+const storageKey = (userId: string, provider: ExportProvider) => `${STORAGE_KEY_PREFIX}:${userId}:${provider}`;
 
+export function getExportDownloadHandoffState(userId: string, readyVersion: string): Promise<ExportDownloadHandoffState>;
+export function getExportDownloadHandoffState(userId: string, provider: ExportProvider, readyVersion: string): Promise<ExportDownloadHandoffState>;
 export async function getExportDownloadHandoffState(
   userId: string,
-  readyVersion: string
+  providerOrVersion: ExportProvider | string,
+  maybeVersion?: string
 ): Promise<ExportDownloadHandoffState> {
-  const storedValue = await AsyncStorage.getItem(storageKey(userId));
+  const provider: ExportProvider = maybeVersion ? providerOrVersion as ExportProvider : 'uber_eats';
+  const readyVersion = maybeVersion ?? providerOrVersion;
+  const storedValue = await AsyncStorage.getItem(storageKey(userId, provider));
   if (!storedValue) return 'not_downloaded';
 
   try {
@@ -48,20 +56,37 @@ export async function getExportDownloadHandoffState(
   return 'not_downloaded';
 }
 
+export function setExportDownloadHandoffState(userId: string, readyVersion: string, state: ExportDownloadHandoffState): Promise<void>;
+export function setExportDownloadHandoffState(userId: string, provider: ExportProvider, readyVersion: string, state: ExportDownloadHandoffState): Promise<void>;
 export async function setExportDownloadHandoffState(
   userId: string,
-  readyVersion: string,
-  state: ExportDownloadHandoffState
+  providerOrVersion: ExportProvider | string,
+  versionOrState: string | ExportDownloadHandoffState,
+  maybeState?: ExportDownloadHandoffState
 ): Promise<void> {
+  const provider: ExportProvider = maybeState ? providerOrVersion as ExportProvider : 'uber_eats';
+  const readyVersion = maybeState ? versionOrState : providerOrVersion;
+  const state = maybeState ?? versionOrState as ExportDownloadHandoffState;
   const value: StoredExportDownloadHandoff = { readyVersion, state };
-  await AsyncStorage.setItem(storageKey(userId), JSON.stringify(value));
+  await AsyncStorage.setItem(storageKey(userId, provider), JSON.stringify(value));
 }
 
 export async function resetExportDownloadStateForUser(userId: string): Promise<void> {
   await Promise.all([
-    AsyncStorage.removeItem(storageKey(userId)),
-    AsyncStorage.removeItem(`${READY_NOTIFICATION_KEY_PREFIX}:${userId}`),
+    AsyncStorage.removeItem(storageKey(userId, 'uber_eats')),
+    AsyncStorage.removeItem(storageKey(userId, 'doordash')),
+    AsyncStorage.removeItem(`${LEGACY_STORAGE_KEY_PREFIX}:${userId}`),
+    AsyncStorage.removeItem(`${READY_NOTIFICATION_KEY_PREFIX}:${userId}:uber_eats`),
+    AsyncStorage.removeItem(`${READY_NOTIFICATION_KEY_PREFIX}:${userId}:doordash`),
+    AsyncStorage.removeItem(`${LEGACY_READY_NOTIFICATION_KEY_PREFIX}:${userId}`),
   ]);
+}
+
+export async function resetExportDownloadStateForProvider(
+  userId: string,
+  provider: ExportProvider,
+): Promise<void> {
+  await AsyncStorage.removeItem(storageKey(userId, provider));
 }
 
 /** Opens Gmail when installed, falling back to a focused Gmail web search. */

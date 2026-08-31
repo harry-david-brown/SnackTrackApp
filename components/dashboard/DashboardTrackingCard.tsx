@@ -83,6 +83,27 @@ export function DashboardTrackingCard({
         </View>
       ) : null}
 
+      {state.progress ? (
+        <View
+          style={styles.progressRow}
+          accessibilityLabel={`${state.progress.title}. ${state.progress.body}`}
+        >
+          <Ionicons name={state.progress.icon as any} size={20} color={Colors.infoStrong} />
+          <View style={styles.progressCopy}>
+            <Text style={styles.progressTitle}>{state.progress.title}</Text>
+            <Text style={styles.progressBody}>{state.progress.body}</Text>
+          </View>
+          {state.progress.action && state.progress.actionLabel ? (
+            <AppButton
+              label={state.progress.actionLabel}
+              variant="secondary"
+              pending={busy}
+              onPress={() => onAction(state.progress!.action!)}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
       {state.primaryAction && state.primaryLabel ? (
         <AppButton label={state.primaryLabel} accentColor={tone.accent} pending={busy} onPress={() => onAction(state.primaryAction!)} />
       ) : null}
@@ -107,4 +128,16 @@ const styles = StyleSheet.create({
   body: { marginTop: 14, color: Colors.textSecondary, fontSize: 15, lineHeight: 22 },
   activityNote: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 7 },
   activityNoteText: { fontSize: 13, fontWeight: '700' },
+  progressRow: {
+    marginTop: 8,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.divider,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressCopy: { flex: 1 },
+  progressTitle: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  progressBody: { marginTop: 2, color: Colors.textSecondary, fontSize: 12, lineHeight: 17 },
 });

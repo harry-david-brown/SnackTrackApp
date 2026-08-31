@@ -14,8 +14,8 @@ interface OnboardingScreenProps {
 const highlights = [
   {
     icon: 'mail-open-outline' as const,
-    title: 'Start fast',
-    description: 'Import receipts in minutes and get to your first insight quickly.',
+    title: 'Choose your starting point',
+    description: 'Use email for a quick start or upload a provider export first—the order is up to you.',
   },
   {
     icon: 'bar-chart-outline' as const,
@@ -24,8 +24,8 @@ const highlights = [
   },
   {
     icon: 'document-attach-outline' as const,
-    title: 'Go deeper later',
-    description: 'Add Uber Eats or DoorDash exports when you want more complete historical detail.',
+    title: 'Build complete history',
+    description: 'Add Uber Eats and DoorDash exports whenever you want richer historical detail.',
   },
 ];
 

@@ -17,7 +17,7 @@ export interface TrackingPropositionCopy {
 
 export const resolveInitialPostDeckStep = (
   exportEligibility: PostWrappedExportEligibility
-): 'tracking' | 'export' => exportEligibility === 'hide' ? 'tracking' : 'export';
+): 'tracking' | 'export' => exportEligibility === 'loading' ? 'export' : 'tracking';
 
 // Intentionally conservative starting thresholds. A tiny order history is
 // sparse on its own; a short date window is only sparse when the order count is
@@ -40,7 +40,7 @@ const daysBetween = (start: string, end: string): number | null => {
 export const assessImportedCoverage = (
   coverage?: WrappedCoverage
 ): ImportedCoverageAssessment => {
-  if (!coverage || coverage.hasExportData) {
+  if (!coverage) {
     return 'unknown';
   }
 
@@ -73,16 +73,16 @@ export const assessImportedCoverage = (
 
 export const resolvePostWrappedExperience = ({
   isExportStateLoading,
-  hasCompletedExport,
+  hasCompletedAllExports,
   coverage,
 }: {
   isExportStateLoading: boolean;
-  hasCompletedExport: boolean;
+  hasCompletedAllExports: boolean;
   coverage?: WrappedCoverage;
 }): PostWrappedExperience => ({
   exportEligibility: isExportStateLoading
     ? 'loading'
-    : hasCompletedExport
+    : hasCompletedAllExports
       ? 'hide'
       : 'show',
   coverageAssessment: assessImportedCoverage(coverage),
@@ -93,6 +93,13 @@ export const resolveTrackingPropositionCopy = ({
 }: {
   trackingState: OngoingTrackingEffectiveState;
 }): TrackingPropositionCopy => {
+  if (trackingState === 'setting_up') {
+    return {
+      eyebrow: 'CATCHING UP',
+      title: 'Your ongoing updates are being prepared',
+      body: 'SnackTrack is checking for supported delivery receipts newer than your existing history.',
+    };
+  }
   if (trackingState === 'active') {
     return {
       eyebrow: 'ONGOING TRACKING IS ON',
@@ -115,7 +122,7 @@ export const resolveTrackingPropositionCopy = ({
     };
   }
   return {
-    eyebrow: 'ONE LAST CHOICE',
+    eyebrow: 'OPTIONAL FUTURE UPDATES',
     title: 'Keep your stats growing',
     body: 'Allow SnackTrack to periodically check your connected Gmail for new delivery receipts. You can turn this off at any time.',
   };

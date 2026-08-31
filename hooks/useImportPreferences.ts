@@ -55,6 +55,11 @@ export function useImportPreferences(enabled = true) {
     onSuccess: (result) => writePreferences(result.preferences),
   });
 
+  const exportReadyConfirmation = useMutation({
+    mutationFn: (provider: ExportProvider) => gmailApi.confirmExportReady(provider),
+    onSuccess: writePreferences,
+  });
+
   const disconnect = useMutation({
     mutationFn: (options?: { resetImportStatus?: boolean }) => gmailApi.disconnect(options),
     onSuccess: async () => {
@@ -91,6 +96,14 @@ export function useImportPreferences(enabled = true) {
       queryClient.setQueryData<ImportPreferencesResponse>(queryKey, (current) => current ? {
         ...current,
         gmailImport: { ...current.gmailImport, status: 'importing', errorCode: null },
+        gmailBaseline: current.gmailBaseline ? {
+          ...current.gmailBaseline,
+          latestAttempt: {
+            ...current.gmailBaseline.latestAttempt,
+            status: 'importing',
+            errorCode: null,
+          },
+        } : current.gmailBaseline,
       } : current);
     },
     onSettled: async () => {
@@ -107,6 +120,7 @@ export function useImportPreferences(enabled = true) {
     || ongoingConsent.isPending
     || exportRequested.isPending
     || exportReadyCheck.isPending
+    || exportReadyConfirmation.isPending
     || disconnect.isPending
     || trackingCheck.isPending
     || gmailImport.isPending;
@@ -115,6 +129,7 @@ export function useImportPreferences(enabled = true) {
     || ongoingConsent.error
     || exportRequested.error
     || exportReadyCheck.error
+    || exportReadyConfirmation.error
     || disconnect.error
     || trackingCheck.error
     || gmailImport.error;
@@ -136,6 +151,7 @@ export function useImportPreferences(enabled = true) {
     checkOngoingTracking: trackingCheck.mutateAsync,
     importGmailReceipts: gmailImport.mutateAsync,
     markExportRequested: exportRequested.mutateAsync,
+    confirmExportReady: exportReadyConfirmation.mutateAsync,
     checkExportReady: exportReadyCheck.mutateAsync,
     disconnectGmail: disconnect.mutateAsync,
   };

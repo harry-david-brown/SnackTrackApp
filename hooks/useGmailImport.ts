@@ -9,12 +9,17 @@ import { gmailStatusKeys } from '@lib/queryKeys';
 import { toDomainError } from '@utils/domainError';
 import { captureException } from '@utils/sentry';
 import { invalidateImportState, invalidateReceiptDerivedData } from '@lib/queryInvalidation';
+import { parseGmailConnectionPurpose, type GmailConnectionPurpose } from '@features/import-flow/gmailConnectionPurpose';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export type GmailPrimaryFlowState = 'idle' | 'connecting' | 'preparing_import' | 'importing';
+export interface GmailConnectionResult {
+  status: GmailConnectionStatus;
+  purpose: GmailConnectionPurpose;
+}
 
 interface UseGmailImportOptions {
   onImportSuccess?: (result: GmailImportResponse) => void;
@@ -36,7 +41,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   const connectionStatus = statusQuery.data ?? { connected: false };
   const [isLoading, setIsLoading] = useState(false);
   const [primaryFlowState, setPrimaryFlowState] = useState<GmailPrimaryFlowState>('idle');
-  const activePrimaryFlowPromise = useRef<Promise<boolean> | null>(null);
+  const activePrimaryFlowPromise = useRef<Promise<unknown> | null>(null);
   const safetyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -138,7 +143,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     return latestStatus;
   }, [refreshConnectionStatus]);
 
-  const connectGmailInternal = useCallback(async (): Promise<GmailConnectionStatus | null> => {
+  const connectGmailInternal = useCallback(async (purpose: GmailConnectionPurpose): Promise<GmailConnectionResult | null> => {
     try {
       setIsLoading(true);
       setPrimaryFlowState('connecting');
@@ -148,7 +153,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         path: 'oauth-callback',
       });
 
-      const { authUrl } = await gmailApi.getAuthUrl(redirectUri);
+      const { authUrl } = await gmailApi.getAuthUrl(redirectUri, purpose);
       const authResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (authResult.type !== 'success' || !authResult.url) {
@@ -161,6 +166,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
       const resultUrl = new URL(authResult.url);
       const gmailResult = resultUrl.searchParams.get('gmail');
       const errorMessage = resultUrl.searchParams.get('error');
+      const returnedPurpose = parseGmailConnectionPurpose(resultUrl.searchParams.get('gmailPurpose')) ?? purpose;
 
       if (gmailResult !== 'success') {
         showSimpleAlert('Error', errorMessage || 'Failed to connect Gmail. Please try again.');
@@ -179,7 +185,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         return null;
       }
 
-      return readyStatus;
+      return { status: readyStatus, purpose: returnedPurpose };
     } catch (error: unknown) {
       showSimpleAlert('Error', toDomainError(error).message);
       return null;
@@ -188,9 +194,9 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     }
   }, [waitForImportReady]);
 
-  const runPrimaryFlow = useCallback((runner: () => Promise<boolean>) => {
+  const runPrimaryFlow = useCallback(<T,>(runner: () => Promise<T>, fallback: T): Promise<T> => {
     if (activePrimaryFlowPromise.current) {
-      return activePrimaryFlowPromise.current;
+      return activePrimaryFlowPromise.current as Promise<T>;
     }
 
     // Safety timeout to ensure state always resets (6 minutes max, slightly longer than API timeout)
@@ -205,7 +211,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         return await runner();
       } catch (error) {
         captureException(error instanceof Error ? error : new Error('Gmail primary flow failed'), { context: 'gmail-primary-flow' });
-        return false;
+        return fallback;
       } finally {
         if (safetyTimeout.current) clearTimeout(safetyTimeout.current);
         safetyTimeout.current = null;
@@ -214,29 +220,29 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
       }
     })();
 
-    return activePrimaryFlowPromise.current;
+    return activePrimaryFlowPromise.current as Promise<T>;
   }, []);
 
-  const connectGmail = useCallback(async () => {
+  const connectGmail = useCallback(async (purpose: GmailConnectionPurpose = 'receipt_import') => {
     return runPrimaryFlow(async () => {
-      const readyStatus = await connectGmailInternal();
+      const result = await connectGmailInternal(purpose);
 
-      if (!readyStatus) {
-        return false;
+      if (!result) {
+        return null;
       }
 
       // Success is confirmed visually by the mascot loading modal on the
       // Upload screen (connect-success beat), so no native alert here — a
       // native alert would pop over and tear down the mascot modal.
-      return true;
-    });
+      return result;
+    }, null);
   }, [connectGmailInternal, runPrimaryFlow]);
 
   const importReceipts = useCallback(async (statusOverride?: GmailConnectionStatus | null) => {
     return runPrimaryFlow(async () => {
       setPrimaryFlowState('importing');
       return importReceiptsInternal(statusOverride);
-    });
+    }, false);
   }, [importReceiptsInternal, runPrimaryFlow]);
 
   const disconnectGmail = useCallback(async () => {

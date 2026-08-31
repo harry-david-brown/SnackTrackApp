@@ -163,7 +163,8 @@ If this direction is adopted, the onboarding flow should eventually be updated s
 
 - email import becomes the primary post-auth destination
 - export upload becomes secondary but still accessible
-- post-import success states introduce the detailed import as the next step
+- post-import success states recommend optional ongoing updates before introducing detailed export history
+- completed Gmail history remains visible as a passive source status; manual checks live in Gmail settings
 - copy is standardized across the app so file type and method expectations are consistent
 - legacy export-first copy is removed from dashboard, wrapped, receipts, profile, and help surfaces
 

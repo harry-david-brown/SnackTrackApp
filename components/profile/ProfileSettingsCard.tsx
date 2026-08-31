@@ -47,6 +47,7 @@ interface ProfileSettingsCardProps {
   currency: CurrencyCode;
   exportAlertsLabel: string;
   ongoingTrackingLabel: string;
+  providerExportLabel: string;
   importPreferencesBusy: boolean;
   destructiveActionBusy: boolean;
   showDevelopmentReset: boolean;
@@ -67,7 +68,7 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
   return (
     <Card style={styles.card}>
       <SettingsRow icon="receipt-outline" label="My Receipts" onActivate={props.onOpenReceipts} />
-      <SettingsRow icon="cloud-upload-outline" label="Import Receipts" onActivate={props.onOpenImport} />
+      <SettingsRow icon="cloud-upload-outline" label="Import Receipts" value={props.providerExportLabel} onActivate={props.onOpenImport} />
       <SettingsRow icon="sync-outline" label="Export-Ready Alerts" value={props.exportAlertsLabel} onActivate={props.onToggleExportAlerts} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} />
       <SettingsRow icon="pulse-outline" label="Ongoing Order Tracking" value={props.ongoingTrackingLabel} onActivate={props.onToggleOngoingTracking} disabled={props.importPreferencesBusy} />
       <SettingsRow icon="information-circle-outline" label="View Tutorial" onActivate={props.onOpenTutorial} />

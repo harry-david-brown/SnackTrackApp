@@ -36,6 +36,7 @@ export default function ProfileScreen() {
           currency={profile.currency}
           exportAlertsLabel={profile.settings.exportAlertsLabel}
           ongoingTrackingLabel={profile.settings.ongoingTrackingLabel}
+          providerExportLabel={profile.settings.providerExportLabel}
           importPreferencesBusy={profile.arePreferencesBusy}
           destructiveActionBusy={profile.isClearingReceipts || profile.isDeleting}
           showDevelopmentReset={profile.showDevelopmentReset}

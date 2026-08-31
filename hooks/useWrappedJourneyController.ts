@@ -6,13 +6,14 @@ import { useWrappedAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useExportUpsell } from './useExportUpsell';
 import { useImportPreferences } from './useImportPreferences';
 import { showSimpleAlert } from '@utils/platformAlert';
-import { resolveTrackingEligibility } from '@features/import-flow/trackingEligibility';
+import { resolveTrackingEligibility, resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
+import { resolveExportOpportunity, resolveImportCoverage } from '@features/import-flow/importJourneyState';
 
 export function useWrappedJourneyController() {
   const { state } = useUser();
   const userId = state.user?.id;
   const wrappedQuery = useWrappedAnalyticsQuery(userId);
-  const { isLoading: isExportLoading, hasCompletedExport, markSeen, markClicked } = useExportUpsell(userId);
+  const { isLoading: isExportLoading, hasCompletedAllExports, markSeen, markClicked } = useExportUpsell(userId);
   const {
     preferences,
     isLoading: arePreferencesLoading,
@@ -20,19 +21,24 @@ export function useWrappedJourneyController() {
     setOngoingTrackingConsent,
   } = useImportPreferences(Boolean(userId));
 
+  const importCoverage = useMemo(() => resolveImportCoverage(preferences), [preferences]);
+  const exportOpportunity = useMemo(() => resolveExportOpportunity(importCoverage), [importCoverage]);
   const postWrappedExperience = useMemo(() => resolvePostWrappedExperience({
     isExportStateLoading: isExportLoading || arePreferencesLoading,
-    hasCompletedExport: preferences?.export.status === 'completed' || hasCompletedExport,
+    hasCompletedAllExports,
     coverage: wrappedQuery.data?.wrappedAnalytics?.coverage,
   }), [
     arePreferencesLoading,
-    hasCompletedExport,
+    hasCompletedAllExports,
     isExportLoading,
-    preferences?.export.status,
     wrappedQuery.data?.wrappedAnalytics?.coverage,
   ]);
   const trackingEligibility = useMemo(
     () => resolveTrackingEligibility(preferences),
+    [preferences],
+  );
+  const trackingRecovery = useMemo(
+    () => resolveTrackingRecovery(preferences),
     [preferences],
   );
 
@@ -40,9 +46,13 @@ export function useWrappedJourneyController() {
     void markClicked();
     router.push({
       pathname: '/(tabs)/upload',
-      params: { focus: 'export', ...(showTutorial ? { showExportTutorial: 'true' } : {}) },
+      params: {
+        focus: 'export',
+        ...(exportOpportunity ? { provider: exportOpportunity.provider } : {}),
+        ...(showTutorial ? { showExportTutorial: 'true' } : {}),
+      },
     });
-  }, [markClicked]);
+  }, [exportOpportunity, markClicked]);
 
   const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
     try {
@@ -56,6 +66,24 @@ export function useWrappedJourneyController() {
     }
   }, [setOngoingTrackingConsent]);
 
+  const openTrackingSetup = useCallback(() => {
+    if (trackingRecovery.kind === 'unavailable') {
+      showSimpleAlert('Gmail is temporarily unavailable', 'Your connection and history are safe. Try setting up ongoing updates again shortly.');
+      return;
+    }
+    const action = trackingRecovery.kind === 'baseline'
+      ? 'import_gmail'
+      : 'connect_gmail';
+    router.push({
+      pathname: '/(tabs)/upload',
+      params: {
+        action,
+        gmailPurpose: 'ongoing_tracking',
+        intentId: `${action}:${Date.now()}`,
+      },
+    });
+  }, [trackingRecovery.kind]);
+
   return {
     analytics: wrappedQuery.data ?? null,
     isLoading: wrappedQuery.isPending,
@@ -63,13 +91,16 @@ export function useWrappedJourneyController() {
     postWrappedExperience,
     trackingState: preferences?.ongoingTracking.effectiveState ?? 'not_offered',
     trackingEligibility,
-    exportStatus: preferences?.export.status ?? 'not_started',
+    exportStatus: exportOpportunity?.status ?? 'not_started',
+    exportProviderName: exportOpportunity?.name ?? null,
+    exportProvider: exportOpportunity?.provider ?? null,
     areImportPreferencesUpdating: arePreferencesLoading || arePreferencesUpdating,
     decideTracking,
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
     openExportTutorial: () => openExport(true),
     openImport: () => router.push('/(tabs)/upload'),
+    openTrackingSetup,
     finish: () => router.replace('/(tabs)'),
   };
 }

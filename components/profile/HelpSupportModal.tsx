@@ -42,7 +42,7 @@ export function HelpSupportModal({
                 1. Go to the Import Receipts screen{'\n'}
                 2. Tap the Gmail button{'\n'}
                 3. Connect the inbox tied to your delivery apps{'\n'}
-                4. Start the one-time Gmail history import when you are ready{'\n\n'}
+                4. Start a one-time email check when you are ready{'\n\n'}
                 Want deeper history? You can also request an Uber Eats or DoorDash export and upload it from the same screen.
               </Text>
             </View>

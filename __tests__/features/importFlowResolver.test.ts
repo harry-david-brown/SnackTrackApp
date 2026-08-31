@@ -69,7 +69,6 @@ function preferences(
 
 const baseInput = {
   gmailStatus: { connected: true, canImport: true },
-  localExportComplete: false,
   downloadState: 'not_downloaded' as const,
   gmailFeatureEnabled: true,
   focusExport: false,
@@ -84,12 +83,15 @@ describe('parseImportRouteParams', () => {
       showExportTutorial: true,
       focus: null, downloadedVersion: 'ready-1',
       action: null, intentId: null,
+      provider: null, gmailPurpose: null,
     });
   });
 
   it('accepts only supported one-shot import actions', () => {
-    expect(parseImportRouteParams({ action: 'connect_gmail', intentId: 'intent-1' })).toMatchObject({
-      action: 'connect_gmail', intentId: 'intent-1',
+    expect(parseImportRouteParams({
+      action: 'connect_gmail', intentId: 'intent-1', provider: 'doordash', gmailPurpose: 'ongoing_tracking',
+    })).toMatchObject({
+      action: 'connect_gmail', intentId: 'intent-1', provider: 'doordash', gmailPurpose: 'ongoing_tracking',
     });
     expect(parseImportRouteParams({ action: 'delete_everything', intentId: 'intent-2' })).toMatchObject({
       action: null, intentId: 'intent-2',
@@ -99,9 +101,9 @@ describe('parseImportRouteParams', () => {
 
 describe('resolveImportFlowState', () => {
   it.each([
-    ['disconnected', { connected: false }, 'Recommended', 'connect_email'],
-    ['healthy', { connected: true, canImport: true }, 'Complete', 'gmail_import'],
-    ['temporarily unavailable', { connected: true, canImport: false, connectionHealth: 'unavailable' as const }, 'Complete', 'gmail_import'],
+    ['disconnected', { connected: false }, 'Available', null],
+    ['healthy', { connected: true, canImport: true }, 'Connected', 'gmail_import'],
+    ['temporarily unavailable', { connected: true, canImport: false, connectionHealth: 'unavailable' as const }, 'Connected', 'gmail_import'],
     ['reconnect required', { connected: true, canImport: false, connectionHealth: 'reconnect_required' as const }, 'Reconnect', 'connect_email'],
   ])('handles %s Gmail state', (_name, gmailStatus, label, openTask) => {
     const result = resolveImportFlowState({ ...baseInput, gmailStatus, preferences: preferences() });
@@ -115,7 +117,7 @@ describe('resolveImportFlowState', () => {
   ] as ExportLifecycleStatus[])('resolves export lifecycle %s for every consent choice', (status) => {
     for (const consent of ['not_offered', 'declined', 'granted', 'revoked'] as MonitoringConsentState[]) {
       const result = resolveImportFlowState({ ...baseInput, preferences: preferences(status, consent) });
-      expect(result.exportComplete).toBe(status === 'completed');
+      expect(result.exportComplete).toBe(false);
       expect(result.exportFileReady).toBe(status === 'file_ready');
     }
   });
@@ -131,6 +133,22 @@ describe('resolveImportFlowState', () => {
     });
     expect(result.gmailImport.complete).toBe(true);
     expect(result.exportImport.complete).toBe(true);
+    expect(result.showOneTimeGmailImport).toBe(false);
+    expect(result.initialOpenTask).toBeNull();
+  });
+
+  it('removes the separate Gmail history action after both exports cover history', () => {
+    const result = resolveImportFlowState({
+      ...baseInput,
+      preferences: preferences('completed', 'not_offered', {
+        hasUberEatsExportData: true,
+        hasDoorDashExportData: true,
+      }),
+    });
+
+    expect(result.exportComplete).toBe(true);
+    expect(result.showOneTimeGmailImport).toBe(false);
+    expect(result.setupRecommendation).toEqual({ kind: 'enable_tracking' });
     expect(result.initialOpenTask).toBeNull();
   });
 
@@ -149,11 +167,36 @@ describe('resolveImportFlowState', () => {
       label: '1 of 2 imported',
       tone: 'optional',
     });
+    expect(result.showOneTimeGmailImport).toBe(false);
+    expect(result.showGmailImportSection).toBe(true);
+    expect(result.gmailImportPresentation).toMatchObject({
+      title: 'Email history checked',
+      passive: true,
+    });
     expect(result.exportProviderProgress).toMatchObject({
       importedCount: 1,
       uberEats: { imported: true },
       doorDash: { imported: false },
     });
+    expect(result.initialOpenTask).toBeNull();
+  });
+
+  it('renders completed Gmail history as a passive status instead of another scan action', () => {
+    const result = resolveImportFlowState({
+      ...baseInput,
+      preferences: preferences('not_started', 'not_offered', {
+        hasEmailData: true,
+        hasImported: true,
+      }),
+    });
+
+    expect(result.gmailImport).toEqual({ complete: true, label: 'Checked', tone: 'complete' });
+    expect(result.gmailImportPresentation).toMatchObject({
+      title: 'Email history checked',
+      passive: true,
+    });
+    expect(result.gmailImportPresentation.idleButtonLabel).not.toContain('Check Gmail now');
+    expect(result.setupRecommendation).toEqual({ kind: 'enable_tracking' });
     expect(result.initialOpenTask).toBeNull();
   });
 

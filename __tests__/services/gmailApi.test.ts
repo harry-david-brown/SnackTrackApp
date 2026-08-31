@@ -97,6 +97,19 @@ describe('gmailApi.importReceipts', () => {
   });
 });
 
+describe('gmailApi Gmail connection purpose', () => {
+  it('sends the typed OAuth purpose with the callback URI', async () => {
+    (api.post as jest.Mock).mockResolvedValue({ data: { success: true, authUrl: 'https://example.com/auth' } });
+
+    await gmailApi.getAuthUrl('snacktrack://oauth-callback', 'ongoing_tracking');
+
+    expect(api.post).toHaveBeenCalledWith('/gmail/auth-url', {
+      redirectUri: 'snacktrack://oauth-callback',
+      purpose: 'ongoing_tracking',
+    });
+  });
+});
+
 describe('gmailApi import preferences', () => {
   beforeEach(() => {
     jest.clearAllMocks();

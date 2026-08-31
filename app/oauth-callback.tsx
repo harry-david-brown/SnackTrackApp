@@ -7,6 +7,7 @@ export default function OAuthCallback() {
   const params = useLocalSearchParams();
   const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
   const error = typeof params.error === 'string' ? params.error : undefined;
+  const gmailPurpose = typeof params.gmailPurpose === 'string' ? params.gmailPurpose : undefined;
 
   useEffect(() => {
     router.replace({
@@ -14,9 +15,10 @@ export default function OAuthCallback() {
       params: {
         ...(gmail ? { gmail } : {}),
         ...(error ? { error } : {}),
+        ...(gmailPurpose ? { gmailPurpose } : {}),
       },
     });
-  }, [error, gmail]);
+  }, [error, gmail, gmailPurpose]);
 
   return (
     <View style={styles.container}>

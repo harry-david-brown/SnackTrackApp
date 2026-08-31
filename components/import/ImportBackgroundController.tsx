@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import { useUser } from '@contexts/UserContext';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 
@@ -11,6 +12,7 @@ const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
 export function ImportBackgroundController() {
   const { state } = useUser();
   const trackingCheckKey = useRef<string | null>(null);
+  const previousTrackingState = useRef<string | null>(null);
   const {
     preferences,
     isUpdating,
@@ -19,10 +21,23 @@ export function ImportBackgroundController() {
 
   useEffect(() => {
     trackingCheckKey.current = null;
+    previousTrackingState.current = null;
   }, [state.user?.id]);
 
   useEffect(() => {
-    if (preferences?.ongoingTracking.effectiveState !== 'active' || isUpdating) return;
+    const nextState = preferences?.ongoingTracking.effectiveState ?? null;
+    const previousState = previousTrackingState.current;
+    previousTrackingState.current = nextState;
+    if (previousState !== 'setting_up') return;
+    if (nextState === 'active') {
+      AccessibilityInfo.announceForAccessibility('Ongoing updates are ready. SnackTrack will keep checking for supported new delivery receipts.');
+    } else if (nextState === 'error' || nextState === 'reconnect_required') {
+      AccessibilityInfo.announceForAccessibility('Ongoing updates need attention. Your imported history is safe.');
+    }
+  }, [preferences?.ongoingTracking.effectiveState]);
+
+  useEffect(() => {
+    if (!preferences || !['setting_up', 'active'].includes(preferences.ongoingTracking.effectiveState) || isUpdating) return;
 
     const lastChecked = preferences.ongoingTracking.activity.lastSuccessfulCheckAt;
     const lastCheckedAt = lastChecked ? new Date(lastChecked).getTime() : 0;

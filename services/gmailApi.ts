@@ -7,6 +7,7 @@ import {
   normalizeGmailImportResponse,
   normalizeImportPreferences,
 } from './normalizers/gmailNormalizers';
+import type { GmailConnectionPurpose } from '@features/import-flow/gmailConnectionPurpose';
 
 export interface GmailConnectionStatus {
   connected: boolean;
@@ -29,6 +30,11 @@ export interface GmailImportResponse {
   message?: string;
   totalEmailsFound: number;
   totalReceiptsProcessed: number;
+  emailsExamined: number;
+  supportedReceiptsFound: number;
+  exportCoveredReceipts: number;
+  eligibleReceipts: number;
+  deduplicatedReceipts: number;
   totalReceiptsImported: number;
   totalAmount: number;
   errors: string[];
@@ -71,10 +77,11 @@ export interface ProviderExportState {
   requestedAt: string | null;
   updatedAt: string | null;
   errorCode: string | null;
+  readySource?: 'detected_email' | 'user_confirmed' | null;
 }
 export type GmailImportLifecycleStatus = 'never_started' | 'importing' | 'completed' | 'failed';
 export type OngoingTrackingEffectiveState =
-  | 'not_offered' | 'declined' | 'active' | 'paused' | 'reconnect_required' | 'error';
+  | 'not_offered' | 'declined' | 'setting_up' | 'active' | 'paused' | 'reconnect_required' | 'error';
 
 export interface ImportPreferencesResponse {
   monitoring: {
@@ -93,6 +100,7 @@ export interface ImportPreferencesResponse {
     };
   };
   export: {
+    /** Compatibility summary; provider-specific UI uses providers + coverage. */
     status: ExportLifecycleStatus;
     requestedAt: string | null;
     updatedAt: string | null;
@@ -109,13 +117,27 @@ export interface ImportPreferencesResponse {
     receiptCount: number;
     hasImported: boolean;
   };
+  gmailBaseline?: {
+    hasCompleted: boolean;
+    completedAt: string | null;
+    latestAttempt: {
+      status: GmailImportLifecycleStatus;
+      updatedAt: string | null;
+      importedCount: number;
+      errorCode: string | null;
+    };
+  };
   ongoingTracking: {
     consentState: MonitoringConsentState;
     consentVersion: string | null;
     consentedAt: string | null;
     revokedAt: string | null;
-    status: 'inactive' | 'active' | 'paused' | 'reconnect_required' | 'error';
+    status: 'inactive' | 'setting_up' | 'active' | 'paused' | 'reconnect_required' | 'error';
     effectiveState: OngoingTrackingEffectiveState;
+    baseline?: {
+      eligible: boolean;
+      source: 'gmail' | 'exports' | 'none';
+    };
     capability: {
       gmailConnected: boolean;
       durableAccess: boolean;
@@ -143,10 +165,14 @@ export interface ImportPreferencesResponse {
       uberEats: {
         receiptCount: number;
         hasData: boolean;
+        earliestOrderDate?: string | null;
+        latestOrderDate?: string | null;
       };
       doorDash: {
         receiptCount: number;
         hasData: boolean;
+        earliestOrderDate?: string | null;
+        latestOrderDate?: string | null;
       };
     };
   };
@@ -158,11 +184,11 @@ export interface ExportReadyCheckResponse {
 }
 
 export const MONITORING_CONSENT_VERSION = '2026-08-04.v2';
-export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-10.v1';
+export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-24.v2';
 
 export const gmailApi = {
-  getAuthUrl: async (redirectUri: string): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri });
+  getAuthUrl: async (redirectUri: string, purpose: GmailConnectionPurpose): Promise<GmailAuthUrlResponse> => {
+    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri, purpose });
     return normalizeGmailAuthUrl(response.data);
   },
 
@@ -207,6 +233,11 @@ export const gmailApi = {
 
   markExportRequested: async (provider: ExportProvider): Promise<ImportPreferencesResponse> => {
     const response = await api.post<unknown>('/gmail/preferences/export-requested', { provider });
+    return normalizeImportPreferences(response.data);
+  },
+
+  confirmExportReady: async (provider: ExportProvider): Promise<ImportPreferencesResponse> => {
+    const response = await api.post<unknown>('/gmail/preferences/export-ready', { provider });
     return normalizeImportPreferences(response.data);
   },
 

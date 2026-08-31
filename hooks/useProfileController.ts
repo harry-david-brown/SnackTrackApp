@@ -8,15 +8,20 @@ import { useCurrency } from '@contexts/CurrencyContext';
 import { useOnboarding } from '@contexts/OnboardingContext';
 import { useUser } from '@contexts/UserContext';
 import { resolveProfileSettingsState } from '@features/profile/profileSettingsState';
-import { resolveTrackingEligibility } from '@features/import-flow/trackingEligibility';
+import { resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { useAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useImportPreferences } from './useImportPreferences';
 import { authApi } from '@services/authApi';
 import type { CurrencyCode } from '@utils/currency';
 import type { ExportProvider } from '@services/gmailApi';
 import { toDomainError } from '@utils/domainError';
-import { showAlert } from '@utils/platformAlert';
+import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { getRefreshToken } from '@utils/tokenManager';
+import {
+  setExportDownloadHandoffState,
+  UBER_EXPORT_EMAIL_ADDRESS,
+  UBER_EXPORT_EMAIL_SUBJECT,
+} from '@utils/exportDownloadHandoff';
 
 type ProfileModal = 'tutorial' | 'help' | 'currency' | null;
 
@@ -36,6 +41,7 @@ export function useProfileController() {
     setMonitoringConsent,
     setOngoingTrackingConsent,
     markExportRequested,
+    confirmExportReady,
   } = useImportPreferences(Boolean(userId));
   const { data: analytics } = useAnalyticsQuery(userId);
 
@@ -47,8 +53,8 @@ export function useProfileController() {
     () => resolveProfileSettingsState(preferences, arePreferencesLoading),
     [arePreferencesLoading, preferences],
   );
-  const trackingEligibility = useMemo(
-    () => resolveTrackingEligibility(preferences),
+  const trackingRecovery = useMemo(
+    () => resolveTrackingRecovery(preferences),
     [preferences],
   );
 
@@ -121,7 +127,20 @@ export function useProfileController() {
           text: 'Allow', onPress: () => {
             void setMonitoringConsent('granted').then((next) => {
               if (next.monitoring.effectiveState === 'reconnect_required') {
-                showAlert('Permission saved', 'Reconnect Gmail from Import before export-ready alerts can work.');
+                showAlert('Permission saved', 'Reconnect Gmail before export-ready alerts can work.', [
+                  { text: 'Not Now', style: 'cancel' },
+                  {
+                    text: 'Reconnect Gmail',
+                    onPress: () => router.push({
+                      pathname: '/(tabs)/upload',
+                      params: {
+                        action: 'connect_gmail',
+                        gmailPurpose: 'export_ready_alerts',
+                        intentId: `connect_gmail:${Date.now()}`,
+                      },
+                    }),
+                  },
+                ]);
               }
             }).catch(() => showAlert('Update Failed', 'Could not enable export alerts. Please try again.'));
           },
@@ -131,32 +150,45 @@ export function useProfileController() {
   }, [preferences?.monitoring.consentState, setMonitoringConsent]);
 
   const toggleOngoingTracking = useCallback(() => {
-    if (preferences?.ongoingTracking.consentState === 'granted') {
+    if (preferences?.ongoingTracking.consentState === 'granted'
+      && preferences.ongoingTracking.effectiveState !== 'paused') {
       showAlert('Turn off ongoing tracking?', 'SnackTrack will stop periodically checking Gmail for new delivery receipts. Your imported history will remain.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Turn Off', style: 'destructive', onPress: () => void setOngoingTrackingConsent('revoked') },
       ]);
       return;
     }
-    if (trackingEligibility.reason === 'gmail_history_required') {
-      showAlert('Import Gmail history first', 'Run the one-time Gmail receipt import before enabling ongoing order tracking. Delivery exports remain optional.', [
+    if (trackingRecovery.kind === 'baseline') {
+      showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your exports and establish where future checks should begin.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
+        { text: 'Go to Import', onPress: () => router.push({
+          pathname: '/(tabs)/upload',
+          params: { action: 'import_gmail', gmailPurpose: 'ongoing_tracking', intentId: `import_gmail:${Date.now()}` },
+        }) },
       ]);
       return;
     }
-    if (trackingEligibility.reason === 'gmail_reconnect_required') {
+    if (trackingRecovery.kind === 'unavailable') {
+      showSimpleAlert('Gmail is temporarily unavailable', 'Your connection and imported history are safe. Try enabling ongoing updates again shortly.');
+      return;
+    }
+    if (trackingRecovery.kind === 'reconnect') {
       showAlert('Reconnect Gmail first', 'Ongoing tracking needs durable Gmail access. Reconnect from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Import', onPress: () => router.push('/(tabs)/upload') },
+        { text: 'Reconnect Gmail', onPress: () => router.push({
+          pathname: '/(tabs)/upload',
+          params: { action: 'connect_gmail', gmailPurpose: 'ongoing_tracking', intentId: `connect_gmail:${Date.now()}` },
+        }) },
       ]);
       return;
     }
-    showAlert('Allow ongoing order tracking?', 'SnackTrack will periodically read delivery receipt emails from your connected Gmail account to update spending and stats. You can turn this off at any time.', [
+    showAlert('Allow ongoing order tracking?', preferences?.ongoingTracking.baseline?.source === 'exports'
+      ? 'SnackTrack will check Gmail for supported delivery receipts newer than your exports and periodically check for future orders. You can turn this off at any time.'
+      : 'SnackTrack will periodically read supported delivery receipt emails from your connected Gmail account to update spending and stats. You can turn this off at any time.', [
       { text: 'Not Now', style: 'cancel' },
       { text: 'Allow tracking', onPress: () => void setOngoingTrackingConsent('granted') },
     ]);
-  }, [preferences?.ongoingTracking.consentState, setOngoingTrackingConsent, trackingEligibility.reason]);
+  }, [preferences?.ongoingTracking.baseline?.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
 
   const saveExportRequest = useCallback(async (platform: DataPlatform, decision?: 'granted' | 'declined') => {
     try {
@@ -179,6 +211,39 @@ export function useProfileController() {
       { text: 'Notify Me', onPress: () => void saveExportRequest(platform, 'granted') },
     ]);
   }, [preferences?.monitoring.consentState, saveExportRequest]);
+
+  const tutorialReadyConfirmed = useCallback((platform: DataPlatform) => {
+    const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
+    void confirmExportReady(provider).catch(() => {
+      showAlert('Status Not Saved', 'You can continue downloading the archive, but SnackTrack could not save that it is ready.');
+    });
+  }, [confirmExportReady]);
+
+  const tutorialStillWaiting = useCallback((platform: DataPlatform) => {
+    setActiveModal(null);
+    void saveExportRequest(platform);
+    showSimpleAlert(
+      `Your ${platform === 'uber' ? 'Uber Eats' : 'DoorDash'} export is on the way`,
+      platform === 'uber'
+        ? `Uber typically takes a few hours, though it can take longer. Watch for “${UBER_EXPORT_EMAIL_SUBJECT}” from ${UBER_EXPORT_EMAIL_ADDRESS}.`
+        : 'DoorDash typically takes a few hours, though it can take longer. Watch for an email saying your archive is ready with “View Your Data Archive.”',
+    );
+  }, [saveExportRequest]);
+
+  const tutorialArchiveDownloaded = useCallback(async (platform: DataPlatform) => {
+    if (!userId) return;
+    const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
+    const providerState = provider === 'uber_eats'
+      ? preferences?.export.providers?.uberEats
+      : preferences?.export.providers?.doorDash;
+    const readyVersion = providerState?.updatedAt ?? 'ready';
+    await setExportDownloadHandoffState(userId, provider, readyVersion, 'downloaded');
+    setActiveModal(null);
+    router.push({
+      pathname: '/(tabs)/upload',
+      params: { focus: 'export', provider, downloadedVersion: readyVersion },
+    });
+  }, [preferences?.export.providers, userId]);
 
   const openPrivacyPolicy = useCallback(async () => {
     const url = 'https://getsnacktrack.com/privacy-policy';
@@ -240,6 +305,9 @@ export function useProfileController() {
     toggleExportAlerts,
     toggleOngoingTracking,
     completeTutorial,
+    tutorialReadyConfirmed,
+    tutorialStillWaiting,
+    tutorialArchiveDownloaded,
     openPrivacyPolicy,
     requestAccountDeletion,
     selectCurrency,
