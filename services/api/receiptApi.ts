@@ -2,7 +2,6 @@
 import api from './client';
 import { DataSource, ReceiptType, type DeleteReceiptsResponse, type PaginationResponse, type Receipt, type ReceiptItem } from '@/types/api';
 import { API_CONFIG } from '@/constants';
-import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -86,13 +85,11 @@ export function normalizeReceiptPage(value: unknown, limit: number, offset: numb
 
 export const receiptApi = {
   getReceipts: async (
-    userId: string,
     limit: number = API_CONFIG.DEFAULT_PAGINATION_LIMIT,
     offset: number = API_CONFIG.DEFAULT_PAGINATION_OFFSET
   ): Promise<PaginationResponse<Receipt>> => {
-    const validatedUserId = await validateAndAuthorizeUserId(userId);
     const page = Math.floor(offset / limit) + 1;
-    const response = await api.get(`/receipts?userId=${validatedUserId}&limit=${limit}&page=${page}`);
+    const response = await api.get(`/receipts?limit=${limit}&page=${page}`);
     return normalizeReceiptPage(response.data, limit, offset);
   },
   clearReceipts: async (): Promise<DeleteReceiptsResponse> => {

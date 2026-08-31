@@ -15,13 +15,8 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export function toDomainError(error: unknown): DomainError {
   const parsed = parseApiError(error);
   const root = asRecord(error);
-  const response = asRecord(root?.response);
-  const data = asRecord(response?.data);
-  const code = typeof data?.code === 'string'
-    ? data.code
-    : typeof root?.code === 'string' ? root.code : null;
   return {
-    code,
+    code: parsed.code ?? (typeof root?.code === 'string' ? root.code : null),
     message: parsed.message,
     retryable: parsed.isRetryable,
     kind: parsed.type,

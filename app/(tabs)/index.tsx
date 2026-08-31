@@ -192,9 +192,14 @@ export default function DashboardScreen() {
             {insightSectionState.id === 'success' || insightSectionState.id === 'stale-success' ? (
               <WhatWeNoticedCarousel
                 insights={insightSectionState.edition.insights}
+                partialExportProvider={insightSectionState.edition.partialExportProvider}
                 onOpenExport={() => router.push({
                   pathname: '/(tabs)/upload',
                   params: { action: 'request_export', intentId: `request_export:${Date.now()}` },
+                })}
+                onOpenProviderExport={(provider) => router.push({
+                  pathname: '/(tabs)/upload',
+                  params: { action: 'request_export', provider, intentId: `request_export:${provider}:${Date.now()}` },
                 })}
               />
             ) : insightSectionState.id === 'loading' ? (

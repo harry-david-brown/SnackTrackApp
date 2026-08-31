@@ -57,6 +57,24 @@ describe('Error Utils', () => {
       expect(result.message).toBe('Missing required field');
     });
 
+    it('preserves the canonical nested API error code', () => {
+      const result = parseApiError({
+        response: {
+          status: 409,
+          data: {
+            error: {
+              code: 'IMPORT_IN_PROGRESS',
+              message: 'Server is busy. Please try again.',
+            },
+          },
+        },
+      });
+
+      expect(result.code).toBe('IMPORT_IN_PROGRESS');
+      expect(result.statusCode).toBe(409);
+      expect(result.isRetryable).toBe(false);
+    });
+
     it('should parse 401 authentication errors', () => {
       const error = {
         response: {
@@ -186,4 +204,3 @@ describe('Error Utils', () => {
     });
   });
 });
-

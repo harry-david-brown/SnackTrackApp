@@ -3,10 +3,12 @@ import { act, fireEvent, render } from '@testing-library/react-native';
 import { AccessibilityInfo, AppState, StyleSheet } from 'react-native';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import type { DashboardInsight } from '@/types/api';
+import { showAlert } from '@utils/platformAlert';
 
 jest.mock('@contexts/CurrencyContext', () => ({
   useCurrency: () => ({ formatCurrency: (amount: number) => `$${amount.toFixed(2)}` }),
 }));
+jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn() }));
 
 const insights: DashboardInsight[] = [
   { id: 'hero', presentation: 'hero', category: 'habits', icon: 'calendar', eyebrow: 'Weekly ritual', title: 'Your delivery day', headline: 'Friday', value: 12, valueFormat: 'number', detail: 'A recurring appointment.', period: { startDate: '2026-07-01', endDate: '2026-07-08' } },
@@ -54,8 +56,40 @@ describe('WhatWeNoticedCarousel', () => {
     expect(screen.getByText('SO FAR')).toBeTruthy();
     expect(screen.getByText('That’s all for today')).toBeTruthy();
     expect(screen.getByText('Come back tomorrow for new stats.')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Unlock this insight with an Uber data export' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Add detailed order history' }));
     expect(onOpenExport).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['uber_eats', 'Uber Eats export only', 'DoorDash', 'doordash'],
+    ['doordash', 'DoorDash export only', 'Uber Eats', 'uber_eats'],
+  ] as const)('explains %s-only export coverage and routes the missing provider action', async (provider, badge, missingName, missingProvider) => {
+    const onOpenProviderExport = jest.fn();
+    const screen = render(
+      <WhatWeNoticedCarousel
+        insights={insights.slice(0, 1)}
+        partialExportProvider={provider}
+        onOpenExport={jest.fn()}
+        onOpenProviderExport={onOpenProviderExport}
+      />,
+    );
+    await act(async () => Promise.resolve());
+
+    fireEvent.press(screen.getByRole('button', { name: `Data coverage: ${badge}. More information` }));
+    expect(showAlert).toHaveBeenCalledWith(
+      badge,
+      expect.stringContaining(`${missingName} export history isn’t included`),
+      expect.any(Array),
+    );
+    const buttons = jest.mocked(showAlert).mock.calls.at(-1)?.[2];
+    buttons?.find(button => button.text === `Add ${missingName}`)?.onPress?.();
+    expect(onOpenProviderExport).toHaveBeenCalledWith(missingProvider);
+  });
+
+  it('does not show export coverage disclosure without a partial-provider signal', async () => {
+    const screen = render(<WhatWeNoticedCarousel insights={insights.slice(0, 1)} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.queryByRole('button', { name: /Data coverage:/ })).toBeNull();
   });
 
   it('keeps long restaurant, currency, and methodology content renderable without fixed card clipping', async () => {

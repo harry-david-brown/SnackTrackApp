@@ -5,7 +5,7 @@ import { receiptApi } from '@services/api';
 export const useReceiptsQuery = (userId?: string | null, pageSize = 20) =>
   useInfiniteQuery({
     queryKey: receiptKeys.list(userId ?? 'anonymous', pageSize),
-    queryFn: ({ pageParam }) => receiptApi.getReceipts(userId as string, pageSize, pageParam),
+    queryFn: ({ pageParam }) => receiptApi.getReceipts(pageSize, pageParam),
     initialPageParam: 0,
     enabled: Boolean(userId),
     getNextPageParam: (lastPage, pages) => {

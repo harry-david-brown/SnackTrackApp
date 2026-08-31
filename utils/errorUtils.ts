@@ -3,6 +3,7 @@ import { ErrorType } from '@components/ui/ErrorMessage';
 import { logger } from './logger';
 
 export interface ApiError {
+  code?: string;
   message: string;
   type: ErrorType;
   statusCode?: number;
@@ -103,6 +104,12 @@ const errorText = (value: unknown): string => {
   return typeof nested.message === 'string' ? nested.message : '';
 };
 
+const errorCode = (responseData: Record<string, unknown>): string | undefined => {
+  const nestedError = errorRecord(responseData.error);
+  if (typeof nestedError.code === 'string') return nestedError.code;
+  return typeof responseData.code === 'string' ? responseData.code : undefined;
+};
+
 export const parseApiError = (input: unknown): ApiError => {
   const error = errorRecord(input);
   // Network error (no response)
@@ -137,6 +144,7 @@ export const parseApiError = (input: unknown): ApiError => {
           }
         })()
       : errorRecord(response.data);
+    const code = errorCode(responseData);
 
     switch (statusCode) {
       case 400:
@@ -156,6 +164,7 @@ export const parseApiError = (input: unknown): ApiError => {
         }
         
         return {
+          code,
           message: userMessage,
           type: 'validation',
           statusCode,
@@ -165,6 +174,7 @@ export const parseApiError = (input: unknown): ApiError => {
       case 401:
         const unauthorizedMessage = errorText(responseData.error) || errorText(responseData.message);
         return {
+          code,
           message: sanitizeErrorMessage(unauthorizedMessage, 'validation'),
           type: 'validation',
           statusCode,
@@ -174,6 +184,7 @@ export const parseApiError = (input: unknown): ApiError => {
       case 403:
         const forbiddenMessage = errorText(responseData.error) || errorText(responseData.message) || 'You don\'t have permission to perform this action.';
         return {
+          code,
           message: sanitizeErrorMessage(forbiddenMessage, 'validation'),
           type: 'validation',
           statusCode,
@@ -183,6 +194,7 @@ export const parseApiError = (input: unknown): ApiError => {
       case 404:
         const notFoundMessage = errorText(responseData.error) || errorText(responseData.message) || 'The requested resource was not found.';
         return {
+          code,
           message: sanitizeErrorMessage(notFoundMessage, 'validation'),
           type: 'validation',
           statusCode,
@@ -192,6 +204,7 @@ export const parseApiError = (input: unknown): ApiError => {
       case 422:
         const unprocessableMessage = errorText(responseData.error) || errorText(responseData.message) || 'Invalid data provided.';
         return {
+          code,
           message: sanitizeErrorMessage(unprocessableMessage, 'validation'),
           type: 'validation',
           statusCode,
@@ -200,6 +213,7 @@ export const parseApiError = (input: unknown): ApiError => {
       
       case 429:
         return {
+          code,
           message: 'Server is busy. Please wait a moment and try again.',
           type: 'server',
           statusCode,
@@ -211,6 +225,7 @@ export const parseApiError = (input: unknown): ApiError => {
       case 503:
       case 504:
         return {
+          code,
           message: 'Service temporarily unavailable. Please try again in a few minutes.',
           type: 'server',
           statusCode,
@@ -220,6 +235,7 @@ export const parseApiError = (input: unknown): ApiError => {
       default:
         const defaultMessage = errorText(responseData.error) || errorText(responseData.message) || 'An unexpected error occurred.';
         return {
+          code,
           message: sanitizeErrorMessage(defaultMessage, 'server'),
           type: 'server',
           statusCode,

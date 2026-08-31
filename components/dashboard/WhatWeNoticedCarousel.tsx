@@ -1,4 +1,5 @@
 import type {
+  DashboardExportProvider,
   DashboardInsight,
   DashboardInsightCategory,
   DashboardInsightIcon,
@@ -8,6 +9,7 @@ import { Card } from '@components/ui/Card';
 import { Colors, Radius, Spacing } from '@constants/theme';
 import { useCurrency } from '@contexts/CurrencyContext';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '@utils/platformAlert';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
@@ -27,6 +29,8 @@ import {
 interface Props {
   insights: DashboardInsight[];
   onOpenExport: () => void;
+  partialExportProvider?: DashboardExportProvider;
+  onOpenProviderExport?: (provider: DashboardExportProvider) => void;
 }
 
 type CarouselSlide =
@@ -93,6 +97,36 @@ function Methodology({ insight }: { insight: DashboardInsight }) {
     methodology.disclaimer,
   ].filter(Boolean).join(' · ');
   return text ? <Text style={styles.methodology} accessibilityLabel={`Methodology. ${text}`}>{text}</Text> : null;
+}
+
+const EXPORT_PROVIDER_COPY: Record<DashboardExportProvider, {
+  includedName: string;
+  missingName: string;
+  missingProvider: DashboardExportProvider;
+}> = {
+  uber_eats: { includedName: 'Uber Eats', missingName: 'DoorDash', missingProvider: 'doordash' },
+  doordash: { includedName: 'DoorDash', missingName: 'Uber Eats', missingProvider: 'uber_eats' },
+};
+
+function ExportCoverageBadge({
+  provider,
+  onOpenCoverage,
+}: {
+  provider: DashboardExportProvider;
+  onOpenCoverage: () => void;
+}) {
+  const { includedName } = EXPORT_PROVIDER_COPY[provider];
+  const label = `${includedName} export only`;
+  return <TouchableOpacity
+    style={styles.coverageBadge}
+    onPress={onOpenCoverage}
+    accessibilityRole="button"
+    accessibilityLabel={`Data coverage: ${label}. More information`}
+    hitSlop={6}
+  >
+    <Ionicons name="information-circle-outline" size={17} color={Colors.textSecondary} accessibilityElementsHidden />
+    <Text style={styles.coverageBadgeText}>{label}</Text>
+  </TouchableOpacity>;
 }
 
 function YearlyChampions({
@@ -238,13 +272,13 @@ function InsightBody({ insight, onOpenExport, onInteract }: { insight: Dashboard
     return <View key={`${event.label}-${index}`} style={styles.timelineRow}><View style={[styles.timelineDot, { backgroundColor: ACCENTS[insight.category].accent }]} /><View style={styles.listCopy}><Text style={styles.comparisonLabel}>{event.label}</Text><Text style={styles.timelineValue}>{eventValue}</Text>{event.detail ? <Text style={styles.listDetail}>{event.detail}</Text> : null}</View></View>;
   })}</View>;
   if (insight.presentation === 'yearly-champions') return <YearlyChampions insight={insight} onInteract={onInteract} />;
-  return <TouchableOpacity style={styles.unlockButton} onPress={onOpenExport} accessibilityRole="button" accessibilityLabel="Unlock this insight with a delivery data export">
-    <Text style={styles.unlockButtonText}>Unlock with your export</Text><Ionicons name="arrow-forward" size={20} color={Colors.white} />
+  return <TouchableOpacity style={styles.unlockButton} onPress={onOpenExport} accessibilityRole="button" accessibilityLabel="Add detailed order history">
+    <Text style={styles.unlockButtonText}>Add detailed order history</Text><Ionicons name="arrow-forward" size={20} color={Colors.white} />
   </TouchableOpacity>;
 }
 
-function InsightCard({ insight, index, total, paused, onTogglePaused, onInteract, onOpenExport }: {
-  insight: DashboardInsight; index: number; total: number; paused: boolean; onTogglePaused: () => void; onInteract: () => void; onOpenExport: () => void;
+function InsightCard({ insight, index, total, paused, partialExportProvider, onTogglePaused, onInteract, onOpenExport, onOpenCoverage }: {
+  insight: DashboardInsight; index: number; total: number; paused: boolean; partialExportProvider?: DashboardExportProvider; onTogglePaused: () => void; onInteract: () => void; onOpenExport: () => void; onOpenCoverage: () => void;
 }) {
   const { formatCurrency } = useCurrency();
   const tone = ACCENTS[insight.category];
@@ -267,6 +301,7 @@ function InsightCard({ insight, index, total, paused, onTogglePaused, onInteract
       {insight.detail ? <Text style={styles.detail}>{insight.detail}</Text> : null}
       <Methodology insight={insight} />
     </View>
+    {partialExportProvider ? <ExportCoverageBadge provider={partialExportProvider} onOpenCoverage={onOpenCoverage} /> : null}
     {insight.presentation === 'locked' ? <InsightBody insight={insight} onOpenExport={onOpenExport} onInteract={onInteract} /> : null}
   </Card>;
 }
@@ -291,7 +326,7 @@ function OutroCard({ paused, onTogglePaused }: { paused: boolean; onTogglePaused
   </Card>;
 }
 
-export function WhatWeNoticedCarousel({ insights, onOpenExport }: Props) {
+export function WhatWeNoticedCarousel({ insights, onOpenExport, partialExportProvider, onOpenProviderExport }: Props) {
   const listRef = React.useRef<FlatList<CarouselSlide>>(null);
   const { width: windowWidth } = useWindowDimensions();
   const [stageWidth, setStageWidth] = React.useState(0);
@@ -336,6 +371,22 @@ export function WhatWeNoticedCarousel({ insights, onOpenExport }: Props) {
     setActiveIndex(next);
     listRef.current?.scrollToIndex({ index: next, animated: !reduceMotion });
   };
+  const openCoverageExplanation = () => {
+    if (!partialExportProvider) return;
+    setPaused(true);
+    const { includedName, missingName, missingProvider } = EXPORT_PROVIDER_COPY[partialExportProvider];
+    showAlert(
+      `${includedName} export only`,
+      `SnackTrack currently has detailed export history from ${includedName} only. ${missingName} export history isn’t included, so insights that rely on export details may not reflect your ${missingName} orders. Add ${missingName} for broader provider coverage.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: `Add ${missingName}`,
+          onPress: onOpenProviderExport ? () => onOpenProviderExport(missingProvider) : undefined,
+        },
+      ],
+    );
+  };
   if (!insights.length) return null;
   return <View style={styles.stage} onLayout={event => setStageWidth(Math.round(event.nativeEvent.layout.width))} testID="what-we-noticed-carousel">
     <FlatList
@@ -347,7 +398,7 @@ export function WhatWeNoticedCarousel({ insights, onOpenExport }: Props) {
       keyExtractor={slide => slide.id}
       renderItem={({ item, index }) => <View testID={`insight-card-frame-${index}`} style={[styles.cardFrame, { width: cardWidth }]}>
         {item.kind === 'insight'
-          ? <InsightCard insight={item.insight} index={index} total={insights.length} paused={paused} onTogglePaused={() => setPaused(value => !value)} onInteract={() => setPaused(true)} onOpenExport={() => { setPaused(true); onOpenExport(); }} />
+          ? <InsightCard insight={item.insight} index={index} total={insights.length} paused={paused} partialExportProvider={partialExportProvider} onTogglePaused={() => setPaused(value => !value)} onInteract={() => setPaused(true)} onOpenExport={() => { setPaused(true); onOpenExport(); }} onOpenCoverage={openCoverageExplanation} />
           : <OutroCard paused={paused} onTogglePaused={() => setPaused(value => !value)} />}
       </View>}
       getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
@@ -380,6 +431,8 @@ const styles = StyleSheet.create({
   cardTitle: { color: Colors.textPrimary, fontSize: 22, lineHeight: 29, fontWeight: '800' },
   periodBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Radius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 5, marginTop: Spacing.sm },
   periodText: { fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  coverageBadge: { alignSelf: 'flex-start', minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Radius.pill, paddingHorizontal: Spacing.sm, marginTop: Spacing.md, backgroundColor: Colors.gray50 },
+  coverageBadgeText: { color: Colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   headline: { color: Colors.textPrimary, fontSize: 27, lineHeight: 34, fontWeight: '800', marginTop: Spacing.md },
   bigValue: { color: Colors.textPrimary, fontSize: 38, lineHeight: 46, fontWeight: '800', marginTop: Spacing.sm },
   detail: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: Spacing.md },

@@ -145,7 +145,6 @@ const getRateLimitType = (url: string, method: string): keyof typeof RATE_LIMITS
   
   // Data mutation endpoints
   if (url.includes('/csv/import')) return 'UPLOAD_CSV';
-  if (url.includes('/update-receipts')) return 'UPDATE_RECEIPTS';
   
   return 'DEFAULT';
 };

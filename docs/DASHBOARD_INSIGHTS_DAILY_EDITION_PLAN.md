@@ -33,7 +33,8 @@ The experience should:
   data changes.
 - [x] Do not permanently pin Top Restaurants as the opening card.
 - [x] Prefer fewer strong cards over padding a sparse account to seven.
-- [x] Allow at most one locked/export teaser in an edition.
+- [x] Include exactly one locked/export teaser in every receipt-backed
+  Gmail-only edition, reserving one of the seven slots when necessary.
 - [x] Make the experience swipeable and show visible position/progress.
 - [x] Stop or pause autoplay after direct user interaction.
 - [x] Keep analytics and card selection server-owned.
@@ -94,8 +95,9 @@ reconstruction issue is documented in
 - Rotate once per **user-local calendar day**, with a stable seed such as
   `userId:localDate:metricVersion`.
 - Do not permanently anchor Top Restaurants. Prefer category variety, suppress
-  near-duplicates, avoid yesterday's opener when practical, and allow at most
-  one locked/export teaser.
+  near-duplicates, and avoid yesterday's opener when practical. Receipt-backed
+  Gmail-only editions must include exactly one locked/export teaser, placed
+  after the real insights.
 - Use a swipeable paged carousel with visible progress. If autoplay remains,
   use roughly six seconds and stop/pause it after interaction. Respect reduced
   motion.
@@ -433,9 +435,11 @@ Persisted receipts
 - [x] Avoid closely related cards in the same edition.
 - [x] Do not permanently anchor Top Restaurants.
 - [x] Avoid repeating yesterday's opener when alternatives exist.
-- [x] Include no more than one locked card.
-- [x] Never let a locked card displace a stronger real insight solely to meet a
-  quota.
+- [x] Include exactly one locked card when the account has Gmail receipt data
+  and no provider-export receipts; include none after any provider export is
+  imported.
+- [x] Reserve one of seven slots for the Gmail-only locked card, replacing the
+  weakest selected real insight when the edition would otherwise be full.
 - [x] Keep locked cards away from the opening position.
 - [x] Define stable tie-breaking for equally scored candidates.
 
@@ -498,6 +502,11 @@ Persisted receipts
 - [x] Add section copy such as `Your daily edition · 7 observations`.
 - [x] Represent fewer eligible observations accurately.
 - [x] Preserve the existing export navigation action for locked cards.
+- [x] When exactly one provider export is present, show a tappable coverage
+  badge on carousel cards identifying that provider and explain that the other
+  provider is not included, with an action to add it.
+- [x] Do not show the coverage badge for Gmail-only data or when both Uber Eats
+  and DoorDash exports are present.
 
 ### Swipeable carousel
 
@@ -562,7 +571,8 @@ Persisted receipts
 - [x] Cover daily determinism and next-day rotation.
 - [x] Cover maximum seven and minimum-quality behaviour.
 - [x] Cover category diversity and near-duplicate suppression.
-- [x] Cover opener rotation and one-locked-card maximum.
+- [x] Cover opener rotation and the required Gmail-only locked-card slot,
+  including large catalogues using cooldown rotation.
 - [x] Cover deterministic copy variants.
 - [x] Cover the investment formula and disclaimer metadata.
 - [x] Derive anonymized regression fixtures from both supplied Uber exports;

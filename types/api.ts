@@ -372,6 +372,7 @@ export interface UserSummary {
 export type DashboardInsightCategory = 'favorites' | 'habits' | 'extremes' | 'progress';
 export type DashboardInsightIcon = 'restaurant' | 'time' | 'calendar' | 'moon' | 'heart' | 'receipt' | 'meal' | 'delivery' | 'lock' | 'repeat' | 'trend' | 'trophy' | 'sparkles';
 export type DashboardInsightValueFormat = 'currency' | 'number' | 'percent' | 'minutes' | 'hours' | 'days';
+export type DashboardExportProvider = 'uber_eats' | 'doordash';
 
 export interface DashboardInsightMethodology {
   estimated?: boolean;
@@ -459,6 +460,7 @@ export interface DashboardInsightEdition {
   nextRefreshAt: string;
   metricVersion: string;
   availableCandidateCount: number;
+  partialExportProvider?: DashboardExportProvider;
   insights: DashboardInsight[];
 }
 

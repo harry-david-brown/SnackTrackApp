@@ -3,6 +3,7 @@ import type {
   DashboardInsight,
   DashboardInsightCategory,
   DashboardInsightEdition,
+  DashboardExportProvider,
   DashboardInsightIcon,
   DashboardInsightMethodology,
   DashboardInsightPeriod,
@@ -31,6 +32,7 @@ const localDate = (value: unknown, field: string) => {
 const categories = ['favorites', 'habits', 'extremes', 'progress'] as const satisfies readonly DashboardInsightCategory[];
 const icons = ['restaurant', 'time', 'calendar', 'moon', 'heart', 'receipt', 'meal', 'delivery', 'lock', 'repeat', 'trend', 'trophy', 'sparkles'] as const satisfies readonly DashboardInsightIcon[];
 const valueFormats = ['currency', 'number', 'percent', 'minutes', 'hours', 'days'] as const satisfies readonly DashboardInsightValueFormat[];
+const exportProviders = ['uber_eats', 'doordash'] as const satisfies readonly DashboardExportProvider[];
 
 const normalizeMethodology = (value: unknown, field: string): DashboardInsightMethodology => {
   const source = record(value, field);
@@ -207,6 +209,7 @@ export const normalizeDashboardInsightEdition = (value: unknown): DashboardInsig
     nextRefreshAt: isoDate(source.nextRefreshAt, 'edition.nextRefreshAt'),
     metricVersion: string(source.metricVersion, 'edition.metricVersion'),
     availableCandidateCount,
+    partialExportProvider: optional(source.partialExportProvider, 'edition.partialExportProvider', (candidate, candidateField) => member(candidate, exportProviders, candidateField)),
     insights,
   };
 };

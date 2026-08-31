@@ -29,10 +29,11 @@ describe('dashboard insights API boundary', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('strictly normalizes every presentation and fetches the dedicated resource', async () => {
-    const payload = { ...base, insights: cards };
+    const payload = { ...base, partialExportProvider: 'uber_eats', insights: cards };
     (api.get as jest.Mock).mockResolvedValue({ data: payload });
     const edition = await dashboardInsightsApi.getEdition('user-id');
     expect(api.get).toHaveBeenCalledWith('/users/user-id/dashboard-insights');
+    expect(edition.partialExportProvider).toBe('uber_eats');
     expect(edition.insights.map(insight => insight.presentation)).toEqual(['hero', 'comparison', 'ranking', 'order', 'timeline', 'yearly-champions', 'locked']);
     expect(edition.insights[0]).toMatchObject({ period: { startDate: '2026-07-01', endDate: '2026-07-08' } });
     expect(edition.insights[1]).toMatchObject({ presentation: 'comparison', comparison: { variant: 'investment', subject: { kind: 'item', name: 'Classic Burger', restaurant: 'Burger Lab', occurrences: 3 } } });
@@ -64,5 +65,6 @@ describe('dashboard insights API boundary', () => {
   it('rejects invalid metadata and editions larger than seven', () => {
     expect(() => normalizeDashboardInsightEdition({ ...base, localDate: 'Thursday', insights: [] })).toThrow('edition.localDate');
     expect(() => normalizeDashboardInsightEdition({ ...base, insights: Array.from({ length: 8 }, (_, index) => ({ ...cards[0], id: String(index) })) })).toThrow('edition.insights');
+    expect(() => normalizeDashboardInsightEdition({ ...base, partialExportProvider: 'grubhub', insights: [] })).toThrow('edition.partialExportProvider');
   });
 });
