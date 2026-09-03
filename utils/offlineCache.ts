@@ -1,117 +1,43 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const CACHE_KEYS = {
-  LAST_SYNC: '@snacktrack_last_sync',
-  PENDING_OPERATIONS: '@snacktrack_pending_operations',
-};
-const resetBlockedUsers = new Set<string>();
 
-export interface PendingUploadFile {
-  uri?: string;
-  name?: string;
-  type?: string;
-}
+const LEGACY_PENDING_OPERATIONS_KEY = '@snacktrack_pending_operations';
 
-export interface PendingOperation {
-  id: string;
-  type: 'csv_upload' | 'user_update';
-  data: { userId?: string; file?: File | PendingUploadFile; [key: string]: unknown };
-  timestamp: number;
-  retryCount: number;
-}
+const record = (value: unknown): Record<string, unknown> | null =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
-// Pending operations queue (for offline support)
-export const queueOperation = async (operation: Omit<PendingOperation, 'id' | 'timestamp' | 'retryCount'>): Promise<void> => {
-  try {
-    if (operation.data.userId) resetBlockedUsers.delete(operation.data.userId);
-    const pending = await getPendingOperations();
-    const newOperation: PendingOperation = {
-      ...operation,
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      retryCount: 0,
-    };
-    pending.push(newOperation);
-    await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(pending));
-  } catch (error) {
-    // Silently fail - not critical
-  }
+const belongsToUser = (value: unknown, userId: string): boolean => {
+  const operation = record(value);
+  const data = record(operation?.data);
+  return data?.userId === userId;
 };
 
-/** Remove retryable work that could repopulate a freshly reset account. */
+/**
+ * Removes work left by pre-refactor builds. Export files are no longer placed
+ * in AsyncStorage: a URI-backed native file is not a durable serializable command and
+ * retries now remain in the visible upload controller.
+ */
 export const removePendingOperationsForUser = async (userId: string): Promise<void> => {
-  resetBlockedUsers.add(userId);
-  const pending = await getPendingOperations();
-  await AsyncStorage.setItem(
-    CACHE_KEYS.PENDING_OPERATIONS,
-    JSON.stringify(pending.filter(operation => operation.data.userId !== userId))
-  );
-};
+  const serialized = await AsyncStorage.getItem(LEGACY_PENDING_OPERATIONS_KEY);
+  if (!serialized) return;
 
-/** Re-check immediately before a retry so a reset can cancel an in-memory loop. */
-export const shouldProcessPendingOperation = async (operation: PendingOperation): Promise<boolean> => {
-  const userId = operation.data.userId;
-  if (userId && resetBlockedUsers.has(userId)) return false;
-  const pending = await getPendingOperations();
-  return pending.some(candidate => candidate.id === operation.id);
-};
-
-export const getPendingOperations = async (): Promise<PendingOperation[]> => {
+  let parsed: unknown;
   try {
-    const pending = await AsyncStorage.getItem(CACHE_KEYS.PENDING_OPERATIONS);
-    return pending ? JSON.parse(pending) : [];
-  } catch (error) {
-    return [];
+    parsed = JSON.parse(serialized);
+  } catch {
+    await AsyncStorage.removeItem(LEGACY_PENDING_OPERATIONS_KEY);
+    return;
   }
-};
+  if (!Array.isArray(parsed)) {
+    await AsyncStorage.removeItem(LEGACY_PENDING_OPERATIONS_KEY);
+    return;
+  }
 
-export const removeOperation = async (operationId: string): Promise<void> => {
-  try {
-    const pending = await getPendingOperations();
-    const filtered = pending.filter(op => op.id !== operationId);
-    await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(filtered));
-  } catch (error) {
-    // Silently fail - not critical
+  const remaining = parsed.filter((operation) => !belongsToUser(operation, userId));
+  if (remaining.length === 0) {
+    await AsyncStorage.removeItem(LEGACY_PENDING_OPERATIONS_KEY);
+    return;
   }
-};
-
-export const incrementRetryCount = async (operationId: string): Promise<void> => {
-  try {
-    const pending = await getPendingOperations();
-    const updated = pending.map(op => 
-      op.id === operationId ? { ...op, retryCount: op.retryCount + 1 } : op
-    );
-    await AsyncStorage.setItem(CACHE_KEYS.PENDING_OPERATIONS, JSON.stringify(updated));
-  } catch (error) {
-    // Silently fail - not critical
-  }
-};
-
-// Last sync timestamp
-export const updateLastSync = async (): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(CACHE_KEYS.LAST_SYNC, Date.now().toString());
-  } catch (error) {
-    // Silently fail - not critical
-  }
-};
-
-export const getLastSync = async (): Promise<number | null> => {
-  try {
-    const lastSync = await AsyncStorage.getItem(CACHE_KEYS.LAST_SYNC);
-    return lastSync ? parseInt(lastSync, 10) : null;
-  } catch (error) {
-    return null;
-  }
-};
-
-// Clear all cache
-export const clearAllCache = async (): Promise<void> => {
-  try {
-    await AsyncStorage.multiRemove([
-      CACHE_KEYS.LAST_SYNC,
-      CACHE_KEYS.PENDING_OPERATIONS,
-    ]);
-  } catch (error) {
-    // Silently fail - not critical
-  }
+  await AsyncStorage.setItem(LEGACY_PENDING_OPERATIONS_KEY, JSON.stringify(remaining));
 };

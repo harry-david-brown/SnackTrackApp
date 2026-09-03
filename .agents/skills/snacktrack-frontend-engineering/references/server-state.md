@@ -2,7 +2,7 @@
 
 ## Target ownership
 
-Use TanStack Query as the target cache for ordinary server resources because `QueryClientProvider` is already configured in `SnackTrackApp/app/_layout.tsx`. Do not assume existing resources have been migrated; inspect their current owners first.
+Use TanStack Query as the authoritative cache for migrated ordinary server resources because `QueryClientProvider` is configured in `SnackTrackApp/app/_layout.tsx`. Receipt lists, analytics/dashboard reads, import preferences including Gmail/Outlook connection status, and durable import operations already use this boundary. Inspect the owner before changing any other resource.
 
 Create domain query keys through a key factory, for example:
 
@@ -42,7 +42,7 @@ For destructive fresh-account or deletion mutations, use the contract in `snackt
 
 - invoke one authoritative server operation rather than sequencing partial client mutations;
 - preserve authentication/session storage unless the contract deletes the account;
-- remove affected analytics, wrapped, receipt, import-preference, and Gmail-status queries after success;
+- remove affected analytics, wrapped, receipt, import-preference, mailbox-status, and import-operation queries after success;
 - clear feature-local device caches such as analytics, export handoff/ready notifications, and upsell history;
 - clear the onboarding completion marker last and route to the initial authenticated experience;
 - retain existing state and provide retry when the server operation fails.
@@ -84,6 +84,8 @@ Never allow a stale offline completion marker to outrank current server truth.
 - Respect reduced motion for visual timers, but not data correctness timers.
 - Surface durable failures such as reconnect-required instead of silently turning them into empty success.
 - Treat a lock timeout during reset as retryable conflict state, not partial success.
+- Poll durable import operations only while the app is active and the operation is nonterminal. Stop on `succeeded`, `failed`, `expired`, `superseded`, or `cancelled`; use terminal success to invalidate receipt-derived/import state and terminal failure/cancellation to expose the correct recovery.
+- Treat `pending_dispatch`/waiting-for-queue as accepted delayed work. Preserve the operation identifier across refetches instead of submitting a duplicate request.
 
 ## Migration strategy
 

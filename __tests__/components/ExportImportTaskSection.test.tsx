@@ -65,9 +65,9 @@ describe('ExportImportTaskSection', () => {
       }}
     />);
 
-    expect(screen.getByText('One export imported')).toBeTruthy();
+    expect(screen.getByText('One delivery app added')).toBeTruthy();
     expect(screen.getByText('Import DoorDash')).toBeTruthy();
-    expect(screen.getByText('Import Newer Uber Eats Export')).toBeTruthy();
+    expect(screen.getByText('Add Newer Uber Eats History')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Import DoorDash'));
     expect(baseProps.onImportProvider).toHaveBeenCalledWith('doordash');
@@ -85,7 +85,7 @@ describe('ExportImportTaskSection', () => {
       }}
     />);
 
-    expect(screen.getByText('Upload your export')).toBeTruthy();
+    expect(screen.getByText('Add your downloaded history')).toBeTruthy();
     expect(screen.getByText('Choose Export File')).toBeTruthy();
   });
 
@@ -100,12 +100,12 @@ describe('ExportImportTaskSection', () => {
       }}
     />);
 
-    expect(screen.getByText('Your export history is complete')).toBeTruthy();
-    expect(screen.getByText('Import a Newer Export')).toBeTruthy();
+    expect(screen.getByText('Your delivery history is complete')).toBeTruthy();
+    expect(screen.getByText('Add Newer History')).toBeTruthy();
     expect(screen.queryByText('Update Uber Eats')).toBeNull();
     expect(screen.queryByText('Update DoorDash')).toBeNull();
 
-    fireEvent.press(screen.getByText('Import a Newer Export'));
+    fireEvent.press(screen.getByText('Add Newer History'));
     expect(baseProps.onShowTutorial).toHaveBeenCalledTimes(1);
   });
 

@@ -137,7 +137,7 @@ export default function SpendingTrendChart({ analytics, timeframe, showLabels = 
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No spending data available</Text>
-        <Text style={styles.emptySubtext}>Upload CSV data to see beautiful charts!</Text>
+        <Text style={styles.emptySubtext}>Add order history to see your spending trend.</Text>
       </View>
     );
   }

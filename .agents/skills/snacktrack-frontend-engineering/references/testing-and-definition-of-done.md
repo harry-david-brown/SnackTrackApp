@@ -42,6 +42,7 @@ Add or update integration coverage when a change crosses multiple steps, especia
 - export request, ready detection, download handoff, and upload;
 - upload completion into wrapped/slideshow;
 - ongoing tracking and reconnect recovery;
+- durable import acceptance, background polling, completion invalidation, queue delay, retry, and administrator cancellation;
 - clearing receipts and resetting source coverage.
 - fresh-account reset during active Gmail sync/export upload, including removal of stale query and device caches.
 

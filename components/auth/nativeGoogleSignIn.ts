@@ -1,10 +1,9 @@
 /**
  * Lazy loader for the native Google Sign-In module. Only available in
- * development/standalone builds — Expo Go and web fall back to
- * expo-auth-session. Checked lazily (not at module load) to avoid crashes
+ * development/standalone builds — Expo Go falls back to expo-auth-session.
+ * Checked lazily (not at module load) to avoid crashes
  * in Expo Go, where the native module doesn't exist.
  */
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getConfig } from '@config/env';
 
@@ -19,11 +18,6 @@ export const checkNativeGoogleSignIn = (): boolean => {
   }
 
   nativeModuleChecked = true;
-
-  if (Platform.OS === 'web') {
-    nativeGoogleSignInAvailable = false;
-    return false;
-  }
 
   // Check if we're in Expo Go - if so, skip native module check entirely
   // Constants.executionEnvironment is 'storeClient' in Expo Go, 'standalone' in production builds
@@ -46,9 +40,9 @@ export const checkNativeGoogleSignIn = (): boolean => {
     if (GoogleSignin) {
       try {
         const config = getConfig();
-        if (config.gmailWebClientId) {
+        if (config.googleServerClientId) {
           GoogleSignin.configure({
-            webClientId: config.gmailWebClientId,
+            webClientId: config.googleServerClientId,
             iosClientId: config.gmailIosClientId,
             offlineAccess: true,
           });

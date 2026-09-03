@@ -1,57 +1,59 @@
-/**
- * CSV/ZIP import API endpoints
- */
-
-import api from './client';
-import { CSVImportResponse } from '@/types/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import type { ExportProvider, ImportOperation } from '@features/import-flow/contracts';
+import { importOperationsApi } from '@services/importOperationsApi';
 import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
-/**
- * CSV/ZIP import API endpoints
- * Note: Named "csvApi" for historical reasons, but handles both ZIP and CSV files
- * Backend endpoint /csv/import accepts both file types
- */
-export const csvApi = {
-  /**
-   * Import ZIP or CSV file containing delivery app order history
-   * Backend auto-detects file type and processes accordingly
-   * @param userId - The user ID to associate receipts with
-   * @param csvFile - The file to import (ZIP or CSV format)
-   * @returns Promise resolving to CSVImportResponse with import statistics
-   * @throws {Error} If file format is invalid or import fails
-   */
-  importCsv: async (userId: string, csvFile: File): Promise<CSVImportResponse> => {
-    // Validate and authorize user ID
-    const validatedUserId = await validateAndAuthorizeUserId(userId);
+export interface NativeUploadFile {
+  readonly uri: string;
+  readonly name: string;
+  readonly type: string;
+  readonly size: number;
+}
 
-    const formData = new FormData();
-    formData.append('csvFile', csvFile); // Field name stays 'csvFile' for backend compatibility
-    formData.append('userId', validatedUserId);
+type ProviderImportFile = (
+  userId: string,
+  exportFile: NativeUploadFile,
+  onProgress?: (progress: number) => void,
+  existingOperationId?: string,
+  onIntent?: (operation: ImportOperation) => void,
+) => Promise<ImportOperation>;
 
-    const response = await api.post<unknown>('/csv/import', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
+const importProviderFile = async (
+    provider: ExportProvider,
+    userId: string,
+    exportFile: NativeUploadFile,
+    onProgress?: (progress: number) => void,
+    existingOperationId?: string,
+    onIntent?: (operation: ImportOperation) => void,
+  ): Promise<ImportOperation> => {
+    await validateAndAuthorizeUserId(userId);
+    const intent = existingOperationId
+      ? await importOperationsApi.refreshUploadIntent(existingOperationId)
+      : provider === 'uber_eats'
+        ? await importOperationsApi.createUberEatsUploadIntent(exportFile)
+        : await importOperationsApi.createDoorDashUploadIntent(exportFile);
+    if (intent.operation.provider !== provider) throw new Error('The pending upload belongs to a different delivery provider.');
+    onIntent?.(intent.operation);
+    const task = FileSystem.createUploadTask(
+      intent.uploadUrl,
+      exportFile.uri,
+      {
+        httpMethod: 'PUT',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: { ...intent.headers },
       },
-    });
-    const data = typeof response.data === 'object' && response.data !== null
-      ? response.data as Record<string, unknown>
-      : {};
-    if (
-      typeof data.importedCount !== 'number'
-      || !Number.isFinite(data.importedCount)
-      || typeof data.message !== 'string'
-      || (data.provider !== 'uber_eats' && data.provider !== 'doordash')
-    ) {
-      throw new Error('Invalid import response');
+      ({ totalBytesSent, totalBytesExpectedToSend }) => {
+        onProgress?.(totalBytesExpectedToSend > 0 ? totalBytesSent / totalBytesExpectedToSend : 0);
+      },
+    );
+    const upload = await task.uploadAsync();
+    if (!upload || upload.status < 200 || upload.status >= 300) {
+      throw new Error('The archive could not be uploaded to secure import storage.');
     }
-    const fileType = data.fileType === 'csv' || data.fileType === 'zip' ? data.fileType : undefined;
-    return {
-      success: typeof data.success === 'boolean' ? data.success : undefined,
-      importedCount: data.importedCount,
-      totalAmount: typeof data.totalAmount === 'number' && Number.isFinite(data.totalAmount) ? data.totalAmount : undefined,
-      fileType,
-      provider: data.provider,
-      message: data.message,
-    };
-  },
+    return importOperationsApi.submitUpload(intent.operation.id);
+  };
+
+export const exportImportApi = {
+  importUberEatsFile: ((...args) => importProviderFile('uber_eats', ...args)) as ProviderImportFile,
+  importDoorDashFile: ((...args) => importProviderFile('doordash', ...args)) as ProviderImportFile,
 };

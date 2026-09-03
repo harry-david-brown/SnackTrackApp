@@ -32,6 +32,19 @@ Do not create a generic component merely to avoid a few repeated lines. Extract 
 - Check Android elevation and iOS shadow appearance.
 - Test long currency values, translated-length copy, small screens, and font scaling.
 
+## Color roles and hierarchy
+
+Palette membership is necessary but does not make a color appropriate for every component. Choose color by semantic role and visual weight:
+
+- Keep forest green and warm neutrals dominant across ordinary app surfaces. Use the standard primary green for safe forward actions, including connection recovery and retry actions.
+- Let a button's color describe the consequence of the action, not merely inherit the status of its surrounding card. A warning card can use orange accents while its safe recovery button remains primary green.
+- Use warning orange and error red mainly for status copy, icons, borders, and tinted surfaces. Avoid large saturated status fills when a smaller accent communicates the state.
+- Reserve red-filled controls for destructive, irreversible, or genuinely dangerous actions. Do not make routine recovery resemble deletion or failure.
+- Reserve success colors for completed or healthy states; do not use them as a general substitute for the primary action color.
+- Use provider colors only where provider identity is itself meaningful, such as approved provider-specific controls or instructions. Do not let external brand colors replace SnackTrack interaction roles.
+- Treat each interactive treatment as a set: background, foreground, border, pressed, disabled, pending, and shadow colors must remain coherent when an accent is overridden.
+- Preserve contrast and meaning without relying on color alone. Labels, icons, and copy must continue to identify warning, error, and success states.
+
 ## Interaction states
 
 Every interactive control must define:

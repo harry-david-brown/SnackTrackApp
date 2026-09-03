@@ -1,14 +1,16 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import NetInfo from '@react-native-community/netinfo';
+import { toApiClientError } from '@services/api/apiError';
+
+onlineManager.setEventListener((setOnline) => NetInfo.addEventListener((state) => {
+  setOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
+}));
 
 const isAuthenticationError = (error: unknown) => {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as {
-    message?: string;
-    response?: { status?: number };
-  };
-  return candidate.message === 'SESSION_EXPIRED'
-    || candidate.response?.status === 401
-    || candidate.response?.status === 403;
+  const candidate = toApiClientError(error);
+  return candidate.code === 'SESSION_EXPIRED'
+    || candidate.statusCode === 401
+    || candidate.statusCode === 403;
 };
 
 export const createAppQueryClient = (options: { forTests?: boolean } = {}) =>

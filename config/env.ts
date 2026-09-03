@@ -18,7 +18,11 @@ export interface EnvConfig {
   // Gmail OAuth client IDs
   gmailAndroidClientId?: string;
   gmailIosClientId?: string;
-  gmailWebClientId?: string;
+  /** Google OAuth web client credential used as the native SDK's server client ID. */
+  googleServerClientId?: string;
+  microsoftLoginClientId?: string;
+  microsoftLoginIosRedirectUri?: string;
+  microsoftLoginAndroidRedirectUri?: string;
 }
 
 function normalizeIosGoogleClientId(clientId?: string): string | undefined {
@@ -84,7 +88,7 @@ function getApiUrl(): string {
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(apiUrl);
-  } catch (error) {
+  } catch {
     throw new Error(
       `EXPO_PUBLIC_API_URL is not a valid URL: ${apiUrl}\n` +
       'Please provide a valid URL (e.g., https://snacktrackapi-production.up.railway.app)'
@@ -137,7 +141,18 @@ export function getEnvConfig(): EnvConfig {
   const gmailIosClientId = normalizeIosGoogleClientId(
     getEnvVar('EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID', false)
   );
-  const gmailWebClientId = getEnvVar('EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID', false);
+  // Google names this credential type a "web client ID", but the native
+  // Google Sign-In SDK uses it as its server client ID.
+  const googleServerClientId = getEnvVar('EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID', false);
+  const microsoftLoginClientId = getEnvVar('EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID', false);
+  const microsoftLoginIosRedirectUri = getEnvVar(
+    'EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI',
+    false,
+  );
+  const microsoftLoginAndroidRedirectUri = getEnvVar(
+    'EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI',
+    false,
+  );
 
   return {
     apiUrl,
@@ -148,7 +163,10 @@ export function getEnvConfig(): EnvConfig {
     isProduction: appEnv === 'production',
     gmailAndroidClientId,
     gmailIosClientId,
-    gmailWebClientId,
+    googleServerClientId,
+    microsoftLoginClientId,
+    microsoftLoginIosRedirectUri,
+    microsoftLoginAndroidRedirectUri,
   };
 }
 

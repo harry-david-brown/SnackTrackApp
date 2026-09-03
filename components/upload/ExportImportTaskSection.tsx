@@ -8,10 +8,10 @@ import {
   UBER_EXPORT_EMAIL_SENDER_NAME, UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
 import { AppButton } from '@components/ui/AppButton';
-import { UberDataUpload } from './UberDataUpload';
+import { ExportDataUpload } from './UberDataUpload';
 import { ImportTaskCard, type ImportTaskId } from './ImportTaskCard';
 import type { DataPlatform } from './UberDataTutorial';
-import type { CSVImportResponse } from '@/types/api';
+import type { ImportOperation } from '@features/import-flow/contracts';
 
 interface ExportImportTaskSectionProps {
   state: ImportTaskState;
@@ -29,8 +29,8 @@ interface ExportImportTaskSectionProps {
   onShowTutorial: () => void;
   onImportProvider: (platform: DataPlatform) => void;
   onAutoOpenConsumed: () => void;
-  onUploadSuccess: (result: CSVImportResponse) => void;
-  onUploadError: (message: string) => void;
+  onUploadSuccess: (result: ImportOperation) => void | Promise<void>;
+  onUploadError: (message: string) => void | Promise<void>;
 }
 
 export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
@@ -64,8 +64,8 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
     <View onLayout={props.onLayout}>
       <ImportTaskCard
         id="uber_export"
-        title="Import a data export"
-        description="Optional: upload an Uber Eats or DoorDash export to expand your history."
+        title="Add delivery-app history"
+        description="Add your official Uber Eats or DoorDash order history for deeper coverage."
         iconName="cloud-upload-outline"
         statusLabel={props.state.label}
         statusTone={props.state.tone}
@@ -87,7 +87,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
                   : requestedPlatform
                     ? `${requestedProviderName} is preparing a newer archive. Your existing imported history remains available.`
                 : importComplete
-                  ? 'Uber Eats and DoorDash export history are both included in your SnackTrack stats.'
+                  ? 'Uber Eats and DoorDash history are both included in your SnackTrack stats.'
                 : hasImportedProvider
                   ? `${importedProviderName} is included in your stats. Add ${missingProviderName} for more complete history.`
               : props.exportRequested
@@ -102,7 +102,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
                 {waitingForDownload
                   ? `Find ${readyProviderName}’s data-ready email`
                   : readyToUpload
-                    ? 'Upload your export'
+                    ? 'Add your downloaded history'
                     : processingPlatform
                         ? `Importing ${processingProviderName}`
                         : failedPlatform
@@ -110,26 +110,26 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
                         : requestedPlatform
                           ? `${requestedProviderName} update requested`
                       : importComplete
-                        ? 'Your export history is complete'
+                        ? 'Your delivery history is complete'
                       : hasImportedProvider
-                        ? 'One export imported'
+                        ? 'One delivery app added'
                     : props.exportRequested ? 'Continue your data request' : 'Request your delivery data'}
               </Text>
               <Text style={styles.subtitle}>
                 {waitingForDownload
                   ? readyProvider === 'doordash'
-                    ? 'Open DoorDash’s ready email, tap “View Your Data Archive,” and save the original ZIP.'
+                    ? 'Open DoorDash’s ready message, tap “View Your Data Archive,” and save the original ZIP.'
                     : `Open the email below and tap “${UBER_EXPORT_EMAIL_ACTION}” to save the original ZIP.`
                   : readyToUpload
                     ? 'Choose the ZIP you downloaded. Keep the archive zipped.'
                     : processingPlatform
-                        ? 'Keep this screen open while SnackTrack finishes processing the archive.'
+                        ? 'SnackTrack is processing this in the background. You can leave this screen.'
                         : failedPlatform
                           ? 'Try the archive again. Any previously imported receipts are still safe.'
                         : requestedPlatform
                           ? 'Keep an eye on your email. You can continue this provider’s guide whenever the newer archive is ready.'
                       : importComplete
-                        ? 'Uber Eats and DoorDash are both included. Import a newer archive whenever you want to refresh your history.'
+                        ? 'Uber Eats and DoorDash are both included. Add a newer archive whenever you want to refresh your history.'
                       : hasImportedProvider
                         ? missingProviderStatus === 'failed'
                           ? `${missingProviderName} needs another attempt.`
@@ -138,7 +138,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
               </Text>
             </View>
           </View>
-          <View style={styles.providerList} accessible accessibilityLabel={`${props.providerProgress.importedCount} of 2 delivery exports imported`}>
+          <View style={styles.providerList} accessible accessibilityLabel={`${props.providerProgress.importedCount} of 2 delivery-app history files added`}>
             <ProviderStatusRow name="Uber Eats" platform="uber" imported={props.providerProgress.uberEats.imported} status={props.providerProgress.uberEats.status} />
             <View style={styles.providerDivider} />
             <ProviderStatusRow name="DoorDash" platform="doordash" imported={props.providerProgress.doorDash.imported} status={props.providerProgress.doorDash.status} />
@@ -154,19 +154,20 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
                   <EmailRow label="Tap" value={UBER_EXPORT_EMAIL_ACTION} />
                 </View>
               ) : null}
-              <AppButton label={readyProvider === 'doordash' ? 'Show DoorDash Email Instructions' : props.downloadState === 'checking_email' ? 'Open Gmail Again' : 'Open Gmail and Find This Email'} icon="mail-outline" onPress={props.onOpenEmail} />
+              <AppButton label={readyProvider === 'doordash' ? 'Show DoorDash Download Instructions' : props.downloadState === 'checking_email' ? 'Review the Ready Message Again' : 'Find the Ready Message'} icon="mail-outline" onPress={props.onOpenEmail} />
               <AppButton label="I Already Downloaded It" variant="secondary" icon="checkmark-circle-outline" onPress={props.onDownloaded} />
               <Text style={styles.locationHint}>Downloaded it on a computer? Move the ZIP to Files, iCloud Drive, or Google Drive on this device first.</Text>
             </View>
           ) : readyToUpload ? (
             <>
-              <UberDataUpload
+              <ExportDataUpload
+                provider={readyProvider}
                 onUploadSuccess={props.onUploadSuccess}
                 onUploadError={props.onUploadError}
                 autoOpenToken={props.autoOpenToken}
                 onAutoOpenConsumed={props.onAutoOpenConsumed}
               />
-              {props.fileReady ? <AppButton label="Still need to download it? Open Gmail" variant="secondary" icon="mail-outline" onPress={props.onOpenEmail} /> : null}
+              {props.fileReady ? <AppButton label="Still need to download it? Review the steps" variant="secondary" icon="mail-outline" onPress={props.onOpenEmail} /> : null}
             </>
           ) : processingPlatform ? (
             <AppButton
@@ -189,7 +190,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
             />
           ) : importComplete ? (
             <AppButton
-              label="Import a Newer Export"
+              label="Add Newer History"
               variant="secondary"
               icon="refresh-outline"
               onPress={props.onShowTutorial}
@@ -201,7 +202,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
                 icon={missingProviderStatus === 'failed' ? 'refresh-outline' : 'add-circle-outline'}
                 onPress={() => props.onImportProvider(missingPlatform)}
               />
-              <AppButton label={`Import Newer ${importedProviderName} Export`} variant="secondary" icon="refresh-outline" onPress={() => props.onImportProvider(importedPlatform)} />
+              <AppButton label={`Add Newer ${importedProviderName} History`} variant="secondary" icon="refresh-outline" onPress={() => props.onImportProvider(importedPlatform)} />
             </View>
           ) : (
             <AppButton

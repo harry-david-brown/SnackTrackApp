@@ -1,4 +1,4 @@
-import type { ProviderExportLifecycleStatus } from '@services/gmailApi';
+import type { ProviderExportLifecycleStatus } from './contracts';
 
 export type ProviderTutorialJob =
   | 'request'

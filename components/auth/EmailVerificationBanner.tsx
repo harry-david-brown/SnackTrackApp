@@ -33,8 +33,8 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
     onDismiss?.();
   };
 
-  const handleVerificationSuccess = () => {
-    markEmailVerified();
+  const handleVerificationSuccess = async () => {
+    await markEmailVerified();
     setShowModal(false);
     setIsDismissed(true);
   };
@@ -47,7 +47,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
           <View style={styles.textContainer}>
             <Text style={styles.title}>Verify your email</Text>
             <Text style={styles.subtitle}>
-              Confirm your email address to secure your account
+              Optional for now. Verify to help protect account recovery.
             </Text>
           </View>
         </View>
@@ -55,12 +55,17 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
           <TouchableOpacity
             style={styles.verifyButton}
             onPress={handleVerify}
+            accessibilityRole="button"
+            accessibilityLabel="Verify email address"
           >
             <Text style={styles.verifyButtonText}>Verify</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dismissButton}
             onPress={handleDismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss email verification reminder"
+            hitSlop={8}
           >
             <Ionicons name="close" size={18} color={Colors.textSecondary} />
           </TouchableOpacity>
@@ -144,5 +149,4 @@ const styles = StyleSheet.create({
 });
 
 export default EmailVerificationBanner;
-
 

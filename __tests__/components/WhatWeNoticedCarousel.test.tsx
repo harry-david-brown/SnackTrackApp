@@ -61,8 +61,8 @@ describe('WhatWeNoticedCarousel', () => {
   });
 
   it.each([
-    ['uber_eats', 'Uber Eats export only', 'DoorDash', 'doordash'],
-    ['doordash', 'DoorDash export only', 'Uber Eats', 'uber_eats'],
+    ['uber_eats', 'Uber Eats history only', 'DoorDash', 'doordash'],
+    ['doordash', 'DoorDash history only', 'Uber Eats', 'uber_eats'],
   ] as const)('explains %s-only export coverage and routes the missing provider action', async (provider, badge, missingName, missingProvider) => {
     const onOpenProviderExport = jest.fn();
     const screen = render(
@@ -78,7 +78,7 @@ describe('WhatWeNoticedCarousel', () => {
     fireEvent.press(screen.getByRole('button', { name: `Data coverage: ${badge}. More information` }));
     expect(showAlert).toHaveBeenCalledWith(
       badge,
-      expect.stringContaining(`${missingName} export history isn’t included`),
+      expect.stringContaining(`${missingName} history isn’t included`),
       expect.any(Array),
     );
     const buttons = jest.mocked(showAlert).mock.calls.at(-1)?.[2];

@@ -1,18 +1,18 @@
 import { Colors } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, StyleSheet, Text, View } from 'react-native';
-import type { ImportPreferencesResponse } from '@services/gmailApi';
+import { AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ImportPreferencesResponse } from '@features/import-flow/contracts';
 import type { DashboardTrackingAction, DashboardTrackingCardState } from './dashboardTrackingState';
 import { Card } from '@components/ui/Card';
 import { AppButton } from '@components/ui/AppButton';
 
 const TONES = {
-  brand: { accent: Colors.primary, surface: Colors.infoBg },
-  progress: { accent: Colors.infoStrong, surface: Colors.infoSurface },
-  success: { accent: Colors.successDark, surface: Colors.successSurface },
-  warning: { accent: Colors.warningDeep, surface: Colors.warningSurface },
-  error: { accent: Colors.errorDark, surface: Colors.errorSurface },
+  brand: { accent: Colors.primary, actionAccent: Colors.primary, surface: Colors.infoBg },
+  progress: { accent: Colors.infoStrong, actionAccent: Colors.infoStrong, surface: Colors.infoSurface },
+  success: { accent: Colors.successDark, actionAccent: Colors.successDark, surface: Colors.successSurface },
+  warning: { accent: Colors.warningDeep, actionAccent: Colors.primary, surface: Colors.warningSurface },
+  error: { accent: Colors.errorDark, actionAccent: Colors.errorDark, surface: Colors.errorSurface },
 };
 
 export function DashboardTrackingCard({
@@ -57,9 +57,48 @@ export function DashboardTrackingCard({
 
   const activity = preferences?.ongoingTracking.activity;
   const ordersAddedThisWeek = activity?.ordersAddedThisWeek ?? 0;
+  const isCompactStatus = (state.display === 'compact' && !state.secondaryAction)
+    || (state.passive && !state.secondaryAction && !state.progress);
+
+  if (isCompactStatus) {
+    return (
+      <Card accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} accessibilityState={{ busy: state.busy }} style={[styles.compactCard, { backgroundColor: tone.surface }]}>
+        <View style={[styles.compactIcon, { backgroundColor: Colors.surface }]}>
+          <Ionicons name={state.icon as any} size={21} color={tone.accent} />
+          {state.id === 'tracking_active' ? (
+            <Animated.View style={[styles.compactPulse, { backgroundColor: tone.accent, transform: [{ scale: pulse }] }]} />
+          ) : null}
+        </View>
+        <View style={styles.compactCopy}>
+          <Text style={styles.compactTitle}>{state.title}</Text>
+          <Text style={styles.compactBody} numberOfLines={2}>{state.body}</Text>
+          {state.showActivity && ordersAddedThisWeek > 0 ? (
+            <Text style={[styles.compactActivity, { color: tone.accent }]}>+{ordersAddedThisWeek} this week</Text>
+          ) : null}
+        </View>
+        {state.primaryAction ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={state.primaryLabel ?? state.title}
+            disabled={busy}
+            onPress={() => onAction(state.primaryAction!)}
+            style={styles.compactAction}
+          >
+            <Ionicons name="arrow-forward" size={21} color={tone.accent} />
+          </Pressable>
+        ) : state.busy ? (
+          <Animated.View accessibilityRole="progressbar">
+            <Ionicons name="sync" size={22} color={tone.accent} />
+          </Animated.View>
+        ) : (
+          <Ionicons name="checkmark-circle" size={22} color={tone.accent} />
+        )}
+      </Card>
+    );
+  }
 
   return (
-    <Card accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} style={styles.card}>
+    <Card accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} accessibilityState={{ busy: state.busy }} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.iconSurface, { backgroundColor: tone.surface }]}>
           <Ionicons name={state.icon as any} size={26} color={tone.accent} />
@@ -105,7 +144,7 @@ export function DashboardTrackingCard({
       ) : null}
 
       {state.primaryAction && state.primaryLabel ? (
-        <AppButton label={state.primaryLabel} accentColor={tone.accent} pending={busy} onPress={() => onAction(state.primaryAction!)} />
+        <AppButton label={state.primaryLabel} accentColor={tone.actionAccent} pending={busy} onPress={() => onAction(state.primaryAction!)} />
       ) : null}
       {state.secondaryAction && state.secondaryLabel ? (
         <AppButton label={state.secondaryLabel} variant="secondary" pending={busy} onPress={() => onAction(state.secondaryAction!)} />
@@ -115,6 +154,14 @@ export function DashboardTrackingCard({
 }
 
 const styles = StyleSheet.create({
+  compactCard: { minHeight: 84, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  compactIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  compactPulse: { position: 'absolute', right: 7, top: 7, width: 6, height: 6, borderRadius: 3, opacity: 0.35 },
+  compactCopy: { flex: 1 },
+  compactTitle: { color: Colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  compactBody: { marginTop: 2, color: Colors.textSecondary, fontSize: 12, lineHeight: 17 },
+  compactActivity: { marginTop: 4, fontSize: 12, fontWeight: '700' },
+  compactAction: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   card: {
     padding: 20,
     gap: 10,

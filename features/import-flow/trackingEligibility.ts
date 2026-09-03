@@ -1,5 +1,4 @@
-import type { ImportPreferencesResponse } from '@services/gmailApi';
-import { resolveGmailBaselineState } from './gmailBaselineState';
+import type { ImportPreferencesResponse } from './contracts';
 
 export type TrackingEligibilityReason =
   | 'loading'
@@ -13,18 +12,13 @@ export interface TrackingEligibility {
   reason: TrackingEligibilityReason;
 }
 
-export type TrackingBaselineSource = 'gmail' | 'exports' | 'none';
+export type TrackingBaselineSource = 'gmail' | 'outlook' | 'exports' | 'none';
 
 export function resolveTrackingBaselineSource(
   preferences: ImportPreferencesResponse | null,
 ): TrackingBaselineSource {
   if (!preferences) return 'none';
-  if (preferences.ongoingTracking.baseline) {
-    return preferences.ongoingTracking.baseline.source;
-  }
-  const providers = preferences.coverage.exportProviders;
-  if (providers.uberEats.hasData || providers.doorDash.hasData) return 'exports';
-  return resolveGmailBaselineState(preferences).hasCompleted ? 'gmail' : 'none';
+  return preferences.ongoingTracking.baseline.source;
 }
 
 /** Canonical prerequisite shared by every ongoing-tracking entry point. */
@@ -93,7 +87,7 @@ const exportCoverageDescription = (preferences: ImportPreferencesResponse): stri
   const uberDate = formatCoverageDate(providers.uberEats.latestOrderDate);
   const doorDashDate = formatCoverageDate(providers.doorDash.latestOrderDate);
   if (!uberDate || !doorDashDate) return null;
-  return `Your Uber Eats export is covered through ${uberDate} and DoorDash through ${doorDashDate}.`;
+  return `Your Uber Eats history is covered through ${uberDate} and DoorDash through ${doorDashDate}.`;
 };
 
 export function resolveOngoingUpdatesPresentation(
@@ -117,7 +111,7 @@ export function resolveOngoingUpdatesPresentation(
       title: 'Keeping your stats up to date',
       body: baselineSource === 'exports'
         ? `${exportCoverage ? `${exportCoverage} ` : ''}SnackTrack is checking for supported delivery receipts after those dates.`
-        : 'SnackTrack is checking for delivery receipts newer than your last Gmail import.',
+        : `SnackTrack is checking for delivery receipts newer than your last ${baselineSource === 'outlook' ? 'Outlook' : 'Gmail'} import.`,
     };
   }
   if (effectiveTrackingState === 'active') {
@@ -135,8 +129,8 @@ export function resolveOngoingUpdatesPresentation(
       statusLabel: 'Reconnect',
       tone: 'warning',
       title: 'Future updates',
-      body: 'Your imported history is safe. Reconnect Gmail to resume the optional updates you enabled.',
-      actionLabel: 'Reconnect Gmail',
+      body: 'Your imported history is safe. Restore an email connection to resume the optional updates you enabled.',
+      actionLabel: 'Manage email connections',
     };
   }
   if (effectiveTrackingState === 'error') {
@@ -156,9 +150,9 @@ export function resolveOngoingUpdatesPresentation(
       visible: true,
       statusLabel: 'Reconnect',
       tone: 'warning',
-      title: 'Reconnect Gmail for future updates',
-      body: 'Your imported history is safe. Reconnect Gmail before enabling automatic updates.',
-      actionLabel: 'Reconnect Gmail',
+      title: 'Reconnect email for future updates',
+      body: 'Your imported history is safe. Restore a Gmail or Outlook connection before enabling automatic updates.',
+      actionLabel: 'Manage email connections',
       actionVariant: 'secondary',
     };
   }
@@ -169,11 +163,11 @@ export function resolveOngoingUpdatesPresentation(
     tone: recovery.kind === 'unavailable' ? 'warning' : shouldRecommend ? 'recommended' : 'optional',
     title: shouldRecommend ? 'Keep your stats updated' : 'Future updates',
     body: trackingWasDeclined
-      ? 'Your imported history is complete. Ongoing Gmail updates are off, and you can turn them back on from Profile whenever you want.'
+      ? 'Your imported history is complete. Ongoing email updates are off, and you can turn them back on from Profile whenever you want.'
       : recovery.kind === 'baseline'
-      ? 'Add a provider export or complete one Gmail history import before setting up ongoing updates.'
+      ? 'Add delivery-app history or complete one email history scan before setting up ongoing updates.'
       : recovery.kind === 'unavailable'
-        ? 'Gmail is temporarily unavailable. Your connection and imported history are unchanged.'
+        ? 'Email access is temporarily unavailable. Your connection and imported history are unchanged.'
         : baselineSource === 'exports'
           ? `${exportCoverage ? `${exportCoverage} ` : ''}Let SnackTrack catch supported newer receipts, then keep checking for future orders.`
           : 'Optionally let SnackTrack check for new delivery receipts so your stats stay current.',

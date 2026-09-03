@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 interface NetworkStatus {
@@ -8,23 +7,21 @@ interface NetworkStatus {
   type: string | null;
 }
 
-// Configure NetInfo to not show native banners (native only)
+// Configure NetInfo to avoid native reachability banners.
 // Reduced timeouts for faster network change detection
-if (Platform.OS !== 'web') {
-  NetInfo.configure({
-    reachabilityUrl: 'https://clients3.google.com/generate_204',
-    reachabilityTest: async (response) => response.status === 204,
-    reachabilityLongTimeout: 60 * 1000, // 60s
-    reachabilityShortTimeout: 1 * 1000, // 1s - faster detection
-    reachabilityRequestTimeout: 3 * 1000, // 3s - faster timeout
-    shouldFetchWiFiSSID: false, // Disable native prompts
-    useNativeReachability: false, // Disable native network reachability (prevents banner)
-  });
-}
+NetInfo.configure({
+  reachabilityUrl: 'https://clients3.google.com/generate_204',
+  reachabilityTest: async (response) => response.status === 204,
+  reachabilityLongTimeout: 60 * 1000, // 60s
+  reachabilityShortTimeout: 1 * 1000, // 1s - faster detection
+  reachabilityRequestTimeout: 3 * 1000, // 3s - faster timeout
+  shouldFetchWiFiSSID: false, // Disable native prompts
+  useNativeReachability: false, // Disable native network reachability (prevents banner)
+});
 
 /**
  * Hook for monitoring network connectivity status
- * Works on both web and native platforms
+ * Uses the native NetInfo adapter on iOS and Android.
  * @returns NetworkStatus object with connection state and network type
  * @example
  * ```tsx
@@ -39,31 +36,6 @@ export const useNetworkStatus = (): NetworkStatus => {
   });
 
   useEffect(() => {
-    // Web: Use browser's navigator.onLine API
-    if (Platform.OS === 'web') {
-      const updateOnlineStatus = () => {
-        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-        setNetworkStatus({
-          isConnected: isOnline,
-          isInternetReachable: isOnline,
-          type: isOnline ? 'wifi' : 'none',
-        });
-      };
-
-      // Set initial status
-      updateOnlineStatus();
-
-      // Listen for online/offline events
-      window.addEventListener('online', updateOnlineStatus);
-      window.addEventListener('offline', updateOnlineStatus);
-
-      return () => {
-        window.removeEventListener('online', updateOnlineStatus);
-        window.removeEventListener('offline', updateOnlineStatus);
-      };
-    }
-
-    // Native: Use NetInfo
     // Fetch initial network state immediately
     NetInfo.fetch().then(state => {
       setNetworkStatus({

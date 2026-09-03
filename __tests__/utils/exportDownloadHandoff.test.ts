@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 import {
   getExportDownloadHandoffState,
   openUberExportEmail,
@@ -10,15 +10,8 @@ import {
 } from '@utils/exportDownloadHandoff';
 
 describe('exportDownloadHandoff', () => {
-  const originalPlatform = Platform.OS;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
-  });
-
-  afterAll(() => {
-    Object.defineProperty(Platform, 'OS', { value: originalPlatform, configurable: true });
   });
 
   it('uses local download state only for the matching ready event', async () => {

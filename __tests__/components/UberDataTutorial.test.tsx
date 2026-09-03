@@ -10,9 +10,7 @@ describe('UberDataTutorial', () => {
       <UberDataTutorial onRequestConfirmed={onRequestConfirmed} onClose={jest.fn()} />
     );
 
-    fireEvent.press(screen.getByLabelText('Choose Uber Eats'));
-    expect(screen.getByText('Have you requested your data yet?')).toBeTruthy();
-    fireEvent.press(screen.getByText('No, help me request it'));
+    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
     expect(screen.getByText('Sign in on Uber’s website')).toBeTruthy();
     expect(screen.queryByText('Open Uber Data Page')).toBeNull();
 
@@ -38,8 +36,7 @@ describe('UberDataTutorial', () => {
       <UberDataTutorial onRequestConfirmed={onRequestConfirmed} onClose={onClose} />
     );
 
-    fireEvent.press(screen.getByLabelText('Choose Uber Eats'));
-    fireEvent.press(screen.getByText('No, help me request it'));
+    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('I’ll do this later'));
@@ -58,8 +55,7 @@ describe('UberDataTutorial', () => {
     const onRequestConfirmed = jest.fn();
     const screen = render(<UberDataTutorial onRequestConfirmed={onRequestConfirmed} onClose={jest.fn()} />);
 
-    fireEvent.press(screen.getByLabelText('Choose Uber Eats'));
-    fireEvent.press(screen.getByText('No, help me request it'));
+    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Open Uber Data Page'));
@@ -97,7 +93,6 @@ describe('UberDataTutorial', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('No, help me request it'));
     expect(screen.getByText('Sign in on DoorDash’s website')).toBeTruthy();
     expect(screen.getByText(/1\/2/)).toBeTruthy();
 
@@ -117,8 +112,10 @@ describe('UberDataTutorial', () => {
       />
     );
 
-    fireEvent.press(screen.getByLabelText('Choose Uber Eats'));
-    fireEvent.press(screen.getByText('Yes, I already requested it'));
+    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('I’ve already requested it'));
     fireEvent.press(screen.getByText('The ZIP is downloaded'));
 
     expect(onArchiveDownloaded).toHaveBeenCalledWith('uber');
@@ -133,8 +130,10 @@ describe('UberDataTutorial', () => {
       />
     );
 
-    fireEvent.press(screen.getByLabelText('Choose Uber Eats'));
-    fireEvent.press(screen.getByText('Yes, I already requested it'));
+    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('I’ve already requested it'));
     fireEvent.press(screen.getByText('They said it’s ready'));
 
     expect(screen.getByText('Open the notification')).toBeTruthy();
@@ -153,7 +152,8 @@ describe('UberDataTutorial', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('Yes, I already requested it'));
+    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('I’ve already requested it'));
     fireEvent.press(screen.getByText('I’m still waiting'));
 
     expect(onStillWaiting).toHaveBeenCalledWith('doordash');

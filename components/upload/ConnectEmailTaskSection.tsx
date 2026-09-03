@@ -7,12 +7,16 @@ import { ImportTaskCard, type ImportTaskId } from './ImportTaskCard';
 interface ConnectEmailTaskSectionProps {
   state: ImportTaskState;
   isOpen: boolean;
-  connected: boolean;
-  needsReconnect: boolean;
+  gmailConnected: boolean;
+  outlookConnected: boolean;
+  gmailNeedsReconnect: boolean;
+  outlookNeedsReconnect: boolean;
   busy: boolean;
   onToggle: (id: ImportTaskId) => void;
-  onConnect: () => void;
-  onManage: () => void;
+  onConnectGmail: () => void;
+  onConnectOutlook: () => void;
+  onManageGmail: () => void;
+  onManageOutlook: () => void;
 }
 
 export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
@@ -20,7 +24,7 @@ export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
     <ImportTaskCard
       id="connect_email"
       title="Connect email"
-      description="Authorize Gmail access. Nothing is imported until you start the next step."
+      description="Authorize Gmail, Outlook, or both. Nothing is imported until you start the next step."
       iconName="mail-outline"
       statusLabel={props.state.label}
       statusTone={props.state.tone}
@@ -28,23 +32,34 @@ export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
       isOpen={props.isOpen}
       onPress={props.onToggle}
     >
-      {(!props.connected || props.needsReconnect) ? (
+      {(!props.gmailConnected || props.gmailNeedsReconnect) ? (
         <AppButton
-          label={props.needsReconnect ? 'Reconnect Gmail' : 'Connect Gmail'}
+          label={props.gmailNeedsReconnect ? 'Reconnect Gmail' : 'Connect Gmail'}
           icon="logo-google"
           pending={props.busy}
-          onPress={props.onConnect}
+          onPress={props.onConnectGmail}
+        />
+      ) : null}
+      {(!props.outlookConnected || props.outlookNeedsReconnect) ? (
+        <AppButton
+          label={props.outlookNeedsReconnect ? 'Reconnect Outlook' : 'Connect Outlook'}
+          icon="mail-outline"
+          pending={props.busy}
+          onPress={props.onConnectOutlook}
         />
       ) : null}
       <Text style={styles.helper}>
-        {props.needsReconnect
-          ? 'Google no longer accepts the saved authorization. Reconnect Gmail to continue.'
-          : props.connected
-            ? 'Gmail is connected. You can manage the connection below if needed.'
-            : 'Connecting Gmail does not start a receipt scan. You choose when to import in the next step.'}
+        {props.gmailNeedsReconnect || props.outlookNeedsReconnect
+          ? 'One of your saved email authorizations needs attention before it can be used.'
+          : props.gmailConnected || props.outlookConnected
+            ? 'Your connected accounts can be managed separately below.'
+            : 'Connecting an account does not start a receipt scan. You choose when to import in the next step.'}
       </Text>
-      {props.connected && !props.needsReconnect ? (
-        <AppButton label="Manage Gmail connection" variant="secondary" disabled={props.busy} onPress={props.onManage} />
+      {props.gmailConnected && !props.gmailNeedsReconnect ? (
+        <AppButton label="Manage Gmail connection" variant="secondary" disabled={props.busy} onPress={props.onManageGmail} />
+      ) : null}
+      {props.outlookConnected && !props.outlookNeedsReconnect ? (
+        <AppButton label="Disconnect Outlook" variant="secondary" disabled={props.busy} onPress={props.onManageOutlook} />
       ) : null}
     </ImportTaskCard>
   );

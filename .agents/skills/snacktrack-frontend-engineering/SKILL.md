@@ -26,7 +26,7 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 ## Core rules
 
 - Keep route files and screens as composition layers. Move network orchestration and multi-step state transitions into domain hooks/controllers.
-- Keep authentication identity in context; treat remotely fetched analytics, receipts, Gmail status, and import preferences as server state.
+- Keep authentication identity in context; treat remotely fetched analytics, receipts, mailbox status, import preferences, and durable import operations as server state.
 - Use one authoritative cached representation of each server resource. Do not add new module listeners, promise locks, focus-refresh flags, or AsyncStorage mirrors without a documented offline requirement.
 - Derive complicated UI states with typed pure resolvers. Do not spread the same precedence rules across JSX branches and effects.
 - Validate or explicitly normalize transport data before exposing typed domain objects to components.

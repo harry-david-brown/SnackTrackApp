@@ -39,13 +39,6 @@ const asBoolean = (value: unknown, field: string) => {
 const asNullableString = (value: unknown, field: string) =>
   value === null ? null : asString(value, field);
 
-const asMember = <T extends string>(value: unknown, values: readonly T[], field: string): T => {
-  if (typeof value !== 'string' || !values.includes(value as T)) {
-    throw new Error(`Invalid analytics response: ${field}`);
-  }
-  return value as T;
-};
-
 const optional = <T>(
   value: unknown,
   field: string,
@@ -178,11 +171,12 @@ export const normalizeWrappedAnalytics = (value: unknown): WrappedAnalytics => {
     return { totalMinutes: asNumber(block.totalMinutes, `${field}.totalMinutes`), averageMinutes: asNumber(block.averageMinutes, `${field}.averageMinutes`), totalOrders: asNumber(block.totalOrders, `${field}.totalOrders`), longestWait: optional(block.longestWait, `${field}.longestWait`, normalizeLongest), fastestDelivery: optional(block.fastestDelivery, `${field}.fastestDelivery`, normalizeFastest) };
   };
 
-  const coverage = optional(wrapped.coverage, 'wrappedAnalytics.coverage', (candidate, field) => {
+  const normalizeCoverage = (candidate: unknown, field: string) => {
     const block = asRecord(candidate, field);
     if (!Array.isArray(block.dataSources)) throw new Error(`Invalid analytics response: ${field}.dataSources`);
     return { orderCount: asNumber(block.orderCount, `${field}.orderCount`), earliestOrderDate: asNullableString(block.earliestOrderDate, `${field}.earliestOrderDate`), latestOrderDate: asNullableString(block.latestOrderDate, `${field}.latestOrderDate`), dataSources: block.dataSources.map((item, index) => asString(item, `${field}.dataSources.${index}`)), hasExportData: asBoolean(block.hasExportData, `${field}.hasExportData`) };
-  });
+  };
+  const coverage = normalizeCoverage(wrapped.coverage, 'wrappedAnalytics.coverage');
   const percentiles = optional(wrapped.percentiles, 'wrappedAnalytics.percentiles', (candidate, field) => {
     const block = asRecord(candidate, field);
     return { sampleSize: asNumber(block.sampleSize, `${field}.sampleSize`), totalSpent: optional(block.totalSpent, `${field}.totalSpent`, normalizeStanding), orderCount: optional(block.orderCount, `${field}.orderCount`, normalizeStanding), nightOwl: optional(block.nightOwl, `${field}.nightOwl`, normalizeStanding) };

@@ -6,24 +6,28 @@ import { useLocalSearchParams, router } from 'expo-router';
 export default function OAuthCallback() {
   const params = useLocalSearchParams();
   const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
+  const outlook = typeof params.outlook === 'string' ? params.outlook : undefined;
   const error = typeof params.error === 'string' ? params.error : undefined;
   const gmailPurpose = typeof params.gmailPurpose === 'string' ? params.gmailPurpose : undefined;
+  const outlookPurpose = typeof params.outlookPurpose === 'string' ? params.outlookPurpose : undefined;
 
   useEffect(() => {
     router.replace({
       pathname: '/(tabs)/upload',
       params: {
         ...(gmail ? { gmail } : {}),
+        ...(outlook ? { outlook } : {}),
         ...(error ? { error } : {}),
         ...(gmailPurpose ? { gmailPurpose } : {}),
+        ...(outlookPurpose ? { outlookPurpose } : {}),
       },
     });
-  }, [error, gmail, gmailPurpose]);
+  }, [error, gmail, gmailPurpose, outlook, outlookPurpose]);
 
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={Colors.success} />
-      <Text style={styles.text}>Completing Gmail connection...</Text>
+      <Text style={styles.text}>Completing email connection...</Text>
     </View>
   );
 }

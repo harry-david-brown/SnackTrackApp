@@ -1,4 +1,7 @@
-import type { GmailImportLifecycleStatus, ImportPreferencesResponse } from '@services/gmailApi';
+import type {
+  GmailImportLifecycleStatus,
+  ImportPreferencesResponse,
+} from "./contracts";
 
 export interface GmailBaselineState {
   hasCompleted: boolean;
@@ -11,21 +14,19 @@ export interface GmailBaselineState {
   };
 }
 
-/** Compatibility fallback for cached/test data created before gmailBaseline. */
+/** Empty query state plus the canonical server-owned Gmail baseline. */
 export function resolveGmailBaselineState(
   preferences: ImportPreferencesResponse | null,
 ): GmailBaselineState {
   if (preferences?.gmailBaseline) return preferences.gmailBaseline;
   return {
-    hasCompleted: preferences?.gmailImport.hasImported ?? false,
-    completedAt: preferences?.gmailImport.hasImported
-      ? preferences.gmailImport.updatedAt
-      : null,
+    hasCompleted: false,
+    completedAt: null,
     latestAttempt: {
-      status: preferences?.gmailImport.status ?? 'never_started',
-      updatedAt: preferences?.gmailImport.updatedAt ?? null,
-      importedCount: preferences?.gmailImport.importedCount ?? 0,
-      errorCode: preferences?.gmailImport.errorCode ?? null,
+      status: "never_started",
+      updatedAt: null,
+      importedCount: 0,
+      errorCode: null,
     },
   };
 }

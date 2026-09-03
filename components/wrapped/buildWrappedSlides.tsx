@@ -167,7 +167,7 @@ export function buildWrappedSlides({
     emoji: '🎊',
     mascotPose: 'wave',
     durationMs: 2700,
-    a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes an uploaded export.' : ''}`,
+    a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes downloaded provider history.' : ''}`,
     content: (
       <>
         <Text style={styles.wrappedYearTag}>LIFETIME</Text>
@@ -176,7 +176,7 @@ export function buildWrappedSlides({
         </Text>
         <Text style={styles.introText}>{coverageHeadline}</Text>
         {coverage?.hasExportData && (
-          <Text style={styles.coverageSourceText}>Includes your uploaded export</Text>
+          <Text style={styles.coverageSourceText}>Includes your downloaded delivery history</Text>
         )}
       </>
     ),

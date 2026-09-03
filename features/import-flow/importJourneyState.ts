@@ -2,7 +2,7 @@ import type {
   ExportProvider,
   ImportPreferencesResponse,
   ProviderExportLifecycleStatus,
-} from '@services/gmailApi';
+} from './contracts';
 import type { GmailConnectionPurpose } from './gmailConnectionPurpose';
 import { resolveTrackingEligibility } from './trackingEligibility';
 import { resolveGmailBaselineState } from './gmailBaselineState';
@@ -64,13 +64,13 @@ export function resolveImportCoverage(
   const uberEats = providerState(
     'uber_eats',
     'Uber Eats',
-    preferences?.export.providers?.uberEats.status,
+    preferences?.export.providers.uberEats.status,
     preferences?.coverage.exportProviders.uberEats,
   );
   const doorDash = providerState(
     'doordash',
     'DoorDash',
-    preferences?.export.providers?.doorDash.status,
+    preferences?.export.providers.doorDash.status,
     preferences?.coverage.exportProviders.doorDash,
   );
   const importedProviderCount = (
@@ -143,6 +143,8 @@ export function resolveImportSetupRecommendation({
     && trackingState === 'not_offered';
   const emailFeatureInUse = preferences?.monitoring.consentState === 'granted'
     || preferences?.ongoingTracking.consentState === 'granted';
+  const uberMilestoneMissing = !coverage.uberEatsImported
+    && preferences?.export.providers.uberEats.relevance !== 'not_used';
 
   if (actionableProvider?.status === 'file_ready') {
     return { kind: 'provider', provider: actionableProvider, action: 'continue' };
@@ -152,6 +154,14 @@ export function resolveImportSetupRecommendation({
   }
   if (actionableProvider?.status === 'import_processing') {
     return { kind: 'provider', provider: actionableProvider, action: 'processing' };
+  }
+  if (uberMilestoneMissing && (gmailHasRun || coverage.hasAnyExportData)) {
+    const uber = coverage.providers.uberEats;
+    return {
+      kind: 'provider',
+      provider: uber,
+      action: uber.status === 'requested' ? 'continue' : 'request',
+    };
   }
   if (!gmailFeatureEnabled) {
     return requestableProvider ? { kind: 'provider', provider: requestableProvider, action: 'request' } : { kind: 'none' };

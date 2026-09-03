@@ -1,72 +1,93 @@
-import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { useGmailImport } from '@hooks/useGmailImport';
-import { gmailApi } from '@services/gmailApi';
-import * as WebBrowser from 'expo-web-browser';
-import { showSimpleAlert } from '@utils/platformAlert';
-import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
+import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { useGmailImport } from "@hooks/useGmailImport";
+import { gmailApi } from "@services/gmailApi";
+import * as WebBrowser from "expo-web-browser";
+import { showSimpleAlert } from "@utils/platformAlert";
+import { createQueryTestWrapper } from "@/__tests__/utils/queryTestUtils";
+import type { GmailConnectionStatus } from "@features/import-flow/contracts";
+import { createImportPreferencesFixture } from "@/__tests__/fixtures/importPreferences";
+import { importOperationKeys, importPreferenceKeys } from "@lib/queryKeys";
 
 const mockInvalidateReceiptDerivedData = jest.fn();
 
-jest.mock('expo-auth-session', () => ({
-  makeRedirectUri: jest.fn(() => 'snacktrack://oauth-callback'),
+jest.mock("expo-auth-session", () => ({
+  makeRedirectUri: jest.fn(() => "snacktrack://oauth-callback"),
 }));
 
-jest.mock('expo-web-browser', () => ({
+jest.mock("expo-web-browser", () => ({
   maybeCompleteAuthSession: jest.fn(),
   openAuthSessionAsync: jest.fn(),
 }));
 
-jest.mock('@services/gmailApi', () => ({
+jest.mock("@services/gmailApi", () => ({
   gmailApi: {
     getAuthUrl: jest.fn(),
-    getStatus: jest.fn(),
+    getImportPreferences: jest.fn(),
     importReceipts: jest.fn(),
     disconnect: jest.fn(),
   },
 }));
 
-jest.mock('@contexts/UserContext', () => ({
+jest.mock("@contexts/UserContext", () => ({
   useUser: jest.fn(() => ({
-    state: { user: { id: 'user-123' } },
+    state: { user: { id: "user-123" } },
   })),
 }));
 
-jest.mock('@services/analyticsApi', () => ({
+jest.mock("@services/analyticsApi", () => ({
   analyticsApi: {
     getUserSummary: jest.fn(),
   },
 }));
 
-jest.mock('@utils/platformAlert', () => ({
+jest.mock("@utils/platformAlert", () => ({
   showAlert: jest.fn(),
   showSimpleAlert: jest.fn(),
 }));
 
-jest.mock('@lib/queryInvalidation', () => ({
+jest.mock("@lib/queryInvalidation", () => ({
   invalidateImportState: jest.fn(),
-  invalidateReceiptDerivedData: (...args: unknown[]) => mockInvalidateReceiptDerivedData(...args),
+  invalidateReceiptDerivedData: (...args: unknown[]) =>
+    mockInvalidateReceiptDerivedData(...args),
 }));
 
-describe('useGmailImport', () => {
-  const renderGmailHook = () => {
-    const { Wrapper } = createQueryTestWrapper();
-    return renderHook(() => useGmailImport(), { wrapper: Wrapper });
+describe("useGmailImport", () => {
+  const preferencesWithConnection = (
+    gmailConnection: GmailConnectionStatus,
+  ) => ({
+    ...createImportPreferencesFixture(),
+    gmailConnection,
+  });
+  const renderGmailHook = (
+    connectionStatus: GmailConnectionStatus = { connected: false },
+  ) => {
+    const { Wrapper, queryClient } = createQueryTestWrapper();
+    return {
+      ...renderHook(() => useGmailImport({ connectionStatus }), {
+        wrapper: Wrapper,
+      }),
+      queryClient,
+    };
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: false });
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'cancel' });
+    (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
+      preferencesWithConnection({ connected: false }),
+    );
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: "cancel",
+    });
   });
 
-  it('reports the primary action as in progress while Gmail connection is loading', async () => {
+  it("reports the primary action as in progress while Gmail connection is loading", async () => {
     let resolveAuthUrl!: (value: { authUrl: string }) => void;
 
     (gmailApi.getAuthUrl as jest.Mock).mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveAuthUrl = resolve;
-        })
+        }),
     );
 
     const { result } = renderGmailHook();
@@ -84,11 +105,11 @@ describe('useGmailImport', () => {
     await waitFor(() => {
       expect(gmailApi.getAuthUrl).toHaveBeenCalled();
       expect(result.current.isLoading).toBe(true);
-      expect(result.current.primaryFlowState).toBe('connecting');
+      expect(result.current.primaryFlowState).toBe("connecting");
       expect(result.current.isPrimaryActionInProgress).toBe(true);
     });
 
-    resolveAuthUrl({ authUrl: 'https://example.com/auth' });
+    resolveAuthUrl({ authUrl: "https://example.com/auth" });
 
     await act(async () => {
       await connectPromise;
@@ -96,20 +117,22 @@ describe('useGmailImport', () => {
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.primaryFlowState).toBe('idle');
+      expect(result.current.primaryFlowState).toBe("idle");
       expect(result.current.isPrimaryActionInProgress).toBe(false);
     });
   });
 
-  it('connects the upload checklist without starting an automatic Gmail import', async () => {
-    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({ authUrl: 'https://example.com/auth' });
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
-      type: 'success',
-      url: 'snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import',
+  it("connects the upload checklist without starting an automatic Gmail import", async () => {
+    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({
+      authUrl: "https://example.com/auth",
     });
-    (gmailApi.getStatus as jest.Mock)
-      .mockResolvedValueOnce({ connected: false })
-      .mockResolvedValueOnce({ connected: true, canImport: true });
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: "success",
+      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import",
+    });
+    (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
+      preferencesWithConnection({ connected: true, canImport: true }),
+    );
 
     const { result } = renderGmailHook();
     await waitFor(() => expect(result.current.isChecking).toBe(false));
@@ -118,37 +141,82 @@ describe('useGmailImport', () => {
       await result.current.connectGmail();
     });
 
-    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback', 'receipt_import');
+    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith(
+      "snacktrack://oauth-callback",
+      "receipt_import",
+    );
     expect(gmailApi.importReceipts).not.toHaveBeenCalled();
   });
 
-  it('round-trips the signed Gmail connection purpose', async () => {
-    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({ authUrl: 'https://example.com/auth' });
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
-      type: 'success',
-      url: 'snacktrack://oauth-callback?gmail=success&gmailPurpose=export_ready_alerts',
+  it("waits through a stale disconnected projection after OAuth succeeds", async () => {
+    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({
+      authUrl: "https://example.com/auth",
     });
-    (gmailApi.getStatus as jest.Mock)
-      .mockResolvedValueOnce({ connected: false })
-      .mockResolvedValueOnce({ connected: true, canImport: true });
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: "success",
+      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import",
+    });
+    (gmailApi.getImportPreferences as jest.Mock)
+      .mockResolvedValueOnce(
+        preferencesWithConnection({ connected: false, canImport: false }),
+      )
+      .mockResolvedValue(
+        preferencesWithConnection({ connected: true, canImport: true }),
+      );
+
+    const { result } = renderGmailHook();
+    let connectionResult;
+
+    await act(async () => {
+      connectionResult = await result.current.connectGmail();
+    });
+
+    expect(connectionResult).toMatchObject({
+      status: { connected: true, canImport: true },
+      purpose: "receipt_import",
+    });
+    expect(gmailApi.getImportPreferences).toHaveBeenCalledTimes(2);
+    expect(showSimpleAlert).not.toHaveBeenCalledWith(
+      "Error",
+      "Gmail connection was not ready after authorization. Please try again.",
+    );
+  });
+
+  it("round-trips the signed Gmail connection purpose", async () => {
+    (gmailApi.getAuthUrl as jest.Mock).mockResolvedValue({
+      authUrl: "https://example.com/auth",
+    });
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: "success",
+      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=export_ready_alerts",
+    });
+    (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
+      preferencesWithConnection({ connected: true, canImport: true }),
+    );
 
     const { result } = renderGmailHook();
     await waitFor(() => expect(result.current.isChecking).toBe(false));
 
     let connectionResult;
     await act(async () => {
-      connectionResult = await result.current.connectGmail('export_ready_alerts');
+      connectionResult = await result.current.connectGmail(
+        "export_ready_alerts",
+      );
     });
 
-    expect(connectionResult).toMatchObject({ purpose: 'export_ready_alerts' });
-    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith('snacktrack://oauth-callback', 'export_ready_alerts');
+    expect(connectionResult).toMatchObject({ purpose: "export_ready_alerts" });
+    expect(gmailApi.getAuthUrl).toHaveBeenCalledWith(
+      "snacktrack://oauth-callback",
+      "export_ready_alerts",
+    );
   });
 
-  it('returns to idle after a failed explicit import', async () => {
-    (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: true, canImport: true });
-    (gmailApi.importReceipts as jest.Mock).mockRejectedValue(new Error('Import failed'));
+  it("returns to idle after a failed explicit import", async () => {
+    (gmailApi.importReceipts as jest.Mock).mockRejectedValue(
+      new Error("Import failed"),
+    );
 
-    const { result } = renderGmailHook();
+    const { result } = renderGmailHook({ connected: true, canImport: true });
 
     await waitFor(() => {
       expect(result.current.isChecking).toBe(false);
@@ -160,56 +228,95 @@ describe('useGmailImport', () => {
 
     await waitFor(() => {
       expect(gmailApi.importReceipts).toHaveBeenCalled();
-      expect(result.current.primaryFlowState).toBe('idle');
+      expect(result.current.primaryFlowState).toBe("idle");
       expect(result.current.isPrimaryActionInProgress).toBe(false);
     });
   });
 
-  it('refreshes connection state and asks for reconnection after invalid_grant', async () => {
-    (gmailApi.getStatus as jest.Mock)
-      .mockResolvedValueOnce({ connected: true, canImport: true })
-      .mockResolvedValueOnce({ connected: true, canImport: false, needsReconnect: true });
+  it("refreshes connection state and asks for reconnection after invalid_grant", async () => {
+    (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
+      preferencesWithConnection({
+        connected: true,
+        canImport: false,
+        needsReconnect: true,
+      }),
+    );
     (gmailApi.importReceipts as jest.Mock).mockRejectedValue({
       response: {
         status: 409,
         data: {
-          code: 'GMAIL_RECONNECT_REQUIRED',
-          message: 'Reconnect Gmail to continue.',
+          error: {
+            version: "1",
+            code: "GMAIL_RECONNECT_REQUIRED",
+            message: "Reconnect Gmail to continue.",
+            statusCode: 409,
+            timestamp: "2026-08-31T20:00:00.000Z",
+            path: "/gmail/import",
+            method: "POST",
+            requestId: "11111111-1111-4111-8111-111111111111",
+          },
         },
       },
     });
 
-    const { result } = renderGmailHook();
+    const { result, queryClient } = renderGmailHook({
+      connected: true,
+      canImport: true,
+    });
     await waitFor(() => expect(result.current.isChecking).toBe(false));
 
     await act(async () => {
       await result.current.importReceipts();
     });
 
-    expect(showSimpleAlert).toHaveBeenCalledWith('Reconnect Gmail', 'Reconnect Gmail to continue.');
-    expect(gmailApi.getStatus).toHaveBeenCalledTimes(2);
-    expect(result.current.connectionStatus.needsReconnect).toBe(true);
+    expect(showSimpleAlert).toHaveBeenCalledWith(
+      "Reconnect Gmail",
+      "Reconnect Gmail to continue.",
+    );
+    expect(gmailApi.getImportPreferences).toHaveBeenCalledTimes(1);
+    expect(
+      queryClient.getQueryData(importPreferenceKeys.current("user-123")),
+    ).toMatchObject({
+      gmailConnection: { needsReconnect: true },
+    });
   });
 
-  it('refreshes receipts and analytics after a historical Gmail import', async () => {
-    (gmailApi.getStatus as jest.Mock).mockResolvedValue({ connected: true, canImport: true });
+  it("caches the durable operation after Gmail accepts the import", async () => {
     (gmailApi.importReceipts as jest.Mock).mockResolvedValue({
-      success: true,
-      totalEmailsFound: 4,
-      totalReceiptsProcessed: 3,
-      totalReceiptsImported: 3,
-      totalAmount: 45,
-      errors: [],
+      id: "operation-1",
+      kind: "gmail_historical",
+      trigger: "user",
+      status: "pending_dispatch",
+      phase: "waiting",
+      progress: 0,
+      result: null,
+      errorCode: null,
+      errorMessage: null,
+      attempts: 0,
+      createdAt: "2026-09-02T12:00:00.000Z",
+      queuedAt: null,
+      startedAt: null,
+      completedAt: null,
+      updatedAt: "2026-09-02T12:00:00.000Z",
     });
-    mockInvalidateReceiptDerivedData.mockResolvedValue(undefined);
-    const onImportSuccess = jest.fn();
-    const { Wrapper } = createQueryTestWrapper();
-    const { result } = renderHook(() => useGmailImport({ onImportSuccess }), { wrapper: Wrapper });
+    const { Wrapper, queryClient } = createQueryTestWrapper();
+    const { result } = renderHook(
+      () =>
+        useGmailImport({
+          connectionStatus: { connected: true, canImport: true },
+        }),
+      { wrapper: Wrapper },
+    );
     await waitFor(() => expect(result.current.isChecking).toBe(false));
 
-    await act(async () => { await result.current.importReceipts(); });
+    await act(async () => {
+      await result.current.importReceipts();
+    });
 
-    expect(mockInvalidateReceiptDerivedData).toHaveBeenCalledTimes(1);
-    expect(onImportSuccess).toHaveBeenCalledWith(expect.objectContaining({ success: true, totalReceiptsImported: 3 }));
+    expect(mockInvalidateReceiptDerivedData).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(importOperationKeys.active("user-123"))).toMatchObject({
+      id: "operation-1",
+      status: "pending_dispatch",
+    });
   });
 });

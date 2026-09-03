@@ -9,6 +9,9 @@ import type {
   SendVerificationEmailResponse,
   VerifyEmailCodeResponse,
   VerifyPasswordResetCodeResponse,
+  MicrosoftLoginAttemptResponse,
+  MicrosoftLoginResponse,
+  MicrosoftVerificationCodeResponse,
 } from '@/types/api';
 
 type UnknownRecord = Record<string, unknown>;
@@ -22,7 +25,6 @@ const number = (value: unknown, field: string): number => typeof value === 'numb
 export function normalizeAuthSession(value: unknown): LoginResponse | RegisterResponse {
   const data = record(value, 'session');
   const user = record(data.user, 'session.user');
-  const emailVerified = user.emailVerified;
   return {
     userId: string(data.userId, 'session.userId'),
     email: string(data.email, 'session.email'),
@@ -32,8 +34,48 @@ export function normalizeAuthSession(value: unknown): LoginResponse | RegisterRe
       id: string(user.id, 'session.user.id'),
       email: string(user.email, 'session.user.email'),
       createdAt: string(user.createdAt, 'session.user.createdAt'),
-      emailVerified: emailVerified === undefined ? undefined : boolean(emailVerified, 'session.user.emailVerified'),
+      emailVerified: boolean(user.emailVerified, 'session.user.emailVerified'),
     },
+  };
+}
+
+export function normalizeMicrosoftLoginAttempt(value: unknown): MicrosoftLoginAttemptResponse {
+  const data = record(value, 'microsoftLoginAttempt');
+  return {
+    attemptToken: string(data.attemptToken, 'microsoftLoginAttempt.attemptToken'),
+    nonce: string(data.nonce, 'microsoftLoginAttempt.nonce'),
+    expiresIn: number(data.expiresIn, 'microsoftLoginAttempt.expiresIn'),
+  };
+}
+
+export function normalizeMicrosoftLogin(
+  value: unknown,
+  httpStatus: number,
+): MicrosoftLoginResponse {
+  if (httpStatus === 200) {
+    return { status: 'authenticated', session: normalizeAuthSession(value) };
+  }
+  const data = record(value, 'microsoftLogin');
+  if (data.status !== 'email_verification_required') invalid('microsoftLogin.status');
+  return {
+    status: 'email_verification_required',
+    attemptToken: string(data.attemptToken, 'microsoftLogin.attemptToken'),
+    suggestedEmail:
+      data.suggestedEmail === undefined
+        ? undefined
+        : string(data.suggestedEmail, 'microsoftLogin.suggestedEmail'),
+  };
+}
+
+export function normalizeMicrosoftVerificationCode(
+  value: unknown,
+): MicrosoftVerificationCodeResponse {
+  const data = record(value, 'microsoftVerificationCode');
+  if (data.success !== true) invalid('microsoftVerificationCode.success');
+  return {
+    success: true,
+    expiresIn: number(data.expiresIn, 'microsoftVerificationCode.expiresIn'),
+    resendAfter: number(data.resendAfter, 'microsoftVerificationCode.resendAfter'),
   };
 }
 

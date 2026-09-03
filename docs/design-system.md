@@ -26,6 +26,30 @@ central theme.
 | Accent | `#73B84A` | CTAs, budget remaining, highlights, streaks — avoid overusing |
 | Success | `#58C26D` | Success states ONLY (messages, checkmarks, goals achieved) |
 
+## Semantic color roles
+
+Color roles describe meaning as well as palette membership. Forest green and
+warm neutrals should dominate normal app surfaces; saturated status colors
+should usually remain accents.
+
+- **Primary green**: safe forward actions, including connect, reconnect, retry,
+  continue, and save actions.
+- **Warning orange**: attention states, normally expressed through labels,
+  icons, borders, and pale warning surfaces.
+- **Error red**: failures and destructive consequences. Reserve red-filled
+  buttons for actions that are themselves destructive or dangerous.
+- **Success green**: completed and healthy states, not a general-purpose CTA
+  substitute.
+- **Provider colors**: provider identity only, where that identity is useful to
+  the interaction or instructions.
+
+The surrounding card's status does not automatically determine its button
+color. A warning or error card can keep its semantic accents while a safe
+recovery action uses the standard primary button. When overriding a component
+color, keep its foreground, border, pressed, disabled, pending, and shadow
+treatment coherent. Avoid large saturated status fills when a smaller accent
+communicates the state clearly.
+
 ## Mascot colors (artwork only)
 
 | Token | Hex | Use |

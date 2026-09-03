@@ -9,6 +9,8 @@ import { API_CONFIG, PUBLIC_ENDPOINTS, HTTP_STATUS } from '@/constants';
 import { logger } from '@utils/logger';
 import { checkRateLimit, RATE_LIMITS } from '@utils/rateLimiter';
 import { notifySessionExpired } from '@services/authSessionCoordinator';
+import { sessionExpiredError, toApiClientError } from './apiError';
+import { isTerminalSessionError } from '@features/auth/contracts';
 
 // Get validated API URL from environment configuration
 const config = getConfig();
@@ -32,25 +34,16 @@ export const api: AxiosInstance = axios.create({
 // Token refresh mutex to prevent race conditions
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
-let refreshSubscribers: ((token: string) => void)[] = [];
 let refreshAttempts = 0;
 const MAX_REFRESH_ATTEMPTS = 3;
 const REFRESH_COOLDOWN_MS = 1000; // 1 second cooldown between refresh attempts
 
 const onRefreshed = (token: string) => {
-  refreshSubscribers.forEach((callback) => callback(token));
-  refreshSubscribers = [];
+  void token;
   refreshAttempts = 0; // Reset attempts on success
 };
 
-const onRefreshFailed = () => {
-  refreshSubscribers.forEach((callback) => callback(''));
-  refreshSubscribers = [];
-};
-
-const addRefreshSubscriber = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
-};
+const onRefreshFailed = () => undefined;
 
 const expireLocalSession = async () => {
   try {
@@ -144,7 +137,7 @@ const getRateLimitType = (url: string, method: string): keyof typeof RATE_LIMITS
   if (url.includes('/users/') && upperMethod === 'GET') return 'GET_USER_DATA';
   
   // Data mutation endpoints
-  if (url.includes('/csv/import')) return 'UPLOAD_CSV';
+  if (url.includes('/imports/export') || (url.includes('/imports/') && url.includes('/submit'))) return 'UPLOAD_CSV';
   
   return 'DEFAULT';
 };
@@ -209,10 +202,9 @@ api.interceptors.response.use(
     if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && !originalRequest._retry) {
       // Check if this is a public endpoint - if so, don't try to refresh
       if (isPublicEndpoint(originalRequest.url || '')) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Unknown error';
-        const sanitizedMessage = typeof errorMessage === 'string' ? errorMessage : '[REDACTED]';
-        logger.apiError(HTTP_STATUS.UNAUTHORIZED, originalRequest.url || '', sanitizedMessage);
-        return Promise.reject(error);
+        const clientError = toApiClientError(error);
+        logger.apiError(HTTP_STATUS.UNAUTHORIZED, originalRequest.url || '', clientError.code);
+        return Promise.reject(clientError);
       }
 
       // Check if we've exceeded max refresh attempts
@@ -220,7 +212,7 @@ api.interceptors.response.use(
         logger.error('Max token refresh attempts exceeded');
         await expireLocalSession();
         refreshAttempts = 0;
-        return Promise.reject(new Error('SESSION_EXPIRED'));
+        return Promise.reject(sessionExpiredError(error));
       }
 
       // If refresh is in progress, wait for it
@@ -232,10 +224,11 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             return api(originalRequest);
           } else {
-            return Promise.reject(new Error('SESSION_EXPIRED'));
+            return Promise.reject(sessionExpiredError(error));
           }
         } catch (err) {
-          return Promise.reject(new Error('SESSION_EXPIRED'));
+          const clientError = toApiClientError(err);
+          return Promise.reject(isTerminalSessionError(clientError.code) ? sessionExpiredError(err) : clientError);
         }
       }
 
@@ -255,7 +248,11 @@ api.interceptors.response.use(
 
           // Dynamically import to avoid circular dependency
           const { authApi } = await import('@services/authApi');
-          const response = await authApi.refresh();
+          const { getRefreshToken, updateAccessToken } = await import('@utils/tokenManager');
+          const storedRefreshToken = await getRefreshToken();
+          if (!storedRefreshToken) throw sessionExpiredError();
+          const response = await authApi.refresh(storedRefreshToken);
+          await updateAccessToken(response.accessToken, response.refreshToken);
 
           logger.debug('Token refresh successful');
           isRefreshing = false;
@@ -269,10 +266,13 @@ api.interceptors.response.use(
           refreshPromise = null;
           onRefreshFailed();
 
-          // Refresh failed - clear tokens
-          await expireLocalSession();
-
-          throw new Error('SESSION_EXPIRED');
+          const clientError = toApiClientError(refreshError);
+          if (isTerminalSessionError(clientError.code)) {
+            await expireLocalSession();
+            throw sessionExpiredError(refreshError);
+          }
+          refreshAttempts = 0;
+          throw clientError;
         }
       })();
 
@@ -281,7 +281,10 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        return Promise.reject(new Error('SESSION_EXPIRED'));
+        const clientError = toApiClientError(refreshError);
+        return Promise.reject(
+          isTerminalSessionError(clientError.code) ? sessionExpiredError(refreshError) : clientError,
+        );
       }
     }
 
@@ -289,9 +292,7 @@ api.interceptors.response.use(
     if (error.response) {
       const status = error.response.status;
       const url = originalRequest?.url || 'unknown';
-      const errorMessage = error.response.data?.message || error.response.data?.error || 'Unknown error';
-      const sanitizedMessage = typeof errorMessage === 'string' ? errorMessage : '[REDACTED]';
-      logger.apiError(status, url, sanitizedMessage);
+      logger.apiError(status, url, toApiClientError(error).code);
     }
 
     // Report server errors (5xx) to Sentry
@@ -308,7 +309,7 @@ api.interceptors.response.use(
     }
 
     // Handle other errors - just pass them through
-    return Promise.reject(error);
+    return Promise.reject(toApiClientError(error));
   }
 );
 

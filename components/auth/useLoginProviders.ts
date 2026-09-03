@@ -3,10 +3,12 @@ import * as Google from 'expo-auth-session/providers/google';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getConfig } from '@config/env';
+import type { EnvConfig } from '@config/env';
 import { featureFlags } from '@config/featureFlags';
 import { useUser } from '@contexts/UserContext';
 import { getErrorMessage } from '@utils/errorUtils';
 import { showAlert } from '@utils/platformAlert';
+import { authApi } from '@services/authApi';
 import { describeAppleSignInError } from './appleAuthErrors';
 import {
   checkNativeGoogleSignIn,
@@ -14,6 +16,33 @@ import {
   getGoogleStatusCodes,
   isNativeGoogleSignInAvailable,
 } from './nativeGoogleSignIn';
+import { authorizeWithMicrosoft } from './microsoftAuthorization';
+
+export interface MicrosoftEmailChallenge {
+  attemptToken: string;
+  suggestedEmail?: string;
+}
+
+export const resolveMicrosoftLoginAvailability = (
+  platform: string,
+  configuration: Pick<
+    EnvConfig,
+    | 'microsoftLoginClientId'
+    | 'microsoftLoginIosRedirectUri'
+    | 'microsoftLoginAndroidRedirectUri'
+  >,
+): { show: boolean; redirectUri?: string } => {
+  const redirectUri =
+    platform === 'ios'
+      ? configuration.microsoftLoginIosRedirectUri
+      : platform === 'android'
+        ? configuration.microsoftLoginAndroidRedirectUri
+        : undefined;
+  return {
+    show: Boolean(configuration.microsoftLoginClientId && redirectUri),
+    redirectUri,
+  };
+};
 
 const providerErrorCode = (error: unknown): string | null => {
   if (typeof error !== 'object' || error === null) return null;
@@ -22,12 +51,26 @@ const providerErrorCode = (error: unknown): string | null => {
 };
 
 export function useLoginProviders(onSuccess?: () => void) {
-  const { loginWithGoogle, loginWithApple, state, clearError } = useUser();
+  const {
+    loginWithGoogle,
+    loginWithApple,
+    loginWithMicrosoft,
+    confirmMicrosoftLoginEmail,
+    state,
+    clearError,
+  } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
+  const [microsoftChallenge, setMicrosoftChallenge] =
+    useState<MicrosoftEmailChallenge | null>(null);
   const config = getConfig();
   const showGoogle = featureFlags.showGoogleAuth;
   const showApple = featureFlags.showAppleAuth;
+  const microsoftAvailability = resolveMicrosoftLoginAvailability(Platform.OS, config);
+  const microsoftRedirectUri = microsoftAvailability.redirectUri;
+  const showMicrosoft =
+    featureFlags.showMicrosoftAuth &&
+    microsoftAvailability.show;
 
   useEffect(() => {
     checkNativeGoogleSignIn();
@@ -37,9 +80,9 @@ export function useLoginProviders(onSuccess?: () => void) {
   }, [showApple]);
 
   const googleConfig: { clientId: string; iosClientId?: string; androidClientId?: string } = {
-    clientId: config.gmailWebClientId || '',
+    clientId: config.googleServerClientId || '',
   };
-  if (Platform.OS === 'ios') googleConfig.iosClientId = config.gmailIosClientId || config.gmailWebClientId;
+  if (Platform.OS === 'ios') googleConfig.iosClientId = config.gmailIosClientId || config.googleServerClientId;
   else if (config.gmailIosClientId) googleConfig.iosClientId = config.gmailIosClientId;
   if (config.gmailAndroidClientId) googleConfig.androidClientId = config.gmailAndroidClientId;
   const [, response, promptAsync] = Google.useIdTokenAuthRequest(googleConfig);
@@ -59,7 +102,7 @@ export function useLoginProviders(onSuccess?: () => void) {
   }, [clearError, loginWithGoogle, onSuccess, state.user]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' && isNativeGoogleSignInAvailable()) return;
+    if (isNativeGoogleSignInAvailable()) return;
     if (response?.type === 'success') {
       const idToken = response.authentication?.idToken || response.params?.id_token;
       if (idToken) void finishGoogleLogin(idToken);
@@ -77,7 +120,7 @@ export function useLoginProviders(onSuccess?: () => void) {
     clearError();
     setIsLoading(true);
     try {
-      if (Platform.OS === 'web' || !isNativeGoogleSignInAvailable()) await promptAsync();
+      if (!isNativeGoogleSignInAvailable()) await promptAsync();
       else {
         const nativeGoogle = getGoogleSignin();
         await nativeGoogle.hasPlayServices();
@@ -129,13 +172,79 @@ export function useLoginProviders(onSuccess?: () => void) {
     }
   }, [clearError, loginWithApple, onSuccess, state.error]);
 
+  const loginWithMicrosoftProvider = useCallback(async () => {
+    clearError();
+    setIsLoading(true);
+    try {
+      const attempt = await authApi.microsoftLoginAttempt();
+      const identityToken = await authorizeWithMicrosoft(
+        config.microsoftLoginClientId || '',
+        microsoftRedirectUri || '',
+        attempt.nonce,
+      );
+      if (!identityToken) return;
+      const result = await loginWithMicrosoft(identityToken, attempt.attemptToken);
+      if (result.status === 'email_verification_required') {
+        setMicrosoftChallenge({
+          attemptToken: result.attemptToken,
+          suggestedEmail: result.suggestedEmail,
+        });
+        return;
+      }
+      onSuccess?.();
+    } catch (error: unknown) {
+      clearError();
+      showAlert(
+        'Login Failed',
+        getErrorMessage(error) || 'Failed to sign in with Microsoft',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    clearError,
+    config.microsoftLoginClientId,
+    loginWithMicrosoft,
+    microsoftRedirectUri,
+    onSuccess,
+  ]);
+
+  const sendMicrosoftVerificationEmail = useCallback(
+    async (email: string) => {
+      if (!microsoftChallenge) throw new Error('Microsoft sign-in has expired.');
+      return authApi.sendMicrosoftVerificationEmail(microsoftChallenge.attemptToken, email);
+    },
+    [microsoftChallenge],
+  );
+
+  const confirmMicrosoftVerificationEmail = useCallback(
+    async (email: string, code: string) => {
+      if (!microsoftChallenge) throw new Error('Microsoft sign-in has expired.');
+      await confirmMicrosoftLoginEmail(microsoftChallenge.attemptToken, email, code);
+      setMicrosoftChallenge(null);
+      onSuccess?.();
+    },
+    [confirmMicrosoftLoginEmail, microsoftChallenge, onSuccess],
+  );
+
+  const cancelMicrosoftVerification = useCallback(() => {
+    setMicrosoftChallenge(null);
+    clearError();
+  }, [clearError]);
+
   return {
     isLoading: isLoading || state.isLoading,
     showGoogle,
     showApple,
+    showMicrosoft,
     isAppleAvailable,
-    hasOauthOptions: showGoogle || (showApple && isAppleAvailable),
+    hasOauthOptions: showGoogle || showMicrosoft || (showApple && isAppleAvailable),
     loginWithGoogle: loginWithGoogleProvider,
     loginWithApple: loginWithAppleProvider,
+    loginWithMicrosoft: loginWithMicrosoftProvider,
+    microsoftChallenge,
+    sendMicrosoftVerificationEmail,
+    confirmMicrosoftVerificationEmail,
+    cancelMicrosoftVerification,
   };
 }

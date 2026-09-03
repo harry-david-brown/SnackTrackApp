@@ -3,14 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@constants/theme';
 import { DataSource, ReceiptType, type Receipt } from '@/types/api';
 import { Card } from '@components/ui/Card';
-import { StatusBadge } from '@components/ui/StatusBadge';
 
 const sourcePresentation = (receipt: Receipt) => {
-  if (receipt.receiptType === ReceiptType.UBER_EATS) return { label: 'Uber Eats', icon: 'car-outline' as const };
-  if (receipt.receiptType === ReceiptType.DOORDASH) return { label: 'DoorDash', icon: 'bicycle-outline' as const };
+  if (receipt.receiptType === ReceiptType.UBER_EATS) return { label: 'Uber Eats', icon: 'car-outline' as const, accent: Colors.uberDark };
+  if (receipt.receiptType === ReceiptType.DOORDASH) return { label: 'DoorDash', icon: 'bicycle-outline' as const, accent: Colors.doorDash };
   return receipt.dataSource === DataSource.EMAIL
-    ? { label: 'Email', icon: 'mail-outline' as const }
-    : { label: 'Export', icon: 'document-outline' as const };
+    ? { label: 'Email', icon: 'mail-outline' as const, accent: Colors.primary }
+    : { label: 'History file', icon: 'document-outline' as const, accent: Colors.primary };
 };
 
 interface ReceiptCardProps {
@@ -23,11 +22,18 @@ interface ReceiptCardProps {
 export function ReceiptCard({ receipt, expanded, formatCurrency, onToggle }: ReceiptCardProps) {
   const source = sourcePresentation(receipt);
   const hasItems = receipt.items.length > 0;
-  const date = new Date(receipt.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const restaurantName = receipt.restaurantName ?? 'Unknown restaurant';
+  const date = receipt.orderDate
+    ? new Date(receipt.orderDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : 'Date unavailable';
   return (
     <Pressable
       accessibilityRole={hasItems ? 'button' : undefined}
-      accessibilityLabel={`${receipt.restaurantName}, ${formatCurrency(receipt.amountSpent)}, ${date}, ${source.label}`}
+      accessibilityLabel={`${restaurantName}, ${formatCurrency(receipt.amountSpent)}, ${date}, ${source.label}`}
       accessibilityState={hasItems ? { expanded } : undefined}
       onPress={() => hasItems && onToggle(receipt.id)}
       disabled={!hasItems}
@@ -35,21 +41,21 @@ export function ReceiptCard({ receipt, expanded, formatCurrency, onToggle }: Rec
     >
       <Card style={styles.card}>
         <View style={styles.header}>
+          <View style={[styles.providerIcon, { backgroundColor: Colors.alpha(source.accent, 0.12) }]}>
+            <Ionicons name={source.icon} size={20} color={source.accent} />
+          </View>
           <View style={styles.info}>
-            <Text style={styles.restaurant} numberOfLines={2}>{receipt.restaurantName}</Text>
-            <View style={styles.dateRow}><Ionicons name="calendar-outline" size={14} color={Colors.gray500} /><Text style={styles.date}>{date}</Text></View>
+            <Text style={styles.restaurant} numberOfLines={2}>{restaurantName}</Text>
+            <Text style={styles.meta}>{date} · {hasItems ? `${receipt.items.length} ${receipt.items.length === 1 ? 'item' : 'items'}` : source.label}</Text>
           </View>
           <View style={styles.amountColumn}>
             <Text style={styles.amount} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>{formatCurrency(receipt.amountSpent)}</Text>
-            <StatusBadge label={source.label} tone="optional" />
+            <Text style={styles.source}>{source.label}</Text>
           </View>
         </View>
-        <View style={styles.itemsHeader}>
-          <Text style={hasItems ? styles.itemCount : styles.unavailable}>
-            {hasItems ? `${receipt.items.length} ${receipt.items.length === 1 ? 'item' : 'items'}` : receipt.dataSource === DataSource.EMAIL ? 'Item details not available from email import' : 'No items'}
-          </Text>
-          {hasItems ? <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.textSecondary} /> : null}
-        </View>
+        {hasItems ? <View style={styles.expandHint}><Text style={styles.expandText}>{expanded ? 'Hide item details' : 'Show item details'}</Text><Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textSecondary} /></View> : (
+          <Text style={styles.unavailable}>{receipt.dataSource === DataSource.EMAIL ? 'Item details are not available from this email receipt.' : 'No item details available.'}</Text>
+        )}
         {hasItems && expanded ? (
           <View style={styles.items}>
             {receipt.items.map((item, index) => (
@@ -67,17 +73,18 @@ export function ReceiptCard({ receipt, expanded, formatCurrency, onToggle }: Rec
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
-  card: { padding: 16, marginBottom: 12 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  info: { flex: 1, marginRight: 12 },
-  restaurant: { fontSize: 18, fontWeight: '600', color: Colors.inkStrong, marginBottom: 6 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  date: { fontSize: 14, color: Colors.gray500 },
-  amountColumn: { maxWidth: '46%', alignItems: 'flex-end', gap: 6 },
-  amount: { fontSize: 20, fontWeight: '700', color: Colors.primary },
-  itemsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.gray100 },
-  itemCount: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
-  unavailable: { flex: 1, fontSize: 13, color: Colors.gray500, fontStyle: 'italic' },
+  card: { padding: 14, marginBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  providerIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  info: { flex: 1, minWidth: 0 },
+  restaurant: { fontSize: 16, fontWeight: '700', color: Colors.inkStrong },
+  meta: { marginTop: 4, fontSize: 12, color: Colors.textSecondary },
+  amountColumn: { maxWidth: '34%', alignItems: 'flex-end' },
+  amount: { fontSize: 16, fontWeight: '800', color: Colors.textPrimary },
+  source: { marginTop: 4, fontSize: 11, color: Colors.textSecondary },
+  expandHint: { minHeight: 36, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: Colors.gray100, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  expandText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  unavailable: { marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: Colors.gray100, fontSize: 12, lineHeight: 17, color: Colors.gray500 },
   items: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.gray100 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray50 },
   itemDetails: { flex: 1, marginRight: 12 },

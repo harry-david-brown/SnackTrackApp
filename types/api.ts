@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   createdAt: string;
-  emailVerified?: boolean;
+  emailVerified: boolean;
 }
 
 export interface ReceiptItem {
@@ -16,25 +16,28 @@ export interface ReceiptItem {
 
 export enum DataSource {
   CSV = 'csv',
-  EMAIL = 'email'
+  EMAIL = 'email',
+  API = 'api',
 }
 
 export enum ReceiptType {
   UBER_EATS = 'uber_eats',
   DOORDASH = 'doordash',
-  UNKNOWN = 'unknown'
+  GRUBHUB = 'grubhub',
+  POSTMATES = 'postmates',
+  CAVIAR = 'caviar',
+  UNKNOWN = 'unknown',
 }
 
 export interface Receipt {
   id: string;
   userId: string;
-  restaurantName: string;
-  orderDate: string;
+  restaurantName: string | null;
+  orderDate: string | null;
   amountSpent: number;
   items: ReceiptItem[];
   dataSource: DataSource;
-  receiptType?: ReceiptType; // Optional for backward compatibility
-  createdAt: string;
+  receiptType: ReceiptType;
 }
 
 // Authentication Types
@@ -43,7 +46,7 @@ export interface RegisterRequest {
   password: string;
 }
 
-export interface RegisterResponse {
+export interface AuthSessionResponse {
   userId: string;
   email: string;
   accessToken: string;
@@ -52,26 +55,37 @@ export interface RegisterResponse {
     id: string;
     email: string;
     createdAt: string;
-    emailVerified?: boolean;
+    emailVerified: boolean;
   };
 }
+
+export type RegisterResponse = AuthSessionResponse;
 
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface LoginResponse {
-  userId: string;
-  email: string;
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    createdAt: string;
-    emailVerified?: boolean;
-  };
+export type LoginResponse = AuthSessionResponse;
+
+export interface MicrosoftLoginAttemptResponse {
+  attemptToken: string;
+  nonce: string;
+  expiresIn: number;
+}
+
+export type MicrosoftLoginResponse =
+  | { status: 'authenticated'; session: AuthSessionResponse }
+  | {
+      status: 'email_verification_required';
+      attemptToken: string;
+      suggestedEmail?: string;
+    };
+
+export interface MicrosoftVerificationCodeResponse {
+  success: true;
+  expiresIn: number;
+  resendAfter: number;
 }
 
 export interface RequestPasswordResetRequest {
@@ -156,30 +170,6 @@ export interface LogoutResponse {
   message: string;
 }
 
-// Legacy types (deprecated, use auth endpoints)
-export interface CreateUserRequest {
-  email: string;
-}
-
-export interface CreateUserResponse {
-  userId: string;
-  message: string;
-}
-
-export interface CSVImportRequest {
-  csvFile: File;
-  userId: string;
-}
-
-export interface CSVImportResponse {
-  success?: boolean;
-  importedCount: number;
-  totalAmount?: number;
-  fileType?: 'csv' | 'zip';
-  provider: 'uber_eats' | 'doordash';
-  message: string;
-}
-
 // Wrapped Analytics Types (Spotify Wrapped-style)
 export interface PercentileStanding {
   /** Share of ranked users strictly below this user, 0–100. */
@@ -197,8 +187,8 @@ export interface WrappedCoverage {
 }
 
 export interface WrappedAnalytics {
-  /** Receipt coverage represented by the payload; absent on legacy caches. */
-  coverage?: WrappedCoverage;
+  /** Receipt coverage represented by this canonical analytics payload. */
+  coverage: WrappedCoverage;
   /** Cross-user standings; omitted when the comparison pool is too small. */
   percentiles?: {
     sampleSize: number;
@@ -485,13 +475,15 @@ export interface DatabaseStats {
   };
 }
 
-export interface PaginationResponse<T> {
-  data: T[];
-  pagination: {
+export interface ReceiptPage {
+  items: Receipt[];
+  pageInfo: {
+    page: number;
     total: number;
     limit: number;
-    offset: number;
+    totalPages: number;
     hasMore: boolean;
+    nextPage: number | null;
   };
 }
 

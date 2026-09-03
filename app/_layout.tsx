@@ -11,6 +11,8 @@ import { ErrorBoundary } from '@components/ui/ErrorBoundary';
 import { AppAlertProvider } from '@components/ui/AppAlertProvider';
 import ExportReadyNotifier from '@components/upload/ExportReadyNotifier';
 import { ImportBackgroundController } from '@components/import/ImportBackgroundController';
+import { ImportNotificationController } from '@components/import/ImportNotificationController';
+import { AdminAnalyticsController } from '@components/analytics/AdminAnalyticsController';
 import { initSentry } from '@utils/sentry';
 import {
   useFonts,
@@ -40,9 +42,11 @@ export default function RootLayout() {
           <QueryClientProvider client={appQueryClient}>
             <CurrencyProvider>
               <UserProvider>
+                <AdminAnalyticsController />
                 <OnboardingProvider>
                   <ExportReadyNotifier />
                   <ImportBackgroundController />
+                  <ImportNotificationController />
                   <Stack
                     screenOptions={{
                       contentStyle: { backgroundColor: Colors.transparent },

@@ -36,14 +36,14 @@ export function HelpSupportModal({
 
           <ScrollView style={modalShellStyles.modalBody}>
             <View style={styles.helpSection}>
-              <Text style={styles.helpSectionTitle}>📋 Import Options</Text>
+              <Text style={styles.helpSectionTitle}>📋 Add & manage data</Text>
               <Text style={styles.helpSectionText}>
                 Fastest start:{'\n'}
-                1. Go to the Import Receipts screen{'\n'}
-                2. Tap the Gmail button{'\n'}
-                3. Connect the inbox tied to your delivery apps{'\n'}
+                1. Open Add & manage data{'\n'}
+                2. Choose Gmail or Outlook{'\n'}
+                3. Connect the email registered with your delivery apps{'\n'}
                 4. Start a one-time email check when you are ready{'\n\n'}
-                Want deeper history? You can also request an Uber Eats or DoorDash export and upload it from the same screen.
+                Signed up with a phone number, Apple, or another email service? Choose None of the above and follow the guided Uber Eats or DoorDash history steps.
               </Text>
             </View>
 
@@ -51,13 +51,13 @@ export function HelpSupportModal({
               <Text style={styles.helpSectionTitle}>❓ Frequently Asked Questions</Text>
               <Text style={styles.helpSectionText}>
                 <Text style={styles.helpQuestion}>Q: How long does it take to process my data?</Text>{'\n'}
-                A: Gmail imports begin when you press Import from Gmail. Full export uploads usually process within a few seconds after upload.{'\n\n'}
+                A: Email scans begin only after you review and start them. Delivery history files begin processing as soon as you choose the ZIP.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
                 A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Which import method should I use?</Text>{'\n'}
-                A: Start with Gmail if you want the fastest setup. Use a full export if you already have one or want more complete historical coverage.{'\n\n'}
+                A: Choose the email service registered with your delivery apps for the quickest setup. Choose None of the above for phone-number, Apple sign-in, or other email accounts.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Can I delete my account?</Text>{'\n'}
                 A: Yes, you can delete your account directly from the Account Deletion section below.

@@ -17,7 +17,7 @@ export { default as SimpleChart } from './charts/SimpleChart';
 export { default as ChartContainer } from './charts/ChartContainer';
 
 // Upload components
-export { UberDataUpload } from './upload/UberDataUpload';
+export { ExportDataUpload, UberDataUpload } from './upload/UberDataUpload';
 export { default as UberDataTutorial } from './upload/UberDataTutorial';
 export { ImportTaskCard } from './upload/ImportTaskCard';
 export type { ImportTaskId } from './upload/ImportTaskCard';

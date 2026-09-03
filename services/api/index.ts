@@ -5,8 +5,8 @@
 
 export { default as api } from './client';
 export { userApi } from './userApi';
-export { csvApi } from './csvApi';
+export { exportImportApi, type NativeUploadFile } from './csvApi';
 export { receiptApi } from './receiptApi';
 
-// Default export for backward compatibility
+// Default transport export for service modules that use the shared client directly.
 export { default } from './client';

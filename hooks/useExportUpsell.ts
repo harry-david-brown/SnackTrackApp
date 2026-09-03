@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useImportPreferences } from './useImportPreferences';
 import { resolveImportCoverage } from '@features/import-flow/importJourneyState';
+import { trackAdminEvent } from '@services/adminAnalytics';
 
 const EXPORT_UPSELL_STORAGE_PREFIX = '@snacktrack_export_upsell';
 const EXPORT_UPSELL_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -62,6 +63,11 @@ const saveStateForUser = async (userId: string, state: ExportUpsellState) => {
 /** Clear device-side presentation history after the server resets receipt coverage. */
 export const resetExportUpsellForUser = async (userId: string) => {
   await saveStateForUser(userId, DEFAULT_STATE);
+};
+
+/** Removes user-bound presentation history after permanent account deletion. */
+export const removeExportUpsellForUser = async (userId: string) => {
+  await AsyncStorage.removeItem(getStorageKey(userId));
 };
 
 const isWithinSnoozeWindow = (lastDismissedAt: string | null) => {
@@ -131,6 +137,9 @@ export function useExportUpsell(userId?: string | null) {
 
   const markSeen = useCallback(async (surface: ExportUpsellSurface) => {
     const timestamp = new Date().toISOString();
+    const hasAlreadyBeenSeen = surface === 'wrapped'
+      ? Boolean(upsellState.wrappedSeenAt)
+      : Boolean(upsellState.dashboardSeenAt);
 
     await updateState((current) => {
       if (surface === 'wrapped' && current.wrappedSeenAt) {
@@ -147,13 +156,17 @@ export function useExportUpsell(userId?: string | null) {
         dashboardSeenAt: surface === 'dashboard' ? timestamp : current.dashboardSeenAt,
       };
     });
-  }, [updateState]);
+    if (!hasAlreadyBeenSeen) {
+      void trackAdminEvent('export_offer_shown', { properties: { surface } }).catch(() => undefined);
+    }
+  }, [updateState, upsellState.dashboardSeenAt, upsellState.wrappedSeenAt]);
 
   const markClicked = useCallback(async () => {
     await updateState((current) => ({
       ...current,
       clickedAt: new Date().toISOString(),
     }));
+    void trackAdminEvent('export_offer_clicked', { properties: { surface: 'wrapped' } }).catch(() => undefined);
   }, [updateState]);
 
   const dismiss = useCallback(async () => {
@@ -162,6 +175,7 @@ export function useExportUpsell(userId?: string | null) {
       lastDismissedAt: new Date().toISOString(),
       dismissCount: current.dismissCount + 1,
     }));
+    void trackAdminEvent('export_offer_dismissed', { properties: { surface: 'dashboard' } }).catch(() => undefined);
   }, [updateState]);
 
   const markCompleted = useCallback(async () => {

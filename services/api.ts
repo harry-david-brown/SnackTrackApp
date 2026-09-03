@@ -4,5 +4,11 @@
  * reaching into the implementation files under `services/api/`.
  */
 
-export { default as api, userApi, csvApi, receiptApi } from './api/index';
+export {
+  default as api,
+  userApi,
+  exportImportApi,
+  receiptApi,
+  type NativeUploadFile,
+} from './api/index';
 export { default } from './api/index';

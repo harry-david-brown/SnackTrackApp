@@ -105,7 +105,7 @@ describe('resolveTrackingPropositionCopy', () => {
     });
 
     expect(copy.title).toBe('Your stats will keep growing');
-    expect(copy.body).toContain('periodically check Gmail');
+    expect(copy.body).toContain('periodically check your connected email');
     expect(copy.body).toContain('keep your spending stats up to date');
     expect(copy.body).not.toContain('installed');
     expect(copy.body).not.toContain('data-ready email');

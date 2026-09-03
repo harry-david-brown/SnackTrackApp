@@ -4,14 +4,17 @@
 
 - Route registration: `SnackTrackAPI/src/index.ts`.
 - HTTP behavior: the matching file in `SnackTrackAPI/src/routes/` plus its called service.
-- Database shape and startup migration: `SnackTrackAPI/src/services/data/PostgresService.ts`.
+- Database shape and migration order: `SnackTrackAPI/src/services/data/migrations/` plus `MigrationRunner.ts`; typed execution comes from `services/ports/DatabasePort.ts` and the `PostgresService` adapter.
 - Persistence semantics: the matching repository.
 - Cross-table destructive mutations: a dedicated domain service using one transaction.
 - API dependency ownership: `SnackTrackAPI/src/services/core/ServiceContainer.ts`.
+- Durable import operations: `SnackTrackAPI/src/services/data/ImportJobRepository.ts`, `services/import/ImportJobService.ts`, `ImportJobProcessor.ts`, and `services/queue/ImportQueues.ts`.
+- Redis behavior: `SnackTrackAPI/src/config/redis.ts`; distinguish cache, distributed-lock, refresh-token, and BullMQ connection semantics.
 - App request normalization: the matching file in `SnackTrackApp/services/`.
-- App transport contract: `SnackTrackApp/types/api.ts` and domain service types.
+- App transport/domain contracts: `SnackTrackApp/types/api.ts`, `features/auth/contracts.ts`, `features/import-flow/contracts.ts`, and the matching runtime normalizer.
 - UI state precedence: the closest pure resolver in `SnackTrackApp/components/` or `hooks/`.
 - Theme: `SnackTrackApp/constants/theme.ts`.
+- Admin transport and rendering: `SnackTrackAdmin/src/api.ts`, `src/contracts.ts`, and the matching file in `src/pages/`; API role enforcement remains canonical.
 - Expected regressions: focused tests nearest the behavior.
 
 README and planning documents explain intent but can lag implementation. If they conflict with executable source and tests, establish whether the source is wrong before updating documentation.
@@ -32,17 +35,24 @@ npm run type-check
 npm run build
 ```
 
+### Admin
+
+```sh
+npm run type-check
+```
+
 Treat `npm run build` as the API TypeScript check. Tests remain available for user-requested verification but are not part of the default handoff.
 
 ## Cache checklist
 
-- Does the mutation invalidate every affected API user cache?
+- Does the mutation invalidate every affected API projection cache?
 - Is a versioned summary/dashboard cache key involved?
 - Does the app retain an offline snapshot or deduplicate requests?
 - Will navigation focus/refetch behavior reveal the new state without restarting?
 - Are stale server preference rows reconciled with actual receipt-source coverage?
 - Does a destructive mutation remove query/device caches so old data cannot remain renderable?
 - Can any in-flight or scheduled writer repopulate data after cache invalidation?
+- Does a durable import job, unpublished outbox event, or queued worker still reference the old generation/state?
 
 ## Safe live-data diagnosis
 

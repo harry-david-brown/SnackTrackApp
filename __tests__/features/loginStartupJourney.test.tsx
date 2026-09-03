@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import React from 'react';
+import { Text } from 'react-native';
 import HomeScreen from '@/app/index';
 
 let mockUserState: Record<string, unknown>;
@@ -6,8 +8,6 @@ let mockAnalyticsState: Record<string, unknown>;
 
 jest.mock('expo-router', () => ({
   Redirect: ({ href }: { href: string }) => {
-    const React = require('react');
-    const { Text } = require('react-native');
     return React.createElement(Text, null, `redirect:${href}`);
   },
 }));

@@ -6,6 +6,7 @@
 import { authApi } from '@services/authApi';
 import api from '@services/api';
 import * as tokenManager from '@utils/tokenManager';
+import { authSessionFixture } from '@/__tests__/fixtures/contracts';
 
 // Mock the API client
 jest.mock('@services/api');
@@ -25,20 +26,8 @@ describe('Auth API', () => {
   });
 
   describe('register', () => {
-    it('should register a new user and store tokens', async () => {
-      const mockResponse = {
-        data: {
-          userId: 'test-user-id',
-          email: 'test@example.com',
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-            createdAt: '2025-01-01',
-          },
-        },
-      };
+    it('normalizes registration without mutating session storage', async () => {
+      const mockResponse = { data: authSessionFixture };
 
       (api.post as jest.Mock).mockResolvedValueOnce(mockResponse);
       (tokenManager.storeAuthTokens as jest.Mock).mockResolvedValueOnce(undefined);
@@ -52,12 +41,7 @@ describe('Auth API', () => {
         email: 'test@example.com',
         password: 'Password123',
       });
-      expect(tokenManager.storeAuthTokens).toHaveBeenCalledWith(
-        'access-token',
-        'refresh-token',
-        'test-user-id',
-        mockResponse.data.user
-      );
+      expect(tokenManager.storeAuthTokens).not.toHaveBeenCalled();
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -72,20 +56,8 @@ describe('Auth API', () => {
   });
 
   describe('login', () => {
-    it('should login user and store tokens', async () => {
-      const mockResponse = {
-        data: {
-          userId: 'test-user-id',
-          email: 'test@example.com',
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-            createdAt: '2025-01-01',
-          },
-        },
-      };
+    it('normalizes login without mutating session storage', async () => {
+      const mockResponse = { data: authSessionFixture };
 
       (api.post as jest.Mock).mockResolvedValueOnce(mockResponse);
       (tokenManager.storeAuthTokens as jest.Mock).mockResolvedValueOnce(undefined);
@@ -99,12 +71,7 @@ describe('Auth API', () => {
         email: 'test@example.com',
         password: 'Password123',
       });
-      expect(tokenManager.storeAuthTokens).toHaveBeenCalledWith(
-        'access-token',
-        'refresh-token',
-        'test-user-id',
-        mockResponse.data.user
-      );
+      expect(tokenManager.storeAuthTokens).not.toHaveBeenCalled();
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -151,10 +118,7 @@ describe('Auth API', () => {
       expect(api.post).toHaveBeenCalledWith('/auth/refresh', {
         refreshToken: 'old-refresh-token',
       });
-      expect(tokenManager.updateAccessToken).toHaveBeenCalledWith(
-        'new-access-token',
-        'new-refresh-token'
-      );
+      expect(tokenManager.updateAccessToken).not.toHaveBeenCalled();
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -164,19 +128,64 @@ describe('Auth API', () => {
       await expect(authApi.refresh()).rejects.toThrow('No refresh token available');
     });
 
-    it('should clear tokens if refresh fails', async () => {
+    it('does not clear tokens when refresh transport fails', async () => {
       const error = new Error('Refresh failed');
       (tokenManager.getRefreshToken as jest.Mock).mockResolvedValueOnce('old-refresh-token');
       (api.post as jest.Mock).mockRejectedValueOnce(error);
       (tokenManager.clearAuthTokens as jest.Mock).mockResolvedValueOnce(undefined);
 
       await expect(authApi.refresh()).rejects.toThrow('Refresh failed');
-      expect(tokenManager.clearAuthTokens).toHaveBeenCalled();
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Microsoft login', () => {
+    it('keeps the attempt token separate from the OpenID nonce', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { attemptToken: 'private-attempt', nonce: 'openid-nonce', expiresIn: 600 },
+      });
+      await expect(authApi.microsoftLoginAttempt()).resolves.toEqual({
+        attemptToken: 'private-attempt',
+        nonce: 'openid-nonce',
+        expiresIn: 600,
+      });
+      expect(api.post).toHaveBeenCalledWith('/auth/microsoft/attempt', {});
+    });
+
+    it('returns the email challenge without writing a SnackTrack session', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        status: 202,
+        data: {
+          status: 'email_verification_required',
+          attemptToken: 'private-attempt',
+          suggestedEmail: 'person@example.com',
+        },
+      });
+      await expect(
+        authApi.microsoftLogin('signed-id-token', 'private-attempt'),
+      ).resolves.toMatchObject({ status: 'email_verification_required' });
+      expect(tokenManager.storeAuthTokens).not.toHaveBeenCalled();
+    });
+
+    it('confirms email ownership through the scoped attempt endpoint', async () => {
+      (api.post as jest.Mock).mockResolvedValueOnce({ data: authSessionFixture });
+      await expect(
+        authApi.confirmMicrosoftVerificationEmail(
+          'private-attempt',
+          'person@example.com',
+          '123456',
+        ),
+      ).resolves.toEqual(authSessionFixture);
+      expect(api.post).toHaveBeenCalledWith('/auth/microsoft/email/confirm', {
+        attemptToken: 'private-attempt',
+        email: 'person@example.com',
+        code: '123456',
+      });
     });
   });
 
   describe('logout', () => {
-    it('should logout successfully and clear tokens', async () => {
+    it('requests server logout without mutating local credentials', async () => {
       const mockResponse = {
         data: {
           success: true,
@@ -193,23 +202,18 @@ describe('Auth API', () => {
       expect(api.post).toHaveBeenCalledWith('/auth/logout', {
         refreshToken: 'refresh-token',
       });
-      expect(tokenManager.clearAuthTokens).toHaveBeenCalled();
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
       expect(result).toEqual(mockResponse.data);
     });
 
-    it('should clear tokens even if API call fails', async () => {
+    it('reports logout transport failure to the session owner', async () => {
       const error = new Error('Logout failed');
       (tokenManager.getRefreshToken as jest.Mock).mockResolvedValueOnce('refresh-token');
       (api.post as jest.Mock).mockRejectedValueOnce(error);
       (tokenManager.clearAuthTokens as jest.Mock).mockResolvedValueOnce(undefined);
 
-      const result = await authApi.logout();
-
-      expect(tokenManager.clearAuthTokens).toHaveBeenCalled();
-      expect(result).toEqual({
-        success: true,
-        message: 'Logged out locally',
-      });
+      await expect(authApi.logout()).rejects.toThrow('Logout failed');
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
     });
 
     it('should handle logout when no refresh token exists', async () => {
@@ -219,7 +223,7 @@ describe('Auth API', () => {
       const result = await authApi.logout();
 
       expect(api.post).not.toHaveBeenCalled();
-      expect(tokenManager.clearAuthTokens).toHaveBeenCalled();
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
       expect(result).toEqual({
         success: true,
         message: 'Logged out successfully',
@@ -260,15 +264,14 @@ describe('Auth API', () => {
       });
     });
 
-    it('should return null if refresh fails', async () => {
+    it('retains credentials and surfaces retryable refresh failures', async () => {
       (tokenManager.isTokenExpired as jest.Mock).mockResolvedValueOnce(true);
       (tokenManager.getRefreshToken as jest.Mock).mockResolvedValueOnce('refresh-token');
       (api.post as jest.Mock).mockRejectedValueOnce(new Error('Refresh failed'));
       (tokenManager.clearAuthTokens as jest.Mock).mockResolvedValueOnce(undefined);
 
-      const result = await authApi.getValidToken();
-
-      expect(result).toBeNull();
+      await expect(authApi.getValidToken()).rejects.toThrow('Refresh failed');
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
     });
   });
 
@@ -291,15 +294,13 @@ describe('Auth API', () => {
       expect(result).toBe(false);
     });
 
-    it('should return false on error', async () => {
+    it('surfaces temporary validation failures instead of signing out', async () => {
       // Force getValidToken to throw an error
       (tokenManager.isTokenExpired as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Token check failed');
       });
 
-      const result = await authApi.validateSession();
-
-      expect(result).toBe(false);
+      await expect(authApi.validateSession()).rejects.toThrow('Token check failed');
     });
   });
 
@@ -378,6 +379,30 @@ describe('Auth API', () => {
         code: '654321',
       });
       expect(response).toEqual({ success: true, message: 'verified' });
+    });
+  });
+
+  describe('account deletion', () => {
+    it('does not clear credentials before the authoritative server result', async () => {
+      (tokenManager.getRefreshToken as jest.Mock).mockResolvedValueOnce('refresh-token');
+      (api.delete as jest.Mock).mockRejectedValueOnce(new Error('deletion failed'));
+
+      await expect(authApi.deleteAccount()).rejects.toThrow('deletion failed');
+      expect(api.delete).toHaveBeenCalledWith('/auth/delete-account', {
+        data: { refreshToken: 'refresh-token' },
+      });
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
+    });
+
+    it('normalizes confirmed deletion without owning local session cleanup', async () => {
+      (api.delete as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, message: 'Account deleted successfully' },
+      });
+      expect(await authApi.deleteAccount('refresh-token')).toEqual({
+        success: true,
+        message: 'Account deleted successfully',
+      });
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
     });
   });
 });

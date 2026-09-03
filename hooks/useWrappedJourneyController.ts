@@ -58,7 +58,7 @@ export function useWrappedJourneyController() {
     try {
       const next = await setOngoingTrackingConsent(decision);
       if (decision === 'granted' && next.ongoingTracking.effectiveState === 'reconnect_required') {
-        showSimpleAlert('Permission saved', 'Reconnect Gmail from Import before ongoing tracking can work.');
+        showSimpleAlert('Permission saved', 'Restore a Gmail or Outlook connection from Import before ongoing tracking can work.');
       }
     } catch {
       showSimpleAlert('Could not save your choice', 'Please check your connection and try again.');
@@ -68,7 +68,7 @@ export function useWrappedJourneyController() {
 
   const openTrackingSetup = useCallback(() => {
     if (trackingRecovery.kind === 'unavailable') {
-      showSimpleAlert('Gmail is temporarily unavailable', 'Your connection and history are safe. Try setting up ongoing updates again shortly.');
+      showSimpleAlert('Email is temporarily unavailable', 'Your connection and history are safe. Try setting up ongoing updates again shortly.');
       return;
     }
     const action = trackingRecovery.kind === 'baseline'

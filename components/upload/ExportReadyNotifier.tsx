@@ -7,12 +7,9 @@ import { useImportPreferences } from '@hooks/useImportPreferences';
 import { showAlert } from '@utils/platformAlert';
 import {
   getExportDownloadHandoffState,
-  openUberExportEmail,
   setExportDownloadHandoffState,
   UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS,
   UBER_EXPORT_EMAIL_ACTION,
-  UBER_EXPORT_EMAIL_ADDRESS,
-  UBER_EXPORT_EMAIL_SEARCH_QUERY,
   UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
 
@@ -27,7 +24,17 @@ const NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
 export default function ExportReadyNotifier() {
   const { state } = useUser();
   const userId = state.user?.id;
-  const { checkExportReady } = useImportPreferences(Boolean(userId));
+  const { preferences, checkExportReady } = useImportPreferences(Boolean(userId));
+  const uberExport = preferences?.export.providers.uberEats;
+  const cachedReadyVersion = uberExport?.status === 'file_ready'
+    ? uberExport.updatedAt ?? 'ready'
+    : null;
+  const canCheckForReadyExport = Boolean(
+    preferences?.monitoring.consentState === 'granted'
+      && preferences.monitoring.capability.canMonitor
+      && uberExport?.status === 'requested'
+      && uberExport.requestedAt,
+  );
   const isCheckingRef = useRef(false);
   const lastCheckedAtRef = useRef(0);
   const readyVersionRef = useRef<string | null>(null);
@@ -68,21 +75,10 @@ export default function ExportReadyNotifier() {
     );
   }, [openImportForUpload, userId]);
 
-  const openEmailForDownload = useCallback(async (readyVersion: string) => {
-    if (!userId) return;
-
-    await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'checking_email');
-    try {
-      await openUberExportEmail();
-    } catch {
-      await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'not_downloaded');
-      showAlert(
-        'Could not open Gmail',
-        `Open your email app and search for ${UBER_EXPORT_EMAIL_SEARCH_QUERY}.`,
-        [{ text: 'OK' }]
-      );
-    }
-  }, [userId]);
+  const openDownloadGuide = useCallback(() => {
+    isShowingDownloadPromptRef.current = false;
+    router.push('/(tabs)/upload?focus=export&provider=uber_eats&showExportTutorial=true');
+  }, []);
 
   const showReadyPrompt = useCallback((readyVersion: string) => {
     if (!userId || isShowingDownloadPromptRef.current) return;
@@ -90,7 +86,7 @@ export default function ExportReadyNotifier() {
 
     showAlert(
       'Your Uber data is ready',
-      `In Gmail, look for “${UBER_EXPORT_EMAIL_SUBJECT}” from ${UBER_EXPORT_EMAIL_ADDRESS}. Open it and tap “${UBER_EXPORT_EMAIL_ACTION}.” Uber keeps the download available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.\n\nHave you already saved the ZIP?`,
+      `Find Uber’s “${UBER_EXPORT_EMAIL_SUBJECT}” email or text, then open the download page. Uber keeps the download available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.\n\nHave you already saved the ZIP?`,
       [
         {
           text: 'Later',
@@ -101,11 +97,8 @@ export default function ExportReadyNotifier() {
           },
         },
         {
-          text: 'Open Gmail',
-          onPress: () => {
-            isShowingDownloadPromptRef.current = false;
-            void openEmailForDownload(readyVersion);
-          },
+          text: 'Show Download Steps',
+          onPress: openDownloadGuide,
         },
         {
           text: 'Already Downloaded',
@@ -116,10 +109,40 @@ export default function ExportReadyNotifier() {
         },
       ]
     );
-  }, [openEmailForDownload, openImportForUpload, userId]);
+  }, [openDownloadGuide, openImportForUpload, userId]);
+
+  const handleReadyExport = useCallback(async (readyVersion: string) => {
+    if (!userId) return;
+
+    readyVersionRef.current = readyVersion;
+    const handoffState = await getExportDownloadHandoffState(userId, 'uber_eats', readyVersion);
+    if (handoffState === 'checking_email') {
+      showDownloadFollowUp(readyVersion);
+      return;
+    }
+    if (handoffState === 'downloaded') return;
+
+    const notificationKey = `${NOTIFICATION_KEY_PREFIX}:${userId}:uber_eats`;
+    const previouslyNotifiedVersion = await AsyncStorage.getItem(notificationKey);
+    if (previouslyNotifiedVersion === readyVersion) return;
+
+    await AsyncStorage.setItem(notificationKey, readyVersion);
+    showReadyPrompt(readyVersion);
+  }, [showDownloadFollowUp, showReadyPrompt, userId]);
 
   const checkForReadyExport = useCallback(async () => {
     if (!userId || isCheckingRef.current) return;
+
+    if (cachedReadyVersion) {
+      isCheckingRef.current = true;
+      try {
+        await handleReadyExport(cachedReadyVersion);
+      } finally {
+        isCheckingRef.current = false;
+      }
+      return;
+    }
+    if (!canCheckForReadyExport) return;
 
     const now = Date.now();
     if (now - lastCheckedAtRef.current < CHECK_INTERVAL_MS) return;
@@ -128,30 +151,17 @@ export default function ExportReadyNotifier() {
     lastCheckedAtRef.current = now;
     try {
       const result = await checkExportReady();
-      const uberExport = result.preferences.export.providers?.uberEats;
-      if (uberExport?.status !== 'file_ready') return;
+      const uberExport = result.preferences.export.providers.uberEats;
+      if (uberExport.status !== 'file_ready') return;
 
       const readyVersion = uberExport.updatedAt ?? 'ready';
-      readyVersionRef.current = readyVersion;
-      const handoffState = await getExportDownloadHandoffState(userId, 'uber_eats', readyVersion);
-      if (handoffState === 'checking_email') {
-        showDownloadFollowUp(readyVersion);
-        return;
-      }
-      if (handoffState === 'downloaded') return;
-
-      const notificationKey = `${NOTIFICATION_KEY_PREFIX}:${userId}:uber_eats`;
-      const previouslyNotifiedVersion = await AsyncStorage.getItem(notificationKey);
-      if (previouslyNotifiedVersion === readyVersion) return;
-
-      await AsyncStorage.setItem(notificationKey, readyVersion);
-      showReadyPrompt(readyVersion);
+      await handleReadyExport(readyVersion);
     } catch {
       // This background check should never interrupt normal app use.
     } finally {
       isCheckingRef.current = false;
     }
-  }, [checkExportReady, showDownloadFollowUp, showReadyPrompt, userId]);
+  }, [cachedReadyVersion, canCheckForReadyExport, checkExportReady, handleReadyExport, userId]);
 
   useEffect(() => {
     lastCheckedAtRef.current = 0;

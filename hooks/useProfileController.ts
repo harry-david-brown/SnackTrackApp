@@ -2,6 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DataPlatform } from '@components/upload/UberDataTutorial';
 import { featureFlags } from '@config/featureFlags';
 import { useCurrency } from '@contexts/CurrencyContext';
@@ -11,27 +13,29 @@ import { resolveProfileSettingsState } from '@features/profile/profileSettingsSt
 import { resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { useAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useImportPreferences } from './useImportPreferences';
-import { authApi } from '@services/authApi';
 import type { CurrencyCode } from '@utils/currency';
-import type { ExportProvider } from '@services/gmailApi';
+import type { ExportProvider } from '@features/import-flow/contracts';
 import { toDomainError } from '@utils/domainError';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
-import { getRefreshToken } from '@utils/tokenManager';
 import {
   setExportDownloadHandoffState,
   UBER_EXPORT_EMAIL_ADDRESS,
   UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
+import { registerImportNotificationDevice } from '@components/import/ImportNotificationController';
+import { notificationDeviceApi } from '@services/notificationDeviceApi';
+import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 
 type ProfileModal = 'tutorial' | 'help' | 'currency' | null;
 
 export function useProfileController() {
-  const { state, logout } = useUser();
+  const { state, logout, deleteAccount } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClearingReceipts, setIsClearingReceipts] = useState(false);
+  const [importNotificationsEnabled, setImportNotificationsEnabled] = useState(false);
   const userId = state.user?.id;
   const {
     preferences,
@@ -47,7 +51,41 @@ export function useProfileController() {
 
   useFocusEffect(useCallback(() => {
     void refresh();
-  }, [refresh]));
+    if (userId) void Promise.all([
+      Notifications.getPermissionsAsync(),
+      AsyncStorage.getItem(notificationEnabledKey(userId)),
+    ]).then(([permission, enabled]) => setImportNotificationsEnabled(permission.granted && enabled === 'true'));
+  }, [refresh, userId]));
+
+  const toggleImportNotifications = useCallback(() => {
+    if (importNotificationsEnabled) {
+      showAlert('Turn off import notifications?', 'This device will stop receiving completion updates. Imports will still continue in the background.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Turn Off', style: 'destructive', onPress: () => { void (async () => {
+          if (userId) await AsyncStorage.setItem(notificationEnabledKey(userId), 'false');
+          setImportNotificationsEnabled(false);
+          await notificationDeviceApi.unregister(await getNotificationInstallationId()).catch(() => undefined);
+        })(); } },
+      ]);
+      return;
+    }
+    void (async () => {
+      const permission = await Notifications.requestPermissionsAsync();
+      if (!permission.granted) {
+        setImportNotificationsEnabled(false);
+        showSimpleAlert('Notifications are off', 'You can enable SnackTrack notifications later in your device settings.');
+        return;
+      }
+      try {
+        await registerImportNotificationDevice();
+        if (userId) await AsyncStorage.setItem(notificationEnabledKey(userId), 'true');
+        setImportNotificationsEnabled(true);
+      } catch {
+        setImportNotificationsEnabled(false);
+        showSimpleAlert('Could not enable notifications', 'Try again when this device is online.');
+      }
+    })();
+  }, [importNotificationsEnabled, userId]);
 
   const settings = useMemo(
     () => resolveProfileSettingsState(preferences, arePreferencesLoading),
@@ -63,7 +101,7 @@ export function useProfileController() {
     setIsClearingReceipts(true);
     try {
       await resetOnboarding();
-      showAlert(successTitle, 'Your account import data has been reset and Gmail is disconnected.');
+      showAlert(successTitle, 'Your account import data has been reset and connected mailboxes were disconnected.');
       router.replace('/');
     } catch (error: unknown) {
       showAlert(failureTitle, toDomainError(error).message);
@@ -76,7 +114,7 @@ export function useProfileController() {
     if (!state.user || isClearingReceipts) return;
     showAlert(
       'Reset Imported Data',
-      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears Uber Eats and DoorDash export progress. Your login remains active.\n\nThis action cannot be undone.',
+      'This permanently deletes all receipts and stats, disconnects Gmail and Outlook, stops background syncing, and clears Uber Eats and DoorDash history progress. Your login remains active.\n\nThis action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Reset Data', style: 'destructive', onPress: () => void performReset('Receipts Cleared', 'Clear Failed') },
@@ -88,7 +126,7 @@ export function useProfileController() {
     if (isClearingReceipts) return;
     showAlert(
       'Reset Onboarding',
-      'This permanently deletes all receipts and stats, disconnects Gmail, stops background syncing, and clears your Uber Eats and DoorDash export progress. Your login remains active. Continue?',
+      'This permanently deletes all receipts and stats, disconnects Gmail and Outlook, stops background syncing, and clears your Uber Eats and DoorDash history progress. Your login remains active. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Reset', style: 'destructive', onPress: () => void performReset('Account Reset', 'Reset Failed') },
@@ -106,12 +144,12 @@ export function useProfileController() {
   const toggleExportAlerts = useCallback(() => {
     const isGranted = preferences?.monitoring.consentState === 'granted';
     if (isGranted) {
-      showAlert('Turn off export alerts?', 'SnackTrack will stop checking for Uber’s data-ready email. Your existing imported receipts will remain.', [
+      showAlert('Turn off history-file alerts?', 'SnackTrack will stop checking for Uber’s data-ready email. Your existing imported receipts will remain.', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Turn Off', style: 'destructive', onPress: () => {
             void setMonitoringConsent('revoked').catch(() => {
-              showAlert('Update Failed', 'Could not turn off export alerts. Please try again.');
+              showAlert('Update Failed', 'Could not turn off history-file alerts. Please try again.');
             });
           },
         },
@@ -119,7 +157,7 @@ export function useProfileController() {
       return;
     }
     showAlert(
-      'Turn on export-ready alerts?',
+      'Turn on history-file alerts?',
       'SnackTrack will check only for Uber’s data-ready email while the app is active. It will not open the link or download the file, and you can turn this off at any time.',
       [
         { text: 'Not Now', style: 'cancel' },
@@ -127,22 +165,15 @@ export function useProfileController() {
           text: 'Allow', onPress: () => {
             void setMonitoringConsent('granted').then((next) => {
               if (next.monitoring.effectiveState === 'reconnect_required') {
-                showAlert('Permission saved', 'Reconnect Gmail before export-ready alerts can work.', [
+                showAlert('Permission saved', 'Connect Gmail or Outlook before history-file alerts can work.', [
                   { text: 'Not Now', style: 'cancel' },
                   {
-                    text: 'Reconnect Gmail',
-                    onPress: () => router.push({
-                      pathname: '/(tabs)/upload',
-                      params: {
-                        action: 'connect_gmail',
-                        gmailPurpose: 'export_ready_alerts',
-                        intentId: `connect_gmail:${Date.now()}`,
-                      },
-                    }),
+                    text: 'Manage connections',
+                    onPress: () => router.push('/(tabs)/upload'),
                   },
                 ]);
               }
-            }).catch(() => showAlert('Update Failed', 'Could not enable export alerts. Please try again.'));
+            }).catch(() => showAlert('Update Failed', 'Could not enable history-file alerts. Please try again.'));
           },
         },
       ],
@@ -152,14 +183,14 @@ export function useProfileController() {
   const toggleOngoingTracking = useCallback(() => {
     if (preferences?.ongoingTracking.consentState === 'granted'
       && preferences.ongoingTracking.effectiveState !== 'paused') {
-      showAlert('Turn off ongoing tracking?', 'SnackTrack will stop periodically checking Gmail for new delivery receipts. Your imported history will remain.', [
+      showAlert('Turn off ongoing tracking?', 'SnackTrack will stop periodically checking connected email accounts for new delivery receipts. Your imported history will remain.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Turn Off', style: 'destructive', onPress: () => void setOngoingTrackingConsent('revoked') },
       ]);
       return;
     }
     if (trackingRecovery.kind === 'baseline') {
-      showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your exports and establish where future checks should begin.', [
+      showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your downloaded history and establish where future checks should begin.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Go to Import', onPress: () => router.push({
           pathname: '/(tabs)/upload',
@@ -169,26 +200,23 @@ export function useProfileController() {
       return;
     }
     if (trackingRecovery.kind === 'unavailable') {
-      showSimpleAlert('Gmail is temporarily unavailable', 'Your connection and imported history are safe. Try enabling ongoing updates again shortly.');
+      showSimpleAlert('Email is temporarily unavailable', 'Your connections and imported history are safe. Try enabling ongoing updates again shortly.');
       return;
     }
     if (trackingRecovery.kind === 'reconnect') {
-      showAlert('Reconnect Gmail first', 'Ongoing tracking needs durable Gmail access. Reconnect from the Import screen, then return here.', [
+      showAlert('Reconnect email first', 'Ongoing tracking needs a durable Gmail or Outlook connection. Manage email connections from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Reconnect Gmail', onPress: () => router.push({
-          pathname: '/(tabs)/upload',
-          params: { action: 'connect_gmail', gmailPurpose: 'ongoing_tracking', intentId: `connect_gmail:${Date.now()}` },
-        }) },
+        { text: 'Manage connections', onPress: () => router.push('/(tabs)/upload') },
       ]);
       return;
     }
-    showAlert('Allow ongoing order tracking?', preferences?.ongoingTracking.baseline?.source === 'exports'
-      ? 'SnackTrack will check Gmail for supported delivery receipts newer than your exports and periodically check for future orders. You can turn this off at any time.'
-      : 'SnackTrack will periodically read supported delivery receipt emails from your connected Gmail account to update spending and stats. You can turn this off at any time.', [
+    showAlert('Allow ongoing order tracking?', preferences?.ongoingTracking.baseline.source === 'exports'
+      ? 'SnackTrack will check connected email accounts for supported delivery receipts newer than your downloaded history and periodically check for future orders. You can turn this off at any time.'
+      : 'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update spending and stats. You can turn this off at any time.', [
       { text: 'Not Now', style: 'cancel' },
       { text: 'Allow tracking', onPress: () => void setOngoingTrackingConsent('granted') },
     ]);
-  }, [preferences?.ongoingTracking.baseline?.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
+  }, [preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
 
   const saveExportRequest = useCallback(async (platform: DataPlatform, decision?: 'granted' | 'declined') => {
     try {
@@ -196,7 +224,7 @@ export function useProfileController() {
       const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
       await markExportRequested(provider);
     } catch {
-      showAlert('Status Not Saved', 'The tutorial is complete, but we could not save your export request status.');
+      showAlert('Status Not Saved', 'The tutorial is complete, but we could not save your history request status.');
     }
   }, [markExportRequested, setMonitoringConsent]);
 
@@ -223,7 +251,7 @@ export function useProfileController() {
     setActiveModal(null);
     void saveExportRequest(platform);
     showSimpleAlert(
-      `Your ${platform === 'uber' ? 'Uber Eats' : 'DoorDash'} export is on the way`,
+      `Your ${platform === 'uber' ? 'Uber Eats' : 'DoorDash'} history request is on the way`,
       platform === 'uber'
         ? `Uber typically takes a few hours, though it can take longer. Watch for “${UBER_EXPORT_EMAIL_SUBJECT}” from ${UBER_EXPORT_EMAIL_ADDRESS}.`
         : 'DoorDash typically takes a few hours, though it can take longer. Watch for an email saying your archive is ready with “View Your Data Archive.”',
@@ -234,8 +262,8 @@ export function useProfileController() {
     if (!userId) return;
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
     const providerState = provider === 'uber_eats'
-      ? preferences?.export.providers?.uberEats
-      : preferences?.export.providers?.doorDash;
+      ? preferences?.export.providers.uberEats
+      : preferences?.export.providers.doorDash;
     const readyVersion = providerState?.updatedAt ?? 'ready';
     await setExportDownloadHandoffState(userId, provider, readyVersion, 'downloaded');
     setActiveModal(null);
@@ -254,16 +282,15 @@ export function useProfileController() {
   const performAccountDeletion = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await authApi.deleteAccount((await getRefreshToken()) || undefined);
+      await deleteAccount();
       setActiveModal(null);
-      await logout();
       showAlert('Account Deleted', 'Your account has been permanently deleted.', [{ text: 'OK' }]);
     } catch (error: unknown) {
       showAlert('Deletion Failed', toDomainError(error).message);
     } finally {
       setIsDeleting(false);
     }
-  }, [logout]);
+  }, [deleteAccount]);
 
   const requestAccountDeletion = useCallback(() => {
     showAlert('Delete Account', 'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.\n\nThis action is irreversible.', [
@@ -297,13 +324,15 @@ export function useProfileController() {
     showDevelopmentReset: featureFlags.showResetOnboarding,
     openModal: setActiveModal,
     closeModal: () => setActiveModal(null),
-    openReceipts: () => router.push('/receipts'),
+    openReceipts: () => router.push('/(tabs)/history'),
     openImport: () => router.push('/(tabs)/upload'),
     requestLogout,
     requestClearReceipts,
     requestDevelopmentReset,
     toggleExportAlerts,
     toggleOngoingTracking,
+    toggleImportNotifications,
+    importNotificationsLabel: importNotificationsEnabled ? 'On' : 'Off',
     completeTutorial,
     tutorialReadyConfirmed,
     tutorialStillWaiting,

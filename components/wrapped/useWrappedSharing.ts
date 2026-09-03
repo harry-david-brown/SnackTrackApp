@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef } from 'react';
 import type ViewShot from 'react-native-view-shot';
 import { showAlert } from '@utils/platformAlert';
+import { trackAdminEvent } from '@services/adminAnalytics';
 
 export function useWrappedSharing(targetIndex: number, cacheVersion: unknown) {
   const captureRef = useRef<ViewShot | null>(null);
@@ -30,16 +31,20 @@ export function useWrappedSharing(targetIndex: number, cacheVersion: unknown) {
   }, [captureImage, targetIndex]);
 
   const share = useCallback(async function retryableShare(): Promise<void> {
+    void trackAdminEvent('wrapped_share_tapped').catch(() => undefined);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     try {
       const uri = await captureImage();
       if (!uri) throw new Error('Share image capture failed');
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your SnackTrack Wrapped' });
+        void trackAdminEvent('wrapped_share_completed', { properties: { method: 'system_share' } }).catch(() => undefined);
       } else {
+        void trackAdminEvent('wrapped_share_failed', { properties: { errorCode: 'sharing_unavailable' } }).catch(() => undefined);
         showAlert('Sharing unavailable', "Sharing isn't supported on this device.");
       }
     } catch {
+      void trackAdminEvent('wrapped_share_failed', { properties: { errorCode: 'share_failed' } }).catch(() => undefined);
       showAlert('Sharing failed', "Couldn't create your share image.", [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Try Again', onPress: () => void retryableShare() },

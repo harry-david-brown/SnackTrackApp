@@ -116,7 +116,7 @@ function ExportCoverageBadge({
   onOpenCoverage: () => void;
 }) {
   const { includedName } = EXPORT_PROVIDER_COPY[provider];
-  const label = `${includedName} export only`;
+  const label = `${includedName} history only`;
   return <TouchableOpacity
     style={styles.coverageBadge}
     onPress={onOpenCoverage}
@@ -376,8 +376,8 @@ export function WhatWeNoticedCarousel({ insights, onOpenExport, partialExportPro
     setPaused(true);
     const { includedName, missingName, missingProvider } = EXPORT_PROVIDER_COPY[partialExportProvider];
     showAlert(
-      `${includedName} export only`,
-      `SnackTrack currently has detailed export history from ${includedName} only. ${missingName} export history isn’t included, so insights that rely on export details may not reflect your ${missingName} orders. Add ${missingName} for broader provider coverage.`,
+      `${includedName} history only`,
+      `SnackTrack currently has detailed downloaded history from ${includedName} only. ${missingName} history isn’t included, so some insights may not reflect your ${missingName} orders. Add ${missingName} for broader delivery-app coverage.`,
       [
         { text: 'Not now', style: 'cancel' },
         {

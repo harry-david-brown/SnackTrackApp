@@ -468,6 +468,6 @@ Use this section for concise phase handoffs so another agent can resume without 
 
 ### Manual verification still required
 
-- Android emulator verification covered Dashboard, Upload, Summary, Profile, and Receipts with live account data. A 130% font-scale pass confirmed that the long profile email, large currency totals, navigation labels, and multi-line cards remain readable without clipping. The live pass exposed a receipts contract mismatch (the endpoint can omit `createdAt`); the boundary now falls back to `orderDate`, with regression coverage for the observed payload.
+- Android emulator verification covered Dashboard, Upload, Summary, Profile, and Receipts with live account data. A 130% font-scale pass confirmed that the long profile email, large currency totals, navigation labels, and multi-line cards remain readable without clipping. The former receipt `createdAt` mismatch was removed by the coordinated canonical `items/pageInfo` DTO migration; the app no longer synthesizes transport fields.
 - End-to-end login/logout, provider OAuth, destructive receipt clearing, and screen-reader announcement behavior were not exercised manually. They remain covered at the controller/integration level, but the combined Android and accessibility checklist items stay unchecked until those device interactions are completed.
 - No iOS simulator runtime was available. Cross-platform visual consistency therefore remains unchecked, with iOS explicitly documented as unverified per the final-verification allowance.

@@ -8,12 +8,14 @@ import { LoginScreen } from '@components/auth/LoginScreen';
 import OnboardingScreen from '@components/OnboardingScreen';
 import { useAnalyticsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { ErrorMessage } from '@components/ui/ErrorMessage';
+import { useSetupGuidanceQuery } from '@hooks/queries/useSetupGuidanceQuery';
+import { resolveInitialDataEntry } from '@features/import-flow/initialDataEntry';
 
 /**
  * Entry route. Everything here is derived directly from auth/onboarding
  * state — no imperative navigation:
  *   loading      → spinner
- *   authed       → redirect into tabs (upload first if no data yet)
+ *   authed       → redirect into Home or guided data setup
  *   first launch → onboarding
  *   otherwise    → login
  * The reverse direction (signed out while inside tabs) is handled by the
@@ -23,13 +25,15 @@ export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
+  const setupGuidanceQuery = useSetupGuidanceQuery(state.user?.id);
 
   // Wait for auth + onboarding hydration, and — when authenticated — for the
-  // analytics probe that decides whether to land on Upload or Dashboard.
+  // lightweight guidance and receipt probes that decide the cold-launch destination.
   const isLoading =
     state.isLoading ||
     onboardingLoading ||
-    (state.isAuthenticated && Boolean(state.user) && analyticsQuery.isPending);
+    (state.isAuthenticated && Boolean(state.user)
+      && (analyticsQuery.isPending || setupGuidanceQuery.isPending));
 
   if (isLoading) {
     return (
@@ -48,7 +52,9 @@ export default function HomeScreen() {
           <ErrorMessage
             type="network"
             error="We couldn’t load your SnackTrack history. Check your connection and try again."
-            onRetry={() => { void analyticsQuery.refetch(); }}
+            onRetry={() => {
+              void analyticsQuery.refetch();
+            }}
           />
         </View>
       </SafeAreaView>
@@ -56,8 +62,15 @@ export default function HomeScreen() {
   }
 
   if (state.isAuthenticated && state.user) {
-    const totalImportedReceipts = analyticsQuery.data?.totalReceipts ?? 0;
-    return <Redirect href={totalImportedReceipts > 0 ? '/(tabs)' : '/(tabs)/upload'} />;
+    const destination = resolveInitialDataEntry({
+      isAuthenticated: true,
+      hasUser: true,
+      totalReceipts: analyticsQuery.data?.totalReceipts ?? null,
+      guidance: setupGuidanceQuery.data ?? null,
+      isLoading: false,
+      hasError: setupGuidanceQuery.isError,
+    });
+    return <Redirect href={destination.id === 'guided_setup' ? '/(tabs)/upload' : '/(tabs)'} />;
   }
 
   if (!hasCompletedOnboarding) {

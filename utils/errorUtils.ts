@@ -1,6 +1,6 @@
-import { AxiosError } from 'axios';
 import { ErrorType } from '@components/ui/ErrorMessage';
 import { logger } from './logger';
+import { toApiClientError } from '@services/api/apiError';
 
 export interface ApiError {
   code?: string;
@@ -94,170 +94,19 @@ const sanitizeErrorMessage = (errorMessage: string, errorType: ErrorType = 'unkn
   return GENERIC_ERROR_MESSAGES[errorType];
 };
 
-const errorRecord = (error: unknown): Record<string, unknown> => (
-  typeof error === 'object' && error !== null ? error as Record<string, unknown> : {}
-);
-
-const errorText = (value: unknown): string => {
-  if (typeof value === 'string') return value;
-  const nested = errorRecord(value);
-  return typeof nested.message === 'string' ? nested.message : '';
-};
-
-const errorCode = (responseData: Record<string, unknown>): string | undefined => {
-  const nestedError = errorRecord(responseData.error);
-  if (typeof nestedError.code === 'string') return nestedError.code;
-  return typeof responseData.code === 'string' ? responseData.code : undefined;
-};
-
 export const parseApiError = (input: unknown): ApiError => {
-  const error = errorRecord(input);
-  // Network error (no response)
-  if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
-    return {
-      message: 'Unable to connect to the server. Please check your internet connection.',
-      type: 'network',
-      isRetryable: true,
-    };
-  }
-
-  // Timeout error
-  if (error.code === 'ECONNABORTED') {
-    return {
-      message: 'Request timed out. Please try again.',
-      type: 'network',
-      isRetryable: true,
-    };
-  }
-
-  // Axios error with response
-  if (error.response) {
-    const response = errorRecord(error.response);
-    const statusCode = typeof response.status === 'number' ? response.status : 0;
-    // Handle both object and string responses
-    const responseData = typeof response.data === 'string'
-      ? (() => {
-          try {
-            return errorRecord(JSON.parse(response.data as string));
-          } catch {
-            return { message: response.data };
-          }
-        })()
-      : errorRecord(response.data);
-    const code = errorCode(responseData);
-
-    switch (statusCode) {
-      case 400:
-        // Backend returns 'error' field, not 'message' for validation errors
-        const validationText = errorText(responseData.error) || errorText(responseData.message);
-        const errorHint = errorText(responseData.hint);
-        
-        // Sanitize the error message
-        let userMessage = sanitizeErrorMessage(validationText, 'validation');
-        
-        // If hint is provided and the main message passed sanitization, append it
-        if (errorHint && userMessage === validationText) {
-          const sanitizedHint = sanitizeErrorMessage(errorHint, 'validation');
-          if (sanitizedHint !== GENERIC_ERROR_MESSAGES.validation) {
-            userMessage += ` ${sanitizedHint}`;
-          }
-        }
-        
-        return {
-          code,
-          message: userMessage,
-          type: 'validation',
-          statusCode,
-          isRetryable: false,
-        };
-      
-      case 401:
-        const unauthorizedMessage = errorText(responseData.error) || errorText(responseData.message);
-        return {
-          code,
-          message: sanitizeErrorMessage(unauthorizedMessage, 'validation'),
-          type: 'validation',
-          statusCode,
-          isRetryable: false,
-        };
-      
-      case 403:
-        const forbiddenMessage = errorText(responseData.error) || errorText(responseData.message) || 'You don\'t have permission to perform this action.';
-        return {
-          code,
-          message: sanitizeErrorMessage(forbiddenMessage, 'validation'),
-          type: 'validation',
-          statusCode,
-          isRetryable: false,
-        };
-      
-      case 404:
-        const notFoundMessage = errorText(responseData.error) || errorText(responseData.message) || 'The requested resource was not found.';
-        return {
-          code,
-          message: sanitizeErrorMessage(notFoundMessage, 'validation'),
-          type: 'validation',
-          statusCode,
-          isRetryable: false,
-        };
-      
-      case 422:
-        const unprocessableMessage = errorText(responseData.error) || errorText(responseData.message) || 'Invalid data provided.';
-        return {
-          code,
-          message: sanitizeErrorMessage(unprocessableMessage, 'validation'),
-          type: 'validation',
-          statusCode,
-          isRetryable: false,
-        };
-      
-      case 429:
-        return {
-          code,
-          message: 'Server is busy. Please wait a moment and try again.',
-          type: 'server',
-          statusCode,
-          isRetryable: true,
-        };
-      
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        return {
-          code,
-          message: 'Service temporarily unavailable. Please try again in a few minutes.',
-          type: 'server',
-          statusCode,
-          isRetryable: true,
-        };
-      
-      default:
-        const defaultMessage = errorText(responseData.error) || errorText(responseData.message) || 'An unexpected error occurred.';
-        return {
-          code,
-          message: sanitizeErrorMessage(defaultMessage, 'server'),
-          type: 'server',
-          statusCode,
-          isRetryable: statusCode >= 500,
-        };
-    }
-  }
-
-  // Generic error - sanitize error message
-  const genericMessage = errorText(error.message) || 'An unexpected error occurred.';
+  const error = toApiClientError(input);
   return {
-    message: sanitizeErrorMessage(genericMessage, 'unknown'),
-    type: 'unknown',
-    isRetryable: false,
+    code: error.code,
+    message: sanitizeErrorMessage(error.message, error.kind),
+    type: error.kind,
+    statusCode: error.statusCode,
+    isRetryable: error.retryable,
   };
 };
 
 export const isNetworkError = (input: unknown): boolean => {
-  const error = errorRecord(input);
-  return error.code === 'NETWORK_ERROR' || 
-         error.message === 'Network Error' || 
-         error.code === 'ECONNABORTED';
+  return toApiClientError(input).kind === 'network';
 };
 
 export const isRetryableError = (error: unknown): boolean => {

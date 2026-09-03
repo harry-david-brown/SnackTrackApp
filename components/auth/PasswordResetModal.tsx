@@ -13,8 +13,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '@services/authApi';
 import { toDomainError } from '@utils/domainError';
+import {
+  VerificationCodeFailure,
+  verificationCodeFailure,
+  verificationCodeMessage,
+} from '@features/auth/contracts';
 
 type ResetStep = 'request' | 'verify' | 'reset' | 'success';
+type PendingResetAction = 'request' | 'verify' | 'complete' | null;
 
 interface PasswordResetModalProps {
   visible: boolean;
@@ -34,11 +40,13 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingResetAction>(null);
+  const [codeFailure, setCodeFailure] = useState<VerificationCodeFailure | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [attemptLimit, setAttemptLimit] = useState<number | null>(null);
   const codeInputRef = useRef<TextInput>(null);
+  const isLoading = pendingAction !== null;
 
   useEffect(() => {
     if (visible) {
@@ -75,7 +83,8 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
     setCode('');
     setNewPassword('');
     setConfirmPassword('');
-    setIsLoading(false);
+    setPendingAction(null);
+    setCodeFailure(null);
     setError(null);
     setResendTimer(0);
     setAttemptLimit(null);
@@ -107,16 +116,17 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       return;
     }
     try {
-      setIsLoading(true);
+      setPendingAction('request');
       const response = await authApi.requestPasswordReset({ email: trimmedEmail });
       setStep('verify');
+      setCodeFailure(null);
       setResendTimer(response.expiresIn || RESEND_COOLDOWN);
       setAttemptLimit(response.attemptLimit ?? null);
       // Removed alert - user can see the step change to 'verify'
     } catch (err: unknown) {
       setError(toDomainError(err).message);
     } finally {
-      setIsLoading(false);
+      setPendingAction(null);
     }
   };
 
@@ -132,14 +142,18 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       return;
     }
     try {
-      setIsLoading(true);
+      setPendingAction('verify');
       await authApi.verifyPasswordResetCode({ email: email.trim().toLowerCase(), code });
+      setCodeFailure(null);
       setStep('reset');
       // Removed alert - user can see the step change to 'reset'
     } catch (err: unknown) {
-      setError(toDomainError(err).message);
+      const failure = verificationCodeFailure(toDomainError(err));
+      setCodeFailure(failure);
+      setError(verificationCodeMessage(failure, 'reset'));
+      if (failure === 'expired') setResendTimer(0);
     } finally {
-      setIsLoading(false);
+      setPendingAction(null);
     }
   };
 
@@ -155,7 +169,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       return;
     }
     try {
-      setIsLoading(true);
+      setPendingAction('complete');
       await authApi.completePasswordReset({
         email: email.trim().toLowerCase(),
         code,
@@ -163,9 +177,21 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       });
       setStep('success');
     } catch (err: unknown) {
-      setError(toDomainError(err).message);
+      const domainError = toDomainError(err);
+      if (
+        domainError.code === 'VERIFICATION_CODE_INVALID'
+        || domainError.code === 'VERIFICATION_CODE_NOT_PENDING'
+      ) {
+        const failure = verificationCodeFailure(domainError);
+        setCodeFailure(failure);
+        setStep('verify');
+        setResendTimer(0);
+        setError(verificationCodeMessage(failure, 'reset'));
+      } else {
+        setError(domainError.message);
+      }
     } finally {
-      setIsLoading(false);
+      setPendingAction(null);
     }
   };
 
@@ -236,12 +262,19 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               <Text style={styles.primaryButtonText}>{isLoading ? 'Verifying...' : 'Verify Code'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.secondaryButton, resendTimer > 0 && styles.disabledButton]}
+              style={[
+                styles.secondaryButton,
+                resendTimer > 0 && codeFailure !== 'expired' && styles.disabledButton,
+              ]}
               onPress={handleResend}
-              disabled={resendTimer > 0 || isLoading}
+              disabled={(resendTimer > 0 && codeFailure !== 'expired') || isLoading}
             >
               <Text style={styles.secondaryButtonText}>
-                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                {codeFailure === 'expired'
+                  ? 'Request New Code'
+                  : resendTimer > 0
+                    ? `Resend in ${resendTimer}s`
+                    : 'Resend Code'}
               </Text>
             </TouchableOpacity>
           </>
@@ -430,4 +463,3 @@ const styles = StyleSheet.create({
 });
 
 export default PasswordResetModal;
-

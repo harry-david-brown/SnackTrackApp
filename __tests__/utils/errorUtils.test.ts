@@ -5,6 +5,24 @@
 
 import { parseApiError, isNetworkError, isRetryableError, getErrorMessage, getErrorType } from '@utils/errorUtils';
 
+const apiFailure = (status: number, code: string, message: string) => ({
+  response: {
+    status,
+    data: {
+      error: {
+        version: '1',
+        code,
+        message,
+        statusCode: status,
+        timestamp: '2026-08-31T00:00:00.000Z',
+        path: '/test',
+        method: 'POST',
+        requestId: '11111111-1111-4111-8111-111111111111',
+      },
+    },
+  },
+});
+
 describe('Error Utils', () => {
   describe('parseApiError', () => {
     it('should parse network errors', () => {
@@ -26,12 +44,7 @@ describe('Error Utils', () => {
     });
 
     it('should parse 400 file validation errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Invalid CSV format' },
-        },
-      };
+      const error = apiFailure(400, 'INVALID_CSV_FORMAT', 'Invalid CSV format');
       const result = parseApiError(error);
 
       expect(result.type).toBe('validation');
@@ -42,12 +55,7 @@ describe('Error Utils', () => {
     });
 
     it('should parse 400 non-file validation errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Missing required field' },
-        },
-      };
+      const error = apiFailure(400, 'VALIDATION_ERROR', 'Missing required field');
       const result = parseApiError(error);
 
       expect(result.type).toBe('validation');
@@ -58,21 +66,13 @@ describe('Error Utils', () => {
     });
 
     it('preserves the canonical nested API error code', () => {
-      const result = parseApiError({
-        response: {
-          status: 409,
-          data: {
-            error: {
-              code: 'IMPORT_IN_PROGRESS',
-              message: 'Server is busy. Please try again.',
-            },
-          },
-        },
-      });
+      const result = parseApiError(
+        apiFailure(409, 'IMPORT_IN_PROGRESS', 'Server is busy. Please try again.'),
+      );
 
       expect(result.code).toBe('IMPORT_IN_PROGRESS');
       expect(result.statusCode).toBe(409);
-      expect(result.isRetryable).toBe(false);
+      expect(result.isRetryable).toBe(true);
     });
 
     it('should parse 401 authentication errors', () => {
@@ -87,8 +87,7 @@ describe('Error Utils', () => {
       expect(result.type).toBe('validation');
       expect(result.statusCode).toBe(401);
       expect(result.isRetryable).toBe(false);
-      // Empty error message gets sanitized to generic validation message
-      expect(result.message).toBe('Invalid request. Please check your input and try again.');
+      expect(result.message).toBe('Authentication required. Please log in again.');
     });
 
     it('should parse 429 rate limit errors', () => {
@@ -186,8 +185,7 @@ describe('Error Utils', () => {
   describe('getErrorMessage', () => {
     it('should extract error message', () => {
       expect(getErrorMessage({ code: 'NETWORK_ERROR' })).toContain('internet connection');
-      // Backend returns 'error' field, but also supports 'message' for backward compatibility
-      // "Bad request" is not in the whitelist, so it gets sanitized
+      // Malformed/legacy payloads are no longer parsed as trusted server messages.
       expect(getErrorMessage({ response: { status: 400, data: { error: 'Bad request' } } })).toBe('Invalid request. Please check your input and try again.');
       expect(getErrorMessage({ response: { status: 400, data: { message: 'Bad request' } } })).toBe('Invalid request. Please check your input and try again.');
       // "Custom error" is not in the whitelist, so it gets sanitized

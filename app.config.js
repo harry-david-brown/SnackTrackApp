@@ -8,7 +8,8 @@ export default {
     name: "SnackTrack",
     slug: "snack-track",
     owner: "snacktrack",
-    scheme: "snacktrack",
+    scheme: ["snacktrack", "msauth.com.snacktrack.mobile", "msauth"],
+    platforms: ["ios", "android"],
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -33,6 +34,7 @@ export default {
         }
       ],
       "expo-apple-authentication",
+      "expo-notifications",
       [
         "expo-media-library",
         {
@@ -57,10 +59,15 @@ export default {
         backgroundColor: "#ffffff"
       },
       package: "com.snacktrack.app",
-      versionCode: 2
-    },
-    web: {
-      favicon: "./assets/icon.png"
+      versionCode: 2,
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: false,
+          data: [{ scheme: "msauth", host: "com.snacktrack.app" }],
+          category: ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     extra: {
       // API URL from environment variable (required - app will fail if not set)
@@ -72,6 +79,9 @@ export default {
       EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID,
       EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID,
       EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID,
+      EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID,
+      EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI,
+      EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI,
       eas: {
         projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
       },

@@ -1,4 +1,4 @@
-import type { ExportProvider } from '@services/gmailApi';
+import type { ExportProvider } from './contracts';
 import { parseGmailConnectionPurpose, type GmailConnectionPurpose } from './gmailConnectionPurpose';
 
 export interface ImportRouteParams {

@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { MascotPlaceholder } from './mascot/MascotPlaceholder';
+import { trackAdminEvent } from '@services/adminAnalytics';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -15,7 +16,7 @@ const highlights = [
   {
     icon: 'mail-open-outline' as const,
     title: 'Choose your starting point',
-    description: 'Use email for a quick start or upload a provider export first—the order is up to you.',
+    description: 'Use the email registered with your delivery apps, or choose another method for phone-number and Apple sign-ins.',
   },
   {
     icon: 'bar-chart-outline' as const,
@@ -25,12 +26,16 @@ const highlights = [
   {
     icon: 'document-attach-outline' as const,
     title: 'Build complete history',
-    description: 'Add Uber Eats and DoorDash exports whenever you want richer historical detail.',
+    description: 'Add official Uber Eats and DoorDash history whenever you want richer detail.',
   },
 ];
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    void trackAdminEvent('onboarding_started').catch(() => undefined);
+  }, []);
 
   return (
     <LinearGradient

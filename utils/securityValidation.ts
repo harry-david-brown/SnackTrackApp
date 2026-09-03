@@ -165,7 +165,7 @@ export const isValidUrl = (url: string, allowedProtocols: string[] = ['http', 'h
  */
 export const isStrongPassword = (password: string): boolean => {
   // Import dynamically to avoid circular dependencies
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Deliberately lazy to avoid the validation modules' circular dependency.
   const { validatePassword } = require('./passwordValidator');
   return validatePassword(password).isValid;
 };
-

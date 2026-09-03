@@ -1,31 +1,36 @@
 import React, { createContext, useCallback, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '@services/authApi';
-import { AppUser, RegisterResponse, LoginResponse } from '@/types/api';
+import {
+  AppUser,
+  AuthSessionResponse,
+  RegisterResponse,
+  LoginResponse,
+  MicrosoftLoginResponse,
+} from '@/types/api';
 import { 
   getUserData, 
   getUserId, 
   isAuthenticated as checkIsAuthenticated,
   clearAuthTokens,
-  AUTH_STORAGE_KEYS 
+  storeAuthTokens,
+  getRefreshToken,
+  updateStoredUserData,
 } from '@utils/tokenManager';
 import { setSentryUser, clearSentryUser } from '@utils/sentry';
 import { logger } from '@utils/logger';
-import { UUID_REGEX, DEFAULT_USER_VALUES, STORAGE_KEYS } from '@/constants';
-import { UserState, UserAction, UserContextType, initialState } from './userTypes';
+import { UUID_REGEX, DEFAULT_USER_VALUES } from '@/constants';
+import { UserContextType, initialState } from './userTypes';
 import { userReducer } from './userReducer';
 import { toDomainError } from '@utils/domainError';
 import { registerSessionExpiredHandler } from '@services/authSessionCoordinator';
+import { authFailureMessage } from '@features/auth/contracts';
+import { clearUserBoundDeviceState } from '@utils/userBoundLocalState';
+import { notificationDeviceApi } from '@services/notificationDeviceApi';
+import { getNotificationInstallationId } from '@utils/notificationInstallation';
 
 // Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
-
-// Legacy storage keys (for backward compatibility during migration)
-const LEGACY_STORAGE_KEYS = {
-  USER_DATA: STORAGE_KEYS.LEGACY_USER_DATA,
-  USER_ID: STORAGE_KEYS.LEGACY_USER_ID,
-};
 
 // UUID validation function
 const isValidUUID = (uuid: string): boolean => {
@@ -43,18 +48,31 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const clearUserStorage = useCallback(async () => {
     try {
-      // Clear both new auth tokens and legacy storage
-      await Promise.all([
-        clearAuthTokens(),
-        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_DATA),
-        AsyncStorage.removeItem(LEGACY_STORAGE_KEYS.USER_ID),
-        AsyncStorage.removeItem(STORAGE_KEYS.ANALYTICS_CACHE),
-        AsyncStorage.removeItem(STORAGE_KEYS.LAST_SYNC),
-      ]);
+      await clearAuthTokens();
     } catch {
       // Local cleanup remains best-effort; auth state is still cleared below.
     }
   }, []);
+
+  const appUserFromSession = useCallback((response: AuthSessionResponse): AppUser => ({
+    id: response.user.id,
+    email: response.user.email,
+    createdAt: response.user.createdAt,
+    emailVerified: response.user.emailVerified,
+    totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
+    receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
+  }), []);
+
+  const establishSession = useCallback(async (response: AuthSessionResponse): Promise<void> => {
+    await storeAuthTokens(
+      response.accessToken,
+      response.refreshToken,
+      response.userId,
+      response.user,
+    );
+    dispatch({ type: 'SET_USER', payload: appUserFromSession(response) });
+    setSentryUser(response.userId, response.email);
+  }, [appUserFromSession]);
 
   // Load user data from storage on app start
   useEffect(() => {
@@ -75,7 +93,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       clearUserStorage();
       dispatch({ type: 'SET_USER', payload: null });
     }
-  }, [state.user]);
+  }, [clearUserStorage, state.user]);
 
   const loadUserFromStorage = async () => {
     try {
@@ -93,45 +111,41 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
         if (userData && userId) {
           // Validate session
-          const isValid = await authApi.validateSession();
-          
-          if (isValid) {
+          try {
+            const isValid = await authApi.validateSession();
+            if (!isValid) {
+              await clearAuthTokens();
+              dispatch({ type: 'SET_USER', payload: null });
+              return;
+            }
             // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
             // the full summary which includes totalSpent. This avoids a redundant API call.
             const userWithSpending: AppUser = {
               ...userData,
-              emailVerified: userData.emailVerified ?? false,
+              emailVerified: userData.emailVerified,
               totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when analytics loads
               receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
             };
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
-            
-          } else {
-            // Session invalid, clear and force re-login
-            await clearAuthTokens();
-            dispatch({ type: 'SET_USER', payload: null });
+          } catch (error: unknown) {
+            // A temporary network/provider outage must not destroy a locally valid session.
+            const userWithSpending: AppUser = {
+              ...userData,
+              emailVerified: userData.emailVerified,
+              totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
+              receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
+            };
+            dispatch({ type: 'SET_USER', payload: userWithSpending });
+            dispatch({ type: 'SET_ERROR', payload: toDomainError(error).message });
           }
         } else {
           dispatch({ type: 'SET_USER', payload: null });
         }
       } else {
-        // Check for legacy user data (old system without passwords)
-        const [legacyUserData, legacyUserId] = await Promise.all([
-          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_DATA),
-          AsyncStorage.getItem(LEGACY_STORAGE_KEYS.USER_ID),
-        ]);
-
-        if (legacyUserData && legacyUserId) {
-          // Legacy user exists - they need to re-register with a password
-          await clearUserStorage();
-          dispatch({ type: 'SET_USER', payload: null });
-          dispatch({ type: 'SET_ERROR', payload: 'Please create a new account with a password' });
-        } else {
-          dispatch({ type: 'SET_USER', payload: null });
-        }
+        dispatch({ type: 'SET_USER', payload: null });
       }
-    } catch (error) {
+    } catch {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load user data' });
     }
   };
@@ -144,45 +158,18 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Register with the new auth API
       const response = await authApi.register({ email, password });
 
-      // Validate response structure
-      if (!response.user) {
-        logger.error('Registration response missing user object', { userId: response.userId });
-        throw new Error('Invalid registration response from server');
-      }
-      
-      // Note: We don't fetch totalSpent here anymore - the dashboard will fetch
-      // the full summary which includes totalSpent. This avoids a redundant API call.
-      
-      // Create user object (totalSpent will be loaded by dashboard)
-      const user: AppUser = {
-        id: response.userId,
-        email: response.email,
-        createdAt: response.user.createdAt || new Date().toISOString(),
-        emailVerified: response.user.emailVerified ?? false,
-        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when dashboard loads
-        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
-      };
-
-      dispatch({ type: 'SET_USER', payload: user });
+      await establishSession(response);
 
       logger.debug('[UserContext] User registered and set:', {
-        userId: user.id,
+        userId: response.userId,
         isAuthenticated: true, // Will be set by reducer
       });
       
-      // Set Sentry user context for error tracking
-      setSentryUser(response.userId, response.email);
-      
-      logger.info('User registered successfully', { userId: user.id });
+      logger.info('User registered successfully', { userId: response.userId });
       return response;
     } catch (error: unknown) {
       const domainError = toDomainError(error);
-      const lowerMessage = domainError.message.toLowerCase();
-      const errorMessage = lowerMessage.includes('already exists') || lowerMessage.includes('duplicate')
-        ? 'An account with this email already exists. Please login instead.'
-        : lowerMessage.includes('password')
-          ? 'Password must be at least 8 characters with 1 uppercase letter and 1 number.'
-          : domainError.message;
+      const errorMessage = authFailureMessage(domainError, 'register');
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -196,41 +183,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Login with the new auth API
       const response = await authApi.login({ email, password });
 
-      // Validate response structure
-      if (!response.user) {
-        logger.error('Login response missing user object', { userId: response.userId });
-        throw new Error('Invalid login response from server');
-      }
+      await establishSession(response);
       
-      // Immediately load analytics to avoid showing $0 total spent
-      // This ensures the dashboard has data as soon as it renders
-      
-      // Create user object (totalSpent will be loaded by dashboard)
-      const user: AppUser = {
-        id: response.userId,
-        email: response.email,
-        createdAt: response.user.createdAt || new Date().toISOString(),
-        emailVerified: response.user.emailVerified ?? false,
-        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT, // Will be updated when dashboard loads
-        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
-      };
-
-      dispatch({ type: 'SET_USER', payload: user });
-      
-      // Set Sentry user context for error tracking
-      setSentryUser(response.userId, response.email);
-      
-      logger.info('User logged in successfully', { userId: user.id });
+      logger.info('User logged in successfully', { userId: response.userId });
       
       return response;
     } catch (error: unknown) {
       const domainError = toDomainError(error);
-      const lowerMessage = domainError.message.toLowerCase();
-      const errorMessage = domainError.code === 'SESSION_EXPIRED'
-        ? 'Your session has expired. Please login again.'
-        : lowerMessage.includes('invalid') || lowerMessage.includes('credentials') || lowerMessage.includes('password')
-          ? 'Invalid email or password. Please try again.'
-          : domainError.message;
+      const errorMessage = authFailureMessage(domainError, 'login');
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -245,26 +205,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       const response = await authApi.googleLogin(idToken);
 
-      if (!response.user) {
-        throw new Error('Invalid login response from server');
-      }
-
-      const user: AppUser = {
-        id: response.userId,
-        email: response.email,
-        createdAt: response.user.createdAt || new Date().toISOString(),
-        emailVerified: response.user.emailVerified ?? false,
-        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
-        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
-      };
-
-      dispatch({ type: 'SET_USER', payload: user });
-      setSentryUser(response.userId, response.email);
+      await establishSession(response);
 
       return response;
     } catch (error: unknown) {
       const domainError = toDomainError(error);
-      dispatch({ type: 'SET_ERROR', payload: domainError.message });
+      dispatch({ type: 'SET_ERROR', payload: authFailureMessage(domainError, 'provider') });
       throw error;
     }
   };
@@ -281,47 +227,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       const response = await authApi.appleLogin(identityToken, user);
 
-      // Validate response structure
-      if (!response) {
-        throw new Error('No response received from server');
-      }
-
-      if (!response.user) {
-        throw new Error('Invalid login response from server: missing user data');
-      }
-
-      if (!response.userId) {
-        throw new Error('Invalid login response from server: missing user ID');
-      }
-
-      if (!response.accessToken || !response.refreshToken) {
-        throw new Error('Invalid login response from server: missing authentication tokens');
-      }
-
-      // Construct user object with defensive defaults
-      const appUser: AppUser = {
-        id: response.userId,
-        email: response.email || user?.email || '', // Fallback to provided email if response doesn't have it
-        createdAt: response.user.createdAt || new Date().toISOString(),
-        emailVerified: response.user.emailVerified ?? false,
-        totalSpent: DEFAULT_USER_VALUES.TOTAL_SPENT,
-        receiptCount: DEFAULT_USER_VALUES.RECEIPT_COUNT,
-      };
-
-      // Warn if email is missing (shouldn't happen but handle gracefully)
-      if (!appUser.email) {
-        logger.warn('Apple login succeeded but no email in response or user data');
-      }
-
-      dispatch({ type: 'SET_USER', payload: appUser });
-      setSentryUser(response.userId, response.email);
+      await establishSession(response);
 
       return response;
     } catch (error: unknown) {
       const domainError = toDomainError(error);
-      const errorMessage = domainError.code === 'SESSION_EXPIRED'
-        ? 'Your session has expired. Please try again.'
-        : domainError.message;
+      const errorMessage = authFailureMessage(domainError, 'provider');
       // Don't set error state for user cancellation
       if (domainError.code !== 'ERR_REQUEST_CANCELED' && domainError.code !== 'ERR_CANCELED') {
         dispatch({ type: 'SET_ERROR', payload: errorMessage });
@@ -331,8 +242,52 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithMicrosoft = async (
+    identityToken: string,
+    attemptToken: string,
+  ): Promise<MicrosoftLoginResponse> => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      const response = await authApi.microsoftLogin(identityToken, attemptToken);
+      if (response.status === 'authenticated') {
+        await establishSession(response.session);
+      } else {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+      return response;
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      dispatch({ type: 'SET_ERROR', payload: authFailureMessage(domainError, 'provider') });
+      throw error;
+    }
+  };
+
+  const confirmMicrosoftLoginEmail = async (
+    attemptToken: string,
+    email: string,
+    code: string,
+  ): Promise<LoginResponse> => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      const response = await authApi.confirmMicrosoftVerificationEmail(
+        attemptToken,
+        email,
+        code,
+      );
+      await establishSession(response);
+      return response;
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      dispatch({ type: 'SET_ERROR', payload: authFailureMessage(domainError, 'provider') });
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
+      await notificationDeviceApi.unregister(await getNotificationInstallationId()).catch(() => undefined);
       // Call backend logout endpoint to invalidate refresh token
       await authApi.logout();
       
@@ -344,7 +299,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       queryClient.clear();
       
       dispatch({ type: 'LOGOUT' });
-    } catch (error) {
+    } catch {
       // Still dispatch logout even if API call fails
       await clearUserStorage();
       
@@ -356,16 +311,36 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
+  const deleteAccount = async (): Promise<void> => {
+    if (!state.user) throw new Error('No authenticated account to delete');
+    const userId = state.user.id;
+    const refreshToken = await getRefreshToken();
+    // No local mutation occurs before this authoritative server operation succeeds.
+    await authApi.deleteAccount(refreshToken ?? undefined);
+    await Promise.all([clearUserBoundDeviceState(userId), clearUserStorage()]);
+    clearSentryUser();
+    queryClient.clear();
+    dispatch({ type: 'LOGOUT' });
+  };
+
   const clearError = () => {
     dispatch({ type: 'SET_ERROR', payload: null });
   };
 
-  const markEmailVerified = () => {
+  const markEmailVerified = async (): Promise<void> => {
     if (!state.user) return;
+    const verifiedUser = { ...state.user, emailVerified: true };
     dispatch({
       type: 'UPDATE_USER_DATA',
       payload: { emailVerified: true },
     });
+    try {
+      await updateStoredUserData(verifiedUser);
+    } catch (error) {
+      logger.warn('Email verification succeeded but the local user snapshot was not updated', {
+        error: toDomainError(error).message,
+      });
+    }
   };
 
   const value: UserContextType = {
@@ -374,7 +349,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     login,
     loginWithGoogle,
     loginWithApple,
+    loginWithMicrosoft,
+    confirmMicrosoftLoginEmail,
     logout,
+    deleteAccount,
     clearError,
     markEmailVerified,
   };

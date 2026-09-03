@@ -1,7 +1,7 @@
 import type { StatusTone } from '@components/ui/StatusBadge';
 import type { ImportTaskId } from '@components/upload/ImportTaskCard';
 import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
-import type { ExportProvider, GmailConnectionStatus, ImportPreferencesResponse } from '@services/gmailApi';
+import type { ExportProvider, GmailConnectionStatus, ImportPreferencesResponse, OutlookConnectionStatus } from './contracts';
 import { resolveTrackingEligibility, type TrackingEligibility } from './trackingEligibility';
 import { resolveExportOpportunity, resolveImportCoverage, resolveImportSetupRecommendation, type ImportSetupRecommendation } from './importJourneyState';
 import { resolveGmailBaselineState } from './gmailBaselineState';
@@ -21,6 +21,14 @@ export interface ImportFlowState {
   needsReconnect: boolean;
   gmailTemporarilyUnavailable: boolean;
   canImportFromGmail: boolean;
+  canImportFromOutlook: boolean;
+  gmailConnected: boolean;
+  outlookConnected: boolean;
+  gmailEmail: string | null;
+  outlookEmail: string | null;
+  gmailNeedsReconnect: boolean;
+  outlookNeedsReconnect: boolean;
+  outlookTemporarilyUnavailable: boolean;
   hasImportedEmailData: boolean;
   showGmailImportSection: boolean;
   showOneTimeGmailImport: boolean;
@@ -49,6 +57,7 @@ export interface ImportFlowState {
 interface ResolveImportFlowInput {
   preferences: ImportPreferencesResponse | null;
   gmailStatus: GmailConnectionStatus;
+  outlookStatus?: OutlookConnectionStatus;
   downloadState: ExportDownloadHandoffState;
   gmailFeatureEnabled: boolean;
   focusExport: boolean;
@@ -57,17 +66,45 @@ interface ResolveImportFlowInput {
 
 export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlowState {
   const { preferences, gmailStatus } = input;
-  const hasConnectedEmail = gmailStatus.connected;
+  const outlookStatus = input.outlookStatus ?? {
+    provider: 'microsoft' as const,
+    connected: false,
+    email: null,
+    canImport: false,
+    needsReconnect: false,
+    connectionMode: 'none' as const,
+    scopes: [],
+    hasRequiredScope: false,
+    expiresAt: null,
+    statusMessage: 'Connect Outlook to import receipts.',
+    connectionHealth: 'disconnected' as const,
+    lastValidatedAt: null,
+  };
   const canImportFromGmail = gmailStatus.canImport !== false;
-  const needsReconnect = hasConnectedEmail && Boolean(
+  const canImportFromOutlook = outlookStatus.canImport;
+  const gmailNeedsReconnect = gmailStatus.connected && Boolean(
     gmailStatus.needsReconnect || gmailStatus.connectionHealth === 'reconnect_required'
   );
-  const gmailTemporarilyUnavailable = hasConnectedEmail
+  const outlookNeedsReconnect = outlookStatus.connected && Boolean(
+    outlookStatus.needsReconnect || outlookStatus.connectionHealth === 'reconnect_required'
+  );
+  const gmailTemporarilyUnavailable = gmailStatus.connected
     && gmailStatus.connectionHealth === 'unavailable';
+  const outlookTemporarilyUnavailable = outlookStatus.connected
+    && outlookStatus.connectionHealth === 'unavailable';
+  const gmailUsable = gmailStatus.connected && canImportFromGmail && !gmailNeedsReconnect;
+  const outlookUsable = outlookStatus.connected && canImportFromOutlook && !outlookNeedsReconnect;
+  const hasConnectedEmail = gmailStatus.connected || outlookStatus.connected;
+  const needsReconnect = hasConnectedEmail && !gmailUsable && !outlookUsable
+    && (gmailNeedsReconnect || outlookNeedsReconnect);
   const gmailBaseline = resolveGmailBaselineState(preferences);
-  const hasImportedEmailData = gmailBaseline.hasCompleted;
-  const lastGmailCheckFailed = gmailBaseline.latestAttempt.status === 'failed';
   const coverage = resolveImportCoverage(preferences);
+  const outlookBaseline = preferences?.outlookBaseline;
+  const hasImportedEmailData = gmailBaseline.hasCompleted
+    || Boolean(outlookBaseline?.hasCompleted)
+    || coverage.hasEmailCoverage;
+  const lastGmailCheckFailed = gmailBaseline.latestAttempt.status === 'failed'
+    || outlookBaseline?.latestAttempt.status === 'failed';
   const exportComplete = coverage.allProvidersImported;
   const showOneTimeGmailImport = !coverage.hasAnyExportData;
   const showGmailImportSection = hasImportedEmailData || showOneTimeGmailImport;
@@ -111,19 +148,23 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
         : { complete: false, label: hasHistoricalExport ? 'Optional' : 'Available', tone: 'optional' };
 
   const emailReceiptCount = preferences?.coverage.emailReceiptCount
-    ?? gmailBaseline.latestAttempt.importedCount;
+    ?? gmailBaseline.latestAttempt.importedCount
+      + (outlookBaseline?.latestAttempt.importedCount ?? 0);
   const gmailImportPresentation = {
     title: hasImportedEmailData ? 'Email history checked' : 'Import delivery data',
     description: hasImportedEmailData
       ? lastGmailCheckFailed
         ? 'Your imported email history is safe, but the latest manual check failed. Try again when you’re ready.'
         : emailReceiptCount > 0
-          ? `${emailReceiptCount} Gmail order${emailReceiptCount === 1 ? '' : 's'} included in your stats.`
-          : 'Your Gmail history was checked. No supported delivery receipts were found.'
-      : 'Pull delivery receipts from your connected Gmail account.',
-    idleButtonLabel: lastGmailCheckFailed ? 'Try checking again' : 'Import from Gmail',
-    disconnectedHelper: 'Connect Gmail first, then choose when to scan your delivery receipts.',
-    passive: hasImportedEmailData && !lastGmailCheckFailed,
+          ? `${emailReceiptCount} email order${emailReceiptCount === 1 ? '' : 's'} included in your stats.`
+          : 'Your connected email history was checked. No supported delivery receipts were found.'
+      : 'Pull delivery receipts from Gmail or Outlook.',
+    idleButtonLabel: lastGmailCheckFailed ? 'Try checking again' : 'Import receipts',
+    disconnectedHelper: 'Connect Gmail or Outlook first, then choose when to scan your delivery receipts.',
+    passive: hasImportedEmailData
+      && !lastGmailCheckFailed
+      && (!gmailStatus.connected || gmailBaseline.hasCompleted)
+      && (!outlookStatus.connected || Boolean(outlookBaseline?.hasCompleted)),
   };
 
   const providerLifecycleNeedsAttention = [uberExportStatus, doorDashExportStatus]
@@ -148,6 +189,7 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
   if (input.focusExport || input.showExportTutorial) initialOpenTask = 'uber_export';
   else if (exportFileReady || exportOpportunity?.status === 'failed' || exportOpportunity?.status === 'import_processing') initialOpenTask = 'uber_export';
   else if (lastGmailCheckFailed && showOneTimeGmailImport) initialOpenTask = 'gmail_import';
+  else if (needsReconnect && !hasImportedEmailData && !hasHistoricalExport) initialOpenTask = 'connect_email';
   else if (setupRecommendation.kind === 'connect_email') initialOpenTask = 'connect_email';
   else if (setupRecommendation.kind === 'scan_email') initialOpenTask = 'gmail_import';
   else if (setupRecommendation.kind === 'provider') initialOpenTask = 'uber_export';
@@ -161,6 +203,14 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
     needsReconnect,
     gmailTemporarilyUnavailable,
     canImportFromGmail,
+    canImportFromOutlook,
+    gmailConnected: gmailStatus.connected,
+    outlookConnected: outlookStatus.connected,
+    gmailEmail: gmailStatus.email ?? null,
+    outlookEmail: outlookStatus.email,
+    gmailNeedsReconnect,
+    outlookNeedsReconnect,
+    outlookTemporarilyUnavailable,
     hasImportedEmailData,
     showGmailImportSection,
     showOneTimeGmailImport,

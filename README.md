@@ -1,6 +1,6 @@
 # 📱 Snack Track App
 
-A React Native/Expo app that shows you how much you wasted on food delivery through **Uber CSV imports**, then roasts you.
+A native iOS and Android React Native/Expo app that shows you how much you wasted on food delivery through **Uber CSV imports**, then roasts you. Browser builds are not supported.
 
 ### 📅 **Future Enhancements**
 - [x] **Forgot Password** - Password reset flow (shipped with OTP UX)
@@ -34,36 +34,34 @@ A React Native/Expo app that shows you how much you wasted on food delivery thro
    - ✅ Check system requirements
    - ✅ Install dependencies
    - ✅ Create `.env` file with default configuration
-   - ✅ Start development databases
+   - ✅ Start PostgreSQL, Redis, MinIO, migrations, the API, and an import worker
    
    **Windows users:** Run `scripts\setup.bat` instead
 
 2. **Configure API URL** (optional)
    
-   The setup script creates a `.env` file with Railway production API as default. You can update it if needed:
+   The setup script creates a `.env` file for the local API. Update it when testing a remote environment or physical device:
    ```bash
-   # .env (defaults to Railway production)
-   EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app
+   # .env (local default)
+   EXPO_PUBLIC_API_URL=http://localhost:3000
    EXPO_PUBLIC_APP_ENV=development
    ```
    
-   **Default:** `EXPO_PUBLIC_API_URL` defaults to Railway production API
-   - **Default**: `https://snacktrackapi-production.up.railway.app` (Railway production)
-   - **Local dev**: `http://localhost:3000` (if running backend locally)
+   - **Local dev**: `http://localhost:3000`
+   - **Railway**: set the deployed API's HTTPS URL explicitly
    - **Mobile testing**: `http://YOUR_IP:3000` (use your computer's IP for local backend)
    
-   > ℹ️ **The app defaults to Railway production API. Set `EXPO_PUBLIC_API_URL` only if you need a different API.**
+   > The app fails fast when `EXPO_PUBLIC_API_URL` is absent; it never silently connects a development build to production.
 
 3. **Start the backend API** (in a separate terminal)
    ```bash
-   cd path/to/SnackTrackAPI
-   docker-compose up --build -d
+   npm run backend:start
    ```
 
 4. **Start the app**
    ```bash
    npm start
-   # Press 'w' to open in browser
+   # Press 'i' for iOS or 'a' for Android
    ```
 
 5. **Verify setup**
@@ -78,7 +76,7 @@ A React Native/Expo app that shows you how much you wasted on food delivery thro
 - Run `npm run verify` to check all requirements
 
 **Can't connect to API?**
-- Ensure the backend API is running (`docker-compose up -d`)
+- Ensure the complete backend is running (`npm run backend:start`)
 - For mobile testing, use your computer's IP address instead of `localhost`
 
 **Need help?**
@@ -91,12 +89,12 @@ A React Native/Expo app that shows you how much you wasted on food delivery thro
 
 ### Environment Variables
 
-**Optional (with defaults):**
-- `EXPO_PUBLIC_API_URL` - API base URL, defaults to `https://snacktrackapi-production.up.railway.app` (Railway production)
+**Configuration:**
+- `EXPO_PUBLIC_API_URL` - required API base URL; `.env.example` uses `http://localhost:3000`
 - `EXPO_PUBLIC_APP_ENV` - Environment type (`development`, `staging`, `production`), defaults to `development`
 - `EXPO_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (optional - app works without it)
 
-The `npm run setup` script creates a `.env` file automatically with Railway production API as default. Edit it to customize your configuration (e.g., for local development).
+The `npm run setup` script creates a local `.env` automatically. Deployment environments must set their API URL explicitly.
 
 **Error Tracking (Sentry):**
 - Sentry is integrated for production error tracking and crash reporting
@@ -176,7 +174,6 @@ For comprehensive manual testing of network/offline features, error handling, an
 │
 ├── 🪝 hooks/                 # Custom hooks
 │   ├── useNetworkStatus.ts   # Network monitoring
-│   └── useOfflineSync.ts     # Offline sync
 │
 ├── 🛠️ utils/                 # Utilities
 │   ├── tokenManager.ts       # Token storage (SecureStore)

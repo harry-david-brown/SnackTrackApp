@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@constants/theme';
 import { Card } from '@components/ui/Card';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 
 interface ProfileSummaryCardProps {
   email: string;
@@ -18,9 +19,7 @@ const formatMemberSince = (dateString: string) => new Date(dateString).toLocaleD
 export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts }: ProfileSummaryCardProps) {
   return (
     <Card style={styles.card} accessibilityLabel={`Profile for ${email}`}>
-      <View style={styles.avatar} accessible accessibilityLabel={`${email.charAt(0).toUpperCase()} avatar`}>
-        <Text style={styles.avatarText}>{email.charAt(0).toUpperCase()}</Text>
-      </View>
+      <View style={styles.mascot}><MascotPlaceholder pose="neutral" size={84} /></View>
       <Text style={styles.email}>{email}</Text>
       <Text style={styles.memberSince}>Member since {formatMemberSince(createdAt)}</Text>
       <View style={styles.stats}>
@@ -39,11 +38,7 @@ export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts
 
 const styles = StyleSheet.create({
   card: { alignItems: 'center', padding: 30, marginBottom: 20 },
-  avatar: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  avatarText: { fontSize: 32, color: Colors.white, fontWeight: 'bold' },
+  mascot: { marginBottom: 12 },
   email: { fontSize: 18, fontWeight: '600', marginBottom: 4, textAlign: 'center', color: Colors.textPrimary },
   memberSince: { fontSize: 14, color: Colors.textSecondary, marginBottom: 20, textAlign: 'center' },
   stats: { flexDirection: 'row', gap: 20, alignSelf: 'stretch' },

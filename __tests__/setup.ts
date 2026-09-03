@@ -75,11 +75,12 @@ jest.mock('expo-constants', () => ({
 afterAll(async () => {
   // Cleanup rate limiter interval
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Jest teardown must only load this stateful module if a test initialized it.
     const rateLimiterModule = require('@utils/rateLimiter');
     if (rateLimiterModule.destroyRateLimiter) {
       rateLimiterModule.destroyRateLimiter();
     }
-  } catch (error) {
+  } catch {
     // Ignore errors if module is not loaded
   }
   

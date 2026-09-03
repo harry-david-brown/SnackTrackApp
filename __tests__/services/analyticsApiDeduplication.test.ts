@@ -2,24 +2,15 @@ import { analyticsApi, normalizeUserSummary } from '@services/analyticsApi';
 import api from '@services/api';
 import { createAppQueryClient } from '@lib/queryClient';
 import { analyticsKeys } from '@lib/queryKeys';
+import { contractIds, userSummaryFixture } from '@/__tests__/fixtures/contracts';
 
 jest.mock('@services/api');
 jest.mock('@utils/securityValidation', () => ({
   validateAndAuthorizeUserId: jest.fn((userId: string) => Promise.resolve(userId)),
 }));
 
-const userId = '123e4567-e89b-12d3-a456-426614174000';
-const response = {
-  user: { id: userId },
-  statistics: {
-    totalSpent: 1000,
-    totalReceipts: 10,
-    averageSpent: 100,
-    topRestaurants: [{ name: 'Restaurant 1', count: 5, total: 500 }],
-    monthlyBreakdown: { '2025-01': { total: 500, count: 5 } },
-  },
-  validation: { refundedReceipts: 0, issues: [] },
-};
+const userId = contractIds.user;
+const response = userSummaryFixture;
 
 describe('analytics query ownership', () => {
   beforeEach(() => {
@@ -75,6 +66,7 @@ describe('analytics query ownership', () => {
     const normalized = normalizeUserSummary({
       ...response,
       wrappedAnalytics: {
+        coverage: { orderCount: 10, earliestOrderDate: null, latestOrderDate: null, dataSources: ['email'], hasExportData: false },
         shame: {}, flex: {}, comparative: {}, patterns: {
           peakHungerHour: {
             hour: 18, hourDisplay: '6 PM', orderCount: 4,
@@ -88,6 +80,7 @@ describe('analytics query ownership', () => {
     expect(() => normalizeUserSummary({
       ...response,
       wrappedAnalytics: {
+        coverage: { orderCount: 10, earliestOrderDate: null, latestOrderDate: null, dataSources: ['email'], hasExportData: false },
         shame: {}, flex: {}, comparative: {}, patterns: {
           peakHungerHour: {
             hour: '18', hourDisplay: '6 PM', orderCount: 4,

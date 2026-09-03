@@ -77,12 +77,3 @@ export const PUBLIC_ENDPOINTS = [
   '/auth/refresh',
   '/health',
 ] as const;
-
-// Storage Keys
-export const STORAGE_KEYS = {
-  ANALYTICS_CACHE: '@snacktrack_analytics_cache',
-  LAST_SYNC: '@snacktrack_last_sync',
-  LEGACY_USER_DATA: '@snacktrack_user_data',
-  LEGACY_USER_ID: '@snacktrack_user_id',
-} as const;
-

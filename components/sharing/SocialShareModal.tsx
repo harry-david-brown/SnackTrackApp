@@ -7,7 +7,6 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,29 +32,6 @@ export default function SocialShareModal({ visible, onClose, analytics }: Social
   const captureAndShare = async (template: string) => {
     try {
       if (!viewShotRef.current) return;
-
-      // Check if we're on web
-      if (Platform.OS === 'web') {
-        // Web fallback - capture and download
-        const uri = await viewShotRef.current?.capture?.();
-        
-        if (!uri) {
-          showAlert('Error', 'Failed to capture image');
-          return;
-        }
-        
-        // Create download link for web
-        const link = document.createElement('a');
-        link.href = uri;
-        link.download = `snack-track-${template}-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        showAlert('Success!', 'Image downloaded to your device. You can now share it manually!');
-        onClose();
-        return;
-      }
 
       // Capture the view
       const uri = await viewShotRef.current?.capture?.();

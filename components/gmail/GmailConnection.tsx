@@ -2,7 +2,7 @@ import { Colors } from '@constants/theme';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { type GmailConnectionStatus } from '@services/gmailApi';
+import type { GmailConnectionStatus } from '@features/import-flow/contracts';
 import { AppButton } from '@components/ui/AppButton';
 
 interface GmailConnectionProps {
@@ -59,7 +59,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
             <Text style={styles.heroDescription}>
               {needsReconnect
                 ? 'Your Gmail access expired. Reconnect before checking for new receipts.'
-                : 'Review the inbox connection used for receipt imports and optional ongoing updates.'}
+                : 'Review the Gmail account used for receipt scans and optional ongoing updates.'}
             </Text>
           </View>
         </View>
@@ -89,7 +89,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
           <View style={styles.reconnectNotice}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
             <Text style={styles.reconnectNoticeText}>
-              Reconnect Gmail from the main upload page before running another import.
+              Reconnect Gmail from Add & manage data before running another scan.
             </Text>
           </View>
         ) : (
@@ -149,7 +149,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
         <View style={styles.privacyContent}>
           <Text style={styles.privacyTitle}>Your privacy matters</Text>
           <Text style={styles.privacyText}>
-            We only request read-only Gmail access and do not store your inbox. One-time imports use matching Uber Eats receipts; export-ready alerts, when explicitly enabled, check for Uber’s matching data-ready email but never open its link or download the file.
+            We only request read-only Gmail access and do not store your inbox. One-time scans use matching Uber Eats receipts; history-file alerts, when explicitly enabled, check for Uber’s matching data-ready email but never open its link or download the file.
           </Text>
         </View>
       </View>

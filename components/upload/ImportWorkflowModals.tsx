@@ -1,7 +1,7 @@
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@constants/theme';
-import type { GmailConnectionStatus } from '@services/gmailApi';
+import type { GmailConnectionStatus } from '@features/import-flow/contracts';
 import { GmailConnection } from '@components/gmail/GmailConnection';
 import { GmailImportLoadingModal, type GmailConnectPhase } from '@components/gmail/GmailImportLoadingModal';
 import { AppButton } from '@components/ui/AppButton';

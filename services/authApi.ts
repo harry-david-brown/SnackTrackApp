@@ -17,15 +17,11 @@ import {
   VerifyEmailCodeRequest,
   VerifyEmailCodeResponse,
   DeleteAccountResponse,
+  MicrosoftLoginAttemptResponse,
+  MicrosoftLoginResponse,
+  MicrosoftVerificationCodeResponse,
 } from '@/types/api';
-import {
-  storeAuthTokens,
-  getRefreshToken,
-  updateAccessToken,
-  clearAuthTokens,
-  isTokenExpired,
-  getAccessToken,
-} from '@utils/tokenManager';
+import { getRefreshToken, updateAccessToken, clearAuthTokens, isTokenExpired, getAccessToken } from '@utils/tokenManager';
 import { logger } from '@utils/logger';
 import { JWT_CONFIG } from '@/constants';
 import {
@@ -35,7 +31,12 @@ import {
   normalizeRefresh,
   normalizeSuccessMessage,
   normalizeVerificationEmail,
+  normalizeMicrosoftLoginAttempt,
+  normalizeMicrosoftLogin,
+  normalizeMicrosoftVerificationCode,
 } from './normalizers/authNormalizers';
+import { isTerminalSessionError } from '@features/auth/contracts';
+import { toDomainError } from '@utils/domainError';
 
 /**
  * Authentication API service
@@ -51,14 +52,6 @@ export const authApi = {
     try {
       const response = await api.post<unknown>('/auth/register', data);
       const result = normalizeAuthSession(response.data) as RegisterResponse;
-      
-      // Store tokens and user data
-      await storeAuthTokens(
-        result.accessToken,
-        result.refreshToken,
-        result.userId,
-        result.user
-      );
       
       return result;
     } catch (error: unknown) {
@@ -76,14 +69,6 @@ export const authApi = {
     try {
       const response = await api.post<unknown>('/auth/login', data);
       const result = normalizeAuthSession(response.data) as LoginResponse;
-
-      // Store tokens and user data
-      await storeAuthTokens(
-        result.accessToken,
-        result.refreshToken,
-        result.userId,
-        result.user
-      );
 
       return result;
     } catch (error: unknown) {
@@ -104,18 +89,47 @@ export const authApi = {
       const result = normalizeAuthSession(response.data) as LoginResponse;
       logger.apiResponse(response.status, '/auth/google');
       
-      // Store tokens and user data
-      await storeAuthTokens(
-        result.accessToken,
-        result.refreshToken,
-        result.userId,
-        result.user
-      );
-      
       return result;
     } catch (error: unknown) {
       throw error;
     }
+  },
+
+  microsoftLoginAttempt: async (): Promise<MicrosoftLoginAttemptResponse> => {
+    const response = await api.post<unknown>('/auth/microsoft/attempt', {});
+    return normalizeMicrosoftLoginAttempt(response.data);
+  },
+
+  microsoftLogin: async (
+    identityToken: string,
+    attemptToken: string,
+  ): Promise<MicrosoftLoginResponse> => {
+    const response = await api.post<unknown>('/auth/microsoft', { identityToken, attemptToken });
+    return normalizeMicrosoftLogin(response.data, response.status);
+  },
+
+  sendMicrosoftVerificationEmail: async (
+    attemptToken: string,
+    email: string,
+  ): Promise<MicrosoftVerificationCodeResponse> => {
+    const response = await api.post<unknown>('/auth/microsoft/email/send', {
+      attemptToken,
+      email,
+    });
+    return normalizeMicrosoftVerificationCode(response.data);
+  },
+
+  confirmMicrosoftVerificationEmail: async (
+    attemptToken: string,
+    email: string,
+    code: string,
+  ): Promise<LoginResponse> => {
+    const response = await api.post<unknown>('/auth/microsoft/email/confirm', {
+      attemptToken,
+      email,
+      code,
+    });
+    return normalizeAuthSession(response.data);
   },
 
   /**
@@ -155,14 +169,6 @@ export const authApi = {
       
       logger.apiResponse(response.status, '/auth/apple');
 
-      // Store tokens and user data
-      await storeAuthTokens(
-        result.accessToken,
-        result.refreshToken,
-        result.userId,
-        result.user
-      );
-
       return result;
     } catch (error: unknown) {
       throw error;
@@ -175,9 +181,8 @@ export const authApi = {
    * @returns Promise resolving to RefreshTokenResponse with new tokens
    * @throws {Error} If refresh fails (e.g., refresh token expired)
    */
-  refresh: async (): Promise<RefreshTokenResponse> => {
-    try {
-      const refreshToken = await getRefreshToken();
+  refresh: async (storedRefreshToken?: string): Promise<RefreshTokenResponse> => {
+    const refreshToken = storedRefreshToken ?? await getRefreshToken();
       
       if (!refreshToken) {
         throw new Error('No refresh token available');
@@ -186,23 +191,7 @@ export const authApi = {
       const response = await api.post<unknown>('/auth/refresh', {
         refreshToken,
       });
-      const result = normalizeRefresh(response.data);
-      
-      // Update stored tokens
-      await updateAccessToken(
-        result.accessToken,
-        result.refreshToken
-      );
-      
-      logger.debug('Token refreshed successfully');
-      
-      return result;
-    } catch (error: unknown) {
-      // If refresh fails, clear all tokens (user needs to login again)
-      await clearAuthTokens();
-      
-      throw error;
-    }
+    return normalizeRefresh(response.data);
   },
 
   /**
@@ -210,14 +199,10 @@ export const authApi = {
    * Always succeeds locally even if server request fails
    * @returns Promise resolving to LogoutResponse indicating success
    */
-  logout: async (): Promise<LogoutResponse> => {
-    try {
-      const refreshToken = await getRefreshToken();
+  logout: async (storedRefreshToken?: string): Promise<LogoutResponse> => {
+      const refreshToken = storedRefreshToken ?? await getRefreshToken();
       
       if (!refreshToken) {
-        // No token to logout, just clear local storage
-        await clearAuthTokens();
-        
         return { success: true, message: 'Logged out successfully' };
       }
       
@@ -225,18 +210,9 @@ export const authApi = {
         refreshToken,
       });
       
-      // Clear local tokens
-      await clearAuthTokens();
-      
       logger.debug('User logged out successfully');
       
       return normalizeSuccessMessage(response.data);
-    } catch (error: unknown) {
-      // Even if logout fails on server, clear local tokens
-      await clearAuthTokens();
-      // Don't throw error, logout should always succeed locally
-      return { success: true, message: 'Logged out locally' };
-    }
   },
 
   /**
@@ -250,12 +226,18 @@ export const authApi = {
       
       if (expired) {
         logger.debug('Token expired, refreshing...');
-        await authApi.refresh();
+        const refreshed = await authApi.refresh();
+        await updateAccessToken(refreshed.accessToken, refreshed.refreshToken);
       }
       
       return await getAccessToken();
-    } catch (error) {
-      return null;
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      if (isTerminalSessionError(domainError.code)) {
+        await clearAuthTokens();
+        return null;
+      }
+      throw error;
     }
   },
 
@@ -267,8 +249,10 @@ export const authApi = {
     try {
       const token = await authApi.getValidToken();
       return !!token;
-    } catch (error) {
-      return false;
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      if (isTerminalSessionError(domainError.code)) return false;
+      throw error;
     }
   },
 
@@ -327,23 +311,13 @@ export const authApi = {
    * This will delete all user data including receipts, OAuth accounts, and user record
    */
   deleteAccount: async (refreshToken?: string): Promise<DeleteAccountResponse> => {
-    try {
-      // If refreshToken is not provided, try to get it from storage
       const tokenToUse = refreshToken || await getRefreshToken();
       
       const response = await api.delete<unknown>('/auth/delete-account', {
         data: tokenToUse ? { refreshToken: tokenToUse } : {},
       });
       
-      // Clear local tokens after successful deletion
-      await clearAuthTokens();
-      
       return normalizeSuccessMessage(response.data);
-    } catch (error: unknown) {
-      // Even if deletion fails, clear local tokens for security
-      await clearAuthTokens();
-      throw error;
-    }
   },
 };
 

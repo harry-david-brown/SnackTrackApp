@@ -1,5 +1,5 @@
 import type { WrappedCoverage } from '@/types/api';
-import type { OngoingTrackingEffectiveState } from '@services/gmailApi';
+import type { OngoingTrackingEffectiveState } from '@features/import-flow/contracts';
 
 export type PostWrappedExportEligibility = 'loading' | 'show' | 'hide';
 export type ImportedCoverageAssessment = 'sparse' | 'standard' | 'unknown';
@@ -104,26 +104,26 @@ export const resolveTrackingPropositionCopy = ({
     return {
       eyebrow: 'ONGOING TRACKING IS ON',
       title: 'Your stats will keep growing',
-      body: 'SnackTrack can periodically check Gmail for new delivery receipts and keep your spending stats up to date.',
+      body: 'SnackTrack can periodically check your connected email for new delivery receipts and keep your spending stats up to date.',
     };
   }
   if (trackingState === 'reconnect_required') {
     return {
       eyebrow: 'ONGOING UPDATES ARE PAUSED',
-      title: 'Reconnect Gmail to keep tracking',
-      body: 'Your history is safe, but SnackTrack needs a healthy Gmail connection before it can check for future receipts.',
+      title: 'Reconnect email to keep tracking',
+      body: 'Your history is safe, but SnackTrack needs a healthy Gmail or Outlook connection before it can check for future receipts.',
     };
   }
   if (trackingState === 'error') {
     return {
       eyebrow: 'TRACKING NEEDS ATTENTION',
       title: 'We couldn’t start ongoing updates',
-      body: 'Your imported history is safe. Reconnect Gmail or try again from the dashboard.',
+      body: 'Your imported history is safe. Restore an email connection or try again from the dashboard.',
     };
   }
   return {
     eyebrow: 'OPTIONAL FUTURE UPDATES',
     title: 'Keep your stats growing',
-    body: 'Allow SnackTrack to periodically check your connected Gmail for new delivery receipts. You can turn this off at any time.',
+    body: 'Allow SnackTrack to periodically check your connected email for new delivery receipts. You can turn this off at any time.',
   };
 };

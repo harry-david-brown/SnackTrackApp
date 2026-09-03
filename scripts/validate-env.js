@@ -57,7 +57,7 @@ if (apiUrl) {
   try {
     new URL(apiUrl);
     console.log(`✅ EXPO_PUBLIC_API_URL is set: ${apiUrl}`);
-  } catch (error) {
+  } catch {
     console.error(`❌ EXPO_PUBLIC_API_URL is not a valid URL: ${apiUrl}`);
     console.error('\n💡 Please provide a valid URL (e.g., https://snacktrackapi-production.up.railway.app)\n');
     process.exit(1);
@@ -83,4 +83,3 @@ if (appEnv) {
 
 console.log('\n✅ Environment configuration is valid!\n');
 process.exit(0);
-

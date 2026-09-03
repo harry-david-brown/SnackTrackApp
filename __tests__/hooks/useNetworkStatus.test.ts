@@ -128,11 +128,9 @@ describe('useNetworkStatus', () => {
   });
 
   it('should configure NetInfo on import', () => {
-    // NetInfo.configure is called when the module is imported
-    // Since we mock it before importing, we need to check it was called
-    // The actual call happens in the hook file, so we verify the mock was set up correctly
-    expect(NetInfo.configure).toBeDefined();
-    // The configure call happens at module load time, so we verify the mock exists
-    // In a real scenario, this would be called, but with our mock it's just verified to exist
+    expect(NetInfo.configure).toHaveBeenCalledWith(expect.objectContaining({
+      shouldFetchWiFiSSID: false,
+      useNativeReachability: false,
+    }));
   });
 });

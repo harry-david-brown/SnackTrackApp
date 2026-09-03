@@ -1,9 +1,10 @@
-import type { ImportPreferencesResponse } from '@services/gmailApi';
+import type { ImportPreferencesResponse } from '@features/import-flow/contracts';
 import type { DataPlatform } from '@components/upload/UberDataTutorial';
 import { resolveExportOpportunity, resolveImportCoverage, toDataPlatform } from '@features/import-flow/importJourneyState';
 import { resolveProviderTutorialEntry, type ProviderTutorialJob } from '@features/import-flow/providerTutorialEntry';
 
 export interface ProfileSettingsState {
+  mailboxConnectionsLabel: string;
   exportAlertsLabel: 'Checking...' | 'On' | 'Off' | 'Reconnect' | 'Not set';
   ongoingTrackingLabel: 'Checking...' | 'Setting up' | 'On' | 'Off' | 'Reconnect' | 'Needs attention' | 'Not set';
   providerExportLabel: string;
@@ -17,6 +18,18 @@ export function resolveProfileSettingsState(
   preferences: ImportPreferencesResponse | null,
   isLoading: boolean,
 ): ProfileSettingsState {
+  const mailboxConnectionsLabel = (() => {
+    if (isLoading) return 'Checking...';
+    const gmailNeedsAttention = Boolean(preferences?.gmailConnection.needsReconnect);
+    const outlookNeedsAttention = Boolean(preferences?.outlookConnection.needsReconnect);
+    if (gmailNeedsAttention || outlookNeedsAttention) return 'Needs attention';
+    const gmailConnected = Boolean(preferences?.gmailConnection.connected);
+    const outlookConnected = Boolean(preferences?.outlookConnection.connected);
+    if (gmailConnected && outlookConnected) return 'Gmail + Outlook';
+    if (gmailConnected) return 'Gmail';
+    if (outlookConnected) return 'Outlook';
+    return 'Not connected';
+  })();
   const exportAlertsLabel = (() => {
     if (isLoading) return 'Checking...' as const;
     switch (preferences?.monitoring.effectiveState) {
@@ -56,8 +69,9 @@ export function resolveProfileSettingsState(
         : activeMaintenance.status === 'import_processing'
           ? 'importing'
           : 'needs attention'}`
-    : `${coverage.importedProviderCount} of 2 exports`;
+    : `${coverage.importedProviderCount} of 2 delivery apps`;
   return {
+    mailboxConnectionsLabel,
     exportAlertsLabel,
     ongoingTrackingLabel,
     providerExportLabel: isLoading ? 'Checking...' : providerExportLabel,

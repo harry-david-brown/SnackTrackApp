@@ -2,7 +2,7 @@
  * User API endpoints
  */
 
-import api from './client';
+import { api } from './client';
 import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
 export interface ResetOnboardingResponse {

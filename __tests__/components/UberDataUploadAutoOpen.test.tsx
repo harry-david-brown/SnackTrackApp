@@ -1,13 +1,21 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { UberDataUpload } from '@components/upload/UberDataUpload';
 import { useUser } from '@contexts/UserContext';
 import { useNetworkStatus } from '@hooks/useNetworkStatus';
-import { csvApi } from '@services/api';
+
+const mockImportFile = jest.fn();
 
 jest.mock('@contexts/UserContext', () => ({ useUser: jest.fn() }));
 jest.mock('@hooks/useNetworkStatus', () => ({ useNetworkStatus: jest.fn() }));
-jest.mock('@services/api', () => ({ csvApi: { importCsv: jest.fn() } }));
+jest.mock('@hooks/useExportImport', () => ({
+  useExportImport: () => ({
+    importFile: mockImportFile,
+    isPending: false,
+    error: null,
+    reset: jest.fn(),
+  }),
+}));
 jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }));
 jest.mock('@utils/sentry', () => ({ captureException: jest.fn() }));
 jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn() }));
@@ -55,14 +63,24 @@ describe('UberDataUpload automatic picker handoff', () => {
         mimeType: 'application/zip', lastModified: Date.now(),
       }],
     });
-    (csvApi.importCsv as jest.Mock).mockResolvedValue({ importedCount: 12, message: 'Imported' });
+    mockImportFile.mockResolvedValue({
+      importedCount: 12,
+      totalAmount: 42,
+      message: 'Imported',
+      fileType: 'zip',
+      provider: 'uber_eats',
+    });
     const onUploadSuccess = jest.fn();
-    const view = render(
+    render(
       <UberDataUpload autoOpenToken="ready-v3" onUploadSuccess={onUploadSuccess} />
     );
 
-    await waitFor(() => expect(view.getByText('Upload')).toBeTruthy());
-    fireEvent.press(view.getByText('Upload'));
-    await waitFor(() => expect(onUploadSuccess).toHaveBeenCalledWith(12));
+    await waitFor(() => expect(onUploadSuccess).toHaveBeenCalledWith({
+      importedCount: 12,
+      totalAmount: 42,
+      message: 'Imported',
+      fileType: 'zip',
+      provider: 'uber_eats',
+    }));
   });
 });

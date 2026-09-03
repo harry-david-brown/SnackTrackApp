@@ -1,41 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 import { logger } from './logger';
+import type { User } from '@/types/api';
 
 // Storage keys for authentication
-// Sensitive tokens use SecureStore on native, AsyncStorage on web
+// Sensitive tokens always use the native Keychain/Keystore through SecureStore.
 export const AUTH_STORAGE_KEYS = {
-  ACCESS_TOKEN: 'snacktrack_auth_token', // SecureStore (sensitive) / AsyncStorage (web)
-  REFRESH_TOKEN: 'snacktrack_refresh_token', // SecureStore (sensitive) / AsyncStorage (web)
+  ACCESS_TOKEN: 'snacktrack_auth_token', // SecureStore (sensitive)
+  REFRESH_TOKEN: 'snacktrack_refresh_token', // SecureStore (sensitive)
   USER_DATA: '@snacktrack_user_data', // AsyncStorage (non-sensitive)
   USER_ID: '@snacktrack_user_id', // AsyncStorage (non-sensitive)
   TOKEN_EXPIRES_AT: '@snacktrack_token_expires', // AsyncStorage (non-sensitive)
 } as const;
 
-// Helper functions to handle storage (SecureStore on native, AsyncStorage on web)
 const setSecureItem = async (key: string, value: string): Promise<void> => {
-  if (Platform.OS === 'web') {
-    await AsyncStorage.setItem(key, value);
-  } else {
-    await SecureStore.setItemAsync(key, value);
-  }
+  await SecureStore.setItemAsync(key, value);
 };
 
 const getSecureItem = async (key: string): Promise<string | null> => {
-  if (Platform.OS === 'web') {
-    return await AsyncStorage.getItem(key);
-  } else {
-    return await SecureStore.getItemAsync(key);
-  }
+  return await SecureStore.getItemAsync(key);
 };
 
 const deleteSecureItem = async (key: string): Promise<void> => {
-  if (Platform.OS === 'web') {
-    await AsyncStorage.removeItem(key);
-  } else {
-    await SecureStore.deleteItemAsync(key);
-  }
+  await SecureStore.deleteItemAsync(key);
 };
 
 // Token expiry times (in milliseconds)
@@ -52,10 +39,15 @@ const decodeJWTExpiry = (token: string): number => {
   try {
     // JWT format: header.payload.signature
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
+    const decoded: unknown = JSON.parse(atob(payload));
+    const claims = typeof decoded === 'object' && decoded !== null
+      ? decoded as Record<string, unknown>
+      : null;
     // JWT exp is in seconds, convert to milliseconds
-    return decoded.exp ? decoded.exp * 1000 : Date.now() + TOKEN_EXPIRY.ACCESS_TOKEN;
-  } catch (error) {
+    return typeof claims?.exp === 'number'
+      ? claims.exp * 1000
+      : Date.now() + TOKEN_EXPIRY.ACCESS_TOKEN;
+  } catch {
     // If decode fails, use default expiry (fallback)
     return Date.now() + TOKEN_EXPIRY.ACCESS_TOKEN;
   }
@@ -70,13 +62,13 @@ export const storeAuthTokens = async (
   accessToken: string,
   refreshToken: string,
   userId: string,
-  userData: any
+  userData: User,
 ): Promise<void> => {
   try {
     // Get expiry time from the JWT token itself
     const expiresAt = decodeJWTExpiry(accessToken);
     
-    // Store sensitive tokens (SecureStore on native, AsyncStorage on web)
+    // Store sensitive tokens in the native secure store.
     await Promise.all([
       setSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken),
       setSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
@@ -90,8 +82,7 @@ export const storeAuthTokens = async (
     ]);
     
     if (__DEV__) {
-      const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
-      logger.debug(`✅ Auth tokens stored successfully (${storageType})`);
+      logger.debug('✅ Auth tokens stored successfully (SecureStore)');
       logger.debug(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -139,13 +130,43 @@ export const getUserId = async (): Promise<string | null> => {
 /**
  * Get stored user data
  */
-export const getUserData = async (): Promise<any | null> => {
+const decodeStoredUser = (value: unknown): User | null => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const user = value as Record<string, unknown>;
+  if (
+    typeof user.id !== 'string'
+    || typeof user.email !== 'string'
+    || typeof user.createdAt !== 'string'
+    || typeof user.emailVerified !== 'boolean'
+  ) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    createdAt: user.createdAt,
+    emailVerified: user.emailVerified,
+  };
+};
+
+export const getUserData = async (): Promise<User | null> => {
   try {
     const userData = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.USER_DATA);
-    return userData ? JSON.parse(userData) : null;
+    if (!userData) return null;
+    return decodeStoredUser(JSON.parse(userData) as unknown);
   } catch (error) {
     logger.error('Error getting user data:', error);
     return null;
+  }
+};
+
+/**
+ * Persist a non-sensitive user snapshot after an authenticated profile change.
+ */
+export const updateStoredUserData = async (userData: User): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(AUTH_STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+  } catch (error) {
+    logger.error('Error updating stored user data:', error);
+    throw new Error('Failed to update stored user data');
   }
 };
 
@@ -196,8 +217,7 @@ export const updateAccessToken = async (
     await Promise.all([...secureUpdates, ...asyncUpdates]);
     
     if (__DEV__) {
-      const storageType = Platform.OS === 'web' ? 'AsyncStorage' : 'SecureStore';
-      logger.debug(`✅ Access token updated successfully (${storageType})`);
+      logger.debug('✅ Access token updated successfully (SecureStore)');
       logger.debug(`🕐 Token expires at: ${new Date(expiresAt).toLocaleTimeString()}`);
     }
   } catch (error) {
@@ -248,4 +268,3 @@ export const isAuthenticated = async (): Promise<boolean> => {
     return false;
   }
 };
-

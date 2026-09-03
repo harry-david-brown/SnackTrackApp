@@ -1,370 +1,150 @@
-import type { ExportProvider, ImportPreferencesResponse } from '@services/gmailApi';
-import { resolveTrackingEligibility, resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
-import {
-  resolveImportCoverage,
-  resolveImportSetupRecommendation,
-  type ProviderJourneyState,
-} from '@features/import-flow/importJourneyState';
-import type { GmailConnectionPurpose } from '@features/import-flow/gmailConnectionPurpose';
-import { resolveGmailBaselineState } from '@features/import-flow/gmailBaselineState';
+import type { ExportProvider, ImportPreferencesResponse } from "@features/import-flow/contracts";
+import type { GmailConnectionPurpose } from "@features/import-flow/gmailConnectionPurpose";
+import { canMarkUberNotUsed } from "@features/import-flow/providerRelevance";
 
-export type DashboardTrackingAction =
-  | 'open_import'
-  | 'connect_gmail'
-  | 'import_gmail'
-  | 'request_export'
-  | 'continue_export'
-  | 'open_gmail'
-  | 'enable_tracking'
-  | 'retry_tracking';
-
-export type DashboardTrackingTone = 'brand' | 'progress' | 'success' | 'warning' | 'error';
+export type DashboardTrackingAction = "open_import" | "connect_gmail" | "import_gmail" | "request_export" | "continue_export" | "open_gmail" | "enable_tracking" | "retry_tracking" | "retry_preferences" | "mark_uber_not_used";
+export type DashboardTrackingTone = "brand" | "progress" | "success" | "warning" | "error";
+export type HomeGuidancePlacement = "priority" | "footer";
 
 export interface DashboardProgressState {
-  id: string;
-  title: string;
-  body: string;
-  icon: string;
-  provider?: ExportProvider;
-  action?: DashboardTrackingAction;
-  actionLabel?: string;
+  id: string; title: string; body: string; icon: string;
+  provider?: ExportProvider; action?: DashboardTrackingAction; actionLabel?: string;
 }
 
 export interface DashboardTrackingCardState {
   id: string;
-  sectionLabel: 'Next step' | 'In progress' | 'Tracking status';
-  eyebrow: string;
-  title: string;
-  body: string;
-  icon: string;
-  tone: DashboardTrackingTone;
-  primaryAction?: DashboardTrackingAction;
-  primaryLabel?: string;
-  primaryProvider?: ExportProvider;
+  sectionLabel: "Next step" | "In progress" | "Your data";
+  placement: HomeGuidancePlacement;
+  display?: "compact" | "expanded";
+  eyebrow: string; title: string; body: string; icon: string; tone: DashboardTrackingTone;
+  primaryAction?: DashboardTrackingAction; primaryLabel?: string; primaryProvider?: ExportProvider;
   gmailPurpose?: GmailConnectionPurpose;
-  secondaryAction?: DashboardTrackingAction;
-  secondaryLabel?: string;
-  secondaryProvider?: ExportProvider;
-  passive?: boolean;
-  showActivity?: boolean;
+  secondaryAction?: DashboardTrackingAction; secondaryLabel?: string; secondaryProvider?: ExportProvider;
+  passive?: boolean; busy?: boolean; showActivity?: boolean; canMarkUberNotUsed?: boolean;
   progress?: DashboardProgressState;
 }
 
-const requestedProgress = (
-  uberEats: ProviderJourneyState,
-  doorDash: ProviderJourneyState,
-  monitoring: ImportPreferencesResponse['monitoring'],
-): DashboardProgressState | undefined => {
-  const uberRequested = uberEats.status === 'requested';
-  const doorDashRequested = doorDash.status === 'requested';
-  if (!uberRequested && !doorDashRequested) return undefined;
+const card = (value: Omit<DashboardTrackingCardState, "placement"> & { placement?: HomeGuidancePlacement }): DashboardTrackingCardState => ({ placement: "priority", ...value });
+const providerName = (provider: ExportProvider) => provider === "uber_eats" ? "Uber Eats" : "DoorDash";
 
-  if (uberRequested && doorDashRequested) {
-    return {
-      id: 'exports_requested',
-      title: 'Uber Eats and DoorDash exports requested',
-      body: 'Both providers are preparing your archives. Keep an eye on your email while you continue setup.',
-      icon: 'time-outline',
-    };
-  }
-
-  if (uberRequested) {
-    return {
-      id: 'uber_export_requested',
-      title: 'Uber Eats export requested',
-      body: monitoring.effectiveState === 'enabled'
-        ? 'SnackTrack will check for Uber’s ready email while the app is active.'
-        : 'Uber will email when the archive is ready.',
-      icon: 'time-outline',
-      provider: 'uber_eats',
-      action: 'open_gmail',
-      actionLabel: 'Check Gmail',
-    };
-  }
-
-  return {
-    id: 'doordash_export_requested',
-    title: 'DoorDash export requested',
-    body: 'DoorDash typically emails a “View Your Data Archive” link when it is ready.',
-    icon: 'time-outline',
-    provider: 'doordash',
-  };
+const activeDeferralLabel = (value: string | null, now: Date): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() <= now.getTime()) return null;
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
 };
 
-const withProgress = (
-  state: DashboardTrackingCardState,
-  progress?: DashboardProgressState,
-): DashboardTrackingCardState => progress ? { ...state, progress } : state;
-
-const providerActionCard = (
-  provider: ProviderJourneyState,
-  progress?: DashboardProgressState,
-): DashboardTrackingCardState => withProgress({
-  id: `request_${provider.provider}`,
-  sectionLabel: 'Next step',
-  eyebrow: 'EXPAND YOUR HISTORY',
-  title: `Add your ${provider.name} export`,
-  body: `Your other sources are safe. Add ${provider.name} when you want more complete provider coverage.`,
-  icon: 'cloud-download-outline',
-  tone: 'brand',
-  primaryAction: 'request_export',
-  primaryProvider: provider.provider,
-  primaryLabel: `Add ${provider.name}`,
-}, progress);
-
-export const resolveDashboardTrackingState = (
+/** Pure owner of the single data-guidance surface shown on Home. */
+export function resolveHomeDataGuidance(
   preferences: ImportPreferencesResponse | null,
   loading: boolean,
-): DashboardTrackingCardState => {
-  if (loading || !preferences) {
-    return {
-      id: 'loading', sectionLabel: 'In progress', eyebrow: 'CHECKING YOUR SETUP',
-      title: 'Getting your next step ready', body: 'This will only take a moment.',
-      icon: 'sync-outline', tone: 'progress', passive: true,
-    };
-  }
-
-  const { ongoingTracking, monitoring } = preferences;
-  const gmailBaseline = resolveGmailBaselineState(preferences);
-  const latestGmailAttempt = gmailBaseline.latestAttempt;
-  const coverage = resolveImportCoverage(preferences);
-  const { uberEats, doorDash } = coverage.providers;
-  const progress = requestedProgress(uberEats, doorDash, monitoring);
-  const trackingEligibility = resolveTrackingEligibility(preferences);
-  const trackingRecovery = resolveTrackingRecovery(preferences);
-  const gmailConnected = ongoingTracking.capability.gmailConnected || monitoring.capability.gmailConnected;
-  const gmailNeedsReconnect = ongoingTracking.capability.needsReconnect === true
-    || monitoring.capability.needsReconnect === true
-    || ongoingTracking.capability.connectionHealth === 'reconnect_required'
-    || monitoring.capability.connectionHealth === 'reconnect_required';
-  const setupRecommendation = resolveImportSetupRecommendation({
-    preferences,
-    gmailFeatureEnabled: true,
-    gmailConnected,
-    gmailNeedsReconnect,
+  unavailable = false,
+  now = new Date(),
+): DashboardTrackingCardState {
+  if (loading) return card({
+    id: "loading", sectionLabel: "In progress", eyebrow: "CHECKING YOUR DATA",
+    title: "Getting your next step ready", body: "This will only take a moment.",
+    icon: "sync-outline", tone: "progress", passive: true, busy: true, display: "compact",
   });
-  const readyProvider = [uberEats, doorDash].find((provider) => provider.status === 'file_ready');
-  const processingProvider = [uberEats, doorDash].find((provider) => provider.status === 'import_processing');
-  const failedProvider = [uberEats, doorDash].find((provider) => provider.status === 'failed');
+  if (unavailable || !preferences) return card({
+    id: "preferences_unavailable", sectionLabel: "Next step", eyebrow: "DATA STATUS UNAVAILABLE",
+    title: "We couldn’t check your data setup", body: "Your spending history is still available. Try the status check again.",
+    icon: "cloud-offline-outline", tone: "warning", primaryAction: "retry_preferences", primaryLabel: "Try again",
+  });
 
-  if (readyProvider) {
-    return {
-      id: `export_ready_${readyProvider.provider}`, sectionLabel: 'Next step', eyebrow: 'YOUR FILE IS READY',
-      title: `Download your ${readyProvider.name} data`,
-      body: `Open the provider’s ready message, download the archive, then bring it back to SnackTrack.`,
-      icon: 'mail-unread-outline', tone: 'success', primaryAction: 'continue_export',
-      primaryProvider: readyProvider.provider, primaryLabel: 'Continue',
-    };
+  const uber = preferences.export.providers.uberEats;
+  const doorDash = preferences.export.providers.doorDash;
+  const providers = [uber, doorDash];
+  const usefulHistory = preferences.coverage.emailReceiptCount + preferences.coverage.exportReceiptCount > 0;
+  const uberFileCoverage = preferences.coverage.exportProviders.uberEats.hasData;
+  const uberEmailEvidence = preferences.coverage.emailProviders.uberEats.hasData;
+  const eligibleNotUsed = canMarkUberNotUsed(preferences);
+  const tracking = preferences.ongoingTracking;
+  const emailAttempt = preferences.gmailBaseline.latestAttempt.status === "importing" || preferences.gmailBaseline.latestAttempt.status === "failed"
+    ? preferences.gmailBaseline.latestAttempt : preferences.outlookBaseline.latestAttempt;
+
+  const ready = providers.find((provider) => provider.status === "file_ready");
+  if (ready) return card({
+    id: `file_ready_${ready.provider}`, sectionLabel: "Next step", eyebrow: "YOUR FILE IS READY",
+    title: `Add your ${providerName(ready.provider)} history`, body: "Download the archive from the provider’s message, then bring it back to SnackTrack.",
+    icon: "mail-unread-outline", tone: "success", primaryAction: "continue_export", primaryProvider: ready.provider, primaryLabel: "Continue",
+  });
+
+  const failed = providers.find((provider) => provider.status === "failed");
+  const reconnectRequired = tracking.effectiveState === "reconnect_required"
+    || preferences.monitoring.effectiveState === "reconnect_required"
+    || emailAttempt.errorCode === "GMAIL_RECONNECT_REQUIRED"
+    || emailAttempt.errorCode === "OUTLOOK_RECONNECT_REQUIRED";
+  if (failed) return card({
+    id: `import_failed_${failed.provider}`, sectionLabel: "Next step", eyebrow: "IMPORT NEEDS ATTENTION",
+    title: `We couldn’t add your ${providerName(failed.provider)} history`, body: "Your existing orders are safe. Review the instructions or try the file again.",
+    icon: "alert-circle-outline", tone: "error", primaryAction: "continue_export", primaryProvider: failed.provider, primaryLabel: "Try again",
+  });
+  if (reconnectRequired) return card({
+    id: "reconnect_required", sectionLabel: "Next step", eyebrow: "EMAIL NEEDS ATTENTION",
+    title: "Reconnect email to resume updates", body: "Your imported history is safe. Restore the email registered with your delivery apps to continue.",
+    icon: "link-outline", tone: "warning", primaryAction: "open_import", primaryLabel: "Manage email connection", gmailPurpose: "connection_recovery",
+  });
+  if (emailAttempt.status === "failed" || tracking.effectiveState === "error") return card({
+    id: "email_import_failed", sectionLabel: "Next step", eyebrow: "CHECK NEEDS ATTENTION",
+    title: "We couldn’t finish checking for orders", body: "Your existing history is safe. Try the check again when you’re ready.",
+    icon: "refresh-circle-outline", tone: "error", primaryAction: tracking.effectiveState === "error" ? "retry_tracking" : "import_gmail", primaryLabel: "Try again",
+  });
+
+  const processing = providers.find((provider) => provider.status === "import_processing");
+  if (processing || emailAttempt.status === "importing") return card({
+    id: `processing_${processing?.provider ?? "email"}`, sectionLabel: "In progress", eyebrow: "ADDING YOUR HISTORY",
+    title: `Your ${processing ? providerName(processing.provider) : "email"} history is being processed`, body: "SnackTrack is finishing the import you started.",
+    icon: "hourglass-outline", tone: "progress", passive: true, busy: true,
+  });
+
+  const waiting = providers.find((provider) => provider.status === "requested");
+  if (waiting) return card({
+    id: `request_waiting_${waiting.provider}`, sectionLabel: "In progress", eyebrow: "REQUEST SUBMITTED",
+    title: `${providerName(waiting.provider)} is preparing your history`, body: "They’ll email you when the download is ready. You can review the steps anytime.",
+    icon: "time-outline", tone: "progress", primaryAction: "continue_export", primaryProvider: waiting.provider, primaryLabel: "Review steps", display: "compact",
+  });
+
+  if (!usefulHistory) {
+    if (uber.relevance === "not_used") return card({
+      id: "no_history_uber_not_used", sectionLabel: "Next step", eyebrow: "START YOUR ORDER HISTORY",
+      title: "Add orders from email or DoorDash", body: "Connect the email registered with your delivery apps, or add your DoorDash download.",
+      icon: "receipt-outline", tone: "brand", primaryAction: "open_import", primaryLabel: "Choose another source",
+    });
+    const reminderDate = activeDeferralLabel(preferences.setupGuidance.initialSetupDeferredUntil, now);
+    return card({
+      id: reminderDate ? "setup_deferred" : "no_history", sectionLabel: "Next step", eyebrow: "START YOUR ORDER HISTORY",
+      title: reminderDate ? "Continue setting up your data" : "Build your SnackTrack history",
+      body: reminderDate ? `You chose to come back later. We’ll remind you again after ${reminderDate}.` : "Use the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.",
+      icon: "receipt-outline", tone: "brand", primaryAction: "open_import", primaryLabel: reminderDate ? "Continue setup" : "Get started",
+      secondaryAction: !reminderDate && eligibleNotUsed ? "mark_uber_not_used" : undefined,
+      secondaryLabel: !reminderDate && eligibleNotUsed ? "I don’t use Uber Eats" : undefined,
+      canMarkUberNotUsed: !reminderDate && eligibleNotUsed, display: reminderDate ? "compact" : "expanded",
+    });
   }
 
-  if (processingProvider) {
-    return {
-      id: `export_processing_${processingProvider.provider}`, sectionLabel: 'In progress', eyebrow: 'ADDING YOUR HISTORY',
-      title: `Your ${processingProvider.name} export is being processed`,
-      body: 'SnackTrack is building your more complete spending history.',
-      icon: 'hourglass-outline', tone: 'progress', passive: true,
-    };
+  if (!uberFileCoverage && uber.relevance !== "not_used") {
+    const completedWithoutOrders = uber.status === "completed";
+    return card({
+      id: completedWithoutOrders ? "uber_no_usable_orders" : "missing_uber_history", sectionLabel: "Next step",
+      eyebrow: completedWithoutOrders ? "NO UBER EATS ORDERS ADDED" : "COMPLETE YOUR HISTORY",
+      title: completedWithoutOrders ? "Try another Uber Eats history file" : "Complete your history with Uber Eats",
+      body: uberEmailEvidence ? "We found Uber Eats receipts in email. The official Uber history file can add older and more complete order details." : completedWithoutOrders ? "That archive didn’t contain usable orders, so your Uber Eats milestone is still incomplete." : "Your current orders are safe. Add the official Uber history file for deeper coverage.",
+      icon: completedWithoutOrders ? "alert-circle-outline" : "cloud-download-outline", tone: completedWithoutOrders ? "warning" : "brand",
+      primaryAction: completedWithoutOrders ? "continue_export" : "request_export", primaryProvider: "uber_eats",
+      primaryLabel: completedWithoutOrders ? "Review Uber steps" : "Add Uber Eats history",
+      secondaryAction: eligibleNotUsed ? "mark_uber_not_used" : undefined, secondaryLabel: eligibleNotUsed ? "I don’t use Uber Eats" : undefined,
+      canMarkUberNotUsed: eligibleNotUsed, display: "compact",
+    });
   }
 
-  if (latestGmailAttempt.status === 'importing') {
-    return withProgress({
-      id: 'gmail_importing', sectionLabel: 'In progress', eyebrow: 'SCANNING GMAIL',
-      title: 'Looking for delivery receipts', body: 'SnackTrack is finishing the scan you started.',
-      icon: 'search-outline', tone: 'progress', passive: true,
-    }, progress);
-  }
+  return card({
+    id: "data_healthy", sectionLabel: "Your data", eyebrow: "YOUR DATA",
+    title: uberFileCoverage ? "Your history is ready" : "Your saved sources are up to date",
+    body: tracking.effectiveState === "active" ? "Ongoing email updates are on." : "Your imported order history is ready to explore.",
+    icon: "checkmark-circle-outline", tone: "success", placement: "footer", display: "compact",
+    primaryAction: "open_import", primaryLabel: "Manage data", showActivity: tracking.effectiveState === "active",
+  });
+}
 
-  if (failedProvider) {
-    return {
-      id: `export_failed_${failedProvider.provider}`, sectionLabel: 'Next step', eyebrow: 'IMPORT NEEDS ATTENTION',
-      title: `We couldn’t add your ${failedProvider.name} export`,
-      body: 'Try the file again or review that provider’s download instructions.',
-      icon: 'alert-circle-outline', tone: 'error', primaryAction: 'continue_export',
-      primaryProvider: failedProvider.provider, primaryLabel: 'Try again',
-    };
-  }
-
-  if (latestGmailAttempt.status === 'failed') {
-    const reconnectRequired = latestGmailAttempt.errorCode === 'GMAIL_RECONNECT_REQUIRED';
-    return withProgress({
-      id: 'gmail_failed', sectionLabel: 'Next step', eyebrow: 'SCAN NEEDS ATTENTION',
-      title: reconnectRequired ? 'Reconnect Gmail to continue' : 'The last Gmail check failed',
-      body: reconnectRequired
-        ? 'Google no longer accepts the saved connection. Your existing history is safe.'
-        : gmailBaseline.hasCompleted
-          ? 'Your previously imported history is safe. Try checking again when you’re ready.'
-          : 'Try the email check again to establish a starting point for newer orders.',
-      icon: reconnectRequired ? 'link-outline' : 'refresh-circle-outline',
-      tone: reconnectRequired ? 'warning' : 'error',
-      primaryAction: reconnectRequired ? 'connect_gmail' : 'import_gmail',
-      primaryLabel: reconnectRequired ? 'Reconnect Gmail' : 'Try again',
-      gmailPurpose: 'connection_recovery',
-    }, progress);
-  }
-
-  if (gmailNeedsReconnect) {
-    const purpose: GmailConnectionPurpose = monitoring.consentState === 'granted' && uberEats.status === 'requested'
-      ? 'export_ready_alerts'
-      : ongoingTracking.consentState === 'granted'
-        ? 'ongoing_tracking'
-        : 'connection_recovery';
-    return withProgress({
-      id: 'gmail_connection_reconnect', sectionLabel: 'Next step', eyebrow: 'GMAIL NEEDS ATTENTION',
-      title: 'Reconnect Gmail to continue',
-      body: gmailBaseline.hasCompleted || coverage.hasEmailCoverage
-        ? 'Your imported history is safe. Reconnect Gmail to restore the email feature you enabled.'
-        : 'Google no longer accepts the saved connection. Reconnect before scanning for delivery receipts.',
-      icon: 'link-outline', tone: 'warning', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
-      gmailPurpose: purpose,
-    }, progress);
-  }
-
-  const gmailHasRun = gmailBaseline.hasCompleted;
-  if (!gmailHasRun) {
-    if (coverage.hasAnyExportData) {
-      const importedProvider = coverage.providers.uberEats.imported
-        ? coverage.providers.uberEats
-        : coverage.providers.doorDash;
-      const exportTitle = coverage.allProvidersImported
-        ? 'Both provider exports are included'
-        : `${importedProvider.name} export is included`;
-      const exportCoverageBody = coverage.allProvidersImported
-        ? 'Your provider export history is complete.'
-        : `Your ${importedProvider.name} export history is safe; you can still add the other provider separately.`;
-      if (ongoingTracking.effectiveState === 'setting_up') {
-        return withProgress({
-          id: 'enable_tracking', sectionLabel: 'Tracking status', eyebrow: 'CATCHING UP',
-          title: 'Checking for orders newer than your exports',
-          body: `${exportCoverageBody} SnackTrack is checking Gmail for supported delivery receipts that arrived afterward.`,
-          icon: 'sync-outline', tone: 'brand', passive: true, showActivity: true,
-        }, progress);
-      }
-      if (ongoingTracking.effectiveState === 'active') {
-        return withProgress({
-          id: 'tracking_active', sectionLabel: 'Tracking status', eyebrow: 'ONGOING TRACKING IS ON',
-          title: 'Your stats are staying up to date',
-          body: `${exportCoverageBody} SnackTrack will check Gmail for supported new delivery receipts.`,
-          icon: 'radio-outline', tone: 'success', passive: true, showActivity: true,
-        }, progress);
-      }
-      if (ongoingTracking.effectiveState === 'error') {
-        return withProgress({
-          id: 'tracking_error', sectionLabel: 'Next step', eyebrow: 'TRACKING NEEDS ATTENTION',
-          title: 'We couldn’t finish checking for newer orders',
-          body: 'Your provider export history is safe. Retry the Gmail check when you’re ready.',
-          icon: 'alert-circle-outline', tone: 'error', primaryAction: 'retry_tracking', primaryLabel: 'Try again', showActivity: true,
-        }, progress);
-      }
-      if (ongoingTracking.effectiveState === 'paused' || ongoingTracking.effectiveState === 'declined') {
-        return withProgress({
-          id: 'tracking_paused', sectionLabel: 'Tracking status', eyebrow: 'HISTORY COVERAGE COMPLETE',
-          title: exportTitle,
-          body: `Ongoing Gmail updates are off. ${exportCoverageBody} You can turn updates on from Profile whenever you want.`,
-          icon: 'checkmark-circle-outline', tone: 'success', passive: true,
-        }, progress);
-      }
-      const temporarilyUnavailable = trackingRecovery.kind === 'unavailable';
-      return withProgress({
-        id: 'history_complete_optional_freshness', sectionLabel: 'Tracking status', eyebrow: coverage.allProvidersImported ? 'HISTORY COVERAGE COMPLETE' : 'EXPORT HISTORY INCLUDED',
-        title: exportTitle,
-        body: temporarilyUnavailable
-          ? `${exportCoverageBody} Gmail is temporarily unavailable, so ongoing updates can be set up later.`
-          : `${exportCoverageBody} Enable ongoing updates to catch supported newer orders and keep future stats current.`,
-        icon: 'checkmark-circle-outline', tone: 'success',
-        primaryAction: temporarilyUnavailable ? undefined : gmailConnected ? 'enable_tracking' : 'connect_gmail',
-        primaryLabel: temporarilyUnavailable ? undefined : gmailConnected ? 'Enable ongoing updates' : 'Connect Gmail for updates',
-        gmailPurpose: 'ongoing_tracking',
-      }, progress);
-    }
-    if (setupRecommendation.kind === 'choose_source') {
-      return withProgress({
-        id: 'choose_import_source', sectionLabel: 'Next step', eyebrow: 'BUILD YOUR HISTORY',
-        title: 'Choose how you want to start',
-        body: 'Use email for a quick start, upload a provider export for detailed history, or use both in any order.',
-        icon: 'layers-outline', tone: 'brand', primaryAction: 'open_import', primaryLabel: 'Choose a source',
-      }, progress);
-    }
-
-    if (setupRecommendation.kind === 'provider') {
-      return providerActionCard(setupRecommendation.provider, progress);
-    }
-
-    return withProgress({
-      id: gmailConnected ? 'import_gmail' : 'connect_gmail', sectionLabel: 'Next step',
-      eyebrow: 'START WITH YOUR INBOX',
-      title: gmailConnected ? 'Import your Gmail receipts' : 'Connect Gmail for recent orders',
-      body: 'SnackTrack can quickly find recent delivery receipts while provider exports add deeper history.',
-      icon: gmailConnected ? 'mail-open-outline' : 'mail-outline', tone: 'brand',
-      primaryAction: gmailConnected ? 'import_gmail' : 'connect_gmail',
-      primaryLabel: gmailConnected ? 'Import receipts' : 'Connect Gmail',
-      gmailPurpose: 'receipt_import',
-    }, progress);
-  }
-
-  if (setupRecommendation.kind === 'provider') {
-    return providerActionCard(setupRecommendation.provider, progress);
-  }
-
-  if (ongoingTracking.effectiveState === 'reconnect_required') {
-    return withProgress({
-      id: 'tracking_reconnect', sectionLabel: 'Next step', eyebrow: 'UPDATES ARE PAUSED',
-      title: 'Reconnect Gmail to resume tracking',
-      body: 'Your imported history is safe, but new receipts cannot be checked until Gmail is reconnected.',
-      icon: 'link-outline', tone: 'warning', primaryAction: 'connect_gmail', primaryLabel: 'Reconnect Gmail',
-      gmailPurpose: 'ongoing_tracking',
-    }, progress);
-  }
-
-  if (ongoingTracking.effectiveState === 'error') {
-    return withProgress({
-      id: 'tracking_error', sectionLabel: 'Next step', eyebrow: 'TRACKING NEEDS ATTENTION',
-      title: 'We couldn’t check for new orders', body: 'Your existing stats are safe. Try the check again.',
-      icon: 'alert-circle-outline', tone: 'error', primaryAction: 'retry_tracking', primaryLabel: 'Try again', showActivity: true,
-    }, progress);
-  }
-
-  if (ongoingTracking.effectiveState === 'active') {
-    return withProgress({
-      id: 'tracking_active', sectionLabel: 'Tracking status', eyebrow: 'ONGOING TRACKING IS ON',
-      title: 'Your stats are staying up to date', body: 'SnackTrack will check for new delivery receipts. Check back occasionally to see what changed.',
-      icon: 'radio-outline', tone: 'success', passive: true, showActivity: true,
-    }, progress);
-  }
-
-  if (ongoingTracking.effectiveState === 'paused' || ongoingTracking.effectiveState === 'declined') {
-    const needsBaseline = trackingRecovery.kind === 'baseline';
-    const temporarilyUnavailable = trackingRecovery.kind === 'unavailable';
-    return withProgress({
-      id: 'tracking_paused', sectionLabel: 'Tracking status', eyebrow: 'ONGOING UPDATES ARE OFF',
-      title: 'Your imported history is safe', body: 'Turn tracking back on whenever you want SnackTrack to check for new receipts.',
-      icon: 'pause-circle-outline', tone: 'warning',
-      primaryAction: trackingEligibility.eligible ? 'enable_tracking' : temporarilyUnavailable ? undefined : needsBaseline ? 'import_gmail' : 'connect_gmail',
-      primaryLabel: trackingEligibility.eligible ? 'Turn on tracking' : temporarilyUnavailable ? undefined : needsBaseline ? 'Check email first' : 'Reconnect to enable',
-      gmailPurpose: 'ongoing_tracking',
-    }, progress);
-  }
-
-  if (!trackingEligibility.eligible) {
-    const needsBaseline = trackingRecovery.kind === 'baseline';
-    const temporarilyUnavailable = trackingRecovery.kind === 'unavailable';
-    return withProgress({
-      id: temporarilyUnavailable ? 'tracking_setup_unavailable' : needsBaseline ? 'tracking_setup_scan' : 'tracking_setup_reconnect', sectionLabel: 'Next step', eyebrow: 'OPTIONAL FUTURE UPDATES',
-      title: temporarilyUnavailable ? 'Gmail is temporarily unavailable' : needsBaseline ? 'Check email before enabling updates' : 'Reconnect Gmail for future orders',
-      body: temporarilyUnavailable
-        ? 'Your connection and imported history are safe. Try setting up future updates again shortly.'
-        : needsBaseline
-        ? 'Your imported history is safe. Run a current email check before choosing whether SnackTrack should keep checking.'
-        : 'Durable Gmail access is needed before you can allow periodic receipt checks.',
-      icon: temporarilyUnavailable ? 'cloud-offline-outline' : needsBaseline ? 'mail-open-outline' : 'link-outline', tone: temporarilyUnavailable ? 'warning' : 'brand',
-      primaryAction: temporarilyUnavailable ? undefined : needsBaseline ? 'import_gmail' : 'connect_gmail',
-      primaryLabel: temporarilyUnavailable ? undefined : needsBaseline ? 'Check email' : 'Reconnect Gmail',
-      gmailPurpose: 'ongoing_tracking',
-    }, progress);
-  }
-
-  return withProgress({
-    id: 'enable_tracking', sectionLabel: 'Next step', eyebrow: 'OPTIONAL FUTURE UPDATES',
-    title: 'Keep your stats growing', body: 'Give SnackTrack permission to periodically check Gmail for new delivery receipts.',
-    icon: 'pulse-outline', tone: 'brand', primaryAction: 'enable_tracking', primaryLabel: 'Enable ongoing tracking',
-  }, progress);
-};
+export const resolveDashboardTrackingState = resolveHomeDataGuidance;

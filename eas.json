@@ -15,7 +15,10 @@
         "EXPO_PUBLIC_APP_ENV": "development",
         "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "186929700833-guu59c6rdbpih04a9nrrr14lc2rsmunu.apps.googleusercontent.com",
         "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "186929700833-bg857r3na2jeq524bca2i33be4jvp471.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "186929700833-bg857r3na2jeq524bca2i33be4jvp471.apps.googleusercontent.com",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID": "5230319c-f842-455c-8db7-a8aa8a600865",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI": "msauth.com.snacktrack.mobile://auth",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI": "msauth://com.snacktrack.app/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D"
       }
     },
     "preview": {
@@ -29,7 +32,10 @@
         "EXPO_PUBLIC_APP_ENV": "preview",
         "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "340407880465-5p166du04l67h82qqpds5m64641impmr.apps.googleusercontent.com",
         "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID": "5230319c-f842-455c-8db7-a8aa8a600865",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI": "msauth.com.snacktrack.mobile://auth",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI": "msauth://com.snacktrack.app/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D"
       }
     },
     "production": {
@@ -42,7 +48,10 @@
         "EXPO_PUBLIC_SENTRY_DSN": "https://3b314c536bc51fd53041e7080136638c@o4510388064419840.ingest.us.sentry.io/4510388283113472",
         "EXPO_PUBLIC_GMAIL_ANDROID_CLIENT_ID": "340407880465-5p166du04l67h82qqpds5m64641impmr.apps.googleusercontent.com",
         "EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID": "340407880465-833427q1u2ov686j577hjblit149f6kv",
-        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GMAIL_WEB_CLIENT_ID": "340407880465-kdeluvvdjc26dqeh4k76t8afnhh47o5h.apps.googleusercontent.com",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID": "5230319c-f842-455c-8db7-a8aa8a600865",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI": "msauth.com.snacktrack.mobile://auth",
+        "EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI": "msauth://com.snacktrack.app/Xo8WBi6jzSxKDVR4drqm84yr9iU%3D"
       }
     }
   },

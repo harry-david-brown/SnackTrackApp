@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import { useUser } from '@contexts/UserContext';
 import { useImportPreferences } from '@hooks/useImportPreferences';
+import { useImportOperation } from '@hooks/useImportOperation';
 
 const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
 
@@ -18,6 +19,7 @@ export function ImportBackgroundController() {
     isUpdating,
     checkOngoingTracking,
   } = useImportPreferences(Boolean(state.user?.id));
+  useImportOperation(Boolean(state.user?.id), true);
 
   useEffect(() => {
     trackingCheckKey.current = null;

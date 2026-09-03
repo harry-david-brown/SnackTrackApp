@@ -1,17 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useUser } from '@contexts/UserContext';
-import { analyticsKeys, gmailStatusKeys, importPreferenceKeys, receiptKeys } from '@lib/queryKeys';
+import { useCallback, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@contexts/UserContext";
+import { importPreferenceKeys } from "@lib/queryKeys";
 import {
-  gmailApi,
   type ExportProvider,
   type ImportPreferencesResponse,
-} from '@services/gmailApi';
+  type ProviderRelevance,
+} from "@features/import-flow/contracts";
+import { gmailApi } from "@services/gmailApi";
+import { cacheImportOperation } from "@hooks/useImportOperation";
 
 export function useImportPreferences(enabled = true) {
   const { state } = useUser();
   const userId = state.user?.id;
   const queryClient = useQueryClient();
-  const queryKey = importPreferenceKeys.current(userId ?? 'anonymous');
+  const queryKey = importPreferenceKeys.current(userId ?? "anonymous");
 
   const preferencesQuery = useQuery({
     queryKey,
@@ -19,34 +22,35 @@ export function useImportPreferences(enabled = true) {
     enabled: enabled && Boolean(userId),
     staleTime: 60 * 1000,
   });
+  const preferencesQueryRef = useRef(preferencesQuery);
+  preferencesQueryRef.current = preferencesQuery;
 
   const writePreferences = (preferences: ImportPreferencesResponse) => {
     queryClient.setQueryData(queryKey, preferences);
+    if (userId) {
+      queryClient.setQueryData(
+        importPreferenceKeys.setupGuidance(userId),
+        preferences.setupGuidance,
+      );
+    }
     return preferences;
   };
 
-  const invalidateImportDependents = async ({ receipts = false, gmail = false, preferences = true } = {}) => {
-    if (!userId) return;
-    await Promise.all([
-      preferences ? queryClient.invalidateQueries({ queryKey: importPreferenceKeys.current(userId) }) : Promise.resolve(),
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, userId] }),
-      receipts ? queryClient.invalidateQueries({ queryKey: [...receiptKeys.all, userId] }) : Promise.resolve(),
-      gmail ? queryClient.invalidateQueries({ queryKey: gmailStatusKeys.current(userId) }) : Promise.resolve(),
-    ]);
-  };
-
   const monitoringConsent = useMutation({
-    mutationFn: (decision: 'granted' | 'declined' | 'revoked') => gmailApi.setMonitoringConsent(decision),
+    mutationFn: (decision: "granted" | "declined" | "revoked") =>
+      gmailApi.setMonitoringConsent(decision),
     onSuccess: writePreferences,
   });
 
   const ongoingConsent = useMutation({
-    mutationFn: (decision: 'granted' | 'declined' | 'revoked') => gmailApi.setOngoingTrackingConsent(decision),
+    mutationFn: (decision: "granted" | "declined" | "revoked") =>
+      gmailApi.setOngoingTrackingConsent(decision),
     onSuccess: writePreferences,
   });
 
   const exportRequested = useMutation({
-    mutationFn: (provider: ExportProvider) => gmailApi.markExportRequested(provider),
+    mutationFn: (provider: ExportProvider) =>
+      gmailApi.markExportRequested(provider),
     onSuccess: writePreferences,
   });
 
@@ -56,23 +60,34 @@ export function useImportPreferences(enabled = true) {
   });
 
   const exportReadyConfirmation = useMutation({
-    mutationFn: (provider: ExportProvider) => gmailApi.confirmExportReady(provider),
+    mutationFn: (provider: ExportProvider) =>
+      gmailApi.confirmExportReady(provider),
     onSuccess: writePreferences,
   });
 
-  const disconnect = useMutation({
-    mutationFn: (options?: { resetImportStatus?: boolean }) => gmailApi.disconnect(options),
-    onSuccess: async () => {
-      queryClient.setQueryData(gmailStatusKeys.current(userId ?? 'anonymous'), { connected: false });
-      await invalidateImportDependents({ gmail: true });
+  const setupDeferral = useMutation({
+    mutationFn: (decision: "defer" | "resume") =>
+      gmailApi.setSetupDeferral(decision),
+    onSuccess: (guidance) => {
+      if (!userId) return guidance;
+      queryClient.setQueryData(importPreferenceKeys.setupGuidance(userId), guidance);
+      queryClient.setQueryData<ImportPreferencesResponse | undefined>(queryKey, (current) =>
+        current ? { ...current, setupGuidance: guidance } : current,
+      );
+      return guidance;
     },
+  });
+
+  const providerRelevance = useMutation({
+    mutationFn: ({ provider, relevance }: { provider: ExportProvider; relevance: ProviderRelevance }) =>
+      gmailApi.setProviderRelevance(provider, relevance),
+    onSuccess: writePreferences,
   });
 
   const trackingCheck = useMutation({
     mutationFn: () => gmailApi.checkOngoingTracking(),
     onSuccess: async (result) => {
-      writePreferences(result.preferences);
-      await invalidateImportDependents({ receipts: true, preferences: false });
+      if (userId) cacheImportOperation(queryClient, userId, result);
     },
     onError: async () => {
       // The API persists reconnect/error details before returning some failed
@@ -90,69 +105,58 @@ export function useImportPreferences(enabled = true) {
     },
   });
 
-  const gmailImport = useMutation({
-    mutationFn: () => gmailApi.importReceipts(),
-    onMutate: () => {
-      queryClient.setQueryData<ImportPreferencesResponse>(queryKey, (current) => current ? {
-        ...current,
-        gmailImport: { ...current.gmailImport, status: 'importing', errorCode: null },
-        gmailBaseline: current.gmailBaseline ? {
-          ...current.gmailBaseline,
-          latestAttempt: {
-            ...current.gmailBaseline.latestAttempt,
-            status: 'importing',
-            errorCode: null,
-          },
-        } : current.gmailBaseline,
-      } : current);
-    },
-    onSettled: async () => {
-      await queryClient.fetchQuery({
-        queryKey,
-        queryFn: gmailApi.getImportPreferences,
-        staleTime: 0,
-      });
-      await invalidateImportDependents({ receipts: true, preferences: false });
-    },
-  });
+  const isUpdating =
+    monitoringConsent.isPending ||
+    ongoingConsent.isPending ||
+    exportRequested.isPending ||
+    exportReadyCheck.isPending ||
+    exportReadyConfirmation.isPending ||
+    setupDeferral.isPending ||
+    providerRelevance.isPending ||
+    trackingCheck.isPending;
 
-  const isUpdating = monitoringConsent.isPending
-    || ongoingConsent.isPending
-    || exportRequested.isPending
-    || exportReadyCheck.isPending
-    || exportReadyConfirmation.isPending
-    || disconnect.isPending
-    || trackingCheck.isPending
-    || gmailImport.isPending;
+  const mutationError =
+    monitoringConsent.error ||
+    ongoingConsent.error ||
+    exportRequested.error ||
+    exportReadyCheck.error ||
+    exportReadyConfirmation.error ||
+    setupDeferral.error ||
+    providerRelevance.error ||
+    trackingCheck.error;
 
-  const mutationError = monitoringConsent.error
-    || ongoingConsent.error
-    || exportRequested.error
-    || exportReadyCheck.error
-    || exportReadyConfirmation.error
-    || disconnect.error
-    || trackingCheck.error
-    || gmailImport.error;
+  const refresh = useCallback(async () => {
+    if (!enabled || !userId) return null;
+    const result = await preferencesQueryRef.current.refetch();
+    return result.data ?? null;
+  }, [enabled, userId]);
+
+  const refreshIfStale = useCallback(async () => {
+    if (!enabled || !userId) return null;
+    const current = preferencesQueryRef.current;
+    if (current.isPending || !current.isStale) return current.data ?? null;
+    const result = await current.refetch();
+    return result.data ?? null;
+  }, [enabled, userId]);
 
   return {
     preferences: preferencesQuery.data ?? null,
     isLoading: enabled && Boolean(userId) && preferencesQuery.isPending,
     isUpdating,
-    error: preferencesQuery.isError || mutationError
-      ? 'Unable to update import settings. Please try again.'
-      : null,
-    refresh: async () => {
-      if (!enabled || !userId) return null;
-      const result = await preferencesQuery.refetch();
-      return result.data ?? null;
-    },
+    error:
+      preferencesQuery.isError || mutationError
+        ? "Unable to update import settings. Please try again."
+        : null,
+    refresh,
+    refreshIfStale,
     setMonitoringConsent: monitoringConsent.mutateAsync,
     setOngoingTrackingConsent: ongoingConsent.mutateAsync,
     checkOngoingTracking: trackingCheck.mutateAsync,
-    importGmailReceipts: gmailImport.mutateAsync,
     markExportRequested: exportRequested.mutateAsync,
     confirmExportReady: exportReadyConfirmation.mutateAsync,
     checkExportReady: exportReadyCheck.mutateAsync,
-    disconnectGmail: disconnect.mutateAsync,
+    setSetupDeferral: setupDeferral.mutateAsync,
+    setProviderRelevance: (provider: ExportProvider, relevance: ProviderRelevance) =>
+      providerRelevance.mutateAsync({ provider, relevance }),
   };
 }

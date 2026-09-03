@@ -7,7 +7,6 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 
 console.log('🔍 Verifying Snack Track App Setup...\n');
 
@@ -17,11 +16,11 @@ const checks = [
     check: () => {
       const version = process.version;
       const majorVersion = parseInt(version.slice(1).split('.')[0]);
-      if (majorVersion >= 18) {
-        console.log(`✅ Node.js ${version} (required: 18+)`);
+      if (majorVersion >= 20) {
+        console.log(`✅ Node.js ${version} (required: 20+)`);
         return true;
       } else {
-        console.log(`❌ Node.js ${version} (required: 18+)`);
+        console.log(`❌ Node.js ${version} (required: 20+)`);
         return false;
       }
     }
@@ -33,7 +32,7 @@ const checks = [
         const version = execSync('docker --version', { encoding: 'utf8' }).trim();
         console.log(`✅ ${version}`);
         return true;
-      } catch (error) {
+      } catch {
         console.log('❌ Docker not found. Please install Docker Desktop.');
         return false;
       }
@@ -43,10 +42,10 @@ const checks = [
     name: 'Docker Compose',
     check: () => {
       try {
-        const version = execSync('docker-compose --version', { encoding: 'utf8' }).trim();
+        const version = execSync('docker compose version', { encoding: 'utf8' }).trim();
         console.log(`✅ ${version}`);
         return true;
-      } catch (error) {
+      } catch {
         console.log('❌ Docker Compose not found.');
         return false;
       }
@@ -96,22 +95,23 @@ const checks = [
           if (empty.length > 0) {
             console.log(`❌ Empty environment variables: ${empty.join(', ')}`);
             console.log('   These variables are set but have no value.');
-            console.log('   Remove them from .env to use the default (Railway production), or provide a valid value.');
+            console.log('   Provide the local or deployed API URL explicitly.');
             return false;
           }
           
-          // Validate API URL format (if set, otherwise will use Railway default)
+          // Validate the explicitly configured API URL.
           const apiUrl = envVars['EXPO_PUBLIC_API_URL'] || process.env['EXPO_PUBLIC_API_URL'];
           if (apiUrl) {
             try {
               new URL(apiUrl);
               console.log(`✅ EXPO_PUBLIC_API_URL is set: ${apiUrl}`);
-            } catch (error) {
+            } catch {
               console.log(`❌ EXPO_PUBLIC_API_URL is not a valid URL: ${apiUrl}`);
               return false;
             }
           } else {
-            console.log('ℹ️  EXPO_PUBLIC_API_URL not set (will use Railway production default: https://snacktrackapi-production.up.railway.app)');
+            console.log('❌ EXPO_PUBLIC_API_URL is required (use http://localhost:3000 for local development)');
+            return false;
           }
           
           // Check optional APP_ENV
@@ -131,8 +131,7 @@ const checks = [
           return true;
         } else {
           console.log('⚠️  .env file not found, cannot validate environment variables');
-          console.log('   Create a .env file with: EXPO_PUBLIC_API_URL=https://snacktrackapi-production.up.railway.app');
-          console.log('   (Or leave unset to use Railway production as default)');
+          console.log('   Create a .env file with: EXPO_PUBLIC_API_URL=http://localhost:3000');
           return false;
         }
       } catch (error) {
@@ -157,18 +156,21 @@ const checks = [
     name: 'Database Containers',
     check: () => {
       try {
-        const output = execSync('docker ps --format "table {{.Names}}\t{{.Status}}"', { encoding: 'utf8' });
-        const hasPostgres = output.includes('snacktrack-postgres-dev');
-        const hasRedis = output.includes('snacktrack-redis-dev');
+        const output = execSync('docker compose -f ../SnackTrackAPI/docker-compose.yml ps --services --filter status=running', { encoding: 'utf8' });
+        const hasPostgres = output.split('\n').includes('postgres');
+        const hasRedis = output.split('\n').includes('redis');
+        const hasMinio = output.split('\n').includes('minio');
+        const hasApi = output.split('\n').includes('api');
+        const hasWorker = output.split('\n').includes('worker');
         
-        if (hasPostgres && hasRedis) {
-          console.log('✅ Database containers are running');
+        if (hasPostgres && hasRedis && hasMinio && hasApi && hasWorker) {
+          console.log('✅ PostgreSQL, Redis, MinIO, API, and worker containers are running');
           return true;
         } else {
-          console.log('❌ Database containers not running. Run: npm run db:start');
+          console.log('❌ Backend containers not running. Run: npm run backend:start');
           return false;
         }
-      } catch (error) {
+      } catch {
         console.log('❌ Could not check database containers');
         return false;
       }
@@ -178,7 +180,7 @@ const checks = [
     name: 'Snack Track API',
     check: async () => {
       try {
-        const response = await fetch('http://localhost:3000/');
+        const response = await fetch('http://localhost:3000/health');
         if (response.ok) {
           console.log('✅ Snack Track API is responding (real data available)');
           return true;
@@ -186,9 +188,9 @@ const checks = [
           console.log('❌ Snack Track API not responding properly');
           return false;
         }
-      } catch (error) {
-        console.log('⚠️  Snack Track API not accessible - app will use mock data');
-        console.log('   To get real data: cd path/to/SnackTrackAPI && docker-compose up -d');
+      } catch {
+        console.log('⚠️  Snack Track API is not accessible.');
+        console.log('   Start the local stack with: npm run backend:start');
         return false;
       }
     }
@@ -218,13 +220,13 @@ async function runChecks() {
     console.log('🎉 All checks passed! Your environment is ready.');
     console.log('\nNext steps:');
     console.log('1. Run: npm start');
-    console.log('2. Press "w" to open in browser');
+    console.log('2. Press "i" for iOS or "a" for Android');
     console.log('3. Start coding! 🚀');
   } else {
     console.log('⚠️  Some checks failed. Please fix the issues above.');
     console.log('\nQuick fixes:');
     console.log('- Run: npm run setup');
-    console.log('- For real data: cd ~/Projects/snack-track && docker-compose up -d');
+    console.log('- Start the complete backend: npm run backend:start');
     console.log('- Check README.md for detailed instructions');
   }
   

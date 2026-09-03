@@ -14,15 +14,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '@services/authApi';
 import { showAlert } from '@utils/platformAlert';
 import { toDomainError } from '@utils/domainError';
+import {
+  verificationCodeFailure,
+  verificationCodeMessage,
+} from '@features/auth/contracts';
 
 interface EmailVerificationModalProps {
   visible: boolean;
   email: string;
-  onVerified: () => void;
+  onVerified: () => void | Promise<void>;
   onClose: () => void;
 }
 
 const RESEND_COOLDOWN = 60;
+type VerificationFlowState =
+  | 'idle'
+  | 'sending'
+  | 'awaiting_code'
+  | 'verifying'
+  | 'invalid_code'
+  | 'expired_code'
+  | 'retryable'
+  | 'success';
 
 const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   visible,
@@ -31,12 +44,13 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   onClose,
 }) => {
   const [code, setCode] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [flowState, setFlowState] = useState<VerificationFlowState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const onVerifiedRef = useRef(onVerified);
   onVerifiedRef.current = onVerified;
+  const isSending = flowState === 'sending';
+  const isVerifying = flowState === 'verifying';
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
@@ -54,23 +68,21 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     if (!email) return;
     setError(null);
     try {
-      setIsSending(true);
+      setFlowState('sending');
       const response = await authApi.sendVerificationEmail({ email });
       setResendTimer(response.expiresIn || RESEND_COOLDOWN);
+      setFlowState('awaiting_code');
       // Removed alert - user can see the code input field is ready
     } catch (err: unknown) {
-      const errorMessage = toDomainError(err).message;
-      
-      // Handle "already verified" case
-      if (errorMessage.toLowerCase().includes('already verified')) {
+      const domainError = toDomainError(err);
+      if (domainError.code === 'EMAIL_ALREADY_VERIFIED') {
         showAlert('Already Verified', 'This email is already verified.');
-        onVerifiedRef.current(); // Update state to reflect verified status
+        setFlowState('success');
+        await onVerifiedRef.current();
         return;
       }
-      
-      setError(errorMessage);
-    } finally {
-      setIsSending(false);
+      setFlowState('retryable');
+      setError(domainError.message);
     }
   }, [email]);
 
@@ -80,8 +92,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     } else if (!visible) {
       setCode('');
       setError(null);
-      setIsSending(false);
-      setIsVerifying(false);
+      setFlowState('idle');
       setResendTimer(0);
     }
   }, [email, sendVerificationCode, visible]);
@@ -93,19 +104,23 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
     }
 
     try {
-      setIsVerifying(true);
+      setFlowState('verifying');
       await authApi.verifyEmailCode({ email, code });
+      setFlowState('success');
       showAlert('Email Verified', 'Your email has been verified successfully!');
-      onVerified();
+      await onVerified();
     } catch (err: unknown) {
-      setError(toDomainError(err).message);
-    } finally {
-      setIsVerifying(false);
+      const failure = verificationCodeFailure(toDomainError(err));
+      setFlowState(
+        failure === 'invalid' ? 'invalid_code' : failure === 'expired' ? 'expired_code' : 'retryable',
+      );
+      if (failure === 'expired') setResendTimer(0);
+      setError(verificationCodeMessage(failure, 'email'));
     }
   };
 
   const handleResend = async () => {
-    if (resendTimer > 0 || isSending) return;
+    if ((resendTimer > 0 && flowState !== 'expired_code') || isSending) return;
     await sendVerificationCode();
   };
 
@@ -120,7 +135,12 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.card}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close email verification"
+          >
             <Ionicons name="close" size={22} color={Colors.inkNearBlack} />
           </TouchableOpacity>
           <Text style={styles.title}>Verify your email</Text>
@@ -136,6 +156,7 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
               style={styles.input}
               keyboardType="number-pad"
               maxLength={6}
+              accessibilityLabel="Six-digit email verification code"
             />
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
@@ -143,6 +164,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
             style={[styles.primaryButton, (isVerifying || !code) && styles.disabledButton]}
             onPress={handleVerify}
             disabled={isVerifying || !code}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isVerifying || !code, busy: isVerifying }}
           >
             <Text style={styles.primaryButtonText}>
               {isVerifying ? 'Verifying...' : 'Confirm Email'}
@@ -151,10 +174,21 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
           <TouchableOpacity
             style={[styles.secondaryButton, (resendTimer > 0 || isSending) && styles.disabledButton]}
             onPress={handleResend}
-            disabled={resendTimer > 0 || isSending}
+            disabled={(resendTimer > 0 && flowState !== 'expired_code') || isSending}
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: (resendTimer > 0 && flowState !== 'expired_code') || isSending,
+              busy: isSending,
+            }}
           >
             <Text style={styles.secondaryButtonText}>
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+              {flowState === 'expired_code'
+                ? 'Send New Code'
+                : resendTimer > 0
+                  ? `Resend in ${resendTimer}s`
+                  : flowState === 'retryable'
+                    ? 'Try Sending Again'
+                    : 'Resend Code'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.helperText}>
@@ -163,6 +197,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
           <TouchableOpacity
             style={styles.skipButton}
             onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Skip email verification for now"
           >
             <Text style={styles.skipButtonText}>Skip for now</Text>
           </TouchableOpacity>

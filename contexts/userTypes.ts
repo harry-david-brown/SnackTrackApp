@@ -2,7 +2,7 @@
  * User context types and interfaces
  */
 
-import { AppUser, RegisterResponse, LoginResponse } from '@/types/api';
+import { AppUser, RegisterResponse, LoginResponse, MicrosoftLoginResponse } from '@/types/api';
 
 // User state interface
 export interface UserState {
@@ -26,10 +26,20 @@ export interface UserContextType {
   login: (email: string, password: string) => Promise<LoginResponse>;
   loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
   loginWithApple: (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }) => Promise<LoginResponse>;
+  loginWithMicrosoft: (
+    identityToken: string,
+    attemptToken: string,
+  ) => Promise<MicrosoftLoginResponse>;
+  confirmMicrosoftLoginEmail: (
+    attemptToken: string,
+    email: string,
+    code: string,
+  ) => Promise<LoginResponse>;
   register: (email: string, password: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   clearError: () => void;
-  markEmailVerified: () => void;
+  markEmailVerified: () => Promise<void>;
 }
 
 // Initial state

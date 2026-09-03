@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
 import PasswordResetModal from './PasswordResetModal';
+import { MicrosoftEmailVerificationModal } from './MicrosoftEmailVerificationModal';
 import { styles } from './loginStyles';
 import { useLoginForm } from './useLoginForm';
 import { useLoginProviders } from './useLoginProviders';
@@ -87,9 +88,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <View style={styles.authPanelContainer}>
                 {displayedAuthMethod === 'oauth' && providers.hasOauthOptions ? (
                   <View style={styles.authPanel}>
-                    <Text style={styles.oauthTitle}>Fastest way to get started</Text>
+                    <Text style={styles.oauthTitle}>{form.isRegistering ? 'Create your SnackTrack account' : 'Welcome back'}</Text>
                     <Text style={styles.oauthSubtitle}>
-                      Try to use <Text style={styles.oauthSubtitleEmphasis}>the same email you use for your delivery apps</Text> to make importing easier later.
+                      Your SnackTrack login can be different from the email registered with Uber Eats or DoorDash. You’ll choose that email after signup.
                     </Text>
                     {providers.showApple && providers.isAppleAvailable ? (
                       <AppleAuthentication.AppleAuthenticationButton
@@ -112,9 +113,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         <Text style={styles.googleButtonText}>{form.isRegistering ? 'Sign up with Google' : 'Continue with Google'}</Text>
                       </TouchableOpacity>
                     ) : null}
+                    {providers.showMicrosoft ? (
+                      <TouchableOpacity
+                        style={styles.googleButton}
+                        onPress={() => void providers.loginWithMicrosoft()}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={form.isRegistering ? 'Sign up with Microsoft' : 'Continue with Microsoft'}
+                        accessibilityState={{ disabled: busy, busy }}
+                      >
+                        <Ionicons name="logo-microsoft" size={24} color={Colors.textPrimary} style={styles.googleIcon} />
+                        <Text style={styles.googleButtonText}>
+                          {form.isRegistering ? 'Sign up with Microsoft' : 'Continue with Microsoft'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                     <View style={styles.infoContainer}>
                       <Text style={styles.infoText}>{form.isRegistering
-                        ? 'You can always connect an inbox or import receipts after your account is ready.'
+                        ? 'You can connect the email registered with your delivery apps or add order history after your account is ready.'
                         : 'After signing in, you will continue into your import and insights flow.'}</Text>
                       <TouchableOpacity style={styles.methodSwapLink} onPress={() => changeAuthMethod('email')} accessibilityRole="button">
                         <Text style={styles.methodSwapLinkText}>{form.isRegistering ? 'Create account with email instead' : 'Sign in with email instead'}</Text>
@@ -124,7 +140,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 ) : (
                   <View style={styles.authPanel}>
                     <Text style={styles.manualIntro}>{form.isRegistering
-                      ? 'Create an account with the email you use for your delivery apps if you can.'
+                      ? 'Use any email you can access. You’ll choose the email registered with your delivery apps after signup.'
                       : 'Use the email tied to your account to pick up where you left off.'}</Text>
                     <View style={styles.inputContainer}>
                       <Ionicons name="mail-outline" size={24} color={Colors.textSecondary} style={styles.inputIcon} />
@@ -193,11 +209,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     </TouchableOpacity>
                     <View style={styles.infoContainer}>
                       <Text style={styles.infoText}>{form.isRegistering
-                        ? 'You can always connect an inbox or import receipts after your account is ready.'
+                        ? 'You can connect the email registered with your delivery apps or add order history after your account is ready.'
                         : 'After signing in, you will continue into your import and insights flow.'}</Text>
                       {providers.hasOauthOptions ? (
                         <TouchableOpacity style={styles.methodSwapLink} onPress={() => changeAuthMethod('oauth')} accessibilityRole="button">
-                          <Text style={styles.methodSwapLinkText}>Use Google / Apple instead</Text>
+                          <Text style={styles.methodSwapLinkText}>Use Google, Apple, or Microsoft instead</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -210,6 +226,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         </ScrollView>
       </KeyboardAvoidingView>
       <PasswordResetModal visible={showPasswordReset} defaultEmail={form.email} onClose={() => setShowPasswordReset(false)} />
+      <MicrosoftEmailVerificationModal
+        visible={providers.microsoftChallenge !== null}
+        suggestedEmail={providers.microsoftChallenge?.suggestedEmail}
+        onSendCode={providers.sendMicrosoftVerificationEmail}
+        onConfirm={providers.confirmMicrosoftVerificationEmail}
+        onCancel={providers.cancelMicrosoftVerification}
+      />
     </SafeAreaView>
   );
 };

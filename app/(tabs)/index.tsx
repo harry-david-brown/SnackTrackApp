@@ -13,33 +13,57 @@ import { useImportPreferences } from '@hooks/useImportPreferences';
 import { DashboardTrackingCard } from '@components/dashboard/DashboardTrackingCard';
 import { resolveDashboardTrackingState, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
-import { openUberExportEmail } from '@utils/exportDownloadHandoff';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
-import { DashboardSummaryCards } from '@components/dashboard/DashboardSummaryCards';
+import { DashboardSpendingHero } from '@components/dashboard/DashboardSpendingHero';
 import { AppButton } from '@components/ui/AppButton';
 import { Card } from '@components/ui/Card';
 import { SectionHeader } from '@components/ui/SectionHeader';
 import { resolveDashboardInsightsState } from '@components/dashboard/dashboardInsightsState';
 import { DashboardInsightsDevControls } from '@components/dashboard/DashboardInsightsDevControls';
-import { resolveGmailImportResult } from '@features/import-flow/gmailImportResult';
+import { resolveAnalyticsSummaryState } from '@features/dashboard/analyticsSummaryState';
+import {
+  greetingForDate,
+  resolveDashboardPeriodSummary,
+  type DashboardPeriod,
+} from '@features/dashboard/dashboardPeriodSummary';
+import { trackAdminEvent } from '@services/adminAnalytics';
 
 export default function DashboardScreen() {
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
   const [insightsDayOffset, setInsightsDayOffset] = React.useState(0);
+  const [dashboardPeriod, setDashboardPeriod] = React.useState<DashboardPeriod>('current_month');
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
   const insightsQuery = useDashboardInsightsQuery(state.user?.id, __DEV__ ? insightsDayOffset : 0);
   const { data: analytics, refetch: loadAnalytics } = analyticsQuery;
+  const analyticsSummaryState = resolveAnalyticsSummaryState({
+    summary: analytics,
+    isPending: analyticsQuery.isPending,
+    isError: analyticsQuery.isError,
+    isFetching: analyticsQuery.isFetching,
+  });
   const {
     preferences: importPreferences,
     isLoading: areImportPreferencesLoading,
     isUpdating: isImportStateUpdating,
     refresh: refreshImportPreferences,
+    refreshIfStale: refreshImportPreferencesIfStale,
     setOngoingTrackingConsent,
     checkOngoingTracking,
+    setProviderRelevance,
+    setSetupDeferral,
+    error: importPreferencesError,
   } = useImportPreferences(Boolean(state.user?.id));
-  const trackingCardState = resolveDashboardTrackingState(importPreferences, areImportPreferencesLoading);
+  const trackingCardState = resolveDashboardTrackingState(
+    importPreferences,
+    areImportPreferencesLoading,
+    Boolean(importPreferencesError && !importPreferences),
+  );
+  const dashboardSummary = React.useMemo(
+    () => resolveDashboardPeriodSummary(analytics ?? null, dashboardPeriod),
+    [analytics, dashboardPeriod],
+  );
   const insightSectionState = resolveDashboardInsightsState({
     edition: insightsQuery.data,
     isLoading: insightsQuery.isLoading,
@@ -50,8 +74,9 @@ export default function DashboardScreen() {
   
   useFocusEffect(
     React.useCallback(() => {
-      void refreshImportPreferences();
-    }, [refreshImportPreferences])
+      void trackAdminEvent('dashboard_viewed').catch(() => undefined);
+      void refreshImportPreferencesIfStale();
+    }, [refreshImportPreferencesIfStale])
   );
 
 
@@ -68,7 +93,35 @@ export default function DashboardScreen() {
   };
 
   const handleTrackingAction = (action: DashboardTrackingAction) => {
+    if (action === 'retry_preferences') {
+      void refreshImportPreferences();
+      return;
+    }
+    if (action === 'mark_uber_not_used') {
+      showAlert(
+        'Stop recommending Uber Eats history?',
+        'We’ll stop recommending Uber Eats history. You can add it later from Add & manage data.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'I don’t use Uber Eats',
+            onPress: () => {
+              void setProviderRelevance('uber_eats', 'not_used').catch(() => {
+                showSimpleAlert(
+                  'Uber Eats is still relevant',
+                  'SnackTrack found Uber Eats activity or an active history request. Refresh your data status and try again.',
+                );
+              });
+            },
+          },
+        ],
+      );
+      return;
+    }
     if (action === 'open_import') {
+      if (trackingCardState.id === 'setup_deferred') {
+        void setSetupDeferral('resume');
+      }
       router.push('/(tabs)/upload');
       return;
     }
@@ -86,22 +139,20 @@ export default function DashboardScreen() {
       return;
     }
     if (action === 'open_gmail') {
-      void openUberExportEmail().catch(() => {
-        showSimpleAlert('Couldn’t open Gmail', 'Open Gmail and search for “Your Uber data is ready for download.”');
-      });
+      router.push('/(tabs)/upload?focus=export&provider=uber_eats&showExportTutorial=true');
       return;
     }
     if (action === 'enable_tracking') {
       showAlert(
         'Allow ongoing order tracking?',
-        'SnackTrack will periodically read delivery receipt emails from your connected Gmail account to update your spending and stats. You can turn this off at any time.',
+        'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update your spending and stats. You can turn this off at any time.',
         [
           { text: 'Not now', style: 'cancel', onPress: () => { void setOngoingTrackingConsent('declined'); } },
           {
             text: 'Allow tracking',
             onPress: () => {
               void setOngoingTrackingConsent('granted').catch(() => {
-                showSimpleAlert('Couldn’t enable tracking', 'Reconnect Gmail and try again.');
+                showSimpleAlert('Couldn’t enable tracking', 'Restore a Gmail or Outlook connection and try again.');
               });
             },
           },
@@ -110,10 +161,8 @@ export default function DashboardScreen() {
       return;
     }
     void checkOngoingTracking()
-      .then((result) => {
-        const presentation = resolveGmailImportResult(result);
-        showSimpleAlert(presentation.title, presentation.message);
-        return loadAnalytics();
+      .then(() => {
+        showSimpleAlert('Order check queued', 'SnackTrack will check in the background and refresh your dashboard when it finishes.');
       })
       .catch(() => showSimpleAlert('Couldn’t check for orders', 'Please try again in a moment.'));
   };
@@ -139,7 +188,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.content}>
           {/* Error Message */}
-          {analyticsQuery.isError && (
+          {analyticsSummaryState.id === 'error' && (
             <ErrorMessage
               error="We couldn’t refresh your spending summary."
               type="network"
@@ -152,9 +201,9 @@ export default function DashboardScreen() {
             <View style={styles.headerBrand}>
               {/* MASCOT: small logo bust — neutral pose, no label */}
               <MascotPlaceholder pose="neutral" size={44} hideLabel />
-              <View>
-                <Text style={styles.title}>SnackTrack</Text>
-                <Text style={styles.subtitle}>Welcome back!</Text>
+              <View style={styles.headerCopy}>
+                <Text style={styles.title}>{greetingForDate()}</Text>
+                <Text style={styles.subtitle}>Here’s your delivery picture.</Text>
               </View>
             </View>
             {__DEV__ && (
@@ -162,22 +211,30 @@ export default function DashboardScreen() {
             )}
           </View>
           
-	          {/* Stats Cards */}
-          <DashboardSummaryCards
-            totalSpent={analytics ? formatCurrency(analytics.totalSpent) : '—'}
-            receiptCount={analytics?.totalReceipts ?? null}
+          <DashboardSpendingHero
+            summary={dashboardSummary}
+            period={dashboardPeriod}
+            loading={analyticsSummaryState.id === 'loading'}
+            formatCurrency={formatCurrency}
+            onChangePeriod={setDashboardPeriod}
           />
+          {analyticsSummaryState.id === 'refreshing' ? (
+            <Text style={styles.refreshingSummary} accessibilityLiveRegion="polite">
+              Refreshing your summary…
+            </Text>
+          ) : null}
 
-          {/* Contextual import and tracking status */}
-          <View style={styles.actionsContainer}>
-            <SectionHeader title={trackingCardState.sectionLabel} />
-            <DashboardTrackingCard
-              state={trackingCardState}
-              preferences={importPreferences}
-              busy={isImportStateUpdating}
-              onAction={handleTrackingAction}
-            />
-          </View>
+          {trackingCardState.placement === 'priority' ? (
+            <View style={styles.priorityGuidance}>
+              <SectionHeader title={trackingCardState.sectionLabel} />
+              <DashboardTrackingCard
+                state={trackingCardState}
+                preferences={importPreferences}
+                busy={isImportStateUpdating}
+                onAction={handleTrackingAction}
+              />
+            </View>
+          ) : null}
 
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
@@ -219,12 +276,24 @@ export default function DashboardScreen() {
                 <Text style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</Text>
                 <Text style={styles.emptyStateSubtitle}>
                   {insightSectionState.id === 'empty'
-                    ? 'Connect Gmail to get started fast, or upload an Uber Eats or DoorDash export for deeper history.'
+                    ? 'Connect the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.'
                     : 'A few more tracked orders will unlock stronger, stranger patterns.'}
                 </Text>
               </Card>
             )}
           </View>
+
+          {trackingCardState.placement === 'footer' ? (
+            <View style={styles.actionsContainer}>
+              <SectionHeader title={trackingCardState.sectionLabel} />
+              <DashboardTrackingCard
+                state={trackingCardState}
+                preferences={importPreferences}
+                busy={isImportStateUpdating}
+                onAction={handleTrackingAction}
+              />
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -255,13 +324,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  exportUpsellMascot: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
+  headerCopy: { flex: 1 },
   title: {
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: 'bold',
     color: Colors.textPrimary,
     marginBottom: 4,
@@ -271,10 +338,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   actionsContainer: {
+    marginTop: 24,
     marginBottom: 32,
+    gap: 10,
+  },
+  priorityGuidance: { marginTop: 20, gap: 10 },
+  refreshingSummary: {
+    marginTop: 8,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
   },
   activityContainer: {
-    marginBottom: 32,
+    marginTop: 24,
   },
   emptyState: {
     padding: 40,

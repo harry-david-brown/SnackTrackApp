@@ -69,7 +69,7 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
   uber: [
     {
       title: 'Open the notification',
-      description: 'In Gmail, open “Your Uber data is ready for download” from noreply@uber.com, then tap Go to Download Page. The link is available for 7 days.',
+      description: 'Open Uber’s “Your Uber data is ready for download” email or text, then tap Go to Download Page. The link is available for 7 days.',
       image: require('../../assets/UberDataTutorialScreenshots/2/1.webp'),
       imageLabel: 'Uber data-ready email with the download-page button highlighted',
     },
@@ -86,10 +86,10 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
       imageLabel: 'Browser confirmation dialog with Download highlighted',
     },
     {
-      title: 'Choose your export file',
+      title: 'Choose your downloaded ZIP',
       description: 'Return to SnackTrack and choose your downloaded Uber ZIP file.',
       image: require('../../assets/UberDataTutorialScreenshots/3/1.webp'),
-      imageLabel: 'SnackTrack export upload control highlighted',
+      imageLabel: 'SnackTrack history-file chooser highlighted',
     },
     {
       title: 'Select the ZIP',
@@ -101,7 +101,7 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
   doordash: [
     {
       title: 'Open the notification',
-      description: 'DoorDash will email you when the archive is ready. Tap View Your Data Archive.',
+      description: 'Open DoorDash’s data-ready email or notification, then tap View Your Data Archive.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/2/1.webp'),
       imageLabel: 'DoorDash archive-ready email with View Your Data Archive highlighted',
     },
@@ -118,10 +118,10 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
       imageLabel: 'Browser confirmation dialog with Download highlighted',
     },
     {
-      title: 'Choose your export file',
+      title: 'Choose your downloaded ZIP',
       description: 'Return to SnackTrack and choose your downloaded DoorDash ZIP file.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/3/1.webp'),
-      imageLabel: 'SnackTrack export upload control highlighted',
+      imageLabel: 'SnackTrack history-file chooser highlighted',
     },
     {
       title: 'Select the ZIP',
@@ -298,7 +298,7 @@ export default function UberDataTutorial({
         <View style={styles.header}>
           <View style={styles.headerSpacer} />
           <Text style={styles.headerTitle}>
-            {mode === 'request' ? 'Request your data' : 'Download and upload'}
+            {mode === 'request' ? 'Request your data' : 'Download and add'}
           </Text>
           <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
             <Ionicons name="close" size={24} color={Colors.textPrimary} />
@@ -314,7 +314,7 @@ export default function UberDataTutorial({
           <Text style={styles.platformBody}>
             {mode === 'request'
               ? 'Choose a provider and SnackTrack will guide you through requesting its official data archive.'
-              : 'Choose the provider that sent your archive and we’ll guide you through downloading and uploading it.'}
+              : 'Choose the provider that sent your archive and we’ll guide you through downloading and adding it.'}
           </Text>
           <View style={styles.platformStack}>
             {(Object.keys(PLATFORM_DETAILS) as DataPlatform[]).map((option) => {
@@ -325,7 +325,7 @@ export default function UberDataTutorial({
                 : providerStatus === 'requested'
                   ? 'Requested — check what to do next'
                   : providerStatus === 'file_ready'
-                    ? 'Ready — continue to download and upload'
+                    ? 'Ready — continue to download and add'
                     : providerStatus === 'import_processing'
                       ? 'Import is processing'
                       : providerStatus === 'failed'
@@ -373,7 +373,7 @@ export default function UberDataTutorial({
         <View style={styles.questionContent}>
           <Text style={[styles.platformEyebrow, { color: details.accent }]}>IMPORT IN PROGRESS</Text>
           <Text style={styles.platformTitle}>Your {details.name} archive is processing</Text>
-          <Text style={styles.platformBody}>SnackTrack is adding this provider’s history. You do not need to upload the file again.</Text>
+          <Text style={styles.platformBody}>SnackTrack is adding this provider’s history. You do not need to add the file again.</Text>
           <TouchableOpacity style={[styles.primaryButton, { backgroundColor: details.accent }]} onPress={onClose} accessibilityRole="button">
             <Text style={styles.primaryButtonText}>Done</Text>
           </TouchableOpacity>
@@ -416,7 +416,7 @@ export default function UberDataTutorial({
           <Text style={styles.platformBody}>
             {showRequestedQuestion
               ? `Choose the option that matches where you are with ${details.name}.`
-              : 'No digging around for a file you do not have yet. We’ll only show the upload picker when it makes sense.'}
+              : 'No digging around for a file you do not have yet. We’ll only ask you to choose a file when it makes sense.'}
           </Text>
           <View style={styles.answerStack}>
             {showRequestedQuestion ? (

@@ -106,6 +106,11 @@ export const featureFlags = {
   get showAppleAuth() {
 	return true;
   },
+
+  /** Show Microsoft only when its native public-client configuration is present. */
+  get showMicrosoftAuth() {
+	return true;
+  },
   
   /** Show Gmail import feature */
   get showGmailImport() {

@@ -97,12 +97,12 @@ export function GmailImportLoadingModal({
   }, [cardOpacity, cardScale, showSuccess, messageOpacity, successScale, visible]);
 
   const isConnecting = connectPhase === 'connecting';
-  const inProgressTitle = isConnecting ? 'Connecting Gmail' : 'Importing from Gmail';
+  const inProgressTitle = isConnecting ? 'Connecting Gmail' : 'Scanning Gmail';
   const statusText = isConnecting
-    ? 'Securing your inbox connection...'
+    ? 'Securing your email connection...'
     : flowState === 'preparing_import'
-      ? 'Warming up the inbox...'
-      : 'Importing receipt evidence...';
+      ? 'Preparing your receipt scan...'
+      : 'Checking supported delivery receipts...';
   return (
     <Modal
       visible={visible}
@@ -163,8 +163,8 @@ export function GmailImportLoadingModal({
                 <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
                 <Text style={styles.loadingModalFooterText}>
                   {isConnecting
-                    ? 'Hang tight while we finish connecting your inbox.'
-                    : 'Keep this open while SnackTrack does the inbox archaeology.'}
+                    ? 'Keep this open while we finish connecting Gmail.'
+                    : 'Keep this open while SnackTrack finishes the scan.'}
                 </Text>
               </View>
             </>

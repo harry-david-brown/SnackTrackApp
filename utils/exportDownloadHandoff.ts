@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Linking, Platform } from 'react-native';
-import type { ExportProvider } from '@services/gmailApi';
+import { Linking } from 'react-native';
+import type { ExportProvider } from '@features/import-flow/contracts';
 
 export type ExportDownloadHandoffState = 'not_downloaded' | 'checking_email' | 'downloaded';
 
@@ -91,13 +91,11 @@ export async function resetExportDownloadStateForProvider(
 
 /** Opens Gmail when installed, falling back to a focused Gmail web search. */
 export async function openUberExportEmail(): Promise<'gmail_app' | 'gmail_web'> {
-  if (Platform.OS !== 'web') {
-    try {
-      await Linking.openURL(GMAIL_APP_URL);
-      return 'gmail_app';
-    } catch {
-      // Continue to the portable Gmail web fallback.
-    }
+  try {
+    await Linking.openURL(GMAIL_APP_URL);
+    return 'gmail_app';
+  } catch {
+    // Continue to the portable Gmail web fallback.
   }
 
   await Linking.openURL(UBER_EXPORT_GMAIL_SEARCH_URL);

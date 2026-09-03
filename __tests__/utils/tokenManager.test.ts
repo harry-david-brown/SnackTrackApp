@@ -11,6 +11,7 @@ import {
   getRefreshToken,
   getUserId,
   getUserData,
+  updateStoredUserData,
   isTokenExpired,
   updateAccessToken,
   clearAuthTokens,
@@ -53,7 +54,12 @@ describe('Token Manager', () => {
       const accessToken = 'test-access-token';
       const refreshToken = 'test-refresh-token';
       const userId = 'test-user-id';
-      const userData = { id: userId, email: 'test@example.com', createdAt: '2025-01-01' };
+      const userData = {
+        id: userId,
+        email: 'test@example.com',
+        createdAt: '2025-01-01',
+        emailVerified: true,
+      };
 
       await storeAuthTokens(accessToken, refreshToken, userId, userData);
 
@@ -88,7 +94,12 @@ describe('Token Manager', () => {
       (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
 
       await expect(
-        storeAuthTokens('token', 'refresh', 'id', {})
+        storeAuthTokens('token', 'refresh', 'id', {
+          id: 'id',
+          email: 'test@example.com',
+          createdAt: '2025-01-01',
+          emailVerified: false,
+        })
       ).rejects.toThrow('Failed to store authentication tokens');
     });
   });
@@ -166,7 +177,12 @@ describe('Token Manager', () => {
 
   describe('getUserData', () => {
     it('should retrieve and parse user data from storage', async () => {
-      const userData = { id: '123', email: 'test@example.com' };
+      const userData = {
+        id: '123',
+        email: 'test@example.com',
+        createdAt: '2025-01-01',
+        emailVerified: true,
+      };
       (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(JSON.stringify(userData));
 
       const result = await getUserData();
@@ -190,6 +206,35 @@ describe('Token Manager', () => {
 
       expect(result).toBeNull();
       expect(console.error).toHaveBeenCalledWith('❌ [ERROR]', 'Error getting user data:', expect.any(Error));
+    });
+  });
+
+  describe('updateStoredUserData', () => {
+    it('should persist an updated email verification state', async () => {
+      const userData = {
+        id: '123',
+        email: 'test@example.com',
+        createdAt: '2025-01-01',
+        emailVerified: true,
+      };
+
+      await updateStoredUserData(userData);
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        AUTH_STORAGE_KEYS.USER_DATA,
+        JSON.stringify(userData),
+      );
+    });
+
+    it('should report a persistence failure', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('Storage error'));
+
+      await expect(updateStoredUserData({
+        id: '123',
+        email: 'test@example.com',
+        createdAt: '2025-01-01',
+        emailVerified: true,
+      })).rejects.toThrow('Failed to update stored user data');
     });
   });
 
@@ -350,4 +395,3 @@ describe('Token Manager', () => {
     });
   });
 });
-

@@ -23,8 +23,8 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>👤 Profile</Text>
-        <Text style={styles.subtitle}>Account settings</Text>
+        <Text style={styles.title}>You</Text>
+        <Text style={styles.subtitle}>Your data, preferences, and account</Text>
         <EmailVerificationBanner />
         <ProfileSummaryCard
           email={profile.user.email}
@@ -34,9 +34,11 @@ export default function ProfileScreen() {
         />
         <ProfileSettingsCard
           currency={profile.currency}
+          mailboxConnectionsLabel={profile.settings.mailboxConnectionsLabel}
           exportAlertsLabel={profile.settings.exportAlertsLabel}
           ongoingTrackingLabel={profile.settings.ongoingTrackingLabel}
           providerExportLabel={profile.settings.providerExportLabel}
+          importNotificationsLabel={profile.importNotificationsLabel}
           importPreferencesBusy={profile.arePreferencesBusy}
           destructiveActionBusy={profile.isClearingReceipts || profile.isDeleting}
           showDevelopmentReset={profile.showDevelopmentReset}
@@ -44,16 +46,18 @@ export default function ProfileScreen() {
           onOpenImport={profile.openImport}
           onToggleExportAlerts={profile.toggleExportAlerts}
           onToggleOngoingTracking={profile.toggleOngoingTracking}
+          onToggleImportNotifications={profile.toggleImportNotifications}
           onOpenTutorial={() => profile.openModal('tutorial')}
           onOpenCurrency={() => profile.openModal('currency')}
           onOpenHelp={() => profile.openModal('help')}
           onDevelopmentReset={profile.requestDevelopmentReset}
           onClearReceipts={profile.requestClearReceipts}
+          onDeleteAccount={profile.requestAccountDeletion}
           onLogout={profile.requestLogout}
         />
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>SnackTrack v1.0.0</Text>
-          <Text style={styles.appInfoText}>Made with ❤️</Text>
+          <Text style={styles.appInfoText}>Built for clearer delivery spending</Text>
         </View>
       </ScrollView>
       <ProfileModals {...profile} />
@@ -66,8 +70,8 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: Colors.textPrimary, textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center' },
+  title: { fontSize: 32, fontWeight: '800', color: Colors.textPrimary, marginBottom: 4 },
+  subtitle: { fontSize: 15, color: Colors.textSecondary, marginBottom: 4 },
   appInfo: { alignItems: 'center', padding: 20 },
   appInfoText: { fontSize: 14, color: Colors.gray500, marginBottom: 4 },
 });

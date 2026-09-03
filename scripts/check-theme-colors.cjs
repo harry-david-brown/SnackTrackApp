@@ -1,3 +1,5 @@
+/* global __dirname */
+
 /**
  * Prevent palette drift by rejecting raw color strings in application source.
  * Color values belong in constants/theme.ts; consumers should import Colors.

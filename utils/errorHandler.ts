@@ -3,10 +3,9 @@
  * Provides consistent error handling patterns across the application
  */
 
-import { AxiosError } from 'axios';
 import { parseApiError, ApiError } from './errorUtils';
 import { logger } from './logger';
-import { HTTP_STATUS } from '@/constants';
+import { ApiClientError } from '@services/api/apiError';
 
 /**
  * Handle API errors with standardized logging and error transformation
@@ -28,15 +27,7 @@ export const handleApiError = (error: unknown, context?: string): ApiError => {
  * Check if error is a network error
  */
 export const isNetworkError = (error: unknown): boolean => {
-  if (error instanceof AxiosError) {
-    return !error.response || error.code === 'ECONNABORTED';
-  }
-  
-  if (error instanceof Error) {
-    return error.message === 'Network Error' || error.message.includes('network');
-  }
-  
-  return false;
+  return parseApiError(error).type === 'network';
 };
 
 /**
@@ -58,15 +49,8 @@ export const getErrorMessage = (error: unknown): string => {
  * Handle session expiration errors
  */
 export const isSessionExpired = (error: unknown): boolean => {
-  if (error instanceof Error) {
-    return error.message === 'SESSION_EXPIRED';
-  }
-  
-  if (error instanceof AxiosError) {
-    return error.response?.status === HTTP_STATUS.UNAUTHORIZED;
-  }
-  
-  return false;
+  const parsed = parseApiError(error);
+  return parsed.code === 'SESSION_EXPIRED' || parsed.statusCode === 401;
 };
 
 /**
@@ -76,10 +60,10 @@ export const createError = (
   message: string,
   type: 'network' | 'validation' | 'server' | 'unknown' = 'unknown',
   statusCode?: number
-): Error => {
-  const error = new Error(message);
-  (error as any).type = type;
-  (error as any).statusCode = statusCode;
-  return error;
-};
-
+): Error => new ApiClientError({
+  code: 'LOCAL_ERROR',
+  message,
+  kind: type,
+  retryable: type === 'network' || type === 'server',
+  statusCode,
+});

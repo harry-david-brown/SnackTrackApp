@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
-  Platform,
   AccessibilityInfo,
   Modal,
   ActivityIndicator,
@@ -57,9 +56,10 @@ import {
 import type {
   OngoingTrackingEffectiveState,
   ProviderExportLifecycleStatus,
-} from '@services/gmailApi';
+} from '@features/import-flow/contracts';
 import { useWrappedSharing } from './useWrappedSharing';
 import type { TrackingEligibility } from '@features/import-flow/trackingEligibility';
+import { trackAdminEvent } from '@services/adminAnalytics';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -86,7 +86,7 @@ interface WrappedShareJourneyProps {
   exportProviderName?: string | null;
   areImportPreferencesUpdating?: boolean;
   onTrackingDecision?: (decision: 'granted' | 'declined') => Promise<void>;
-  onManageGmail?: () => void;
+  onManageEmail?: () => void;
   onExportUpsellSeen?: () => void;
   onExportUpgrade?: () => void;
   onExportTutorial?: () => void;
@@ -104,7 +104,7 @@ export default function WrappedShareJourney({
   exportProviderName,
   areImportPreferencesUpdating = false,
   onTrackingDecision,
-  onManageGmail,
+  onManageEmail,
   onExportUpsellSeen,
   onExportUpgrade,
   onExportTutorial,
@@ -186,6 +186,28 @@ export default function WrappedShareJourney({
     saveToPhotos: handleSaveToPhotos,
   } = useWrappedSharing(shareTargetIndex, slides);
   const shouldAutoAdvance = currentSlide < slides.length - 1;
+
+  React.useEffect(() => {
+    void trackAdminEvent('wrapped_started').catch(() => undefined);
+  }, []);
+
+  React.useEffect(() => {
+    if (!activeSlide) return;
+    void trackAdminEvent('wrapped_slide_viewed', {
+      properties: { slideId: activeSlide.id, deckPosition: currentSlide + 1, deckLength: slides.length },
+    }).catch(() => undefined);
+  }, [activeSlide, currentSlide, slides.length]);
+
+  const handleTrackedClose = useCallback(() => {
+    void trackAdminEvent('wrapped_exited', {
+      properties: {
+        slideId: activeSlide?.id ?? 'unknown',
+        deckPosition: currentSlide + 1,
+        deckLength: slides.length,
+      },
+    }).catch(() => undefined);
+    onClose();
+  }, [activeSlide?.id, currentSlide, onClose, slides.length]);
 
   React.useEffect(() => {
     if (currentSlide > slides.length - 1) {
@@ -649,7 +671,7 @@ export default function WrappedShareJourney({
 
       <TouchableOpacity
         style={[styles.iconButton, styles.closeButton, { top: Math.max(44, insets.top + 16) }]}
-        onPress={onClose}
+        onPress={handleTrackedClose}
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Close Wrapped"
@@ -673,6 +695,7 @@ export default function WrappedShareJourney({
           <TouchableOpacity
             style={styles.doneCtaButton}
             onPress={() => {
+              void trackAdminEvent('wrapped_completed').catch(() => undefined);
               setPostDeckStep(resolveInitialPostDeckStep(postWrappedExperience.exportEligibility));
               setShowPostDeckOffer(true);
             }}
@@ -695,17 +718,15 @@ export default function WrappedShareJourney({
         <Ionicons name="share-outline" size={22} color={Colors.white} />
       </TouchableOpacity>
 
-      {Platform.OS !== 'web' && (
-        <TouchableOpacity
-          style={[styles.iconButton, styles.saveIconButton, { top: Math.max(44, insets.top + 16) }]}
-          onPress={handleSaveToPhotos}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Save this slide to Photos"
-        >
-          <Ionicons name="download-outline" size={22} color={Colors.white} />
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[styles.iconButton, styles.saveIconButton, { top: Math.max(44, insets.top + 16) }]}
+        onPress={handleSaveToPhotos}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Save this slide to Photos"
+      >
+        <Ionicons name="download-outline" size={22} color={Colors.white} />
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.iconButton, styles.muteIconButton, { top: Math.max(44, insets.top + 16) }]}
@@ -763,7 +784,7 @@ export default function WrappedShareJourney({
                       onPress={continueFromTracking}
                       accessibilityRole="button"
                       accessibilityLabel={postWrappedExperience.exportEligibility === 'show'
-                        ? 'Continue to optional export history'
+                        ? 'Continue to optional delivery-app history'
                         : 'Finish and return to the dashboard'}
                     >
                       <Text style={styles.affiliateButtonText}>
@@ -777,14 +798,14 @@ export default function WrappedShareJourney({
                         style={styles.affiliateButton}
                         onPress={() => {
                           setShowPostDeckOffer(false);
-                          onManageGmail?.();
+                          onManageEmail?.();
                         }}
                         accessibilityRole="button"
                         accessibilityLabel={trackingEligibility.reason === 'historical_baseline_required'
                           ? 'Check email from the import screen'
                           : trackingEligibility.reason === 'gmail_temporarily_unavailable'
-                            ? 'Gmail is temporarily unavailable'
-                            : 'Reconnect Gmail from the import screen'}
+                            ? 'Email is temporarily unavailable'
+                            : 'Manage email connections from the import screen'}
                       >
                         <Ionicons name="mail-outline" size={20} style={styles.affiliateButtonIcon} />
                         <Text style={styles.affiliateButtonText}>
@@ -792,7 +813,7 @@ export default function WrappedShareJourney({
                             ? 'Add Import History First'
                             : trackingEligibility.reason === 'gmail_temporarily_unavailable'
                               ? 'Try Again Later'
-                              : 'Reconnect Gmail'}
+                              : 'Manage Email'}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -855,32 +876,32 @@ export default function WrappedShareJourney({
                 </Text>
                 <Text style={styles.offerTitle}>
                   {hasRequestedExport
-                    ? `Your ${providerName} export request is saved`
+                    ? `Your ${providerName} history request is saved`
                     : exportStatus === 'file_ready'
-                      ? `Your ${providerName} export is ready to finish`
+                      ? `Your ${providerName} history file is ready to add`
                     : exportStatus === 'import_processing'
-                      ? `We're processing your ${providerName} export`
+                      ? `We're adding your ${providerName} history`
                       : exportStatus === 'failed'
                         ? `Your ${providerName} import needs another try`
                         : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? 'Your inbox may be missing history'
+                          ? 'Your email receipts may not cover your full history'
                           : 'Make your history more complete'}
                 </Text>
                 <Text style={styles.offerBody}>
                   {hasRequestedExport
-                    ? `When ${providerName} emails that the archive is ready, return to Import to download and upload it. Uber-ready email checks can be enabled separately.`
+                    ? `When ${providerName} emails that the archive is ready, return to Add & manage data to download and add it. Uber-ready email checks can be enabled separately.`
                     : exportStatus === 'file_ready'
-                      ? 'SnackTrack found the matching export delivery. Open Import to finish adding the file to your history.'
+                      ? 'SnackTrack found the matching data-ready message. Open Add & manage data to finish adding the file to your history.'
                     : exportStatus === 'import_processing'
                       ? 'Your file is being processed. Your history will update when the import finishes.'
                       : exportStatus === 'failed'
-                        ? `The last ${providerName} file did not finish importing. Try again with a fresh export.`
+                        ? `The last ${providerName} file did not finish. Try again with a newly downloaded archive.`
                         : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? `We only found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. An Uber Eats or DoorDash export can recover older history.`
-                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add another delivery export to uncover older orders and fill in gaps.`}
+                          ? `We only found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. An Uber Eats or DoorDash history archive can recover older orders.`
+                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add another delivery app’s history to uncover older orders and fill in gaps.`}
                 </Text>
                 {!hasRequestedExport && exportStatus === 'not_started' ? (
-                  <View style={styles.consentDetails} accessibilityLabel="Examples of insights unlocked by a delivery data export">
+                  <View style={styles.consentDetails} accessibilityLabel="Examples of insights unlocked by downloaded delivery history">
                     <View style={styles.consentDetailRow}>
                       <Ionicons name="repeat-outline" size={17} color={Colors.mascotHighlight} />
                       <Text style={styles.consentDetailText}>Your exact repeat order and menu soulmate</Text>
@@ -925,7 +946,7 @@ export default function WrappedShareJourney({
                           onExportUpgrade?.();
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel={`Upload a ${providerName} export you already have`}
+                        accessibilityLabel={`Add a ${providerName} history archive you already have`}
                       >
                         <Ionicons
                           name="cloud-upload-outline"
@@ -937,7 +958,7 @@ export default function WrappedShareJourney({
                             ? styles.exportSecondaryButtonText
                             : styles.affiliateButtonText}
                         >
-                          Upload an Existing Export
+                          Add an Existing History File
                         </Text>
                       </TouchableOpacity>
                     </>
@@ -946,7 +967,7 @@ export default function WrappedShareJourney({
                     style={styles.exportDismissButton}
                     onPress={finishPostWrapped}
                     accessibilityRole="button"
-                    accessibilityLabel="Finish without importing an export"
+                    accessibilityLabel="Finish without adding downloaded history"
                   >
                     <Text style={styles.offerDismissText}>Finish for now</Text>
                   </TouchableOpacity>
