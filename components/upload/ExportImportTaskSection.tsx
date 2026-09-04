@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius } from '@constants/theme';
+import { Radius, type AppTheme } from '@constants/theme';
+import { useMemo } from 'react';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportFlowState, ImportTaskState } from '@features/import-flow/importFlowResolver';
 import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import {
@@ -34,6 +36,8 @@ interface ExportImportTaskSectionProps {
 }
 
 export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const importComplete = props.state.complete;
   const hasImportedProvider = props.providerProgress.importedCount > 0;
   const importedProviderName = props.providerProgress.uberEats.imported ? 'Uber Eats' : 'DoorDash';
@@ -96,7 +100,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
         </Text>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Ionicons name={importComplete ? 'checkmark-circle-outline' : waitingForDownload ? 'mail-unread-outline' : readyToUpload ? 'cloud-upload-outline' : 'document-text-outline'} size={28} color={Colors.primary} />
+            <Ionicons name={importComplete ? 'checkmark-circle-outline' : waitingForDownload ? 'mail-unread-outline' : readyToUpload ? 'cloud-upload-outline' : 'document-text-outline'} size={28} color={theme.colors.primary} />
             <View style={styles.headerText}>
               <Text style={styles.title}>
                 {waitingForDownload
@@ -231,7 +235,9 @@ function ProviderStatusRow({
   imported: boolean;
   status: string;
 }) {
-  const accent = platform === 'uber' ? Colors.uberDark : Colors.doorDash;
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const accent = platform === 'uber' ? theme.colors.uberDark : theme.colors.doorDash;
   const statusLabel = status === 'requested' ? imported ? 'Update requested' : 'Requested'
       : status === 'file_ready' ? 'Ready'
         : status === 'import_processing' ? 'Importing'
@@ -240,7 +246,7 @@ function ProviderStatusRow({
   const statusComplete = imported && status === 'completed';
   return (
     <View style={styles.providerRow} accessibilityLabel={`${name}: ${statusLabel}`}>
-      <View style={[styles.providerIcon, { backgroundColor: Colors.alpha(accent, 0.12) }]}>
+      <View style={[styles.providerIcon, { backgroundColor: theme.colors.alpha(accent, 0.12) }]}>
         <Ionicons name={platform === 'uber' ? 'car-outline' : 'bag-handle-outline'} size={20} color={accent} />
       </View>
       <Text style={styles.providerName}>{name}</Text>
@@ -248,7 +254,7 @@ function ProviderStatusRow({
         <Ionicons
           name={statusComplete ? 'checkmark-circle' : 'ellipse-outline'}
           size={15}
-          color={statusComplete ? Colors.successDark : Colors.textSecondary}
+          color={statusComplete ? theme.colors.successDark : theme.colors.textSecondary}
         />
         <Text style={[styles.providerStatusText, statusComplete && styles.providerStatusTextImported]}>
           {statusLabel}
@@ -259,33 +265,35 @@ function ProviderStatusRow({
 }
 
 function EmailRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return <View style={styles.emailRow}><Text style={styles.emailLabel}>{label}</Text><View style={styles.emailValueColumn}><Text style={styles.emailValue}>{value}</Text>{detail ? <Text style={styles.emailDetail}>{detail}</Text> : null}</View></View>;
 }
 
-const styles = StyleSheet.create({
-  helper: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginTop: 12 },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  helper: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 19, marginTop: 12 },
   content: { marginTop: 14, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'flex-start' },
   headerText: { flex: 1, marginLeft: 12 },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  subtitle: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
+  title: { fontSize: 18, fontWeight: '500', color: theme.colors.textPrimary, marginBottom: 4 },
+  subtitle: { fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 },
   actionStack: { gap: 12 },
-  providerList: { borderWidth: 1, borderColor: Colors.slate200, borderRadius: Radius.input, backgroundColor: Colors.slateFrost },
+  providerList: { borderWidth: 1, borderColor: theme.colors.slate200, borderRadius: Radius.input, backgroundColor: theme.colors.slateFrost },
   providerRow: { minHeight: 58, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  providerDivider: { height: 1, marginHorizontal: 12, backgroundColor: Colors.slate200 },
+  providerDivider: { height: 1, marginHorizontal: 12, backgroundColor: theme.colors.slate200 },
   providerIcon: { width: 34, height: 34, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  providerName: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
+  providerName: { flex: 1, fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
   providerStatus: { minHeight: 28, paddingHorizontal: 8, borderRadius: Radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  providerStatusImported: { backgroundColor: Colors.successSurfaceCool },
-  providerStatusPending: { backgroundColor: Colors.slate50 },
-  providerStatusText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
-  providerStatusTextImported: { color: Colors.successDark },
-  emailCard: { padding: 14, borderWidth: 1, borderColor: Colors.slate200, borderRadius: Radius.input, backgroundColor: Colors.slate50 },
+  providerStatusImported: { backgroundColor: theme.colors.successSurfaceCool },
+  providerStatusPending: { backgroundColor: theme.colors.slate50 },
+  providerStatusText: { fontSize: 11, fontWeight: '500', color: theme.colors.textSecondary },
+  providerStatusTextImported: { color: theme.colors.successDark },
+  emailCard: { padding: 14, borderWidth: 1, borderColor: theme.colors.slate200, borderRadius: Radius.input, backgroundColor: theme.colors.slate50 },
   emailRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  emailLabel: { width: 58, paddingTop: 1, fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  emailLabel: { width: 58, paddingTop: 1, fontSize: 12, fontWeight: '500', color: theme.colors.textSecondary },
   emailValueColumn: { flex: 1 },
-  emailValue: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: Colors.textPrimary },
-  emailDetail: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
-  divider: { height: 1, marginVertical: 11, backgroundColor: Colors.slate200 },
-  locationHint: { fontSize: 13, lineHeight: 19, color: Colors.textSecondary },
+  emailValue: { fontSize: 14, lineHeight: 19, fontWeight: '500', color: theme.colors.textPrimary },
+  emailDetail: { marginTop: 2, fontSize: 12, color: theme.colors.textSecondary },
+  divider: { height: 1, marginVertical: 11, backgroundColor: theme.colors.slate200 },
+  locationHint: { fontSize: 13, lineHeight: 19, color: theme.colors.textSecondary },
 });

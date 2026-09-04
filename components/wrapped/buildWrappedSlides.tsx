@@ -19,7 +19,7 @@ import { Text, View } from 'react-native';
 import { UserSummary } from '@/types/api';
 import { getDeterministicMessage } from '@utils/wrappedMessages';
 import { getArchetype, ARCHETYPE_COUNT } from '@utils/wrappedArchetype';
-import { MascotPose } from '@components/mascot/MascotPlaceholder';
+import { MascotPose } from '@components/mascot/Mascot';
 import { STORY_GRADIENTS } from './wrappedTheme';
 import { AnimatedCount, DelayedFadeIn, DelayedSlam, Spacer } from './WrappedSlideEffects';
 import { MonthlySpendChart } from './MonthlySpendChart';
@@ -127,22 +127,7 @@ export function buildWrappedSlides({
   const wrapped = analytics.wrappedAnalytics;
   const percentiles = wrapped?.percentiles;
   const lifetimeScope = { kind: 'lifetime' } as const;
-  const coverage = wrapped?.coverage;
-  const importedOrderCount = coverage?.orderCount ?? analytics.totalReceipts;
-  const formatCoverageMonth = (dateString: string) => {
-    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateString);
-    const date = dateOnly
-      ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-      : new Date(dateString);
-    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  };
-  const coverageWindow = coverage?.earliestOrderDate && coverage?.latestOrderDate
-    ? `${formatCoverageMonth(coverage.earliestOrderDate)}–${formatCoverageMonth(coverage.latestOrderDate)}`
-    : null;
-  const coverageHeadline = coverageWindow
-    ? `${importedOrderCount} imported orders · ${coverageWindow}`
-    : `${importedOrderCount} imported orders currently in SnackTrack`;
-
+  const importedOrderCount = wrapped?.coverage?.orderCount ?? analytics.totalReceipts;
   // "Top X% of eaters" pill — cross-user standing, shown only when the pool was
   // large enough for the API to return a percentile. Suppressed for unremarkable
   // middle-of-the-pack standings (top >50% isn't a flex).

@@ -1,5 +1,5 @@
 import type { ImportOperation } from './contracts';
-import { resolveImportProgressPresentation } from './importProgressPresentation';
+import { IMPORT_PROGRESS_MIN_STEP_MS, resolveImportProgressPresentation, resolveImportProgressSteps } from './importProgressPresentation';
 
 const operation = (stage: NonNullable<ImportOperation['presentation']>['stage'], discoveredOrderCount: number | null): ImportOperation => ({
   id: 'operation-1', kind: 'gmail_historical', trigger: 'user', status: 'running', phase: 'processing', progress: 10,
@@ -21,5 +21,12 @@ describe('import progress presentation', () => {
   it('only says receipts were found after durable discovery', () => {
     expect(resolveImportProgressPresentation(operation('discovering', 0)).title).toBe('Finding your receipts');
     expect(resolveImportProgressPresentation(operation('building_history', 3)).title).toBe('We found your receipts');
+  });
+
+  it('exposes the half-second pacing interval and subtle step sequence', () => {
+    expect(IMPORT_PROGRESS_MIN_STEP_MS).toBe(500);
+    expect(resolveImportProgressSteps(0)).toEqual(['active', 'pending', 'pending', 'pending']);
+    expect(resolveImportProgressSteps(2)).toEqual(['complete', 'complete', 'active', 'pending']);
+    expect(resolveImportProgressSteps(4)).toEqual(['complete', 'complete', 'complete', 'complete']);
   });
 });

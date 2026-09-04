@@ -1,8 +1,10 @@
-import { Colors } from '@constants/theme';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MascotPlaceholder, MascotPose } from '@components/mascot/MascotPlaceholder';
+import { Mascot, MascotPose } from '@components/mascot/Mascot';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from './AppText';
+import { AppButton } from './AppButton';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -25,23 +27,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
   mascotPose = 'pointing',
 }) => {
+  const theme = useAppTheme();
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
         {mascotPose ? (
-          <MascotPlaceholder pose={mascotPose} size={120} />
+          <Mascot pose={mascotPose} size={120} />
         ) : (
-          <Ionicons name={icon} size={64} color={Colors.primary} />
+          <Ionicons name={icon} size={64} color={theme.colors.primary} />
         )}
       </View>
 
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <AppText variant="pageTitle" style={styles.title}>{title}</AppText>
+      <AppText variant="body" style={styles.message}>{message}</AppText>
 
       {actionText && onAction && (
-        <TouchableOpacity style={styles.actionButton} onPress={onAction}>
-          <Text style={styles.actionText}>{actionText}</Text>
-        </TouchableOpacity>
+        <AppButton label={actionText} onPress={onAction} />
       )}
     </View>
   );
@@ -58,29 +59,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
-    fontSize: 16,
-    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
     marginBottom: 32,
-  },
-  actionButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  actionText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

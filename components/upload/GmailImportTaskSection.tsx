@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '@constants/theme';
+import type { AppTheme } from '@constants/theme';
+import { useMemo } from 'react';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportTaskState } from '@features/import-flow/importFlowResolver';
 import { AppButton } from '@components/ui/AppButton';
 import { Card } from '@components/ui/Card';
@@ -36,6 +38,8 @@ interface GmailImportTaskSectionProps {
 }
 
 export function GmailImportTaskSection(props: GmailImportTaskSectionProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const gmailConnected = props.gmailConnected ?? props.connected ?? false;
   const outlookConnected = props.outlookConnected ?? false;
   const canImportGmail = props.canImportGmail ?? props.canImport ?? false;
@@ -46,7 +50,7 @@ export function GmailImportTaskSection(props: GmailImportTaskSectionProps) {
         accessibilityLabel={`${props.title}. ${props.state.label}. ${props.description}`}
         style={styles.completedCard}
       >
-        <IconSurface icon="checkmark-circle" color={Colors.secondary} />
+        <IconSurface icon="checkmark-circle" color={theme.colors.secondary} />
         <View style={styles.completedCopy}>
           <View style={styles.completedTitleRow}>
             <Text style={styles.completedTitle}>{props.title}</Text>
@@ -99,11 +103,11 @@ export function GmailImportTaskSection(props: GmailImportTaskSectionProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  helper: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginTop: 12 },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  helper: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 19, marginTop: 12 },
   completedCard: { padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   completedCopy: { flex: 1, paddingTop: 1 },
   completedTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  completedTitle: { color: Colors.textPrimary, fontSize: 17, fontWeight: '800' },
-  completedDescription: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
+  completedTitle: { color: theme.colors.textPrimary, fontSize: 17, fontWeight: '600' },
+  completedDescription: { color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20 },
 });

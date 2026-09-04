@@ -1,14 +1,14 @@
-import { Colors } from '@constants/theme';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@contexts/UserContext';
 import EmailVerificationModal from './EmailVerificationModal';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from '@components/ui/AppText';
 
 interface EmailVerificationBannerProps {
   onDismiss?: () => void;
@@ -18,6 +18,8 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
   const { state, markEmailVerified } = useUser();
   const [showModal, setShowModal] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Don't show if user is verified or dismissed
   if (!state.user || state.user.emailVerified || isDismissed) {
@@ -43,12 +45,12 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
     <>
       <View style={styles.banner}>
         <View style={styles.content}>
-          <Ionicons name="mail-outline" size={20} color={Colors.primary} style={styles.icon} />
+          <Ionicons name="mail-outline" size={20} color={theme.colors.primary} style={styles.icon} />
           <View style={styles.textContainer}>
-            <Text style={styles.title}>Verify your email</Text>
-            <Text style={styles.subtitle}>
+            <AppText variant="rowTitle" style={styles.title}>Verify your email</AppText>
+            <AppText variant="metadata" style={styles.subtitle}>
               Optional for now. Verify to help protect account recovery.
-            </Text>
+            </AppText>
           </View>
         </View>
         <View style={styles.actions}>
@@ -58,7 +60,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
             accessibilityRole="button"
             accessibilityLabel="Verify email address"
           >
-            <Text style={styles.verifyButtonText}>Verify</Text>
+            <AppText variant="button" style={styles.verifyButtonText}>Verify</AppText>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dismissButton}
@@ -67,7 +69,7 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
             accessibilityLabel="Dismiss email verification reminder"
             hitSlop={8}
           >
-            <Ionicons name="close" size={18} color={Colors.textSecondary} />
+            <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -82,11 +84,11 @@ const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = ({ onDis
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   banner: {
-    backgroundColor: Colors.infoSurface,
+    backgroundColor: theme.colors.infoBg,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    borderLeftColor: theme.colors.primary,
     padding: 16,
     marginHorizontal: 16,
     marginTop: 16,
@@ -95,14 +97,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    ...theme.shadows.card,
   },
   content: {
     flex: 1,
@@ -117,15 +112,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.infoDark,
+    color: theme.colors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',
@@ -133,15 +123,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   verifyButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   verifyButtonText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '600',
+    color: theme.colors.buttonPrimaryText,
   },
   dismissButton: {
     padding: 4,
@@ -149,4 +137,3 @@ const styles = StyleSheet.create({
 });
 
 export default EmailVerificationBanner;
-

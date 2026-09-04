@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius } from '@constants/theme';
+import { Radius, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { useUser } from '@contexts/UserContext';
 import { useNetworkStatus } from '@hooks/useNetworkStatus';
 import { useExportImport } from '@hooks/useExportImport';
@@ -53,6 +54,8 @@ export function ExportDataUpload({
   autoOpenToken = null,
   onAutoOpenConsumed,
 }: UberDataUploadProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
   const network = useNetworkStatus();
   const exportImport = useExportImport();
@@ -149,7 +152,7 @@ export function ExportDataUpload({
   if (exportImport.isPending && selectedArchive) {
     return (
       <View style={styles.processing} accessibilityLiveRegion="polite" accessibilityLabel={`Adding ${selectedArchive.name}`}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <View style={styles.processingCopy}>
           <Text style={styles.processingTitle}>{exportImport.uploadProgress < 1 ? 'Uploading your history…' : 'Queued for import'}</Text>
           <Text style={styles.processingFile} numberOfLines={1}>{selectedArchive.name}</Text>
@@ -163,7 +166,7 @@ export function ExportDataUpload({
     <View style={styles.actions}>
       {selectedArchive ? (
         <View style={styles.selectedFile}>
-          <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+          <Ionicons name="document-text-outline" size={24} color={theme.colors.primary} />
           <View style={styles.selectedCopy}>
             <Text style={styles.fileName} numberOfLines={1}>{selectedArchive.name}</Text>
             <Text style={styles.fileSize}>{formatFileSize(selectedArchive.size)}</Text>
@@ -181,18 +184,18 @@ export function ExportDataUpload({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   actions: { gap: 10 },
-  processing: { minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: Radius.input, backgroundColor: Colors.infoBg, borderWidth: 1, borderColor: Colors.infoBorder },
+  processing: { minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: Radius.input, backgroundColor: theme.colors.infoBg, borderWidth: 1, borderColor: theme.colors.infoBorder },
   processingCopy: { flex: 1 },
-  processingTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
-  processingFile: { color: Colors.textSecondary, fontSize: 13, marginTop: 4 },
-  processingHint: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 5 },
-  selectedFile: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: Radius.input, backgroundColor: Colors.slate50, borderWidth: 1, borderColor: Colors.slate200 },
+  processingTitle: { color: theme.colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  processingFile: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 4 },
+  processingHint: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 5 },
+  selectedFile: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: Radius.input, backgroundColor: theme.colors.slate50, borderWidth: 1, borderColor: theme.colors.slate200 },
   selectedCopy: { flex: 1 },
-  fileName: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800' },
-  fileSize: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
-  offline: { color: Colors.warningDeep, fontSize: 13, lineHeight: 18, textAlign: 'center' },
+  fileName: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  fileSize: { color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 },
+  offline: { color: theme.colors.warningDeep, fontSize: 13, lineHeight: 18, textAlign: 'center' },
 });
 
 export const UberDataUpload = ExportDataUpload;

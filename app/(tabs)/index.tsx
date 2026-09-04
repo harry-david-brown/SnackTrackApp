@@ -1,6 +1,6 @@
-import { Colors } from '@constants/theme';
+import { FontFamily, type AppTheme } from '@constants/theme';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@contexts/UserContext';
@@ -8,7 +8,7 @@ import { useCurrency } from '@contexts/CurrencyContext';
 import { router } from 'expo-router';
 import { ErrorMessage } from '@components/ui/ErrorMessage';
 import { useFocusEffect } from '@react-navigation/native';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { DashboardTrackingCard } from '@components/dashboard/DashboardTrackingCard';
 import { resolveDashboardTrackingState, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
@@ -28,14 +28,18 @@ import {
   type DashboardPeriod,
 } from '@features/dashboard/dashboardPeriodSummary';
 import { trackAdminEvent } from '@services/adminAnalytics';
-import { DashboardAdPlacement } from '@features/ads/DashboardAdPlacement';
+import { NativeAdPlacement } from '@features/ads/NativeAdPlacement';
 import { isAdEligible } from '@features/ads/contracts';
 import { claimAdOpportunity, getDailyAdImpressions, getSessionAdImpressions, isAdSessionSuppressed, recordDailyAdImpression, recordSessionAdImpression } from '@features/ads/adSession';
 import { useAdRuntimeConfiguration } from '@features/ads/useAdRuntimeConfiguration';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { ImportOperationCard } from '@components/import/ImportOperationCard';
+import { AppText } from '@components/ui/AppText';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 export default function DashboardScreen() {
+  const theme = useAppTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
   const [insightsDayOffset, setInsightsDayOffset] = React.useState(0);
@@ -137,6 +141,10 @@ export default function DashboardScreen() {
     }
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
+      if (action === 'request_export' && !trackingCardState.primaryProvider) {
+        router.push('/data-setup?sourcePicker=true');
+        return;
+      }
       router.push({
         pathname: '/data-tracking',
         params: {
@@ -182,7 +190,7 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -210,10 +218,10 @@ export default function DashboardScreen() {
           <View style={styles.header}>
             <View style={styles.headerBrand}>
               {/* MASCOT: small logo bust — neutral pose, no label */}
-              <MascotPlaceholder pose="sunglasses" size={52} hideLabel />
+              <Mascot pose="sunglasses" size={52} hideLabel />
               <View style={styles.headerCopy}>
-                <Text style={styles.title}>{greetingForDate()}</Text>
-                <Text style={styles.subtitle}>Here’s your delivery picture.</Text>
+                <AppText variant="pageTitle" style={styles.title}>{greetingForDate()}</AppText>
+                <AppText variant="body" style={styles.subtitle}>Here’s your delivery picture.</AppText>
               </View>
             </View>
             {__DEV__ && (
@@ -229,9 +237,9 @@ export default function DashboardScreen() {
             onChangePeriod={setDashboardPeriod}
           />
           {analyticsSummaryState.id === 'refreshing' ? (
-            <Text style={styles.refreshingSummary} accessibilityLiveRegion="polite">
+            <AppText variant="metadata" style={styles.refreshingSummary} accessibilityLiveRegion="polite">
               Refreshing your summary…
-            </Text>
+            </AppText>
           ) : null}
 
           {trackingCardState.placement === 'priority' ? (
@@ -262,10 +270,7 @@ export default function DashboardScreen() {
               <WhatWeNoticedCarousel
                 insights={insightSectionState.edition.insights}
                 partialExportProvider={insightSectionState.edition.partialExportProvider}
-                onOpenExport={() => router.push({
-                  pathname: '/data-tracking',
-                  params: { action: 'request_export', intentId: `request_export:${Date.now()}` },
-                })}
+                onOpenExport={() => router.push('/data-setup?sourcePicker=true')}
                 onOpenProviderExport={(provider) => router.push({
                   pathname: '/data-tracking',
                   params: { action: 'request_export', provider, intentId: `request_export:${provider}:${Date.now()}` },
@@ -273,8 +278,8 @@ export default function DashboardScreen() {
               />
             ) : insightSectionState.id === 'loading' ? (
               <Card style={styles.emptyState} accessibilityLabel="Preparing today’s dashboard insights">
-                <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.emptyStateSubtitle}>Looking for patterns worth sharing…</Text>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <AppText variant="surfaceBody" style={styles.emptyStateSubtitle}>Looking for patterns worth sharing…</AppText>
               </Card>
             ) : insightSectionState.id === 'error' ? (
               <ErrorMessage
@@ -284,32 +289,32 @@ export default function DashboardScreen() {
               />
             ) : (
               <Card style={styles.emptyState}>
-                <Ionicons name="restaurant-outline" size={48} color={Colors.gray400} />
-                <Text style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</Text>
-                <Text style={styles.emptyStateSubtitle}>
+                <Ionicons name="restaurant-outline" size={48} color={theme.colors.gray400} />
+                <AppText variant="surfaceTitle" style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</AppText>
+                <AppText variant="surfaceBody" style={styles.emptyStateSubtitle}>
                   {insightSectionState.id === 'empty'
                     ? 'Connect the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.'
                     : 'A few more tracked orders will unlock stronger, stranger patterns.'}
-                </Text>
+                </AppText>
               </Card>
             )}
           </View>
 
           {analytics ? <View style={styles.compactStats}>
             <Card style={styles.compactStatCard}>
-              <Ionicons name="receipt-outline" size={19} color={Colors.primary} />
-              <Text style={styles.compactStatValue}>{analytics.totalReceipts}</Text>
-              <Text style={styles.compactStatLabel}>Orders tracked</Text>
+              <Ionicons name="receipt-outline" size={19} color={theme.colors.primary} />
+              <AppText variant="surfaceTitle" style={styles.compactStatValue}>{analytics.totalReceipts}</AppText>
+              <AppText variant="metadata" style={styles.compactStatLabel}>Orders tracked</AppText>
             </Card>
             <Card style={styles.compactStatCard}>
-              <Ionicons name="wallet-outline" size={19} color={Colors.primary} />
-              <Text style={styles.compactStatValue}>{formatCurrency(analytics.averageOrderValue)}</Text>
-              <Text style={styles.compactStatLabel}>Average order</Text>
+              <Ionicons name="wallet-outline" size={19} color={theme.colors.primary} />
+              <AppText variant="surfaceTitle" style={styles.compactStatValue}>{formatCurrency(analytics.averageOrderValue)}</AppText>
+              <AppText variant="metadata" style={styles.compactStatLabel}>Average order</AppText>
             </Card>
           </View> : null}
 
           {adEligible && adRuntime.configuration ? (
-            <DashboardAdPlacement
+            <NativeAdPlacement
               placement="dashboard_after_insights"
               configurationVersion={adRuntime.configuration.configurationVersion}
               onImpression={recordAdImpression}
@@ -334,10 +339,10 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollView: {
     flex: 1,
@@ -346,7 +351,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   content: {
-    padding: 20,
+    padding: 18,
   },
   header: {
     flexDirection: 'row',
@@ -362,14 +367,13 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1 },
   title: {
-    fontSize: 25,
-    fontWeight: '600',
-    color: Colors.textPrimary,
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: FontFamily.medium,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    marginTop: 2,
   },
   actionsContainer: {
     marginTop: 24,
@@ -379,8 +383,6 @@ const styles = StyleSheet.create({
   priorityGuidance: { marginTop: 20, gap: 10 },
   refreshingSummary: {
     marginTop: 8,
-    color: Colors.textSecondary,
-    fontSize: 13,
     textAlign: 'center',
   },
   activityContainer: {
@@ -388,23 +390,17 @@ const styles = StyleSheet.create({
   },
   compactStats: { flexDirection: 'row', gap: 10, marginTop: 12 },
   compactStatCard: { flex: 1, minHeight: 112, padding: 15 },
-  compactStatValue: { color: Colors.textPrimary, fontSize: 21, fontWeight: '600', marginTop: 13 },
-  compactStatLabel: { color: Colors.textSecondary, fontSize: 12, marginTop: 3 },
+  compactStatValue: { fontFamily: FontFamily.medium, marginTop: 13 },
+  compactStatLabel: { marginTop: 3 },
   emptyState: {
     padding: 40,
     alignItems: 'center',
   },
   emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
   },
 });

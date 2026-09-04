@@ -3,7 +3,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureException } from '@utils/sentry';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 
 interface Props {
   children: ReactNode;
@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* MASCOT: crash screen — sad/apologetic pose */}
             <View style={styles.iconContainer}>
-              <MascotPlaceholder pose="sad" size={75} />
+              <Mascot pose="sad" size={75} />
             </View>
             
             <Text style={styles.title}>Oops! Something went wrong</Text>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   debugTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 8,
   },

@@ -1,16 +1,7 @@
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, View, type ViewProps } from 'react-native';
-import { Colors, Radius, Shadows } from '@constants/theme';
+import type { ViewProps } from 'react-native';
+import { Surface } from './Surface';
 
 export function Card({ children, style, ...props }: PropsWithChildren<ViewProps>) {
-  return <View style={[styles.card, style]} {...props}>{children}</View>;
+  return <Surface style={style} {...props}>{children}</Surface>;
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.card,
-    ...Shadows.card,
-  },
-});
-

@@ -1,6 +1,7 @@
 import type { ImportOperation } from './contracts';
 
 export type ImportProgressStepState = 'pending' | 'active' | 'complete';
+export const IMPORT_PROGRESS_MIN_STEP_MS = 500;
 
 export interface ImportProgressViewModel {
   eyebrow: string;
@@ -9,7 +10,7 @@ export interface ImportProgressViewModel {
   steps: readonly [ImportProgressStepState, ImportProgressStepState, ImportProgressStepState, ImportProgressStepState];
 }
 
-const stageIndex = (operation: ImportOperation): number => {
+export const resolveImportProgressPosition = (operation: ImportOperation): number => {
   if (operation.status === 'succeeded') return 4;
   switch (operation.presentation?.stage) {
     case 'preparing_recap': return 3;
@@ -19,11 +20,17 @@ const stageIndex = (operation: ImportOperation): number => {
   }
 };
 
+export const resolveImportProgressSteps = (
+  position: number,
+): ImportProgressViewModel['steps'] => {
+  const stateAt = (index: number): ImportProgressStepState => position > index ? 'complete' : position === index ? 'active' : 'pending';
+  return [stateAt(0), stateAt(1), stateAt(2), stateAt(3)];
+};
+
 export function resolveImportProgressPresentation(operation: ImportOperation): ImportProgressViewModel {
-  const current = stageIndex(operation);
+  const current = resolveImportProgressPosition(operation);
   const found = (operation.presentation?.discoveredOrderCount ?? 0) > 0 || current >= 2;
-  const stateAt = (index: number): ImportProgressStepState => current > index ? 'complete' : current === index ? 'active' : 'pending';
-  const steps: ImportProgressViewModel['steps'] = [stateAt(0), stateAt(1), stateAt(2), stateAt(3)];
+  const steps = resolveImportProgressSteps(current);
   return {
     eyebrow: 'BUILDING YOUR HISTORY',
     title: found ? 'We found your receipts' : 'Finding your receipts',

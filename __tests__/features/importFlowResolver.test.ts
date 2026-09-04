@@ -104,11 +104,13 @@ describe("parseImportRouteParams", () => {
   it("normalizes arrays, flags, and unsupported focus values", () => {
     expect(
       parseImportRouteParams({
+        sourcePicker: "true",
         showExportTutorial: "true",
         focus: "gmail",
         downloadedVersion: "ready-1",
       }),
     ).toEqual({
+      sourcePicker: true,
       showExportTutorial: true,
       focus: null,
       downloadedVersion: "ready-1",
@@ -236,8 +238,11 @@ describe("resolveImportFlowState", () => {
 
     expect(result.exportComplete).toBe(true);
     expect(result.showOneTimeGmailImport).toBe(false);
-    expect(result.setupRecommendation).toEqual({ kind: "enable_tracking" });
-    expect(result.initialOpenTask).toBeNull();
+    expect(result.setupRecommendation).toMatchObject({
+      kind: "provider",
+      provider: { provider: "uber_eats" },
+    });
+    expect(result.initialOpenTask).toBe("uber_export");
   });
 
   it("keeps the export task actionable after only one provider is imported", () => {

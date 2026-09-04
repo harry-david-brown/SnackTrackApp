@@ -11,6 +11,8 @@ describe('UberDataTutorial', () => {
     );
 
     fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    expect(screen.getByText('First, ask Uber Eats for your history')).toBeTruthy();
+    fireEvent.press(screen.getByText('Show me how'));
     expect(screen.getByText('Sign in on Uber’s website')).toBeTruthy();
     expect(screen.queryByText('Open Uber Data Page')).toBeNull();
 
@@ -29,22 +31,6 @@ describe('UberDataTutorial', () => {
     expect(onRequestConfirmed).toHaveBeenCalledWith('uber');
   });
 
-  it('closes without recording a request when the user chooses to do it later', () => {
-    const onClose = jest.fn();
-    const onRequestConfirmed = jest.fn();
-    const screen = render(
-      <UberDataTutorial onRequestConfirmed={onRequestConfirmed} onClose={onClose} />
-    );
-
-    fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
-    fireEvent.press(screen.getByText('Next'));
-    fireEvent.press(screen.getByText('Next'));
-    fireEvent.press(screen.getByText('I’ll do this later'));
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onRequestConfirmed).not.toHaveBeenCalled();
-  });
-
   it('asks for confirmation when the user returns from the provider request page', async () => {
     let appStateListener: ((state: string) => void) | undefined;
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
@@ -56,6 +42,7 @@ describe('UberDataTutorial', () => {
     const screen = render(<UberDataTutorial onRequestConfirmed={onRequestConfirmed} onClose={jest.fn()} />);
 
     fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    fireEvent.press(screen.getByText('Show me how'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Open Uber Data Page'));
@@ -93,6 +80,8 @@ describe('UberDataTutorial', () => {
       />
     );
 
+    expect(screen.getByText('First, ask DoorDash for your history')).toBeTruthy();
+    fireEvent.press(screen.getByText('Show me how'));
     expect(screen.getByText('Sign in on DoorDash’s website')).toBeTruthy();
     expect(screen.getByText(/1\/2/)).toBeTruthy();
 
@@ -113,6 +102,7 @@ describe('UberDataTutorial', () => {
     );
 
     fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    fireEvent.press(screen.getByText('Show me how'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('I’ve already requested it'));
@@ -131,6 +121,7 @@ describe('UberDataTutorial', () => {
     );
 
     fireEvent.press(screen.getByLabelText(/^Choose Uber Eats/));
+    fireEvent.press(screen.getByText('Show me how'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('I’ve already requested it'));
@@ -152,6 +143,7 @@ describe('UberDataTutorial', () => {
       />
     );
 
+    fireEvent.press(screen.getByText('Show me how'));
     fireEvent.press(screen.getByText('Next'));
     fireEvent.press(screen.getByText('I’ve already requested it'));
     fireEvent.press(screen.getByText('I’m still waiting'));

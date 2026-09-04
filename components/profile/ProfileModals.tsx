@@ -1,8 +1,6 @@
 import { Modal } from 'react-native';
 import type { ProfileController } from '@hooks/useProfileController';
 import UberDataTutorial from '@components/upload/UberDataTutorial';
-import { CurrencySelectorModal } from './CurrencySelectorModal';
-import { HelpSupportModal } from './HelpSupportModal';
 
 type ProfileModalsProps = Pick<ProfileController,
   | 'activeModal'
@@ -12,11 +10,6 @@ type ProfileModalsProps = Pick<ProfileController,
   | 'tutorialReadyConfirmed'
   | 'tutorialStillWaiting'
   | 'tutorialArchiveDownloaded'
-  | 'openPrivacyPolicy'
-  | 'requestAccountDeletion'
-  | 'isDeleting'
-  | 'currency'
-  | 'selectCurrency'
 >;
 
 export function ProfileModals(props: ProfileModalsProps) {
@@ -40,19 +33,6 @@ export function ProfileModals(props: ProfileModalsProps) {
           onClose={props.closeModal}
         />
       </Modal>
-      <HelpSupportModal
-        visible={props.activeModal === 'help'}
-        onClose={props.closeModal}
-        onPrivacyPolicy={props.openPrivacyPolicy}
-        onDeleteAccount={props.requestAccountDeletion}
-        isDeleting={props.isDeleting}
-      />
-      <CurrencySelectorModal
-        visible={props.activeModal === 'currency'}
-        currency={props.currency}
-        onSelect={props.selectCurrency}
-        onClose={props.closeModal}
-      />
     </>
   );
 }

@@ -1,17 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius, Spacing } from '@constants/theme';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { ImportFlowState } from '@features/import-flow/importFlowResolver';
-import {
-  resolveInitialImportJourney,
-  type ImportSetupPath,
-} from '@features/import-flow/initialImportJourney';
+import { resolveInitialImportJourney, type ImportSetupPath } from '@features/import-flow/initialImportJourney';
 import { AppButton } from '@components/ui/AppButton';
-import { Card } from '@components/ui/Card';
-import { IconSurface } from '@components/ui/IconSurface';
+import { AppText } from '@components/ui/AppText';
+import { Surface } from '@components/ui/Surface';
 import type { DataPlatform } from './UberDataTutorial';
 import { trackAdminEvent } from '@services/adminAnalytics';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 interface ImportSetupJourneyProps {
   flow: ImportFlowState;
@@ -27,252 +24,102 @@ interface ImportSetupJourneyProps {
 }
 
 export function ImportSetupJourney(props: ImportSetupJourneyProps) {
+  const theme = useAppTheme();
   const journey = resolveInitialImportJourney(props.flow, props.selectedPath);
   if (journey.kind === 'complete' || journey.kind === 'provider_resume') return null;
 
-  if (journey.kind === 'choose_provider') {
-    return (
-      <View>
-        <JourneyHeader
-          eyebrow="GET THE FULL PICTURE"
-          title="Where do most of your orders live?"
-          body="Choose a delivery app and we’ll walk you through bringing your complete history into SnackTrack."
-          step={2}
-        />
-        <Card style={styles.card}>
-          <View style={styles.cardHeader}>
-            <IconSurface icon="document-text-outline" />
-            <View style={styles.headerCopy}>
-              <Text style={styles.cardTitle}>Which app should we start with?</Text>
-              <Text style={styles.cardBody}>You can add the other app later.</Text>
-            </View>
-          </View>
-          <View style={styles.optionStack}>
-            <ChoiceRow
-              icon="car-outline"
-              title="Uber Eats"
-              subtitle="Fill in missing orders and unlock deeper stats"
-              onPress={() => {
-                void trackAdminEvent('mailbox_provider_selected', { provider: 'uber_eats', properties: { provider: 'uber_eats' } }).catch(() => undefined);
-                props.onChooseProvider('uber');
-              }}
-              accent={Colors.uberDark}
-            />
-            <ChoiceRow
-              icon="bag-handle-outline"
-              title="DoorDash"
-              subtitle="Fill in missing orders and unlock deeper stats"
-              onPress={() => {
-                void trackAdminEvent('mailbox_provider_selected', { provider: 'doordash', properties: { provider: 'doordash' } }).catch(() => undefined);
-                props.onChooseProvider('doordash');
-              }}
-              accent={Colors.doorDash}
-            />
-          </View>
-          <Text style={styles.helper}>We’ll explain the provider-specific steps only after you choose.</Text>
-        </Card>
-        <AppButton label="Try connecting email instead" variant="secondary" onPress={props.onChangeMethod} />
-      </View>
-    );
-  }
+  if (journey.kind === 'choose_provider') return <View style={styles.journey}>
+    <Progress step={2} />
+    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
+    <JourneyHeading eyebrow="GET THE FULL PICTURE" title="Where do most of your orders live?" body="Choose a delivery app and we’ll guide you through bringing your complete history into SnackTrack." />
+    <View style={styles.choiceStack}>
+      <ChoiceRow icon="car-outline" title="Uber Eats" subtitle="Fill in missing orders and unlock deeper stats" accent={theme.colors.uberDark} onPress={() => {
+        void trackAdminEvent('mailbox_provider_selected', { provider: 'uber_eats', properties: { provider: 'uber_eats' } }).catch(() => undefined);
+        props.onChooseProvider('uber');
+      }} />
+      <ChoiceRow icon="bag-handle-outline" title="DoorDash" subtitle="Fill in missing orders and unlock deeper stats" accent={theme.colors.doorDash} onPress={() => {
+        void trackAdminEvent('mailbox_provider_selected', { provider: 'doordash', properties: { provider: 'doordash' } }).catch(() => undefined);
+        props.onChooseProvider('doordash');
+      }} />
+    </View>
+    <AppText variant="surfaceBody" tone="muted" style={styles.note}>We’ll explain the provider-specific steps only after you choose.</AppText>
+    <View style={styles.actions}><AppButton label="Try connecting email instead" variant="secondary" onPress={props.onChangeMethod} /></View>
+  </View>;
 
   if (journey.kind === 'review_email_scan') {
-    const importAction = journey.provider === 'gmail' ? props.onImportGmail : props.onImportOutlook;
     const blocked = journey.temporarilyUnavailable || (!journey.canImport && !journey.needsReconnect);
-    const primaryAction = journey.needsReconnect
-      ? () => props.onChooseEmail(journey.provider)
-      : importAction;
-    return (
-      <View>
-        <JourneyHeader
-          eyebrow={`${journey.providerName} connected`}
-          title="Ready to find your orders?"
-          body={journey.email
-            ? `Connected as ${journey.email}. Review this one-time scan, then start when you’re ready.`
-            : `Review this one-time scan, then start when you’re ready.`}
-          step={2}
-        />
-        <Card style={styles.card}>
-          <Text style={styles.cardEyebrow}>ONE-TIME RECEIPT SCAN</Text>
-          <View style={styles.reviewList}>
-            <ReviewRow icon="search-outline" title="Find supported receipts" body="Looks only for Uber Eats and DoorDash purchase emails." />
-            <ReviewRow icon="stats-chart-outline" title="Build your stats" body="Adds matching orders to your private SnackTrack history." />
-            <ReviewRow icon="shield-checkmark-outline" title="Stay in control" body="Future email checks are a separate choice." />
-          </View>
-          <Text style={styles.consentNote}>The scan starts only when you tap the button below.</Text>
-        </Card>
-        {journey.needsReconnect ? (
-          <Text style={styles.warning}>This connection needs to be authorized again before it can be scanned.</Text>
-        ) : journey.temporarilyUnavailable ? (
-          <Text style={styles.warning}>This email service is temporarily unavailable. Your connection is still saved.</Text>
-        ) : null}
-        <View style={styles.actionStack}>
-          <AppButton
-            label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : 'Find my orders'}
-            icon={journey.needsReconnect ? 'link-outline' : 'search-outline'}
-            pending={props.busy}
-            disabled={blocked}
-            onPress={primaryAction}
-          />
-          <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
+    const primaryAction = journey.needsReconnect ? () => props.onChooseEmail(journey.provider) : journey.provider === 'gmail' ? props.onImportGmail : props.onImportOutlook;
+    return <View style={styles.journey}>
+      <Progress step={2} />
+      <JourneyHeading eyebrow={`${journey.providerName.toUpperCase()} CONNECTED`} title="Ready to find your orders?" body={journey.email ? `Connected as ${journey.email}. Review what SnackTrack will look for.` : 'Review what SnackTrack will look for.'} />
+      <Surface>
+        <AppText variant="sectionLabel" tone="brand">One-time receipt scan</AppText>
+        <View style={styles.reviewList}>
+          <ReviewRow icon="search-outline" title="Find supported receipts" body="Looks only for Uber Eats and DoorDash purchase emails." />
+          <ReviewRow divided icon="stats-chart-outline" title="Build your stats" body="Adds matching orders to your private SnackTrack history." />
+          <ReviewRow divided icon="shield-checkmark-outline" title="Stay in control" body="Future email checks are a separate choice." />
         </View>
+      </Surface>
+      {journey.needsReconnect || journey.temporarilyUnavailable ? <View style={[styles.warning, { backgroundColor: theme.colors.warningSurface }]}><AppText variant="surfaceBody" style={{ color: theme.colors.warningDeep }}>{journey.needsReconnect ? 'Reconnect this inbox before starting the scan. Your existing history is safe.' : 'This email service is temporarily unavailable. Your connection is still saved.'}</AppText></View> : null}
+      <View style={styles.actions}>
+        <AppButton label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : 'Find my orders'} pending={props.busy} disabled={blocked} onPress={primaryAction} />
+        <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
       </View>
-    );
+    </View>;
   }
 
-  if (journey.kind === 'choose_email_provider') return (
-    <View>
-      <JourneyHeader
-        eyebrow="Quick setup"
-        title="Where do your receipts land?"
-        body="Choose the inbox linked to your delivery accounts. Nothing is scanned until you approve it."
-        step={2}
-      />
-      <Card style={styles.card}>
-        <View style={styles.cardHeader}>
-          <IconSurface icon="mail-outline" />
-          <View style={styles.headerCopy}>
-            <Text style={styles.cardTitle}>Which email service is linked?</Text>
-            <Text style={styles.cardBody}>Select the service for the email registered with your delivery apps.</Text>
-          </View>
-        </View>
-        <View style={styles.optionStack}>
-          <ChoiceRow
-            icon="logo-google"
-            title="Gmail"
-            subtitle={props.flow.gmailConnected ? 'Connected — review the scan' : 'Continue with Google'}
-            onPress={() => {
-              void trackAdminEvent('mailbox_provider_selected', { provider: 'gmail', properties: { provider: 'gmail' } }).catch(() => undefined);
-              props.onChooseEmail('gmail');
-            }}
-          />
-          <ChoiceRow
-            icon="mail-outline"
-            title="Outlook"
-            subtitle={props.flow.outlookConnected ? 'Connected — review the scan' : 'Continue with Microsoft'}
-            onPress={() => {
-              void trackAdminEvent('mailbox_provider_selected', { provider: 'microsoft', properties: { provider: 'microsoft' } }).catch(() => undefined);
-              props.onChooseEmail('outlook');
-            }}
-          />
-        </View>
-        <Text style={styles.helper}>Connecting an email account does not start a scan. You’ll review it before anything is imported.</Text>
-      </Card>
-      <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} />
+  if (journey.kind === 'choose_email_provider') return <View style={styles.journey}>
+    <Progress step={2} />
+    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
+    <JourneyHeading eyebrow="QUICK SETUP" title="Where do your receipts land?" body="Choose the inbox linked to your delivery accounts. You’ll review the scan before anything is imported." />
+    <View style={styles.choiceStack}>
+      <ChoiceRow icon="logo-google" title="Gmail" subtitle={props.flow.gmailConnected ? 'Connected · review the scan' : 'Continue with Google'} onPress={() => props.onChooseEmail('gmail')} />
+      <ChoiceRow icon="mail-outline" title="Outlook" subtitle={props.flow.outlookConnected ? 'Connected · review the scan' : 'Continue with Microsoft'} onPress={() => props.onChooseEmail('outlook')} />
     </View>
-  );
+    <View style={styles.actions}><AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} /></View>
+  </View>;
 
-  return (
-    <View>
-      <JourneyHeader eyebrow="QUICK SETUP" title="Let’s build your first SnackTrack" body="Start with the place most likely to have your delivery history." step={1} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Find orders in my email. Recommended, usually takes 2 to 3 minutes." onPress={props.onChooseEmailPath} style={({ pressed }) => [styles.recommendedChoice, pressed && styles.choicePressed]}>
-        <View style={styles.recommendedTopline}>
-          <View style={styles.choiceIcon}><Ionicons name="mail-open-outline" size={22} color={Colors.primary} /></View>
-          <Text style={styles.recommendedBadge}>RECOMMENDED</Text>
-        </View>
-        <Text style={styles.recommendedTitle}>Find orders in my email</Text>
-        <Text style={styles.recommendedSubtitle}>Usually takes 2–3 minutes</Text>
-        <View style={styles.recommendedArrow}><Ionicons name="arrow-forward" size={20} color={Colors.white} /></View>
-      </Pressable>
-      <Text style={styles.anotherLabel}>ANOTHER OPTION</Text>
-      <ChoiceRow icon="download-outline" title="Use a history download" subtitle="Best for phone, Apple, or another sign-in" onPress={props.onChooseAlternative} accent={Colors.textSecondary} />
-      <Text style={styles.footerNote}>You’ll review what SnackTrack can access before anything is imported.</Text>
-    </View>
-  );
-}
-
-function JourneyHeader({ eyebrow, title, body, step }: { eyebrow: string; title: string; body: string; step: 1 | 2 }) {
-  return (
-    <View style={styles.journeyHeader}>
-      <View style={styles.mascot}><MascotPlaceholder pose="prop-receipt" size={82} /></View>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{body}</Text>
-      <View style={styles.progress} accessibilityLabel={`Step ${step} of 3`}>
-        {[1, 2, 3].map((value) => <View key={value} style={[styles.progressSegment, value <= step && styles.progressSegmentActive]} />)}
-      </View>
-    </View>
-  );
-}
-
-function ChoiceRow({ icon, title, subtitle, onPress, accent = Colors.primary }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  accent?: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${title}. ${subtitle}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.choice, pressed && styles.choicePressed]}
-    >
-      <View style={[styles.choiceIcon, { backgroundColor: Colors.alpha(accent, 0.12) }]}>
-        <Ionicons name={icon} size={21} color={accent} />
-      </View>
-      <View style={styles.choiceCopy}>
-        <Text style={styles.choiceTitle}>{title}</Text>
-        <Text style={styles.choiceSubtitle}>{subtitle}</Text>
-      </View>
-      <Ionicons name="arrow-forward" size={20} color={Colors.primary} />
+  return <View style={styles.journey}>
+    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
+    <JourneyHeading eyebrow="QUICK SETUP" title="Let’s build your first SnackTrack" body="Start with the place most likely to have your delivery history." />
+    <Progress step={1} />
+    <Pressable accessibilityRole="button" accessibilityLabel="Find orders in my email. Recommended, usually takes 2 to 3 minutes." onPress={props.onChooseEmailPath} style={({ pressed }) => [styles.recommended, { backgroundColor: theme.colors.chipActiveBg, borderColor: theme.colors.primary }, pressed && styles.pressed]}>
+      <View style={[styles.choiceIcon, { backgroundColor: theme.colors.surface }]}><Ionicons name="mail-open-outline" size={21} color={theme.colors.primary} /></View>
+      <View style={styles.choiceCopy}><AppText variant="rowTitle">Find orders in my email</AppText><AppText variant="metadata" tone="brand" style={styles.rowMeta}>Recommended · usually takes 2–3 minutes</AppText></View>
+      <Ionicons name="arrow-forward" size={19} color={theme.colors.primary} />
     </Pressable>
-  );
+    <AppText variant="sectionLabel" tone="muted" style={styles.another}>Another option</AppText>
+    <ChoiceRow icon="download-outline" title="Use a history download" subtitle="Best for phone, Apple, or another sign-in" onPress={props.onChooseAlternative} />
+    <AppText variant="surfaceBody" tone="muted" style={styles.footerNote}>You’ll review what SnackTrack can access before anything is imported.</AppText>
+  </View>;
 }
 
-function ReviewRow({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }) {
-  return (
-    <View style={styles.reviewRow}>
-      <View style={styles.reviewIcon}><Ionicons name={icon} size={18} color={Colors.primary} /></View>
-      <View style={styles.reviewCopy}>
-        <Text style={styles.reviewTitle}>{title}</Text>
-        <Text style={styles.reviewBody}>{body}</Text>
-      </View>
-    </View>
-  );
+function JourneyHeading({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
+  return <View style={styles.heading}><AppText variant="eyebrow" tone="brand">{eyebrow}</AppText><AppText variant="pageTitle" style={styles.title}>{title}</AppText><AppText tone="muted" style={styles.body}>{body}</AppText></View>;
 }
-
+function Progress({ step }: { step: number }) {
+  const theme = useAppTheme();
+  return <View style={styles.progress} accessibilityLabel={`Step ${step} of 3`}>{[1, 2, 3].map(value => <View key={value} style={[styles.progressSegment, { backgroundColor: value <= step ? theme.colors.progressFill : theme.colors.progressTrack }]} />)}</View>;
+}
+function ChoiceRow({ icon, title, subtitle, onPress, accent }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; onPress: () => void; accent?: string }) {
+  const theme = useAppTheme();
+  const color = accent ?? theme.colors.primary;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} onPress={onPress} style={({ pressed }) => [styles.choice, { backgroundColor: theme.colors.surface, borderColor: theme.colors.slate200 }, pressed && { backgroundColor: theme.colors.infoBg }]}>
+    <View style={[styles.choiceIcon, { backgroundColor: theme.colors.chipActiveBg }]}><Ionicons name={icon} size={20} color={color} /></View>
+    <View style={styles.choiceCopy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" style={styles.rowMeta}>{subtitle}</AppText></View>
+    <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+  </Pressable>;
+}
+function ReviewRow({ icon, title, body, divided = false }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; divided?: boolean }) {
+  const theme = useAppTheme();
+  return <View style={[styles.reviewRow, divided && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider }]}><View style={[styles.reviewIcon, { backgroundColor: theme.colors.chipActiveBg }]}><Ionicons name={icon} size={16} color={theme.colors.primary} /></View><View style={styles.choiceCopy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" style={styles.rowMeta}>{body}</AppText></View></View>;
+}
 const styles = StyleSheet.create({
-  journeyHeader: { marginBottom: Spacing.lg },
-  mascot: { alignItems: 'center', marginBottom: 10 },
-  eyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 },
-  title: { color: Colors.textPrimary, fontSize: 32, fontWeight: '600', lineHeight: 38, marginBottom: 10, letterSpacing: -0.5 },
-  subtitle: { color: Colors.textSecondary, fontSize: 16, lineHeight: 24 },
-  progress: { flexDirection: 'row', gap: 6, marginTop: 18 },
-  progressSegment: { flex: 1, height: 5, borderRadius: Radius.pill, backgroundColor: Colors.gray250 },
-  progressSegmentActive: { backgroundColor: Colors.secondary },
-  card: { padding: 18, marginBottom: 14 },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
-  headerCopy: { flex: 1 },
-  cardTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', lineHeight: 24 },
-  cardEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.1 },
-  cardBody: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 3 },
-  optionStack: { gap: 10 },
-  choice: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: Colors.slate200, borderRadius: Radius.button, backgroundColor: Colors.surface },
-  choicePressed: { borderColor: Colors.primary, backgroundColor: Colors.infoBg },
-  choiceIcon: { width: 42, height: 42, borderRadius: Radius.input, alignItems: 'center', justifyContent: 'center' },
-  choiceCopy: { flex: 1 },
-  choiceTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '700' },
-  choiceSubtitle: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  helper: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 14 },
-  reviewList: { gap: 14, marginTop: 16 },
-  reviewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  reviewIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: Colors.chipActiveBg, alignItems: 'center', justifyContent: 'center' },
-  reviewCopy: { flex: 1 },
-  reviewTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  reviewBody: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
-  consentNote: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, borderTopWidth: 1, borderTopColor: Colors.divider, marginTop: 16, paddingTop: 14 },
-  warning: { color: Colors.warningDeep, fontSize: 14, lineHeight: 20, marginBottom: 12 },
-  actionStack: { gap: 10 },
-  recommendedChoice: { minHeight: 190, borderRadius: 26, backgroundColor: '#E8F4E7', borderWidth: 1, borderColor: Colors.alpha(Colors.primary, 0.24), padding: 20, marginBottom: 22, overflow: 'hidden' },
-  recommendedTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  recommendedBadge: { color: Colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  recommendedTitle: { color: Colors.textPrimary, fontSize: 23, lineHeight: 29, fontWeight: '700', marginTop: 22, maxWidth: '80%' },
-  recommendedSubtitle: { color: Colors.primary, fontSize: 14, fontWeight: '600', marginTop: 7 },
-  recommendedArrow: { position: 'absolute', right: 18, bottom: 18, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary },
-  anotherLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1.1, marginBottom: 9, marginLeft: 2 },
-  footerNote: { color: Colors.textSecondary, textAlign: 'center', fontSize: 13, lineHeight: 19, marginTop: 20, paddingHorizontal: 18 },
+  journey: { flex: 1 }, mascot: { alignSelf: 'center', marginBottom: 4 }, heading: { marginBottom: 18 }, title: { marginTop: 5 }, body: { marginTop: 9 },
+  progress: { flexDirection: 'row', gap: 6, marginTop: 3, marginBottom: 21 }, progressSegment: { flex: 1, height: 5, borderRadius: 999 },
+  choiceStack: { gap: 10 }, choice: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, recommended: { minHeight: 78, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, pressed: { opacity: 0.76 },
+  choiceIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, choiceCopy: { flex: 1 }, rowMeta: { marginTop: 3 },
+  another: { marginTop: 19, marginBottom: 8 }, note: { marginTop: 10, textAlign: 'center' }, footerNote: { marginTop: 20, textAlign: 'center', paddingHorizontal: 12 }, actions: { marginTop: 'auto', paddingTop: 18, gap: 10 },
+  reviewList: { marginTop: 4 }, reviewRow: { paddingVertical: 11, flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, reviewIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, warning: { marginTop: 12, padding: 14, borderRadius: 18 },
 });
-
 export default ImportSetupJourney;

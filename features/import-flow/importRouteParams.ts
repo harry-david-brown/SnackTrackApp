@@ -2,6 +2,7 @@ import type { ExportProvider } from './contracts';
 import { parseGmailConnectionPurpose, type GmailConnectionPurpose } from './gmailConnectionPurpose';
 
 export interface ImportRouteParams {
+  sourcePicker: boolean;
   showExportTutorial: boolean;
   focus: 'export' | null;
   downloadedVersion: string | null;
@@ -25,6 +26,7 @@ export function parseImportRouteParams(raw: Record<string, RawRouteValue>): Impo
     ? rawAction
     : null;
   return {
+    sourcePicker: firstValue(raw.sourcePicker) === 'true',
     showExportTutorial: firstValue(raw.showExportTutorial) === 'true',
     focus: firstValue(raw.focus) === 'export' ? 'export' : null,
     downloadedVersion: downloadedVersion || null,

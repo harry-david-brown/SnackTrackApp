@@ -110,7 +110,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
   >(null);
   const [pendingTrackingSetup, setPendingTrackingSetup] = useState(false);
   const [selectedSetupPath, setSelectedSetupPath] =
-    useState<ImportSetupPath>(null);
+    useState<ImportSetupPath>(route.sourcePicker ? "alternative" : null);
   const [completionSummary, setCompletionSummary] =
     useState<ImportCompletionSummary | null>(null);
   const [dismissedDelayedOperationId, setDismissedDelayedOperationId] = useState<string | null>(null);
@@ -286,6 +286,10 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       ? preferences.preferences?.export.providers.uberEats
       : preferences.preferences?.export.providers.doorDash;
   const exportReadyVersion = providerPreference?.updatedAt ?? "ready";
+
+  useEffect(() => {
+    if (route.sourcePicker) setSelectedSetupPath("alternative");
+  }, [route.sourcePicker]);
 
   useEffect(() => {
     if (!activeImportOperation || activeImportOperation.status !== "succeeded"
@@ -1185,7 +1189,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         ? ("download" as const)
         : ("request" as const),
     closeTutorial,
-    openTutorial: () => openTutorial(),
+    openTutorial: () => router.push('/data-setup?sourcePicker=true'),
     openProviderTutorial: openTutorial,
     completeTutorial,
     tutorialStillWaiting,

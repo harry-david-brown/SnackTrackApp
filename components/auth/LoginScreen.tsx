@@ -1,8 +1,7 @@
-import { Colors } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -15,12 +14,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import PasswordResetModal from './PasswordResetModal';
 import { MicrosoftEmailVerificationModal } from './MicrosoftEmailVerificationModal';
-import { styles } from './loginStyles';
+import { createLoginStyles } from './loginStyles';
 import { useLoginForm } from './useLoginForm';
 import { useLoginProviders } from './useLoginProviders';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,6 +28,8 @@ interface LoginScreenProps { onLoginSuccess?: () => void }
 type AuthMethod = 'oauth' | 'email';
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createLoginStyles(theme), [theme]);
   const form = useLoginForm(onLoginSuccess);
   const providers = useLoginProviders(onLoginSuccess);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
@@ -60,7 +62,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <ScrollView contentContainerStyle={styles.scrollContent} overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'} bounces>
           <View style={styles.content}>
             <View style={styles.header}>
-              <View style={styles.mascotLogoWrap}><MascotPlaceholder pose="neutral" size={96} /></View>
+              <View style={styles.mascotLogoWrap}><Mascot pose="neutral" size={96} /></View>
               <Text style={styles.title}>SnackTrack</Text>
               <Text style={styles.subtitle}>Sign in to import receipts and start seeing your delivery spending more clearly.</Text>
             </View>
@@ -95,7 +97,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     {providers.showApple && providers.isAppleAvailable ? (
                       <AppleAuthentication.AppleAuthenticationButton
                         buttonType={form.isRegistering ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                        buttonStyle={theme.scheme === 'dark' ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                         cornerRadius={8}
                         style={styles.appleButton}
                         onPress={() => void providers.loginWithApple()}
@@ -109,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         accessibilityRole="button"
                         accessibilityState={{ disabled: busy, busy }}
                       >
-                        <Ionicons name="logo-google" size={24} color={Colors.textPrimary} style={styles.googleIcon} />
+                        <Ionicons name="logo-google" size={24} color={theme.colors.textPrimary} style={styles.googleIcon} />
                         <Text style={styles.googleButtonText}>{form.isRegistering ? 'Sign up with Google' : 'Continue with Google'}</Text>
                       </TouchableOpacity>
                     ) : null}
@@ -122,7 +124,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         accessibilityLabel={form.isRegistering ? 'Sign up with Microsoft' : 'Continue with Microsoft'}
                         accessibilityState={{ disabled: busy, busy }}
                       >
-                        <Ionicons name="logo-microsoft" size={24} color={Colors.textPrimary} style={styles.googleIcon} />
+                        <Ionicons name="logo-microsoft" size={24} color={theme.colors.textPrimary} style={styles.googleIcon} />
                         <Text style={styles.googleButtonText}>
                           {form.isRegistering ? 'Sign up with Microsoft' : 'Continue with Microsoft'}
                         </Text>
@@ -143,11 +145,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       ? 'Use any email you can access. You’ll choose the email registered with your delivery apps after signup.'
                       : 'Use the email tied to your account to pick up where you left off.'}</Text>
                     <View style={styles.inputContainer}>
-                      <Ionicons name="mail-outline" size={24} color={Colors.textSecondary} style={styles.inputIcon} />
+                      <Ionicons name="mail-outline" size={24} color={theme.colors.textSecondary} style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Enter your email address"
-                        placeholderTextColor={Colors.gray500}
+                        placeholderTextColor={theme.colors.gray500}
                         value={form.email}
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -158,11 +160,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       />
                     </View>
                     <View style={styles.inputContainer}>
-                      <Ionicons name="lock-closed-outline" size={24} color={Colors.textSecondary} style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={24} color={theme.colors.textSecondary} style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
                         placeholder="Enter your password"
-                        placeholderTextColor={Colors.gray500}
+                        placeholderTextColor={theme.colors.gray500}
                         value={form.password}
                         onChangeText={form.setPassword}
                         secureTextEntry={!form.showPassword}
@@ -176,7 +178,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         accessibilityRole="button"
                         accessibilityLabel={form.showPassword ? 'Hide password' : 'Show password'}
                       >
-                        <Ionicons name={form.showPassword ? 'eye-outline' : 'eye-off-outline'} size={24} color={Colors.textSecondary} />
+                        <Ionicons name={form.showPassword ? 'eye-outline' : 'eye-off-outline'} size={24} color={theme.colors.textSecondary} />
                       </TouchableOpacity>
                     </View>
                     {form.isRegistering ? (
@@ -187,7 +189,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     ) : null}
                     {form.error ? (
                       <View style={styles.errorContainer} accessibilityRole="alert">
-                        <Ionicons name="alert-circle-outline" size={18} color={Colors.errorDark} style={styles.errorIcon} />
+                        <Ionicons name="alert-circle-outline" size={18} color={theme.colors.errorDark} style={styles.errorIcon} />
                         <Text style={styles.errorText}>{form.error}</Text>
                       </View>
                     ) : null}

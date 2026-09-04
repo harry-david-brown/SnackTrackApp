@@ -54,6 +54,11 @@ export function useWrappedJourneyController() {
     });
   }, [exportOpportunity, markClicked]);
 
+  const openExportSourcePicker = useCallback(() => {
+    void markClicked();
+    router.push('/data-setup?sourcePicker=true');
+  }, [markClicked]);
+
   const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
     try {
       const next = await setOngoingTrackingConsent(decision);
@@ -98,7 +103,7 @@ export function useWrappedJourneyController() {
     decideTracking,
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
-    openExportTutorial: () => openExport(true),
+    openExportTutorial: openExportSourcePicker,
     openImport: () => router.push('/data-setup'),
     openTrackingSetup,
     finish: () => router.replace('/(tabs)'),

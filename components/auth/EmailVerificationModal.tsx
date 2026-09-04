@@ -1,5 +1,5 @@
-import { Colors } from '@constants/theme';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { AppTheme } from '@constants/theme';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -18,6 +18,7 @@ import {
   verificationCodeFailure,
   verificationCodeMessage,
 } from '@features/auth/contracts';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 interface EmailVerificationModalProps {
   visible: boolean;
@@ -43,6 +44,8 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   onVerified,
   onClose,
 }) => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [code, setCode] = useState('');
   const [flowState, setFlowState] = useState<VerificationFlowState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -141,14 +144,14 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Close email verification"
           >
-            <Ionicons name="close" size={22} color={Colors.inkNearBlack} />
+            <Ionicons name="close" size={22} color={theme.colors.inkNearBlack} />
           </TouchableOpacity>
           <Text style={styles.title}>Verify your email</Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit verification code to {email}. Enter it below to verify your email address.
           </Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="keypad-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
+            <Ionicons name="keypad-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
             <TextInput
               value={code}
               onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
@@ -208,15 +211,15 @@ const EmailVerificationModal: React.FC<EmailVerificationModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: Colors.alpha(Colors.black, 0.5),
+    backgroundColor: theme.colors.alpha(theme.colors.black, 0.5),
     justifyContent: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     padding: 24,
   },
@@ -226,20 +229,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '500',
     marginBottom: 8,
-    color: Colors.inkNearBlack,
+    color: theme.colors.inkNearBlack,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 24,
     lineHeight: 22,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.gray50,
+    backgroundColor: theme.colors.gray50,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
@@ -252,23 +255,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     letterSpacing: 4,
-    color: Colors.inkNearBlack,
+    color: theme.colors.inkNearBlack,
     textAlign: 'center',
   },
   primaryButton: {
-    backgroundColor: Colors.success,
+    backgroundColor: theme.colors.success,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 12,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: theme.colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
   secondaryButton: {
-    borderColor: Colors.slate200,
+    borderColor: theme.colors.slate200,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 14,
@@ -276,7 +279,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   secondaryButtonText: {
-    color: Colors.primary,
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -285,12 +288,12 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 13,
-    color: Colors.gray600,
+    color: theme.colors.gray600,
     marginTop: 16,
     lineHeight: 18,
   },
   error: {
-    color: Colors.error,
+    color: theme.colors.error,
     marginBottom: 4,
     fontSize: 14,
   },
@@ -300,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipButtonText: {
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     fontWeight: '500',
   },

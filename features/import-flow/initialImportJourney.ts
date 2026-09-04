@@ -44,9 +44,9 @@ export function resolveInitialImportJourney(
   flow: JourneyInput,
   selectedPath: ImportSetupPath,
 ): InitialImportJourneyState {
+  if (selectedPath === 'alternative') return { kind: 'choose_provider' };
   if (flow.hasImportedEmailData || flow.hasAnyExportData) return { kind: 'complete' };
   if (providerJourneyStarted(flow)) return { kind: 'provider_resume' };
-  if (selectedPath === 'alternative') return { kind: 'choose_provider' };
   if (selectedPath === 'email') return { kind: 'choose_email_provider' };
 
   const inferredProvider = selectedPath

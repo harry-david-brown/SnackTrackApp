@@ -1,4 +1,5 @@
-import { Colors } from '@constants/theme';
+import type { AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
@@ -10,7 +11,7 @@ import { ErrorMessage } from '@components/ui/ErrorMessage';
 import { useExperienceStateQuery } from '@hooks/queries/useExperienceStateQuery';
 import { loadExportUpsellStateForUser } from '@hooks/useExportUpsell';
 import { experienceApi } from '@services/experienceApi';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 /**
  * Entry route. Everything here is derived directly from auth/onboarding
@@ -23,6 +24,8 @@ import { useEffect, useRef } from 'react';
  * Redirect guard in app/(tabs)/_layout.tsx.
  */
 export default function HomeScreen() {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
   const experienceQuery = useExperienceStateQuery(state.user?.id);
@@ -49,7 +52,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -87,10 +90,10 @@ export default function HomeScreen() {
   return <LoginScreen />;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,

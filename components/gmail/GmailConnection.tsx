@@ -1,9 +1,10 @@
-import { Colors } from '@constants/theme';
-import React, { useEffect } from 'react';
+import type { AppTheme } from '@constants/theme';
+import React, { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { GmailConnectionStatus } from '@features/import-flow/contracts';
 import { AppButton } from '@components/ui/AppButton';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 interface GmailConnectionProps {
   connectionStatus: GmailConnectionStatus;
@@ -24,6 +25,8 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
   onDisconnect,
   onClose,
 }) => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const isConnected = connectionStatus.connected;
   const needsReconnect = connectionStatus.needsReconnect;
 
@@ -36,7 +39,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
   if (isChecking) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Checking Gmail connection...</Text>
       </View>
     );
@@ -51,7 +54,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       <View style={styles.heroCard}>
         <View style={styles.heroHeader}>
           <View style={styles.heroIconWrap}>
-            <Ionicons name="mail-open-outline" size={26} color={Colors.primary} />
+            <Ionicons name="mail-open-outline" size={26} color={theme.colors.primary} />
           </View>
           <View style={styles.heroText}>
             <Text style={styles.heroEyebrow}>Gmail connection</Text>
@@ -66,7 +69,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
 
         {connectionStatus.email && (
           <View style={styles.connectedEmailPill}>
-            <Ionicons name="mail-outline" size={16} color={Colors.textSecondary} />
+            <Ionicons name="mail-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.connectedEmailText}>{connectionStatus.email}</Text>
           </View>
         )}
@@ -87,7 +90,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       <View style={styles.actionCard}>
         {needsReconnect ? (
           <View style={styles.reconnectNotice}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+            <Ionicons name="information-circle-outline" size={18} color={theme.colors.primary} />
             <Text style={styles.reconnectNoticeText}>
               Reconnect Gmail from Data & tracking before running another scan.
             </Text>
@@ -95,7 +98,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
         ) : (
           <>
             <View style={styles.manageNotice}>
-              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={theme.colors.primary} />
               <Text style={styles.manageNoticeText}>
                 Gmail is connected. Ongoing updates handle new receipts automatically when enabled.
               </Text>
@@ -118,10 +121,10 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color={Colors.textSecondary} />
+            <ActivityIndicator color={theme.colors.textSecondary} />
           ) : (
             <>
-              <Ionicons name="close-circle-outline" size={18} color={Colors.textSecondary} />
+              <Ionicons name="close-circle-outline" size={18} color={theme.colors.textSecondary} />
               <Text style={styles.tertiaryButtonText}>Disconnect Gmail</Text>
             </>
           )}
@@ -145,7 +148,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
       </View>
 
       <View style={styles.privacyCard}>
-        <Ionicons name="shield-checkmark" size={24} color={Colors.primary} />
+        <Ionicons name="shield-checkmark" size={24} color={theme.colors.primary} />
         <View style={styles.privacyContent}>
           <Text style={styles.privacyTitle}>Your privacy matters</Text>
           <Text style={styles.privacyText}>
@@ -157,22 +160,22 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   container: {
     flex: 1,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   heroCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.white,
     padding: 24,
     borderRadius: 20,
     marginBottom: 20,
-    shadowColor: Colors.black,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -190,7 +193,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: Colors.chipActiveBg,
+    backgroundColor: theme.colors.chipActiveBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -200,21 +203,21 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     fontSize: 13,
-    fontWeight: '700',
-    color: Colors.primary,
+    fontWeight: '500',
+    color: theme.colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 6,
   },
   heroTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: Colors.textPrimary,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
     marginBottom: 8,
   },
   heroDescription: {
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 22,
   },
   connectedEmailPill: {
@@ -222,7 +225,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.background,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -230,32 +233,32 @@ const styles = StyleSheet.create({
   connectedEmailText: {
     marginLeft: 8,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
   statusMessage: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
     marginTop: 14,
   },
   statusMeta: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 10,
   },
   warningText: {
     fontSize: 14,
-    color: Colors.warningDeep,
+    color: theme.colors.warningDeep,
     marginTop: 10,
     fontWeight: '600',
   },
   actionCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.white,
     padding: 20,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: Colors.black,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -267,7 +270,7 @@ const styles = StyleSheet.create({
   manageNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.infoBg,
+    backgroundColor: theme.colors.infoBg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -276,14 +279,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: Colors.primary,
+    color: theme.colors.primary,
     lineHeight: 20,
     fontWeight: '500',
   },
   reconnectNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.infoBg,
+    backgroundColor: theme.colors.infoBg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -292,7 +295,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: Colors.primary,
+    color: theme.colors.primary,
     lineHeight: 20,
     fontWeight: '500',
   },
@@ -303,7 +306,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   tertiaryButtonText: {
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -312,11 +315,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   infoCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.white,
     padding: 20,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: Colors.black,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -327,9 +330,9 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
     marginBottom: 16,
-    color: Colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   infoItem: {
     flexDirection: 'row',
@@ -340,22 +343,22 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
-    color: Colors.white,
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.white,
     textAlign: 'center',
     lineHeight: 24,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginRight: 12,
   },
   infoText: {
     flex: 1,
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 22,
   },
   privacyCard: {
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.background,
     padding: 20,
     borderRadius: 16,
     flexDirection: 'row',
@@ -367,13 +370,13 @@ const styles = StyleSheet.create({
   },
   privacyTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     marginBottom: 8,
-    color: Colors.primary,
+    color: theme.colors.primary,
   },
   privacyText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
 });

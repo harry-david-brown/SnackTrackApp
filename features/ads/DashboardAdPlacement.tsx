@@ -14,7 +14,8 @@ import mobileAds, {
   TestIds,
 } from 'react-native-google-mobile-ads';
 import { Card } from '@components/ui/Card';
-import { Colors, Radius, Spacing } from '@constants/theme';
+import { FontFamily, Radius, Spacing, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { getConfig } from '@config/env';
 import type { AdPlacement } from './contracts';
 import { trackAdminEvent } from '@services/adminAnalytics';
@@ -65,7 +66,9 @@ const eventProperties = (placement: AdPlacement, configurationVersion: number) =
   configurationVersion,
 });
 
-export function DashboardAdPlacement({ placement, configurationVersion, onImpression }: Props) {
+export function NativeAdPlacement({ placement, configurationVersion, onImpression }: Props) {
+  const theme = useAppTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const compact = placement === 'history_after_fifth_order';
   const [nativeAd, setNativeAd] = React.useState<NativeAd | null>(null);
   const [failed, setFailed] = React.useState(false);
@@ -180,23 +183,25 @@ export function DashboardAdPlacement({ placement, configurationVersion, onImpres
   </NativeAdView>;
 }
 
-const styles = StyleSheet.create({
-  reservedSlot: { minHeight: 278, marginTop: Spacing.xl, padding: Spacing.lg, borderRadius: Radius.card, backgroundColor: Colors.surface, gap: Spacing.md },
+export const DashboardAdPlacement = NativeAdPlacement;
+
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  reservedSlot: { minHeight: 278, marginTop: Spacing.xl, padding: Spacing.lg, borderRadius: Radius.card, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, gap: Spacing.md },
   compactReservedSlot: { minHeight: 126, marginTop: 10 },
-  skeletonLabel: { width: 82, height: 10, borderRadius: 5, backgroundColor: Colors.gray100 },
-  skeletonLine: { width: '72%', height: 18, borderRadius: 7, backgroundColor: Colors.gray100 },
-  skeletonMedia: { flex: 1, minHeight: 150, borderRadius: Radius.md, backgroundColor: Colors.gray50 },
+  skeletonLabel: { width: 82, height: 10, borderRadius: 5, backgroundColor: theme.colors.gray100 },
+  skeletonLine: { width: '72%', height: 18, borderRadius: 7, backgroundColor: theme.colors.gray100 },
+  skeletonMedia: { flex: 1, minHeight: 150, borderRadius: Radius.md, backgroundColor: theme.colors.gray50 },
   nativeView: { marginTop: Spacing.xl },
   card: { padding: Spacing.lg, overflow: 'hidden', gap: Spacing.md },
   compactCard: { padding: 14, gap: 9, borderRadius: 18 },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingRight: 24 },
   icon: { width: 44, height: 44, borderRadius: Radius.md },
   titleColumn: { flex: 1, gap: 2 },
-  sponsored: { color: Colors.textSecondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.1 },
-  headline: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700' },
-  advertiser: { color: Colors.textSecondary, fontSize: 13 },
-  media: { minHeight: 120, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.gray50 },
-  body: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
-  action: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.button, backgroundColor: Colors.primary },
-  actionText: { color: Colors.buttonPrimaryText, fontSize: 15, fontWeight: '700' },
+  sponsored: { color: theme.colors.textSecondary, fontSize: 10, fontFamily: FontFamily.medium, letterSpacing: 1.1 },
+  headline: { color: theme.colors.textPrimary, fontSize: 18, fontFamily: FontFamily.medium },
+  advertiser: { color: theme.colors.textSecondary, fontSize: 13, fontFamily: FontFamily.regular },
+  media: { minHeight: 120, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: theme.colors.gray50 },
+  body: { color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20, fontFamily: FontFamily.regular },
+  action: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.button, backgroundColor: theme.colors.primary },
+  actionText: { color: theme.colors.buttonPrimaryText, fontSize: 14, fontFamily: FontFamily.medium },
 });

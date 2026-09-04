@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type GmailPrimaryFlowState } from '@hooks/useGmailImport';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import type { ImportOperation } from '@features/import-flow/contracts';
 import { AppButton } from '@components/ui/AppButton';
 
@@ -145,7 +145,7 @@ export function GmailImportLoadingModal({
                   },
                 ]}
               >
-                <MascotPlaceholder pose="wave" size={96} />
+                <Mascot pose="wave" size={96} />
               </Animated.View>
 
               <Text style={styles.loadingModalTitle}>Gmail connected!</Text>
@@ -158,7 +158,7 @@ export function GmailImportLoadingModal({
               {/* MASCOT: in progress — hand-on-chin thinking */}
               <View style={styles.loadingIconWrap}>
                 <View style={styles.loadingMascotBadge}>
-                  <MascotPlaceholder pose="thinking" size={84} />
+                  <Mascot pose="thinking" size={84} />
                 </View>
                 <ActivityIndicator size="small" color={Colors.primary} style={styles.loadingSpinnerBelowMascot} />
               </View>
@@ -238,13 +238,13 @@ const styles = StyleSheet.create({
   },
   loadingModalTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '600',
     color: Colors.textPrimary,
     textAlign: 'center',
   },
   loadingModalStatus: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '500',
     color: Colors.primary,
     textAlign: 'center',
     marginTop: 8,

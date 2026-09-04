@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import ImportProgressScreen from '@components/import/ImportProgressScreen';
+import { ImportProgressScreen } from '@components/import/ImportProgressScreen';
 
 export default function ImportProgressRoute() {
   const params = useLocalSearchParams<{ operationId?: string | string[] }>();

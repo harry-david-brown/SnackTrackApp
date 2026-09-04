@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import { AppButton } from '@components/ui/AppButton';
-import { Colors, Radius } from '@constants/theme';
+import { AppText } from '@components/ui/AppText';
+import { FontFamily, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { useUser } from '@contexts/UserContext';
-import { resolveImportProgressPresentation, type ImportProgressStepState } from '@features/import-flow/importProgressPresentation';
+import { IMPORT_PROGRESS_MIN_STEP_MS, resolveImportProgressPosition, resolveImportProgressPresentation, resolveImportProgressSteps, type ImportProgressStepState } from '@features/import-flow/importProgressPresentation';
 import { resolvePostImportDestination } from '@features/import-flow/postImportNavigation';
 import { suppressAdsForSession } from '@features/ads/adSession';
 import { useImportOperation } from '@hooks/useImportOperation';
@@ -22,6 +24,8 @@ interface ImportProgressScreenProps { operationId?: string }
 type CompletionState = 'zero' | 'small' | null;
 
 export function ImportProgressScreen({ operationId }: ImportProgressScreenProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
   const queryClient = useQueryClient();
   const { operation, isLoading, refresh } = useImportOperation(Boolean(state.user?.id), false, operationId);
@@ -31,7 +35,22 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
   const [reducedMotion, setReducedMotion] = useState(false);
   const [completion, setCompletion] = useState<CompletionState>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [visibleProgressPosition, setVisibleProgressPosition] = useState(0);
   const view = useMemo(() => operation ? resolveImportProgressPresentation(operation) : null, [operation]);
+  const targetProgressPosition = useMemo(() => operation ? resolveImportProgressPosition(operation) : 0, [operation]);
+  const visibleSteps = useMemo(() => resolveImportProgressSteps(visibleProgressPosition), [visibleProgressPosition]);
+
+  useEffect(() => {
+    setVisibleProgressPosition(0);
+  }, [operation?.id]);
+
+  useEffect(() => {
+    if (!operation || visibleProgressPosition >= targetProgressPosition) return;
+    const timer = setTimeout(() => {
+      setVisibleProgressPosition(position => Math.min(position + 1, targetProgressPosition));
+    }, IMPORT_PROGRESS_MIN_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [operation?.id, targetProgressPosition, visibleProgressPosition]);
 
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
@@ -57,6 +76,7 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
   useEffect(() => {
     if (!operation || handled.current === `${operation.id}:${operation.status}`) return;
     if (!['succeeded', 'failed', 'cancelled'].includes(operation.status)) return;
+    if (operation.status === 'succeeded' && visibleProgressPosition < 4) return;
     handled.current = `${operation.id}:${operation.status}`;
     if (operation.status !== 'succeeded') return;
     void (async () => {
@@ -81,16 +101,16 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
       }
       router.replace({ pathname: '/data-tracking', params: { imported: 'true' } });
     })().catch(() => { handled.current = null; });
-  }, [operation, queryClient, state.user?.id]);
+  }, [operation, queryClient, state.user?.id, visibleProgressPosition]);
 
   if (completion) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <MascotPlaceholder pose={completion === 'zero' ? 'sad' : 'prop-receipt'} size={142} />
-          <Text style={styles.eyebrow}>{completion === 'zero' ? 'LET’S TRY ANOTHER WAY' : 'A GOOD START'}</Text>
-          <Text style={styles.title}>{completion === 'zero' ? 'No supported orders found' : 'Your history has started'}</Text>
-          <Text style={styles.body}>{completion === 'zero' ? 'That inbox didn’t have supported receipts. Try another email or use a delivery-history download.' : 'We found a couple of orders. Add more history to unlock a meaningful recap.'}</Text>
+          <Mascot pose={completion === 'zero' ? 'sad' : 'prop-receipt'} size={142} />
+          <AppText variant="eyebrow" style={styles.eyebrow}>{completion === 'zero' ? 'LET’S TRY ANOTHER WAY' : 'A GOOD START'}</AppText>
+          <AppText variant="pageTitle" style={styles.title}>{completion === 'zero' ? 'No supported orders found' : 'Your history has started'}</AppText>
+          <AppText variant="body" style={styles.body}>{completion === 'zero' ? 'That inbox didn’t have supported receipts. Try another email or use a delivery-history download.' : 'We found a couple of orders. Add more history to unlock a meaningful recap.'}</AppText>
           <View style={styles.actions}>
             <AppButton label="Import missing orders" onPress={() => router.replace('/data-setup')} />
             {completion === 'small' ? <AppButton label="Explore SnackTrack" variant="secondary" onPress={() => router.replace('/(tabs)')} /> : null}
@@ -104,9 +124,9 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <MascotPlaceholder pose="sad" size={130} />
-          <Text style={styles.title}>We couldn’t find that import</Text>
-          <Text style={styles.body}>Your existing history is safe. Return to setup to try again.</Text>
+          <Mascot pose="sad" size={130} />
+          <AppText variant="pageTitle" style={styles.title}>We couldn’t find that import</AppText>
+          <AppText variant="body" style={styles.body}>Your existing history is safe. Return to setup to try again.</AppText>
           <View style={styles.actions}><AppButton label="Return to setup" onPress={() => router.replace('/data-setup')} /></View>
         </View>
       </SafeAreaView>
@@ -117,10 +137,10 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <MascotPlaceholder pose="sad" size={142} />
-          <Text style={styles.eyebrow}>YOUR HISTORY IS SAFE</Text>
-          <Text style={styles.title}>This import needs another try</Text>
-          <Text style={styles.body}>{operation.errorMessage || 'We couldn’t finish this import, but nothing you already added was removed.'}</Text>
+          <Mascot pose="sad" size={142} />
+          <AppText variant="eyebrow" style={styles.eyebrow}>YOUR HISTORY IS SAFE</AppText>
+          <AppText variant="pageTitle" style={styles.title}>This import needs another try</AppText>
+          <AppText variant="body" style={styles.body}>{operation.errorMessage || 'We couldn’t finish this import, but nothing you already added was removed.'}</AppText>
           <View style={styles.actions}>
             <AppButton label="Try another method" onPress={() => router.replace('/data-setup')} />
             <AppButton label="Check again" variant="secondary" onPress={() => void refresh()} />
@@ -134,10 +154,10 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <MascotPlaceholder pose="thinking" size={150} />
-          <Text style={styles.eyebrow}>STILL WORKING</Text>
-          <Text style={styles.title}>This is taking longer than usual</Text>
-          <Text style={styles.body}>Your import is safe and will keep running. We can let you know as soon as your history is ready.</Text>
+          <Mascot pose="thinking" size={150} />
+          <AppText variant="eyebrow" style={styles.eyebrow}>STILL WORKING</AppText>
+          <AppText variant="pageTitle" style={styles.title}>This is taking longer than usual</AppText>
+          <AppText variant="body" style={styles.body}>Your import is safe and will keep running. We can let you know as soon as your history is ready.</AppText>
           <View style={styles.actions}>
             <AppButton label={notificationsEnabled ? 'Notifications are on' : 'Notify me when it’s ready'} icon="notifications-outline" disabled={notificationsEnabled} onPress={() => {
               if (!state.user?.id) return;
@@ -160,49 +180,49 @@ export function ImportProgressScreen({ operationId }: ImportProgressScreenProps)
       <View style={styles.progressPage}>
         <View style={styles.mascotRing}>
           <Animated.View style={[styles.spinner, { transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }]} />
-          <MascotPlaceholder pose="thinking" size={132} />
+          <Mascot pose="thinking" size={96} accessibilityLabel="SnackTrack is thinking while your orders are imported" />
         </View>
-        <Text style={styles.eyebrow}>{view?.eyebrow ?? 'BUILDING YOUR HISTORY'}</Text>
-        <Text style={styles.title}>{view?.title ?? 'Getting everything ready'}</Text>
-        <Text style={styles.body}>{view?.body ?? 'Your secure import is starting now.'}</Text>
+        <AppText variant="eyebrow" style={styles.eyebrow}>{view?.eyebrow ?? 'BUILDING YOUR HISTORY'}</AppText>
+        <AppText variant="pageTitle" style={styles.title}>{view?.title ?? 'Getting everything ready'}</AppText>
+        <AppText variant="body" style={styles.body}>{view?.body ?? 'Your secure import is starting now.'}</AppText>
         <View style={styles.checklist}>
-          {labels.map((label, index) => <ProgressRow key={label} label={label} state={view?.steps[index] ?? (index === 0 ? 'active' : 'pending')} />)}
+          {labels.map((label, index) => <ProgressRow key={label} label={label} state={visibleSteps[index]} theme={theme} />)}
         </View>
-        <Text style={styles.keepOpen}>Keep SnackTrack open while we build your history.</Text>
+        <AppText variant="metadata" style={styles.keepOpen}>Keep SnackTrack open while we build your history.</AppText>
       </View>
     </SafeAreaView>
   );
 }
 
-function ProgressRow({ label, state }: { label: string; state: ImportProgressStepState }) {
+function ProgressRow({ label, state, theme }: { label: string; state: ImportProgressStepState; theme: AppTheme }) {
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.stepRow} accessibilityLabel={`${label}, ${state}`}>
-      <View style={[styles.stepIcon, state === 'complete' && styles.stepComplete, state === 'active' && styles.stepActive]}>
-        {state === 'complete' ? <Ionicons name="checkmark" size={17} color={Colors.white} /> : state === 'active' ? <View style={styles.activeDot} /> : null}
+      <View style={styles.stepIcon}>
+        {state === 'complete' ? <Ionicons name="checkmark" size={15} color={theme.colors.primary} /> : <View style={[styles.stepDot, state === 'active' && styles.activeDot]} />}
       </View>
-      <Text style={[styles.stepLabel, state === 'pending' && styles.stepPending]}>{label}</Text>
+      <AppText variant="rowTitle" style={[styles.stepLabel, state === 'pending' && styles.stepPending]}>{label}</AppText>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  progressPage: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingBottom: 26 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
-  mascotRing: { width: 180, height: 180, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  spinner: { position: 'absolute', width: 174, height: 174, borderRadius: 87, borderWidth: 3, borderColor: Colors.alpha(Colors.primary, 0.12), borderTopColor: Colors.primary },
-  eyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.4, textAlign: 'center', marginBottom: 10 },
-  title: { color: Colors.textPrimary, fontSize: 32, lineHeight: 38, fontWeight: '600', letterSpacing: -0.6, textAlign: 'center' },
-  body: { color: Colors.textSecondary, fontSize: 16, lineHeight: 24, textAlign: 'center', marginTop: 12, maxWidth: 340 },
-  checklist: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: 18, gap: 16, marginTop: 30, borderWidth: 1, borderColor: Colors.divider },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  progressPage: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 24 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  mascotRing: { width: 132, height: 132, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  spinner: { position: 'absolute', width: 132, height: 132, borderRadius: 66, borderWidth: 3, borderColor: theme.colors.alpha(theme.colors.primary, 0.12), borderTopColor: theme.colors.primary },
+  eyebrow: { textAlign: 'center', marginBottom: 10 },
+  title: { textAlign: 'center', maxWidth: 344 },
+  body: { textAlign: 'center', marginTop: 12, maxWidth: 340 },
+  checklist: { paddingHorizontal: 4, gap: 14, marginTop: 30 },
   stepRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: Colors.slate200 },
-  stepComplete: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  stepActive: { borderColor: Colors.primary, backgroundColor: Colors.alpha(Colors.primary, 0.08) },
-  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
-  stepLabel: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  stepPending: { color: Colors.textSecondary, fontWeight: '500' },
-  keepOpen: { color: Colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 22 },
+  stepIcon: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: theme.colors.slate500 },
+  activeDot: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
+  stepLabel: { fontFamily: FontFamily.medium },
+  stepPending: { color: theme.colors.textSecondary },
+  keepOpen: { textAlign: 'center', marginTop: 22 },
   actions: { width: '100%', gap: 10, marginTop: 28 },
 });
 

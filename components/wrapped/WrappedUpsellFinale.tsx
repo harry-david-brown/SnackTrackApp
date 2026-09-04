@@ -2,15 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { UserSummary } from '@/types/api';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import { AppButton } from '@components/ui/AppButton';
-import { Colors, Radius } from '@constants/theme';
+import { Colors, FontFamily } from '@constants/theme';
 import type { ProviderExportLifecycleStatus } from '@features/import-flow/contracts';
 import { trackAdminEvent } from '@services/adminAnalytics';
 
 interface WrappedUpsellFinaleProps {
-  analytics: UserSummary;
   exportStatus: ProviderExportLifecycleStatus;
   providerName?: string | null;
   onUnlock: () => void;
@@ -18,15 +16,7 @@ interface WrappedUpsellFinaleProps {
   onFinish: () => void;
 }
 
-export function WrappedUpsellFinale({ analytics, exportStatus, providerName, onUnlock, onManage, onFinish }: WrappedUpsellFinaleProps) {
-  const fee = analytics.wrappedAnalytics?.comparative.deliveryFeeTrend;
-  const feeHeadline = fee?.trend === 'increased'
-    ? 'Your food wasn’t the only thing getting pricier.'
-    : fee?.trend === 'decreased'
-      ? 'Did the delivery apps actually ease up?'
-      : fee?.trend === 'flat'
-        ? 'Your delivery fees held surprisingly steady.'
-        : 'Delivery apps have some explaining to do.';
+export function WrappedUpsellFinale({ exportStatus, providerName, onUnlock, onManage, onFinish }: WrappedUpsellFinaleProps) {
   const active = exportStatus === 'requested' || exportStatus === 'file_ready' || exportStatus === 'import_processing' || exportStatus === 'failed';
   const activeCopy = exportStatus === 'requested'
     ? `${providerName ?? 'Your provider'} is preparing your history.`
@@ -45,33 +35,16 @@ export function WrappedUpsellFinale({ analytics, exportStatus, providerName, onU
           <Text style={styles.body}>{active ? 'You can pick up exactly where you left off in Data & tracking.' : 'Detailed order history can reveal the patterns a receipt alone can’t see.'}</Text>
 
           {!active ? <>
-            <View style={styles.feeCard}>
-              <View style={styles.cardIcon}><Ionicons name="trending-up" size={20} color={Colors.evidenceGold} /></View>
-              <View style={styles.cardCopy}>
-                <Text style={styles.cardEyebrow}>DELIVERY-FEE TREND</Text>
-                <Text style={styles.cardTitle}>{feeHeadline}</Text>
-                <Text style={styles.cardBody}>{fee ? `Company fees ${fee.trend} ${Math.abs(fee.companyFeeChangePercent).toFixed(0)}% across your eligible history.` : 'See whether delivery companies quietly changed what they charged you over time.*'}</Text>
-              </View>
-            </View>
-            <View style={styles.exampleRow}>
-              <View style={styles.exampleCard}>
-                <MascotPlaceholder pose="sunglasses" size={74} variant="outline" />
-                <Text style={styles.exampleLabel}>MENU SOULMATE</Text>
-                <Text style={styles.exampleValue}>Your exact repeat order</Text>
-              </View>
-              <View style={styles.exampleCard}>
-                <Ionicons name="speedometer-outline" size={34} color={Colors.evidenceGold} />
-                <Text style={styles.exampleLabel}>DELIVERY RECORDS</Text>
-                <Text style={styles.exampleValue}>Fastest, longest, most loyal</Text>
-              </View>
-            </View>
-            <Text style={styles.qualifier}>*Fee trends appear only when receipts contain enough explicit fee detail.</Text>
+            <InsightPreview icon={<Mascot pose="prop-receipt" size={72} variant="outline" accessibilityLabel="SnackTrack checking a receipt" />} title="Your menu soulmate" body="The exact item you reorder most—and how often." />
+            <InsightPreview icon={<Mascot pose="sunglasses" size={72} variant="outline" accessibilityLabel="SnackTrack celebrating delivery records" />} title="Your delivery records" body="Fastest arrival, longest wait, and biggest order." />
+            <InsightPreview icon={<Ionicons name="fast-food-outline" size={36} color={Colors.evidenceGold} />} title="Your item obsessions" body="Favorite sides, sauces, quantities, and repeat combos." />
           </> : null}
 
           <View style={styles.actions}>
-            <AppButton label={active ? 'Open Data & tracking' : 'Unlock deeper stats'} icon={active ? 'arrow-forward' : 'sparkles'} onPress={() => {
+            <AppButton variant="gold" label={active ? 'Open Data & tracking' : 'Unlock deeper stats'} icon={active ? 'arrow-forward' : 'sparkles'} onPress={() => {
               void trackAdminEvent('deeper_stats_selected').catch(() => undefined);
-              active ? onManage() : onUnlock();
+              if (active) onManage();
+              else onUnlock();
             }} />
             <TouchableOpacity accessibilityRole="button" onPress={onFinish} style={styles.finishButton}>
               <Text style={styles.finishText}>Finish for now</Text>
@@ -83,27 +56,25 @@ export function WrappedUpsellFinale({ analytics, exportStatus, providerName, onU
   );
 }
 
+function InsightPreview({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return <View style={styles.insightPreview}><View style={styles.insightMedia}>{icon}</View><View style={styles.cardCopy}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.cardBody}>{body}</Text></View></View>;
+}
+
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
   safe: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: 42, paddingBottom: 28 },
-  eyebrow: { color: Colors.evidenceGold, fontSize: 12, fontWeight: '700', letterSpacing: 1.6, textAlign: 'center' },
-  title: { color: Colors.white, fontFamily: 'Fredoka_600SemiBold', fontSize: 34, lineHeight: 39, textAlign: 'center', marginTop: 11 },
-  body: { color: Colors.alpha(Colors.white, 0.76), fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 10, marginBottom: 20 },
-  feeCard: { flexDirection: 'row', gap: 12, padding: 17, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.alpha(Colors.evidenceGold, 0.38), backgroundColor: Colors.alpha(Colors.white, 0.08) },
-  cardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.alpha(Colors.evidenceGold, 0.13) },
+  content: { flexGrow: 1, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 22 },
+  eyebrow: { alignSelf: 'stretch', color: Colors.evidenceGold, fontFamily: FontFamily.medium, fontSize: 12, letterSpacing: 1.2, marginTop: 4, textAlign: 'left' },
+  title: { alignSelf: 'stretch', color: Colors.white, fontFamily: FontFamily.display, fontSize: 33, lineHeight: 35, marginTop: 6, textAlign: 'left' },
+  body: { alignSelf: 'stretch', color: Colors.alpha(Colors.white, 0.78), fontFamily: FontFamily.regular, fontSize: 14, lineHeight: 20, marginTop: 9, marginBottom: 12, textAlign: 'left' },
+  insightPreview: { width: '100%', minHeight: 96, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20, borderWidth: 1, borderColor: Colors.alpha(Colors.white, 0.15), backgroundColor: Colors.alpha(Colors.white, 0.09), marginBottom: 9 },
+  insightMedia: { width: 78, minHeight: 72, alignItems: 'center', justifyContent: 'center' },
   cardCopy: { flex: 1 },
-  cardEyebrow: { color: Colors.evidenceGold, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  cardTitle: { color: Colors.white, fontSize: 16, lineHeight: 21, fontWeight: '700', marginTop: 4 },
-  cardBody: { color: Colors.alpha(Colors.white, 0.7), fontSize: 12, lineHeight: 17, marginTop: 5 },
-  exampleRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  exampleCard: { flex: 1, minHeight: 148, padding: 14, borderRadius: 20, justifyContent: 'flex-end', backgroundColor: Colors.alpha(Colors.white, 0.075), borderWidth: 1, borderColor: Colors.alpha(Colors.white, 0.12) },
-  exampleLabel: { color: Colors.evidenceGold, fontSize: 9, letterSpacing: 1, fontWeight: '700', marginTop: 6 },
-  exampleValue: { color: Colors.white, fontSize: 14, lineHeight: 18, fontWeight: '600', marginTop: 4 },
-  qualifier: { color: Colors.alpha(Colors.white, 0.52), fontSize: 10, lineHeight: 15, marginTop: 10 },
-  actions: { marginTop: 22, gap: 10 },
+  cardTitle: { color: Colors.white, fontFamily: FontFamily.medium, fontSize: 14, lineHeight: 18 },
+  cardBody: { color: Colors.alpha(Colors.white, 0.72), fontFamily: FontFamily.regular, fontSize: 12, lineHeight: 16, marginTop: 4 },
+  actions: { width: '100%', marginTop: 'auto', paddingTop: 10, gap: 4 },
   finishButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  finishText: { color: Colors.white, fontSize: 15, fontWeight: '600' },
+  finishText: { color: Colors.white, fontFamily: FontFamily.medium, fontSize: 13 },
 });
 
 export default WrappedUpsellFinale;

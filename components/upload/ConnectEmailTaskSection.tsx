@@ -1,5 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
-import { Colors } from '@constants/theme';
+import type { AppTheme } from '@constants/theme';
+import { useMemo } from 'react';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportTaskState } from '@features/import-flow/importFlowResolver';
 import { AppButton } from '@components/ui/AppButton';
 import { ImportTaskCard, type ImportTaskId } from './ImportTaskCard';
@@ -20,6 +22,8 @@ interface ConnectEmailTaskSectionProps {
 }
 
 export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <ImportTaskCard
       id="connect_email"
@@ -65,6 +69,6 @@ export function ConnectEmailTaskSection(props: ConnectEmailTaskSectionProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  helper: { fontSize: 13, lineHeight: 19, marginVertical: 12, color: Colors.textSecondary },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  helper: { fontSize: 13, lineHeight: 19, marginVertical: 12, color: theme.colors.textSecondary },
 });

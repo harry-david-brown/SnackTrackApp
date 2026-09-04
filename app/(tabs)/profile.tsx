@@ -1,20 +1,27 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmailVerificationBanner from '@components/auth/EmailVerificationBanner';
 import { ProfileModals } from '@components/profile/ProfileModals';
 import { ProfileSettingsCard } from '@components/profile/ProfileSettingsCard';
 import { ProfileSummaryCard } from '@components/profile/ProfileSummaryCard';
-import { Colors } from '@constants/theme';
+import { AppText } from '@components/ui/AppText';
+import { PageHeader } from '@components/ui/PageHeader';
+import type { AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { useProfileController } from '@hooks/useProfileController';
+import { router } from 'expo-router';
 
 export default function ProfileScreen() {
   const profile = useProfileController();
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!profile.user) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -23,9 +30,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.eyebrow}>ACCOUNT</Text>
-        <Text style={styles.title}>You</Text>
-        <Text style={styles.subtitle}>Your SnackTrack, preferences, and privacy controls.</Text>
+        <PageHeader eyebrow="ACCOUNT" title="You" body="Your SnackTrack, preferences, and privacy controls." />
         <EmailVerificationBanner />
         <ProfileSummaryCard
           email={profile.user.email}
@@ -49,16 +54,17 @@ export default function ProfileScreen() {
           onToggleOngoingTracking={profile.toggleOngoingTracking}
           onToggleImportNotifications={profile.toggleImportNotifications}
           onOpenTutorial={() => profile.openModal('tutorial')}
-          onOpenCurrency={() => profile.openModal('currency')}
-          onOpenHelp={() => profile.openModal('help')}
+          onOpenCurrency={() => router.push('/settings/currency')}
+          onOpenAppearance={() => router.push('/settings/appearance')}
+          onOpenHelp={() => router.push('/settings/help-privacy')}
           onDevelopmentReset={profile.requestDevelopmentReset}
           onClearReceipts={profile.requestClearReceipts}
           onDeleteAccount={profile.requestAccountDeletion}
           onLogout={profile.requestLogout}
         />
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>SnackTrack v1.0.0</Text>
-          <Text style={styles.appInfoText}>Built for clearer delivery spending</Text>
+          <AppText variant="metadata" style={styles.appInfoText}>SnackTrack v1.0.0</AppText>
+          <AppText variant="metadata" style={styles.appInfoText}>Built for clearer delivery spending</AppText>
         </View>
       </ScrollView>
       <ProfileModals {...profile} />
@@ -66,14 +72,11 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
-  scrollContent: { flexGrow: 1, padding: 20 },
-  eyebrow: { color: Colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 5 },
-  title: { fontSize: 32, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, lineHeight: 21, color: Colors.textSecondary, marginBottom: 14 },
+  scrollContent: { flexGrow: 1, padding: 18 },
   appInfo: { alignItems: 'center', padding: 20 },
-  appInfoText: { fontSize: 14, color: Colors.gray500, marginBottom: 4 },
+  appInfoText: { marginBottom: 4 },
 });

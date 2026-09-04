@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps, ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '@constants/theme';
+import { useMemo, type ComponentProps, type ReactNode } from 'react';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FontFamily, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import type { CurrencyCode } from '@utils/currency';
 import { SUPPORTED_CURRENCIES } from '@utils/currency';
 import { Card } from '@components/ui/Card';
+import { AppText } from '@components/ui/AppText';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -22,7 +24,9 @@ interface SettingsRowProps {
 }
 
 function SettingsRow({ icon, label, description, onActivate, value, disabled, destructive, warning, pending, last }: SettingsRowProps) {
-  const accent = destructive ? Colors.error : warning ? Colors.warningDeep : Colors.primary;
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const accent = destructive ? theme.colors.error : warning ? theme.colors.warningDeep : theme.colors.primary;
   return (
     <TouchableOpacity
       style={[styles.row, last && styles.lastRow]}
@@ -32,17 +36,17 @@ function SettingsRow({ icon, label, description, onActivate, value, disabled, de
       accessibilityLabel={[label, value, description].filter(Boolean).join('. ')}
       accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(pending) }}
     >
-      <View style={[styles.iconWrap, { backgroundColor: Colors.alpha(accent, 0.1) }]}>
+      <View style={[styles.iconWrap, { backgroundColor: theme.colors.alpha(accent, 0.1) }]}>
         <Ionicons name={icon} size={20} color={accent} />
       </View>
       <View style={styles.copy}>
-        <Text style={[styles.label, destructive && styles.destructiveLabel]}>{label}</Text>
-        {description ? <Text style={styles.description}>{description}</Text> : null}
+        <AppText variant="rowTitle" style={[styles.label, destructive && styles.destructiveLabel]}>{label}</AppText>
+        {description ? <AppText variant="metadata" style={styles.description}>{description}</AppText> : null}
       </View>
       {pending ? <ActivityIndicator size="small" color={accent} /> : (
         <View style={styles.trailing}>
-          {value ? <Text style={[styles.value, warning && styles.warningValue]} numberOfLines={1}>{value}</Text> : null}
-          <Ionicons name="chevron-forward" size={18} color={Colors.gray400} />
+          {value ? <AppText variant="metadata" style={[styles.value, warning && styles.warningValue]} numberOfLines={1}>{value}</AppText> : null}
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.gray400} />
         </View>
       )}
     </TouchableOpacity>
@@ -50,9 +54,11 @@ function SettingsRow({ icon, label, description, onActivate, value, disabled, de
 }
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.group}>
-      <Text style={styles.groupTitle}>{title}</Text>
+      <AppText variant="sectionLabel" style={styles.groupTitle}>{title}</AppText>
       <Card style={styles.card}>{children}</Card>
     </View>
   );
@@ -75,6 +81,7 @@ interface ProfileSettingsCardProps {
   onToggleImportNotifications: () => void;
   onOpenTutorial: () => void;
   onOpenCurrency: () => void;
+  onOpenAppearance: () => void;
   onOpenHelp: () => void;
   onDevelopmentReset: () => void;
   onClearReceipts: () => void;
@@ -89,7 +96,8 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
       <SettingsGroup title="Your SnackTrack">
         <SettingsRow icon="receipt-outline" label="Order history" description="Search and review imported orders." onActivate={props.onOpenReceipts} />
         <SettingsRow icon="layers-outline" label="Data & tracking" description="Coverage, sources, automatic updates, and privacy." value={props.mailboxConnectionsLabel === 'Needs attention' ? 'Needs attention' : props.providerExportLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
-        <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} last />
+        <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} />
+        <SettingsRow icon="contrast-outline" label="Appearance" description="System, light, or dark" onActivate={props.onOpenAppearance} last />
       </SettingsGroup>
 
       <SettingsGroup title="Support & preferences">
@@ -112,18 +120,18 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   group: { marginBottom: 22 },
-  groupTitle: { marginBottom: 9, marginLeft: 4, fontSize: 12, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase', color: Colors.textSecondary },
+  groupTitle: { marginBottom: 9, marginLeft: 4 },
   card: { overflow: 'hidden' },
-  row: { minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  row: { minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
   lastRow: { borderBottomWidth: 0 },
   iconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0, marginLeft: 12 },
-  label: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
-  destructiveLabel: { color: Colors.error },
-  description: { marginTop: 3, fontSize: 12, lineHeight: 17, color: Colors.textSecondary },
+  label: { fontFamily: FontFamily.medium },
+  destructiveLabel: { color: theme.colors.error },
+  description: { marginTop: 3 },
   trailing: { maxWidth: '42%', marginLeft: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  value: { flexShrink: 1, fontSize: 12, fontWeight: '700', color: Colors.textSecondary, textAlign: 'right' },
-  warningValue: { color: Colors.warningDeep },
+  value: { flexShrink: 1, fontFamily: FontFamily.medium, textAlign: 'right' },
+  warningValue: { color: theme.colors.warningDeep },
 });

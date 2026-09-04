@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius, Spacing } from '@constants/theme';
+import { Radius, Spacing, type AppTheme } from '@constants/theme';
 import type { ImportCompletionSummary } from '@features/import-flow/importCompletion';
 import { AppButton } from '@components/ui/AppButton';
 import { Card } from '@components/ui/Card';
 import { IconSurface } from '@components/ui/IconSurface';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { useMemo } from 'react';
 
 interface ImportCompletionPanelProps {
   summary: ImportCompletionSummary;
@@ -14,12 +16,14 @@ interface ImportCompletionPanelProps {
 }
 
 export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEmail }: ImportCompletionPanelProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const isEmpty = summary.emptyHistory === true;
   const hasChanges = summary.orderCount > 0;
   const recommendsProvider = summary.nextAction.kind === 'provider';
   return (
     <View accessibilityLiveRegion="polite">
-      <View style={styles.mascot}><MascotPlaceholder pose={isEmpty ? "sad" : "prop-receipt"} size={88} /></View>
+      <View style={styles.mascot}><Mascot pose={isEmpty ? "sad" : "prop-receipt"} size={88} /></View>
       <Text style={styles.eyebrow}>{isEmpty ? 'No orders found' : 'Import complete'}</Text>
       <Text style={styles.title}>{summary.title}</Text>
       <Text style={styles.subtitle}>{summary.message}</Text>
@@ -35,7 +39,7 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEma
             : `${summary.sourceName} history is already current`
           : `No new orders found from ${summary.sourceName}`}
       >
-        <IconSurface icon={isEmpty ? "search-outline" : "checkmark-circle"} color={isEmpty ? Colors.warningDeep : Colors.successDark} />
+        <IconSurface icon={isEmpty ? "search-outline" : "checkmark-circle"} color={isEmpty ? theme.colors.warningDeep : theme.colors.successDark} />
         <View style={styles.resultCopy}>
           <Text style={styles.count}>{isEmpty ? '0' : hasChanges ? summary.orderCount : 'Current'}</Text>
           <Text style={styles.countLabel}>
@@ -73,18 +77,18 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEma
   );
 }
 
-const styles = StyleSheet.create({
-  eyebrow: { color: Colors.primary, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6 },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  eyebrow: { color: theme.colors.primary, fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6 },
   mascot: { alignItems: 'center', marginBottom: 10 },
-  title: { color: Colors.textPrimary, fontSize: 28, lineHeight: 34, fontWeight: '800', marginBottom: 8 },
-  subtitle: { color: Colors.textSecondary, fontSize: 16, lineHeight: 24 },
+  title: { color: theme.colors.textPrimary, fontSize: 28, lineHeight: 34, fontWeight: '600', marginBottom: 8 },
+  subtitle: { color: theme.colors.textSecondary, fontSize: 16, lineHeight: 24 },
   progress: { flexDirection: 'row', gap: 6, marginTop: 18, marginBottom: Spacing.xl },
-  progressSegment: { flex: 1, height: 5, borderRadius: Radius.pill, backgroundColor: Colors.secondary },
+  progressSegment: { flex: 1, height: 5, borderRadius: Radius.pill, backgroundColor: theme.colors.secondary },
   card: { padding: 22, flexDirection: 'row', gap: 16, alignItems: 'center', marginBottom: 16 },
   resultCopy: { flex: 1 },
-  count: { color: Colors.textPrimary, fontSize: 34, lineHeight: 38, fontWeight: '800' },
-  countLabel: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
-  source: { color: Colors.textSecondary, fontSize: 14, marginTop: 4 },
+  count: { color: theme.colors.textPrimary, fontSize: 34, lineHeight: 38, fontWeight: '600' },
+  countLabel: { color: theme.colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  source: { color: theme.colors.textSecondary, fontSize: 14, marginTop: 4 },
   actions: { gap: 10 },
 });
 

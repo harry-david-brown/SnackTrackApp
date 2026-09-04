@@ -1,198 +1,62 @@
-import { Colors } from '@constants/theme';
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
-import { MascotPlaceholder } from './mascot/MascotPlaceholder';
+import { useEffect, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Mascot } from './mascot/Mascot';
+import { AppButton } from './ui/AppButton';
+import { AppScreen } from './ui/AppScreen';
+import { AppText } from './ui/AppText';
+import { Surface } from './ui/Surface';
+import { FontFamily, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { trackAdminEvent } from '@services/adminAnalytics';
 
-interface OnboardingScreenProps {
-  onComplete: () => void;
-}
+interface OnboardingScreenProps { onComplete: () => void }
 
 const highlights = [
-  {
-    icon: 'mail-open-outline' as const,
-    title: 'Choose your starting point',
-    description: 'Use the email registered with your delivery apps, or choose another method for phone-number and Apple sign-ins.',
-  },
-  {
-    icon: 'bar-chart-outline' as const,
-    title: 'See the patterns',
-    description: 'Understand where your delivery spending goes over time.',
-  },
-  {
-    icon: 'document-attach-outline' as const,
-    title: 'Build complete history',
-    description: 'Add official Uber Eats and DoorDash history whenever you want richer detail.',
-  },
+  { icon: 'mail-open-outline' as const, title: 'Bring in your orders', description: 'Start with email receipts, then fill gaps with a delivery-history download.' },
+  { icon: 'sparkles-outline' as const, title: 'Meet your delivery habits', description: 'See spending patterns, repeat orders, favorites, and the details hiding in your history.' },
+  { icon: 'shield-checkmark-outline' as const, title: 'Stay in control', description: 'Every scan is explicit. Ongoing tracking is always a separate choice.' },
 ];
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
-  React.useEffect(() => {
-    void trackAdminEvent('onboarding_started').catch(() => undefined);
-  }, []);
+  useEffect(() => { void trackAdminEvent('onboarding_started').catch(() => undefined); }, []);
 
   return (
-    <LinearGradient
-      colors={[Colors.forest850, Colors.primary, Colors.secondary]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <StatusBar style="light" />
-
-      <View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top + 24,
-            paddingBottom: insets.bottom + 24,
-          },
-        ]}
-      >
-        <View style={styles.hero}>
-          <View style={styles.badge}>
-            <Ionicons name="receipt-outline" size={18} color={Colors.chipActiveBg} />
-            <Text style={styles.badgeText}>SnackTrack</Text>
-          </View>
-
-          {/* MASCOT: hero greeting — double-bicep flex, sticker-outline variant */}
-          <View style={styles.mascotWrap}>
-            <MascotPlaceholder pose="flex" size={140} variant="outline" />
-          </View>
-
-          <Text style={styles.title}>See where your food delivery money actually goes</Text>
-          <Text style={styles.subtitle}>
-            Import your receipts, spot spending patterns, and turn everyday orders into useful
-            insights.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          {highlights.map((item) => (
-            <View key={item.title} style={styles.highlightRow}>
-              <View style={styles.iconWrap}>
-                <Ionicons name={item.icon} size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.highlightText}>
-                <Text style={styles.highlightTitle}>{item.title}</Text>
-                <Text style={styles.highlightDescription}>{item.description}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryButton} onPress={onComplete}>
-            <Text style={styles.primaryButtonText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={18} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+    <AppScreen scroll footer={<AppButton label="Get started" icon="arrow-forward" onPress={onComplete} />} contentStyle={styles.content}>
+      <View style={styles.hero}>
+        <AppText variant="eyebrow">WELCOME TO SNACKTRACK</AppText>
+        <Mascot pose="flex" size={154} accessibilityLabel="SnackTrack mascot welcoming you" style={styles.mascot} />
+        <AppText variant="pageTitle" style={styles.title}>Your delivery history has a story</AppText>
+        <AppText variant="body" style={styles.subtitle}>Turn everyday orders into a clearer picture of what you spend, love, repeat, and might want to change.</AppText>
       </View>
-    </LinearGradient>
+      <Surface style={styles.surface}>
+        {highlights.map((item, index) => (
+          <View key={item.title} style={[styles.row, index < highlights.length - 1 && styles.rowBorder]}>
+            <View style={styles.icon}><Ionicons name={item.icon} size={20} color={theme.colors.primary} /></View>
+            <View style={styles.copy}>
+              <AppText variant="rowTitle" style={styles.rowTitle}>{item.title}</AppText>
+              <AppText variant="metadata">{item.description}</AppText>
+            </View>
+          </View>
+        ))}
+      </Surface>
+    </AppScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-  },
-  hero: {
-    marginTop: 12,
-  },
-  mascotWrap: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: Colors.alpha(Colors.white, 0.12),
-    marginBottom: 24,
-  },
-  badgeText: {
-    color: Colors.chipActiveBg,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  title: {
-    color: Colors.background,
-    fontSize: 36,
-    fontWeight: '800',
-    lineHeight: 42,
-    marginBottom: 16,
-  },
-  subtitle: {
-    color: Colors.alpha(Colors.slateFrost, 0.88),
-    fontSize: 17,
-    lineHeight: 25,
-    maxWidth: 540,
-  },
-  card: {
-    backgroundColor: Colors.alpha(Colors.white, 0.96),
-    borderRadius: 24,
-    padding: 20,
-    gap: 18,
-  },
-  highlightRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.chipActiveBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  highlightText: {
-    flex: 1,
-  },
-  highlightTitle: {
-    color: Colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  highlightDescription: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  actions: {
-    gap: 12,
-  },
-  primaryButton: {
-    minHeight: 56,
-    borderRadius: 18,
-    backgroundColor: Colors.background,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-  },
-  primaryButtonText: {
-    color: Colors.textPrimary,
-    fontSize: 17,
-    fontWeight: '800',
-  },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  content: { flexGrow: 1, justifyContent: 'center', paddingTop: 20 },
+  hero: { alignItems: 'center' },
+  mascot: { marginTop: 14, marginBottom: 10 },
+  title: { textAlign: 'center', maxWidth: 350 },
+  subtitle: { marginTop: 12, textAlign: 'center', maxWidth: 350 },
+  surface: { marginTop: 28, paddingHorizontal: 16 },
+  row: { minHeight: 82, flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
+  icon: { width: 42, height: 42, borderRadius: 14, backgroundColor: theme.colors.alpha(theme.colors.primary, 0.09), alignItems: 'center', justifyContent: 'center' },
+  copy: { flex: 1, marginLeft: 13 },
+  rowTitle: { fontFamily: FontFamily.medium, marginBottom: 4 },
 });

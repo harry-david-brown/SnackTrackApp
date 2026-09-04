@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors, Gradients, Radius, Shadows } from '@constants/theme';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Colors, FontFamily, Gradients, Radius, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from '@components/ui/AppText';
 import type {
   DashboardPeriod,
   DashboardPeriodSummary,
@@ -22,6 +25,8 @@ export function DashboardSpendingHero({
   formatCurrency,
   onChangePeriod,
 }: DashboardSpendingHeroProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const comparison = summary.comparison;
   const comparisonText = comparison
     ? comparison.direction === 'same'
@@ -55,17 +60,17 @@ export function DashboardSpendingHero({
         accessibilityRole="summary"
         accessibilityLabel={`${summary.label}. ${loading ? 'Loading' : formatCurrency(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${formatCurrency(summary.averageOrderValue)}.`}
       >
-        <Text style={styles.label}>{summary.label}</Text>
-        <Text style={styles.value} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
+        <AppText variant="metadata" style={styles.label}>{summary.label}</AppText>
+        <AppText variant="heroValue" style={styles.value} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
           {loading ? '—' : formatCurrency(summary.totalSpent)}
-        </Text>
+        </AppText>
         <View style={styles.comparison}>
           <Ionicons
             name={comparison?.direction === 'up' ? 'trending-up' : comparison?.direction === 'down' ? 'trending-down' : 'remove'}
             size={16}
             color={Colors.white}
           />
-          <Text style={styles.comparisonText}>{comparisonText}</Text>
+          <AppText variant="metadata" style={styles.comparisonText}>{comparisonText}</AppText>
         </View>
         <View style={styles.metrics}>
           <Metric value={loading ? '—' : String(summary.receiptCount)} label="orders" />
@@ -77,6 +82,8 @@ export function DashboardSpendingHero({
 }
 
 function PeriodTab({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       accessibilityRole="tab"
@@ -84,34 +91,37 @@ function PeriodTab({ label, selected, onPress }: { label: string; selected: bool
       onPress={onPress}
       style={({ pressed }) => [styles.tab, selected && styles.tabSelected, pressed && styles.tabPressed]}
     >
-      <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</Text>
+      <AppText variant="button" style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</AppText>
     </Pressable>
   );
 }
 
 function Metric({ value, label }: { value: string; label: string }) {
   return (
-    <View style={styles.metric}>
-      <Text style={styles.metricValue} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+    <View style={staticStyles.metric}>
+      <AppText variant="surfaceTitle" style={staticStyles.metricValue} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>{value}</AppText>
+      <AppText variant="metadata" style={staticStyles.metricLabel}>{label}</AppText>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  segment: { flexDirection: 'row', padding: 4, marginBottom: 12, borderRadius: Radius.input, backgroundColor: Colors.gray100 },
-  tab: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
-  tabSelected: { backgroundColor: Colors.surface, ...Shadows.card },
-  tabPressed: { opacity: 0.78 },
-  tabText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '700' },
-  tabTextSelected: { color: Colors.primary },
-  hero: { padding: 22, borderRadius: Radius.card, ...Shadows.card },
-  label: { color: Colors.alpha(Colors.white, 0.82), fontSize: 14, fontWeight: '600' },
-  value: { marginTop: 7, color: Colors.white, fontSize: 38, lineHeight: 44, fontWeight: '800' },
-  comparison: { minHeight: 26, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  comparisonText: { flex: 1, color: Colors.alpha(Colors.white, 0.88), fontSize: 13, lineHeight: 18 },
-  metrics: { marginTop: 17, flexDirection: 'row', gap: 18 },
+const staticStyles = StyleSheet.create({
   metric: { flex: 1, paddingTop: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.alpha(Colors.white, 0.28) },
-  metricValue: { color: Colors.white, fontSize: 20, fontWeight: '800' },
-  metricLabel: { marginTop: 3, color: Colors.alpha(Colors.white, 0.76), fontSize: 12 },
+  metricValue: { color: Colors.white, fontSize: 20, lineHeight: 25, fontFamily: FontFamily.medium },
+  metricLabel: { marginTop: 3, color: Colors.alpha(Colors.white, 0.76) },
+});
+
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  segment: { flexDirection: 'row', padding: 4, marginBottom: 12, borderRadius: Radius.input, backgroundColor: theme.colors.gray100 },
+  tab: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
+  tabSelected: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider },
+  tabPressed: { opacity: 0.78 },
+  tabText: { color: theme.colors.textSecondary },
+  tabTextSelected: { color: theme.colors.primary },
+  hero: { padding: 22, borderRadius: Radius.card },
+  label: { color: Colors.alpha(Colors.white, 0.82) },
+  value: { marginTop: 7, color: Colors.white, fontFamily: FontFamily.semibold },
+  comparison: { minHeight: 26, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  comparisonText: { flex: 1, color: Colors.alpha(Colors.white, 0.88) },
+  metrics: { marginTop: 17, flexDirection: 'row', gap: 18 },
 });

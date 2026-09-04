@@ -1,10 +1,11 @@
-import { Colors } from '@constants/theme';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@contexts/UserContext';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 export default function TabLayout() {
   const { state } = useUser();
+  const theme = useAppTheme();
 
   // Declarative auth gate: any time the user is signed out (including after
   // logout from any tab), this layout redirects to the dedicated login route.
@@ -18,7 +19,20 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.gray500,
+        tabBarStyle: {
+          minHeight: 64,
+          paddingTop: 7,
+          paddingBottom: 8,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.divider,
+          borderTopWidth: 1,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: { fontFamily: theme.typography.medium, fontSize: 10, lineHeight: 13 },
+        sceneStyle: { backgroundColor: theme.colors.background },
         headerShown: false,
       }}
     >
@@ -27,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={18} color={color} />
           ),
         }}
       />
@@ -36,7 +50,7 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={18} color={color} />
           ),
         }}
       />
@@ -46,7 +60,7 @@ export default function TabLayout() {
         options={{
           title: 'Summary',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={18} color={color} />
           ),
         }}
       />
@@ -55,7 +69,7 @@ export default function TabLayout() {
         options={{
           title: 'You',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={18} color={color} />
           ),
         }}
       />

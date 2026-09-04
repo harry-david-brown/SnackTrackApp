@@ -8,8 +8,6 @@ import {
   Pressable,
   Image,
   AccessibilityInfo,
-  Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -29,7 +27,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import { UserSummary } from '@/types/api';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import { useCurrency } from '@contexts/CurrencyContext';
 import {
   STORY_GRADIENTS,
@@ -48,19 +46,10 @@ import { buildWrappedSlides, type Slide } from './buildWrappedSlides';
 import { getSlideEntranceRole } from './wrappedSlideSelection';
 import { useWrappedAudio } from './useWrappedAudio';
 import { styles } from './wrappedStyles';
-import {
-  resolveInitialPostDeckStep,
-  resolveTrackingPropositionCopy,
-  type PostWrappedExperience,
-} from './postWrappedState';
-import type {
-  OngoingTrackingEffectiveState,
-  ProviderExportLifecycleStatus,
-} from '@features/import-flow/contracts';
+import type { ProviderExportLifecycleStatus } from '@features/import-flow/contracts';
 import { useWrappedSharing } from './useWrappedSharing';
-import type { TrackingEligibility } from '@features/import-flow/trackingEligibility';
 import { trackAdminEvent } from '@services/adminAnalytics';
-import WrappedUpsellFinale from './WrappedUpsellFinale';
+import { WrappedUpsellFinale } from './WrappedUpsellFinale';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -80,14 +69,8 @@ interface WrappedShareJourneyProps {
   onClose: () => void;
   /** First name for personalized cards; omitted until the API exposes one. */
   userName?: string;
-  postWrappedExperience: PostWrappedExperience;
-  trackingState: OngoingTrackingEffectiveState;
-  trackingEligibility: TrackingEligibility;
   exportStatus: ProviderExportLifecycleStatus;
   exportProviderName?: string | null;
-  areImportPreferencesUpdating?: boolean;
-  onTrackingDecision?: (decision: 'granted' | 'declined') => Promise<void>;
-  onManageEmail?: () => void;
   onExportUpsellSeen?: () => void;
   onExportUpgrade?: () => void;
   onExportTutorial?: () => void;
@@ -99,14 +82,8 @@ export default function WrappedShareJourney({
   analytics,
   onClose,
   userName,
-  postWrappedExperience,
-  trackingState,
-  trackingEligibility,
   exportStatus,
   exportProviderName,
-  areImportPreferencesUpdating = false,
-  onTrackingDecision,
-  onManageEmail,
   onExportUpsellSeen,
   onExportUpgrade,
   onExportTutorial,
@@ -122,7 +99,6 @@ export default function WrappedShareJourney({
   const isPaused = isPressPaused;
   const [confettiVisible, setConfettiVisible] = useState(false);
   const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
-  const [postDeckStep, setPostDeckStep] = useState<'tracking' | 'export'>('tracking');
   const { isMuted, toggleMuted } = useWrappedAudio(isFocused && !showPostDeckOffer);
 
   // Animation state lives in Reanimated shared values, so entrances and the
@@ -220,11 +196,11 @@ export default function WrappedShareJourney({
   }, [currentSlide, slides.length]);
 
   React.useEffect(() => {
-    if (showPostDeckOffer && postDeckStep === 'export') {
+    if (showPostDeckOffer) {
       onExportUpsellSeen?.();
       void trackAdminEvent('upsell_example_viewed', { properties: { example: 'delivery_fee_trend' } }).catch(() => undefined);
     }
-  }, [postDeckStep, showPostDeckOffer, onExportUpsellSeen]);
+  }, [showPostDeckOffer, onExportUpsellSeen]);
 
   // Confetti fires per-slide, optionally delayed (the archetype launches it in
   // sync with the name reveal). Reduced motion skips it entirely.
@@ -447,33 +423,7 @@ export default function WrappedShareJourney({
     onFinishPostWrapped?.();
   };
 
-  const continueFromTracking = () => {
-    if (postWrappedExperience.exportEligibility === 'show') {
-      setPostDeckStep('export');
-      return;
-    }
-
-    if (postWrappedExperience.exportEligibility === 'hide') {
-      finishPostWrapped();
-    }
-  };
-
-  const handleTrackingDecision = async (decision: 'granted' | 'declined') => {
-    try {
-      await onTrackingDecision?.(decision);
-      continueFromTracking();
-    } catch {
-      // The screen displays the error. Keep this step open so the user can retry.
-    }
-  };
-
-  const exportOrderCount =
-    analytics.wrappedAnalytics?.coverage?.orderCount ?? analytics.totalReceipts;
-  const hasRequestedExport = exportStatus === 'requested';
   const providerName = exportProviderName ?? 'delivery provider';
-  const trackingPropositionCopy = resolveTrackingPropositionCopy({
-    trackingState,
-  });
 
   // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
   // the device screen) for the off-screen capture.
@@ -485,7 +435,7 @@ export default function WrappedShareJourney({
         ) : slide.mascotPose ? (
           /* MASCOT: slide hero — pose varies per slide theme. */
           <View style={styles.mascotHero}>
-            <MascotPlaceholder pose={slide.mascotPose} size={104} variant="outline" />
+            <Mascot pose={slide.mascotPose} size={104} variant="outline" />
           </View>
         ) : (
           <Text style={styles.emoji}>{slide.emoji}</Text>
@@ -572,7 +522,6 @@ export default function WrappedShareJourney({
 
   if (showPostDeckOffer) {
     return <WrappedUpsellFinale
-      analytics={analytics}
       exportStatus={exportStatus}
       providerName={exportProviderName}
       onUnlock={() => { setShowPostDeckOffer(false); onExportTutorial?.(); }}
@@ -711,7 +660,6 @@ export default function WrappedShareJourney({
             style={styles.doneCtaButton}
             onPress={() => {
               void trackAdminEvent('wrapped_completed').catch(() => undefined);
-              setPostDeckStep('export');
               setShowPostDeckOffer(true);
             }}
             accessibilityRole="button"
@@ -753,249 +701,6 @@ export default function WrappedShareJourney({
         <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color={Colors.white} />
       </TouchableOpacity>
 
-      <Modal
-        visible={showPostDeckOffer}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPostDeckOffer(false)}
-      >
-        <View style={styles.offerBackdrop}>
-          <View style={styles.offerCard}>
-            {postDeckStep === 'tracking' ? (
-              <>
-                <View style={styles.offerIcon}>
-                  <Ionicons
-                    name={trackingState === 'active' ? 'checkmark-circle-outline' : 'stats-chart-outline'}
-                    size={26}
-                    color={Colors.textPrimary}
-                  />
-                </View>
-                <Text style={styles.offerEyebrow}>{trackingPropositionCopy.eyebrow}</Text>
-                <Text style={styles.offerTitle}>{trackingPropositionCopy.title}</Text>
-                <Text style={styles.offerBody}>{trackingPropositionCopy.body}</Text>
-                {trackingState !== 'active'
-                  && trackingState !== 'setting_up'
-                  && trackingState !== 'reconnect_required'
-                  && trackingState !== 'error' && (
-                  <View style={styles.consentDetails}>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="search-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Only supported delivery receipt emails</Text>
-                    </View>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="shield-checkmark-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>We do not store your inbox</Text>
-                    </View>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="settings-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Turn it off from Profile at any time</Text>
-                    </View>
-                  </View>
-                )}
-                <View style={styles.exportActionStack}>
-                  {trackingState === 'active' || trackingState === 'setting_up' ? (
-                    <TouchableOpacity
-                      style={styles.affiliateButton}
-                      onPress={continueFromTracking}
-                      accessibilityRole="button"
-                      accessibilityLabel={postWrappedExperience.exportEligibility === 'show'
-                        ? 'Continue to optional delivery-app history'
-                        : 'Finish and return to the dashboard'}
-                    >
-                      <Text style={styles.affiliateButtonText}>
-                        {postWrappedExperience.exportEligibility === 'show' ? 'Continue' : 'Finish'}
-                      </Text>
-                      <Ionicons name="arrow-forward" size={20} style={styles.affiliateButtonIcon} />
-                    </TouchableOpacity>
-                  ) : trackingState === 'reconnect_required' || trackingState === 'error' || !trackingEligibility.eligible ? (
-                    <>
-                      <TouchableOpacity
-                        style={styles.affiliateButton}
-                        onPress={() => {
-                          setShowPostDeckOffer(false);
-                          onManageEmail?.();
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={trackingEligibility.reason === 'historical_baseline_required'
-                          ? 'Check email from the import screen'
-                          : trackingEligibility.reason === 'gmail_temporarily_unavailable'
-                            ? 'Email is temporarily unavailable'
-                            : 'Manage email connections from the import screen'}
-                      >
-                        <Ionicons name="mail-outline" size={20} style={styles.affiliateButtonIcon} />
-                        <Text style={styles.affiliateButtonText}>
-                          {trackingEligibility.reason === 'historical_baseline_required'
-                            ? 'Add Import History First'
-                            : trackingEligibility.reason === 'gmail_temporarily_unavailable'
-                              ? 'Try Again Later'
-                              : 'Manage Email'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.offerSecondaryButton}
-                        onPress={continueFromTracking}
-                        accessibilityRole="button"
-                      >
-                        <Text style={styles.offerSecondaryButtonText}>Continue for now</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <>
-                      <TouchableOpacity
-                        style={[
-                          styles.affiliateButton,
-                          areImportPreferencesUpdating && styles.offerButtonDisabled,
-                        ]}
-                        onPress={() => void handleTrackingDecision('granted')}
-                        disabled={areImportPreferencesUpdating}
-                        accessibilityRole="button"
-                        accessibilityLabel="Enable ongoing receipt tracking"
-                      >
-                        {areImportPreferencesUpdating ? (
-                          <ActivityIndicator size="small" color={Colors.textPrimary} />
-                        ) : (
-                          <Ionicons name="mail-open-outline" size={20} style={styles.affiliateButtonIcon} />
-                        )}
-                        <Text style={styles.affiliateButtonText}>Enable Ongoing Tracking</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.offerSecondaryButton}
-                        onPress={() => void handleTrackingDecision('declined')}
-                        disabled={areImportPreferencesUpdating}
-                        accessibilityRole="button"
-                        accessibilityLabel="Do not enable ongoing tracking"
-                      >
-                        <Text style={styles.offerSecondaryButtonText}>Not now</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  {postWrappedExperience.exportEligibility === 'loading' && (
-                    <View style={styles.offerLoadingRow}>
-                      <ActivityIndicator size="small" color={Colors.white} />
-                      <Text style={styles.offerLoadingText}>Checking your import history...</Text>
-                    </View>
-                  )}
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.offerIcon}>
-                  <Ionicons
-                    name={hasRequestedExport ? 'time-outline' : 'archive-outline'}
-                    size={26}
-                    color={Colors.textPrimary}
-                  />
-                </View>
-                <Text style={styles.offerEyebrow}>
-                  {hasRequestedExport ? `${providerName.toUpperCase()} REQUESTED` : 'THAT’S JUST THE SURFACE'}
-                </Text>
-                <Text style={styles.offerTitle}>
-                  {hasRequestedExport
-                    ? `Your ${providerName} history request is saved`
-                    : exportStatus === 'file_ready'
-                      ? `Your ${providerName} history file is ready to add`
-                    : exportStatus === 'import_processing'
-                      ? `We're adding your ${providerName} history`
-                      : exportStatus === 'failed'
-                        ? `Your ${providerName} import needs another try`
-                        : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? 'See what the missing orders are hiding'
-                          : 'Complete the picture. Unlock the good stuff.'}
-                </Text>
-                <Text style={styles.offerBody}>
-                  {hasRequestedExport
-                    ? `When ${providerName} says your history is ready, return to Data & tracking to finish adding it.`
-                    : exportStatus === 'file_ready'
-                      ? 'Your history is ready. Open Data & tracking to finish adding it.'
-                    : exportStatus === 'import_processing'
-                      ? 'Your file is being processed. Your history will update when the import finishes.'
-                      : exportStatus === 'failed'
-                        ? `The last ${providerName} file did not finish. Try again with a newly downloaded archive.`
-                        : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? `We found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. Complete your history to uncover the patterns email missed.`
-                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Complete your delivery picture to reveal the patterns still hiding.`}
-                </Text>
-                {!hasRequestedExport && exportStatus === 'not_started' ? (
-                  <View style={styles.consentDetails} accessibilityLabel="Examples of insights unlocked by downloaded delivery history">
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="repeat-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Your exact repeat order and menu soulmate</Text>
-                    </View>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="fast-food-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Item obsessions, quantities, and favorite sauces</Text>
-                    </View>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="time-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>Your fastest and longest delivery records</Text>
-                    </View>
-                    <View style={styles.consentDetailRow}>
-                      <Ionicons name="trending-up-outline" size={17} color={Colors.mascotHighlight} />
-                      <Text style={styles.consentDetailText}>How delivery companies quietly changed your fees over time*</Text>
-                    </View>
-                    <Text style={styles.offerBody}>*Available when your receipts include enough explicit fee detail. Your food wasn’t the only thing getting pricier—unless the receipts prove otherwise.</Text>
-                  </View>
-                ) : null}
-                <View style={styles.exportActionStack}>
-                  {exportStatus !== 'import_processing' && (
-                    <>
-                      {exportStatus === 'not_started' && (
-                        <TouchableOpacity
-                          style={styles.affiliateButton}
-                          onPress={() => {
-                            void trackAdminEvent('deeper_stats_selected').catch(() => undefined);
-                            setShowPostDeckOffer(false);
-                            onExportTutorial?.();
-                          }}
-                          accessibilityRole="button"
-                          accessibilityLabel="Unlock deeper delivery statistics"
-                        >
-                          <Ionicons name="download-outline" size={20} style={styles.affiliateButtonIcon} />
-                          <Text style={styles.affiliateButtonText}>
-                            Unlock deeper stats
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity
-                        style={exportStatus === 'not_started'
-                          ? styles.exportSecondaryButton
-                          : styles.affiliateButton}
-                        onPress={() => {
-                          setShowPostDeckOffer(false);
-                          onExportUpgrade?.();
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add a ${providerName} history archive you already have`}
-                      >
-                        <Ionicons
-                          name="cloud-upload-outline"
-                          size={18}
-                          color={exportStatus === 'not_started' ? Colors.white : Colors.textPrimary}
-                        />
-                        <Text
-                          style={exportStatus === 'not_started'
-                            ? styles.exportSecondaryButtonText
-                            : styles.affiliateButtonText}
-                        >
-                          Import a file I already have
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  <TouchableOpacity
-                    style={styles.exportDismissButton}
-                    onPress={finishPostWrapped}
-                    accessibilityRole="button"
-                    accessibilityLabel="Finish without adding downloaded history"
-                  >
-                    <Text style={styles.offerDismissText}>Finish for now</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

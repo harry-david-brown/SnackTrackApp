@@ -28,11 +28,15 @@ export default {
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    userInterfaceStyle: "light",
+    userInterfaceStyle: "automatic",
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#FAF8F4",
+      dark: {
+        image: "./assets/splash-icon.png",
+        backgroundColor: "#101812"
+      }
     },
     assetBundlePatterns: [
       "**/*"

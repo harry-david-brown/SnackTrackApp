@@ -32,6 +32,10 @@ describe('resolveInitialImportJourney', () => {
     expect(resolveInitialImportJourney(makeFlow(), 'alternative')).toEqual({ kind: 'choose_provider' });
   });
 
+  it('keeps an explicitly requested source picker visible when history already exists', () => {
+    expect(resolveInitialImportJourney(makeFlow({ hasAnyExportData: true }), 'alternative')).toEqual({ kind: 'choose_provider' });
+  });
+
   it('reviews consent before scanning a connected Gmail account', () => {
     expect(resolveInitialImportJourney(makeFlow({
       gmailConnected: true,

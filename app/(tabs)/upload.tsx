@@ -1,8 +1,9 @@
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, router } from 'expo-router';
-import { Colors } from '@constants/theme';
+import { Colors, FontFamily, type AppTheme } from '@constants/theme';
+import { useAppTheme } from '@contexts/AppearanceContext';
 import { parseImportRouteParams } from '@features/import-flow/importRouteParams';
 import { useImportFlowController } from '@hooks/useImportFlowController';
 import { ConnectEmailTaskSection } from '@components/upload/ConnectEmailTaskSection';
@@ -19,12 +20,16 @@ import { AppButton } from '@components/ui/AppButton';
 import { resolveHomeDataGuidance } from '@components/dashboard/dashboardTrackingState';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { ImportOperationCard } from '@components/import/ImportOperationCard';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { trackAdminEvent } from '@services/adminAnalytics';
-import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import { Mascot } from '@components/mascot/Mascot';
 import UberDataTutorial from '@components/upload/UberDataTutorial';
+import { AppText } from '@components/ui/AppText';
+import { PageHeader } from '@components/ui/PageHeader';
 
 export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'setup' | 'manage' }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const rawParams = useLocalSearchParams();
   const route = parseImportRouteParams(rawParams);
   const controller = useImportFlowController(route, mode);
@@ -67,8 +72,8 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <ImportOperationCard operation={operation} />
-          <Text style={styles.title}>Data & tracking</Text>
-          <Text style={styles.subtitle}>Please log in to connect email or add your delivery-app history.</Text>
+          <AppText variant="pageTitle" style={styles.title}>Data & tracking</AppText>
+          <AppText variant="body" style={styles.subtitle}>Please log in to connect email or add your delivery-app history.</AppText>
         </View>
       </SafeAreaView>
     );
@@ -128,32 +133,30 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
             <>
               <View style={styles.headerRow}>
                 <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.back()} />
-                <MascotPlaceholder pose="sunglasses" size={58} />
+                <Mascot pose="sunglasses" size={58} />
               </View>
-              <Text style={styles.eyebrow}>DATA & TRACKING</Text>
-              <Text style={styles.title}>Your data, in one place</Text>
-              <Text style={styles.subtitle}>See what’s covered, fill the gaps, and decide how SnackTrack stays current.</Text>
+              <PageHeader eyebrow="DATA & TRACKING" title="Your data, in one place" body="See what’s covered, fill the gaps, and decide how SnackTrack stays current." />
 
               <View style={styles.coverageHero}>
-                <Text style={styles.coverageEyebrow}>YOUR COVERAGE</Text>
-                <Text style={styles.coverageValue}>{(controller.importPreferences?.coverage.emailReceiptCount ?? 0) + (controller.importPreferences?.coverage.exportReceiptCount ?? 0)} orders</Text>
-                <Text style={styles.coverageRange}>{coverageRange}</Text>
-                <View style={styles.coverageChip}><Text style={styles.coverageChipText}>{coverageSources.length ? 'HISTORY CONNECTED' : 'READY TO START'}</Text></View>
+                <AppText variant="eyebrow" style={styles.coverageEyebrow}>YOUR COVERAGE</AppText>
+                <AppText variant="heroValue" style={styles.coverageValue}>{(controller.importPreferences?.coverage.emailReceiptCount ?? 0) + (controller.importPreferences?.coverage.exportReceiptCount ?? 0)} orders</AppText>
+                <AppText variant="body" style={styles.coverageRange}>{coverageRange}</AppText>
+                <View style={styles.coverageChip}><AppText variant="eyebrow" style={styles.coverageChipText}>{coverageSources.length ? 'HISTORY CONNECTED' : 'READY TO START'}</AppText></View>
               </View>
 
-              <Text style={styles.groupTitle}>History sources</Text>
+              <AppText variant="surfaceTitle" style={styles.groupTitle}>History sources</AppText>
               <Card style={styles.settingsCard}>
                 <ManagementRow icon="mail-outline" title="Email receipts" subtitle={controller.flow.hasImportedEmailData ? `${controller.importPreferences?.coverage.emailReceiptCount ?? 0} orders found` : 'Find supported delivery receipts'} onPress={controller.openGmailSettings} />
                 <View style={styles.rowDivider} />
                 <ManagementRow icon="albums-outline" title="Detailed order history" subtitle={controller.flow.hasAnyExportData ? `${controller.importPreferences?.coverage.exportReceiptCount ?? 0} detailed orders` : 'Fill gaps and unlock deeper stats'} onPress={controller.openTutorial} />
               </Card>
 
-              <Text style={styles.groupTitle}>Automatic updates</Text>
+              <AppText variant="surfaceTitle" style={styles.groupTitle}>Automatic updates</AppText>
               <Card style={styles.settingsCard}>
                 <ManagementRow icon="sync-outline" title="Keep my stats current" subtitle={controller.ongoingUpdatesPresentation.body || 'Choose whether SnackTrack checks for new supported receipts.'} onPress={controller.setupOngoingUpdates} />
               </Card>
 
-              <Text style={styles.groupTitle}>Privacy and control</Text>
+              <AppText variant="surfaceTitle" style={styles.groupTitle}>Privacy and control</AppText>
               <Card style={styles.settingsCard}>
                 <ManagementRow icon="shield-checkmark-outline" title="How SnackTrack uses my data" subtitle="Private by default, with controls for every source" onPress={() => router.push('/(tabs)/profile')} />
               </Card>
@@ -162,31 +165,29 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
             <>
               <View style={styles.header}>
                 {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.replace('/data-tracking')} /> : null}
-                <Text style={styles.eyebrow}>DATA & TRACKING</Text>
-                <Text style={styles.title}>Data & tracking</Text>
-                <Text style={styles.subtitle}>See your coverage, connected sources, automatic updates, and privacy controls.</Text>
+                <PageHeader eyebrow="DATA & TRACKING" title="Source details" body="Manage this source, its history, and how it keeps your stats current." />
               </View>
 
               <View style={styles.taskList}>
             <SectionHeader title="Coverage" subtitle="What SnackTrack can currently see across your connected and imported sources." />
             <Card style={styles.recommendationCard}>
-              <Text style={styles.relevanceTitle}>
+              <AppText variant="surfaceTitle" style={styles.relevanceTitle}>
                 {(controller.importPreferences?.coverage.emailReceiptCount ?? 0) + (controller.importPreferences?.coverage.exportReceiptCount ?? 0)} orders covered
-              </Text>
-              <Text style={styles.relevanceBody}>
+              </AppText>
+              <AppText variant="surfaceBody" style={styles.relevanceBody}>
                 {[
                   controller.importPreferences?.coverage.emailProviders.uberEats.hasData || controller.importPreferences?.coverage.exportProviders.uberEats.hasData ? 'Uber Eats' : null,
                   controller.importPreferences?.coverage.emailProviders.doorDash.hasData || controller.importPreferences?.coverage.exportProviders.doorDash.hasData ? 'DoorDash' : null,
                 ].filter(Boolean).join(' and ') || 'No providers represented yet'}
-              </Text>
-              <Text style={styles.relevanceBody}>{coverageRange}</Text>
-              <Text style={styles.recommendationHint}>Missing periods or providers will appear as the best next action below.</Text>
+              </AppText>
+              <AppText variant="surfaceBody" style={styles.relevanceBody}>{coverageRange}</AppText>
+              <AppText variant="metadata" style={styles.recommendationHint}>Missing periods or providers will appear as the best next action below.</AppText>
             </Card>
             <SectionHeader title="Recommended next step" />
             <Card style={styles.recommendationCard} accessibilityLabel={`${hubGuidance.title}. ${hubGuidance.body}`}>
-              <Text style={styles.relevanceTitle}>{hubGuidance.title}</Text>
-              <Text style={styles.relevanceBody}>{hubGuidance.body}</Text>
-              <Text style={styles.recommendationHint}>Use the matching source below to continue.</Text>
+              <AppText variant="surfaceTitle" style={styles.relevanceTitle}>{hubGuidance.title}</AppText>
+              <AppText variant="surfaceBody" style={styles.relevanceBody}>{hubGuidance.body}</AppText>
+              <AppText variant="metadata" style={styles.recommendationHint}>Use the matching source below to continue.</AppText>
             </Card>
             <SectionHeader title="Sources" subtitle="Connections, one-time scans, and imported files keep their own status." />
             {(initialJourney.kind === 'complete' || mode === 'manage') && controller.gmailFeatureEnabled ? (
@@ -261,8 +262,8 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
             ) : null}
             <SectionHeader title="Privacy and control" />
             <Card style={styles.helpCard}>
-              <Text style={styles.relevanceTitle}>How your data is handled</Text>
-              <Text style={styles.relevanceBody}>SnackTrack only scans supported delivery receipts after you explicitly start it. Disconnecting an inbox preserves imported history; reset and deletion controls remain under your account settings.</Text>
+              <AppText variant="surfaceTitle" style={styles.relevanceTitle}>How your data is handled</AppText>
+              <AppText variant="surfaceBody" style={styles.relevanceBody}>SnackTrack only scans supported delivery receipts after you explicitly start it. Disconnecting an inbox preserves imported history; reset and deletion controls remain under your account settings.</AppText>
             </Card>
               </View>
             </>
@@ -308,46 +309,47 @@ export default function UploadScreen() {
   return <Redirect href={{ pathname: '/data-tracking', params }} />;
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
   scrollView: { flex: 1 },
   scrollContent: { flexGrow: 1 },
-  content: { padding: 20 },
+  content: { flexGrow: 1, padding: 18 },
   header: { marginBottom: 20 },
-  eyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 6 },
-  title: { fontSize: 28, fontWeight: '800', color: Colors.textPrimary, marginBottom: 8 },
-  subtitle: { fontSize: 16, color: Colors.textSecondary, lineHeight: 24 },
+  title: { marginBottom: 8 },
+  subtitle: {},
   taskList: { gap: 14 },
   relevanceCard: { padding: 16, gap: 14 },
   relevanceCopy: { gap: 4 },
-  relevanceTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
-  relevanceBody: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
+  relevanceTitle: {},
+  relevanceBody: {},
   helpCard: { padding: 16, gap: 6, marginBottom: 28 },
-  recommendationCard: { padding: 18, gap: 6, backgroundColor: Colors.infoBg },
-  recommendationHint: { color: Colors.primary, fontSize: 13, fontWeight: '800', marginTop: 4 },
+  recommendationCard: { padding: 18, gap: 6, backgroundColor: theme.colors.infoBg },
+  recommendationHint: { color: theme.colors.primary, fontFamily: FontFamily.medium, marginTop: 4 },
   headerRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   coverageHero: { minHeight: 190, borderRadius: 28, padding: 22, marginTop: 22, backgroundColor: Colors.forest850 },
-  coverageEyebrow: { color: Colors.leaf300, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
-  coverageValue: { color: Colors.white, fontSize: 38, lineHeight: 44, fontWeight: '600', marginTop: 17 },
-  coverageRange: { color: Colors.alpha(Colors.white, 0.72), fontSize: 14, marginTop: 5 },
+  coverageEyebrow: { color: Colors.leaf300 },
+  coverageValue: { color: Colors.white, fontFamily: FontFamily.semibold, marginTop: 17 },
+  coverageRange: { color: Colors.alpha(Colors.white, 0.72), marginTop: 5 },
   coverageChip: { alignSelf: 'flex-start', backgroundColor: Colors.alpha(Colors.leaf300, 0.15), borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginTop: 20 },
-  coverageChipText: { color: Colors.leaf300, fontSize: 10, letterSpacing: 0.9, fontWeight: '700' },
-  groupTitle: { color: Colors.textPrimary, fontSize: 17, fontWeight: '600', marginTop: 24, marginBottom: 9 },
+  coverageChipText: { color: Colors.leaf300, fontSize: 10, lineHeight: 13 },
+  groupTitle: { marginTop: 24, marginBottom: 9 },
   settingsCard: { padding: 0, overflow: 'hidden' },
   managementRow: { minHeight: 76, paddingHorizontal: 15, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  managementIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.alpha(Colors.primary, 0.1), alignItems: 'center', justifyContent: 'center' },
+  managementIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: theme.colors.alpha(theme.colors.primary, 0.1), alignItems: 'center', justifyContent: 'center' },
   managementCopy: { flex: 1 },
-  managementTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  managementSubtitle: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  rowDivider: { height: 1, backgroundColor: Colors.divider, marginLeft: 69 },
+  managementTitle: { fontFamily: FontFamily.medium },
+  managementSubtitle: { marginTop: 3 },
+  rowDivider: { height: 1, backgroundColor: theme.colors.divider, marginLeft: 69 },
 });
 
 function ManagementRow({ icon, title, subtitle, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; onPress: () => void }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} onPress={onPress} style={({ pressed }) => [styles.managementRow, pressed && { backgroundColor: Colors.infoBg }]}>
-      <View style={styles.managementIcon}><Ionicons name={icon} size={20} color={Colors.primary} /></View>
-      <View style={styles.managementCopy}><Text style={styles.managementTitle}>{title}</Text><Text style={styles.managementSubtitle}>{subtitle}</Text></View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.slate500} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} onPress={onPress} style={({ pressed }) => [styles.managementRow, pressed && { backgroundColor: theme.colors.infoBg }]}>
+      <View style={styles.managementIcon}><Ionicons name={icon} size={20} color={theme.colors.primary} /></View>
+      <View style={styles.managementCopy}><AppText variant="rowTitle" style={styles.managementTitle}>{title}</AppText><AppText variant="metadata" style={styles.managementSubtitle}>{subtitle}</AppText></View>
+      <Ionicons name="chevron-forward" size={18} color={theme.colors.slate500} />
     </Pressable>
   );
 }

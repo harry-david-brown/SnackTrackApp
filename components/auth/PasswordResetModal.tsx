@@ -1,4 +1,4 @@
-import { Colors } from '@constants/theme';
+import type { AppTheme } from '@constants/theme';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Modal,
@@ -18,6 +18,7 @@ import {
   verificationCodeFailure,
   verificationCodeMessage,
 } from '@features/auth/contracts';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 type ResetStep = 'request' | 'verify' | 'reset' | 'success';
 type PendingResetAction = 'request' | 'verify' | 'complete' | null;
@@ -35,6 +36,8 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   onClose,
   defaultEmail = '',
 }) => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [step, setStep] = useState<ResetStep>('request');
   const [email, setEmail] = useState(defaultEmail);
   const [code, setCode] = useState('');
@@ -205,7 +208,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               Enter the email you use for SnackTrack and we&apos;ll send you a secure reset code.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
+              <Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -234,7 +237,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               We sent a 6-digit code to {email}. Enter it below to continue.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="key-outline" size={20} color={Colors.textSecondary} style={styles.icon} pointerEvents="none" />
+              <Ionicons name="key-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} pointerEvents="none" />
               <TextInput
                 ref={codeInputRef}
                 value={code}
@@ -287,7 +290,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               Make sure your password is strong and unique. You’ll use it next time you sign in.
             </Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.icon} pointerEvents="none" />
+              <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} pointerEvents="none" />
               <TextInput
                 key={`new-password-${step}`}
                 value={newPassword}
@@ -305,7 +308,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               />
             </View>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.icon} pointerEvents="none" />
+              <Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} pointerEvents="none" />
               <TextInput
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -361,7 +364,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       >
         <View style={styles.card}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Ionicons name="close" size={24} color={Colors.inkNearBlack} />
+            <Ionicons name="close" size={24} color={theme.colors.inkNearBlack} />
           </TouchableOpacity>
           {renderContent()}
           {error && <Text style={styles.error}>{error}</Text>}
@@ -371,18 +374,18 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: Colors.alpha(Colors.black, 0.5),
+    backgroundColor: theme.colors.alpha(theme.colors.black, 0.5),
     justifyContent: 'center',
     padding: 24,
   },
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     padding: 24,
-    shadowColor: Colors.black,
+    shadowColor: theme.colors.black,
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
@@ -390,20 +393,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '500',
     marginBottom: 8,
-    color: Colors.inkNearBlack,
+    color: theme.colors.inkNearBlack,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 20,
     lineHeight: 22,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.gray50,
+    backgroundColor: theme.colors.gray50,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
@@ -415,17 +418,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: Colors.inkNearBlack,
+    color: theme.colors.inkNearBlack,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: theme.colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -435,10 +438,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderWidth: 1,
-    borderColor: Colors.slate200,
+    borderColor: theme.colors.slate200,
   },
   secondaryButtonText: {
-    color: Colors.primary,
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -446,14 +449,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   error: {
-    color: Colors.error,
+    color: theme.colors.error,
     marginTop: 16,
     fontSize: 14,
     lineHeight: 20,
   },
   helperText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   closeButton: {

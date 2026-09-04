@@ -1,13 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '@constants/theme';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
-  return <View style={styles.container}><Text style={styles.title}>{title}</Text>{subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}</View>;
+  return <View style={styles.container}><AppText variant="sectionLabel" tone="muted">{title}</AppText>{subtitle ? <AppText variant="surfaceBody" tone="muted">{subtitle}</AppText> : null}</View>;
 }
 
 const styles = StyleSheet.create({
   container: { gap: 4 },
-  title: { color: Colors.textPrimary, fontSize: 20, fontWeight: '800' },
-  subtitle: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
 });
-

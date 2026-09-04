@@ -218,7 +218,12 @@ export const ChartSeries: string[] = [
 ];
 
 export const Radius = {
+  icon: 10,
   md: 14,
+  control: 16,
+  status: 18,
+  stat: 20,
+  profile: 22,
   card: 24,
   button: 16,
   input: 14,
@@ -230,7 +235,11 @@ export const Radius = {
 export const Spacing = {
   xs: 4,
   sm: 8,
+  compact: 10,
   md: 12,
+  control: 14,
+  section: 16,
+  page: 18,
   lg: 20,
   xl: 24,
 } as const;
@@ -260,8 +269,143 @@ export const Shadows = {
   },
 } as const;
 
+export interface ThemeShadow {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  elevation: number;
+}
+
+export type ThemeShadows = Record<'card' | 'button' | 'fab', ThemeShadow>;
+
 /** Deep-green gradient stops for hero/full-bleed surfaces. */
 export const Gradients = {
   hero: [Colors.forest850, Colors.primary, Colors.secondary] as const,
   celebration: [Colors.primary, Colors.secondary, Colors.accent] as const,
 };
+
+export const FontFamily = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  display: 'Fredoka_500Medium',
+  displaySemibold: 'Fredoka_600SemiBold',
+} as const;
+
+export type AppearancePreference = 'system' | 'light' | 'dark';
+export type AppColorScheme = 'light' | 'dark';
+
+export const DarkColors = {
+  ...Colors,
+  background: '#101812',
+  surface: '#17231D',
+  textPrimary: '#F8F6F1',
+  textSecondary: '#ABB8AF',
+  primary: '#A8D8B5',
+  primaryHover: '#B8E3C3',
+  primaryPressed: '#75BB89',
+  secondary: '#75BB89',
+  buttonPrimaryText: '#102017',
+  buttonSecondaryBorder: '#75BB89',
+  buttonSecondaryText: '#B8E3C3',
+  divider: '#2C3932',
+  chipActiveBg: '#21392B',
+  chipActiveText: '#B8E3C3',
+  chipInactiveBg: '#202C26',
+  chipInactiveText: '#ABB8AF',
+  progressFill: '#75BB89',
+  progressTrack: '#304139',
+  toggleOn: '#75BB89',
+  toggleOff: '#3C4B43',
+  checkboxChecked: '#75BB89',
+  successBg: '#203628',
+  successBorder: '#75BB89',
+  infoBg: '#1B2B22',
+  infoBorder: '#75BB89',
+  mascotOutline: '#F8F6F1',
+  gray50: '#1B2721',
+  gray75: '#202C26',
+  gray100: '#26332C',
+  gray200: '#304139',
+  gray250: '#35453C',
+  gray300: '#3C4B43',
+  gray350: '#46574D',
+  gray400: '#68766E',
+  gray500: '#8D9991',
+  slate50: '#18241E',
+  slate100: '#24322B',
+  slate150: '#2C3932',
+  slate200: '#3C4B43',
+  slate500: '#8D9991',
+  slateFrost: '#F8F6F1',
+  warningSurface: '#352719',
+  warningDeep: '#FFD5A5',
+  errorSurface: '#3A2222',
+  errorSurfaceSoft: '#321F1F',
+  errorBorder: '#714040',
+} as const;
+
+export interface AppTheme {
+  scheme: AppColorScheme;
+  colors: typeof Colors | typeof DarkColors;
+  typography: typeof FontFamily;
+  spacing: typeof Spacing;
+  radii: typeof Radius;
+  shadows: ThemeShadows;
+  gradients: {
+    hero: readonly [string, string];
+    recap: readonly [string, string, string];
+    finale: readonly [string, string, string];
+  };
+  metrics: {
+    pagePadding: number;
+    narrowPagePadding: number;
+    minimumTouchTarget: number;
+    buttonHeight: number;
+  };
+}
+
+const metrics = {
+  pagePadding: 18,
+  narrowPagePadding: 14,
+  minimumTouchTarget: 44,
+  buttonHeight: 50,
+} as const;
+
+export const LightTheme: AppTheme = {
+  scheme: 'light',
+  colors: Colors,
+  typography: FontFamily,
+  spacing: Spacing,
+  radii: Radius,
+  shadows: Shadows,
+  gradients: {
+    hero: [Palette.forest500, Palette.forest700],
+    recap: [Palette.lagoonDeep, Palette.lagoonMid, Palette.lagoonBright],
+    finale: [Palette.hallDeep, Palette.hallMid, Palette.hallGold],
+  },
+  metrics,
+};
+
+export const DarkTheme: AppTheme = {
+  scheme: 'dark',
+  colors: DarkColors,
+  typography: FontFamily,
+  spacing: Spacing,
+  radii: Radius,
+  shadows: {
+    card: { ...Shadows.card, shadowColor: Palette.black, shadowOpacity: 0.22 },
+    button: { ...Shadows.button, shadowColor: Palette.black, shadowOpacity: 0.2 },
+    fab: { ...Shadows.fab, shadowColor: Palette.black, shadowOpacity: 0.28 },
+  },
+  gradients: {
+    hero: ['#3F8057', '#1B4D36'],
+    recap: ['#081D22', '#0E4248', '#176B69'],
+    finale: ['#0B0A1F', '#211A50', '#6E4E15'],
+  },
+  metrics,
+};
+
+export const themeForScheme = (scheme: AppColorScheme): AppTheme =>
+  scheme === 'dark' ? DarkTheme : LightTheme;

@@ -127,10 +127,4 @@ describe('useNetworkStatus', () => {
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('should configure NetInfo on import', () => {
-    expect(NetInfo.configure).toHaveBeenCalledWith(expect.objectContaining({
-      shouldFetchWiFiSSID: false,
-      useNativeReachability: false,
-    }));
-  });
 });

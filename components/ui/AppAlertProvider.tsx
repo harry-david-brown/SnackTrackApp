@@ -1,14 +1,15 @@
-import { Colors, Radius, Shadows } from '@constants/theme';
+import { FontFamily, Radius, type AppTheme } from '@constants/theme';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MascotPlaceholder, MascotPose } from '@components/mascot/MascotPlaceholder';
+import { Mascot, MascotPose } from '@components/mascot/Mascot';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from './AppText';
 import {
   AppAlertButton,
   AppAlertRequest,
@@ -60,37 +61,39 @@ const getAlertTone = (request: AppAlertRequest): AlertTone => {
   return 'info';
 };
 
-const TONE_DETAILS: Record<
+const toneDetails = (theme: AppTheme): Record<
   AlertTone,
   { eyebrow: string; mascotPose: MascotPose; accent: string; surface: string }
-> = {
+> => ({
   error: {
     eyebrow: 'Something went wrong',
     mascotPose: 'sad',
-    accent: Colors.error,
-    surface: Colors.errorSurface,
+    accent: theme.colors.error,
+    surface: theme.colors.errorSurface,
   },
   success: {
     eyebrow: 'All set',
     mascotPose: 'wink',
-    accent: Colors.successDark,
-    surface: Colors.successSurface,
+    accent: theme.colors.successDark,
+    surface: theme.colors.successSurface,
   },
   warning: {
     eyebrow: 'Just checking',
     mascotPose: 'sheepish',
-    accent: Colors.warningDeep,
-    surface: Colors.warningSurface,
+    accent: theme.colors.warningDeep,
+    surface: theme.colors.warningSurface,
   },
   info: {
     eyebrow: 'SnackTrack',
     mascotPose: 'thinking',
-    accent: Colors.primary,
-    surface: Colors.infoBg,
+    accent: theme.colors.primary,
+    surface: theme.colors.infoBg,
   },
-};
+});
 
 export function AppAlertProvider({ children }: PropsWithChildren) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [queue, setQueue] = useState<AppAlertRequest[]>([]);
   const activeAlert = queue[0];
 
@@ -102,7 +105,7 @@ export function AppAlertProvider({ children }: PropsWithChildren) {
     []
   );
 
-  const details = TONE_DETAILS[
+  const details = toneDetails(theme)[
     useMemo(() => (activeAlert ? getAlertTone(activeAlert) : 'info'), [activeAlert])
   ];
 
@@ -141,14 +144,14 @@ export function AppAlertProvider({ children }: PropsWithChildren) {
               style={styles.card}
             >
               <View style={[styles.mascotSurface, { backgroundColor: details.surface }]}>
-                <MascotPlaceholder pose={details.mascotPose} size={92} hideLabel />
+                <Mascot pose={details.mascotPose} size={92} accessibilityLabel={`SnackTrack mascot (${details.mascotPose})`} />
               </View>
-              <Text style={[styles.eyebrow, { color: details.accent }]}>
+              <AppText variant="eyebrow" style={[styles.eyebrow, { color: details.accent }]}>
                 {details.eyebrow}
-              </Text>
-              <Text style={styles.title}>{activeAlert.title}</Text>
+              </AppText>
+              <AppText variant="pageTitle" style={styles.title}>{activeAlert.title}</AppText>
               {activeAlert.message ? (
-                <Text style={styles.message}>{activeAlert.message}</Text>
+                <AppText variant="body" style={styles.message}>{activeAlert.message}</AppText>
               ) : null}
               <View style={styles.actions}>
                 {activeAlert.buttons.map((button, index) => {
@@ -167,14 +170,15 @@ export function AppAlertProvider({ children }: PropsWithChildren) {
                       ]}
                       onPress={() => dismiss(button)}
                     >
-                      <Text
+                      <AppText
+                        variant="button"
                         style={[
                           styles.buttonText,
                           isPrimary ? styles.primaryButtonText : styles.secondaryButtonText,
                         ]}
                       >
                         {button.text}
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   );
                 })}
@@ -187,13 +191,13 @@ export function AppAlertProvider({ children }: PropsWithChildren) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: Colors.alpha(Colors.black, 0.56),
+    backgroundColor: theme.colors.alpha(theme.colors.black, 0.56),
   },
   card: {
     width: '100%',
@@ -203,8 +207,8 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 20,
     borderRadius: Radius.card,
-    backgroundColor: Colors.surface,
-    ...Shadows.card,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.card,
   },
   mascotSurface: {
     width: 112,
@@ -216,23 +220,12 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     marginBottom: 6,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
   title: {
-    color: Colors.textPrimary,
-    fontSize: 23,
-    fontWeight: '800',
-    lineHeight: 29,
     textAlign: 'center',
   },
   message: {
     marginTop: 10,
-    color: Colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
     textAlign: 'center',
   },
   actions: {
@@ -248,25 +241,24 @@ const styles = StyleSheet.create({
     borderRadius: Radius.button,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   destructiveButton: {
-    backgroundColor: Colors.error,
+    backgroundColor: theme.colors.error,
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: Colors.buttonSecondaryBorder,
-    backgroundColor: Colors.surface,
+    borderColor: theme.colors.buttonSecondaryBorder,
+    backgroundColor: theme.colors.surface,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FontFamily.medium,
     textAlign: 'center',
   },
   primaryButtonText: {
-    color: Colors.buttonPrimaryText,
+    color: theme.colors.buttonPrimaryText,
   },
   secondaryButtonText: {
-    color: Colors.buttonSecondaryText,
+    color: theme.colors.buttonSecondaryText,
   },
 });

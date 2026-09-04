@@ -1,5 +1,5 @@
-import { Colors } from '@constants/theme';
-import { ReactNode } from 'react';
+import type { AppTheme } from '@constants/theme';
+import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FadeInView } from '@components/ui/FadeInView';
@@ -7,6 +7,7 @@ import { Card } from '@components/ui/Card';
 import { StatusBadge } from '@components/ui/StatusBadge';
 import { IconSurface } from '@components/ui/IconSurface';
 import type { StatusTone } from '@components/ui/StatusBadge';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 export type ImportTaskId = 'connect_email' | 'gmail_import' | 'uber_export';
 
@@ -36,6 +37,8 @@ export function ImportTaskCard({
   onPress,
   children,
 }: ImportTaskCardProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Card style={isOpen && styles.taskCardOpen}>
       <TouchableOpacity
@@ -46,7 +49,7 @@ export function ImportTaskCard({
         accessibilityLabel={`${title}. ${statusLabel}. ${description}`}
         accessibilityState={{ expanded: isOpen }}
       >
-        <IconSurface icon={isComplete ? 'checkmark-circle' : iconName} color={isComplete ? Colors.secondary : Colors.primary} />
+        <IconSurface icon={isComplete ? 'checkmark-circle' : iconName} color={isComplete ? theme.colors.secondary : theme.colors.primary} />
         <View style={styles.taskHeaderText}>
           <View style={styles.taskTitleRow}>
             <Text style={styles.taskTitle}>{title}</Text>
@@ -57,7 +60,7 @@ export function ImportTaskCard({
         <Ionicons
           name={isOpen ? 'chevron-up' : 'chevron-down'}
           size={20}
-          color={Colors.slate500}
+          color={theme.colors.slate500}
         />
       </TouchableOpacity>
 
@@ -70,10 +73,10 @@ export function ImportTaskCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   taskCardOpen: {
     borderWidth: 1,
-    borderColor: Colors.chipActiveBg,
+    borderColor: theme.colors.chipActiveBg,
   },
   taskCardHeader: {
     flexDirection: 'row',
@@ -94,17 +97,17 @@ const styles = StyleSheet.create({
   },
   taskTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: Colors.textPrimary,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
   },
   taskDescription: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
   taskContent: {
     borderTopWidth: 1,
-    borderTopColor: Colors.slate100,
+    borderTopColor: theme.colors.slate100,
     padding: 16,
     paddingTop: 14,
   },

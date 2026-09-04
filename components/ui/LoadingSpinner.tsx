@@ -1,6 +1,7 @@
-import { Colors } from '@constants/theme';
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from './AppText';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'large';
@@ -11,16 +12,17 @@ interface LoadingSpinnerProps {
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'large',
-  color = Colors.primary,
+  color,
   text,
   overlay = false,
 }) => {
-  const containerStyle = overlay ? styles.overlayContainer : styles.container;
+  const theme = useAppTheme();
+  const containerStyle = overlay ? [styles.overlayContainer, { backgroundColor: theme.colors.alpha(theme.colors.surface, 0.9) }] : styles.container;
 
   return (
     <View style={containerStyle}>
-      <ActivityIndicator size={size} color={color} />
-      {text && <Text style={styles.text}>{text}</Text>}
+      <ActivityIndicator size={size} color={color ?? theme.colors.primary} />
+      {text && <AppText variant="body" style={styles.text}>{text}</AppText>}
     </View>
   );
 };
@@ -37,7 +39,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.alpha(Colors.white, 0.9),
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textSecondary,
     textAlign: 'center',
   },
 });

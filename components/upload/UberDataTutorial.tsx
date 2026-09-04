@@ -1,4 +1,4 @@
-import { Colors, Radius, Shadows } from '@constants/theme';
+import { Radius, type AppTheme } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showSimpleAlert } from '@utils/platformAlert';
 import { resolveProviderTutorialEntry, type ProviderTutorialJob } from '@features/import-flow/providerTutorialEntry';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 export type DataPlatform = 'uber' | 'doordash';
 export type DataTutorialMode = 'request' | 'download';
@@ -132,22 +133,22 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
   ],
 };
 
-const PLATFORM_DETAILS = {
+const platformDetailsForTheme = (theme: AppTheme) => ({
   uber: {
     name: 'Uber Eats',
-    accent: Colors.uberDark,
-    surface: Colors.successSurface,
+    accent: theme.colors.uberDark,
+    surface: theme.colors.successBg,
     icon: 'car-outline' as const,
     requestUrl: 'https://myprivacy.uber.com/privacy/exploreyourdata/download',
   },
   doordash: {
     name: 'DoorDash',
-    accent: Colors.doorDash,
-    surface: Colors.errorSurface,
+    accent: theme.colors.doorDash,
+    surface: theme.colors.errorSurface,
     icon: 'bag-handle-outline' as const,
     requestUrl: 'https://www.doordash.com/consumer/privacy/manage_account',
   },
-};
+});
 
 interface UberDataTutorialProps {
   mode?: DataTutorialMode;
@@ -172,12 +173,16 @@ export default function UberDataTutorial({
   onReadyConfirmed,
   onClose,
 }: UberDataTutorialProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const platformDetails = useMemo(() => platformDetailsForTheme(theme), [theme]);
   const [platform, setPlatform] = useState<DataPlatform>(initialPlatform ?? 'uber');
   const [hasChosenPlatform, setHasChosenPlatform] = useState(Boolean(initialPlatform));
   const initialProviderStatus = initialPlatform ? providerStatuses?.[initialPlatform] : undefined;
   const initialEntry = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
   const [tutorialMode, setTutorialMode] = useState<DataTutorialMode>(mode);
   const [activeJob, setActiveJob] = useState<ProviderTutorialJob>(initialEntry);
+  const [showProviderOverview, setShowProviderOverview] = useState(Boolean(initialPlatform && mode === 'request' && initialEntry === 'request'));
   const [showProgressQuestion, setShowProgressQuestion] = useState(false);
   const [showRequestedQuestion, setShowRequestedQuestion] = useState(initialEntry === 'waiting');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -194,6 +199,7 @@ export default function UberDataTutorial({
     setTutorialMode(mode);
     const nextJob = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
     setActiveJob(nextJob);
+    setShowProviderOverview(Boolean(initialPlatform && mode === 'request' && nextJob === 'request'));
     setShowProgressQuestion(false);
     setShowRequestedQuestion(nextJob === 'waiting');
     setCurrentIndex(0);
@@ -213,7 +219,7 @@ export default function UberDataTutorial({
     return () => subscription.remove();
   }, [awaitingVendorReturn, tutorialMode]);
 
-  const details = PLATFORM_DETAILS[platform];
+  const details = platformDetails[platform];
   const steps = tutorialMode === 'request' ? REQUEST_STEPS[platform] : DOWNLOAD_STEPS[platform];
   const currentStep = steps[currentIndex];
   const isLastStep = currentIndex === steps.length - 1;
@@ -240,6 +246,7 @@ export default function UberDataTutorial({
     setHasChosenPlatform(true);
     setTutorialMode(nextEntry.mode);
     setActiveJob(nextEntry.job);
+    setShowProviderOverview(nextEntry.mode === 'request' && nextEntry.job === 'request');
     setShowProgressQuestion(false);
     setShowRequestedQuestion(nextEntry.job === 'waiting');
   };
@@ -257,6 +264,10 @@ export default function UberDataTutorial({
       setCurrentIndex((index) => index - 1);
     } else if (initialPlatform) {
       const returningFromDownloadGuide = tutorialMode === 'download';
+      if (!returningFromDownloadGuide && activeJob === 'request') {
+        setShowProviderOverview(true);
+        return;
+      }
       setTutorialMode('request');
       setShowProgressQuestion(!returningFromDownloadGuide);
       setShowRequestedQuestion(returningFromDownloadGuide);
@@ -301,7 +312,7 @@ export default function UberDataTutorial({
             {mode === 'request' ? 'Request your data' : 'Download and add'}
           </Text>
           <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.platformContent}>
@@ -317,8 +328,8 @@ export default function UberDataTutorial({
               : 'Choose the provider that sent your archive and we’ll guide you through downloading and adding it.'}
           </Text>
           <View style={styles.platformStack}>
-            {(Object.keys(PLATFORM_DETAILS) as DataPlatform[]).map((option) => {
-              const optionDetails = PLATFORM_DETAILS[option];
+            {(Object.keys(platformDetails) as DataPlatform[]).map((option) => {
+              const optionDetails = platformDetails[option];
               const providerStatus = providerStatuses?.[option];
               const statusDescription = providerStatus === 'completed'
                 ? 'Imported — update with a newer archive'
@@ -340,7 +351,7 @@ export default function UberDataTutorial({
                   accessibilityLabel={`Choose ${optionDetails.name}. ${statusDescription}`}
                 >
                   <View style={[styles.platformIcon, { backgroundColor: optionDetails.accent }]}>
-                    <Ionicons name={optionDetails.icon} size={25} color={Colors.white} />
+                    <Ionicons name={optionDetails.icon} size={25} color={theme.colors.white} />
                   </View>
                   <View style={styles.platformCardText}>
                     <Text style={styles.platformName}>{optionDetails.name}</Text>
@@ -367,7 +378,7 @@ export default function UberDataTutorial({
             <Text style={[styles.providerChipText, { color: details.accent }]}>{details.name}</Text>
           </View>
           <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.questionContent}>
@@ -377,6 +388,48 @@ export default function UberDataTutorial({
           <TouchableOpacity style={[styles.primaryButton, { backgroundColor: details.accent }]} onPress={onClose} accessibilityRole="button">
             <Text style={styles.primaryButtonText}>Done</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (showProviderOverview) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.overviewHeader}>
+          <TouchableOpacity accessibilityLabel="Choose another source" style={styles.headerButton} onPress={() => {
+            setShowProviderOverview(false);
+            setHasChosenPlatform(false);
+          }}>
+            <Ionicons name="arrow-back" size={23} color={theme.colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.overviewProvider}>{details.name} · 1 of 3</Text>
+          <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
+            <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.overviewContent}>
+          <Text style={styles.overviewEyebrow}>UNLOCK DEEPER STATS</Text>
+          <Text style={styles.overviewTitle}>First, ask {details.name} for your history</Text>
+          <Text style={styles.overviewBody}>We’ll open the right page. Sign in, request your data, then come back here.</Text>
+          <View style={styles.overviewSurface}>
+            <Text style={styles.overviewSurfaceTitle}>What happens next</Text>
+            <OverviewRow number="1" title="Request your history" body={`SnackTrack opens ${details.name}’s official privacy page.`} />
+            <OverviewRow divided number="2" title="Wait for the ready message" body={`${details.name} will email or notify you when it’s available.`} />
+            <OverviewRow divided number="3" title="Bring it back to SnackTrack" body="We’ll add the details and refresh your recap." />
+          </View>
+          <View style={styles.overviewActions}>
+            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowProviderOverview(false)} accessibilityRole="button">
+              <Text style={styles.primaryButtonText}>Show me how</Text>
+              <Ionicons name="arrow-forward" size={21} color={theme.colors.white} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.overviewSecondaryButton} onPress={() => {
+              setShowProviderOverview(false);
+              setHasChosenPlatform(false);
+            }} accessibilityRole="button">
+              <Text style={styles.overviewSecondaryText}>Choose another source</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -399,13 +452,13 @@ export default function UberDataTutorial({
               }
             }}
           >
-            <Ionicons name="arrow-back" size={23} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={23} color={theme.colors.textPrimary} />
           </TouchableOpacity>
           <View style={[styles.providerChip, { backgroundColor: details.surface }]}>
             <Text style={[styles.providerChipText, { color: details.accent }]}>{details.name}</Text>
           </View>
           <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.questionContent}>
@@ -479,7 +532,7 @@ export default function UberDataTutorial({
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity accessibilityLabel="Previous tutorial step" style={styles.headerButton} onPress={goBack}>
-          <Ionicons name="arrow-back" size={23} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={23} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.providerChip, { backgroundColor: details.surface }]}
@@ -491,7 +544,7 @@ export default function UberDataTutorial({
           <Ionicons name="chevron-down" size={15} color={details.accent} />
         </TouchableOpacity>
         <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+          <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -520,7 +573,7 @@ export default function UberDataTutorial({
             accessibilityIgnoresInvertColors
           />
           <View style={styles.zoomHint}>
-            <Ionicons name="expand-outline" size={15} color={Colors.textSecondary} />
+            <Ionicons name="expand-outline" size={15} color={theme.colors.textSecondary} />
             <Text style={styles.zoomHintText}>Tap to enlarge</Text>
           </View>
         </TouchableOpacity>
@@ -546,7 +599,7 @@ export default function UberDataTutorial({
             accessibilityRole="button"
             accessibilityLabel="Previous instruction"
           >
-            <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
             <Text style={styles.previousButtonText}>Previous</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -562,7 +615,7 @@ export default function UberDataTutorial({
                   : onArchiveDownloaded ? 'I Downloaded the ZIP' : 'Back to Import'
                 : 'Next'}
             </Text>
-            <Ionicons name={isLastStep ? tutorialMode === 'request' ? 'open-outline' : 'checkmark' : 'arrow-forward'} size={21} color={Colors.white} />
+            <Ionicons name={isLastStep ? tutorialMode === 'request' ? 'open-outline' : 'checkmark' : 'arrow-forward'} size={21} color={theme.colors.white} />
           </TouchableOpacity>
         </View>
         {isLastStep && tutorialMode === 'request' ? (
@@ -580,7 +633,7 @@ export default function UberDataTutorial({
       <Modal visible={Boolean(zoomedImage)} transparent animationType="fade" onRequestClose={() => setZoomedImage(null)}>
         <View style={styles.zoomBackdrop}>
           <TouchableOpacity style={[styles.zoomClose, { top: insets.top + 12 }]} onPress={() => setZoomedImage(null)}>
-            <Ionicons name="close" size={28} color={Colors.white} />
+            <Ionicons name="close" size={28} color={theme.colors.white} />
           </TouchableOpacity>
           {zoomedImage ? (
             <Image source={zoomedImage.image} style={styles.zoomedImage} resizeMode="contain" />
@@ -605,7 +658,7 @@ export default function UberDataTutorial({
               accessibilityRole="button"
             >
               <Text style={styles.primaryButtonText}>Yes, I Requested It</Text>
-              <Ionicons name="checkmark" size={21} color={Colors.white} />
+              <Ionicons name="checkmark" size={21} color={theme.colors.white} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.notYetButton} onPress={() => setShowRequestConfirmation(false)} accessibilityRole="button">
               <Text style={styles.notYetText}>Not yet</Text>
@@ -630,6 +683,8 @@ function JourneyAnswer({
   accent: string;
   onPress: () => void;
 }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <TouchableOpacity
       style={styles.answerCard}
@@ -637,7 +692,7 @@ function JourneyAnswer({
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${description}`}
     >
-      <View style={[styles.answerIcon, { backgroundColor: Colors.alpha(accent, 0.1) }]}>
+      <View style={[styles.answerIcon, { backgroundColor: theme.colors.alpha(accent, 0.1) }]}>
         <Ionicons name={icon} size={24} color={accent} />
       </View>
       <View style={styles.answerText}>
@@ -649,8 +704,22 @@ function JourneyAnswer({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+function OverviewRow({ number, title, body, divided = false }: { number: string; title: string; body: string; divided?: boolean }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={[styles.overviewRow, divided && styles.overviewRowDivided]}>
+      <View style={styles.overviewNumber}><Text style={styles.overviewNumberText}>{number}</Text></View>
+      <View style={styles.overviewRowCopy}>
+        <Text style={styles.overviewRowTitle}>{title}</Text>
+        <Text style={styles.overviewRowBody}>{body}</Text>
+      </View>
+    </View>
+  );
+}
+
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     minHeight: 58,
     flexDirection: 'row',
@@ -658,57 +727,75 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    backgroundColor: Colors.surface,
+    borderBottomColor: theme.colors.divider,
+    backgroundColor: theme.colors.surface,
   },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 44 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary },
-  confirmBackdrop: { flex: 1, backgroundColor: Colors.alpha(Colors.black, 0.55), alignItems: 'center', justifyContent: 'center', padding: 24 },
-  confirmCard: { width: '100%', maxWidth: 440, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: 24, ...Shadows.card },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
+  overviewHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  overviewProvider: { color: theme.colors.textSecondary, fontSize: 11, fontWeight: '500' },
+  overviewContent: { flex: 1, paddingHorizontal: 18, paddingBottom: 6 },
+  overviewEyebrow: { marginTop: 10, color: theme.colors.primary, fontSize: 12, fontWeight: '500', letterSpacing: 1.1 },
+  overviewTitle: { marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.4 },
+  overviewBody: { marginTop: 9, color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22 },
+  overviewSurface: { marginTop: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 5, borderRadius: Radius.card, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface, ...theme.shadows.card },
+  overviewSurfaceTitle: { color: theme.colors.textPrimary, fontSize: 16, lineHeight: 20, fontWeight: '500' },
+  overviewRow: { minHeight: 68, flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 11 },
+  overviewRowDivided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
+  overviewNumber: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: theme.colors.chipActiveBg },
+  overviewNumberText: { color: theme.colors.primary, fontSize: 14, fontWeight: '500' },
+  overviewRowCopy: { flex: 1 },
+  overviewRowTitle: { color: theme.colors.textPrimary, fontSize: 14, lineHeight: 18, fontWeight: '500' },
+  overviewRowBody: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 12, lineHeight: 16 },
+  overviewActions: { marginTop: 'auto', gap: 10, paddingTop: 18 },
+  overviewSecondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.button, borderWidth: 1, borderColor: theme.colors.buttonSecondaryBorder, backgroundColor: theme.colors.surface },
+  overviewSecondaryText: { color: theme.colors.buttonSecondaryText, fontSize: 14, fontWeight: '500' },
+  confirmBackdrop: { flex: 1, backgroundColor: theme.colors.alpha(theme.colors.black, 0.55), alignItems: 'center', justifyContent: 'center', padding: 24 },
+  confirmCard: { width: '100%', maxWidth: 440, backgroundColor: theme.colors.surface, borderRadius: Radius.card, padding: 24, ...theme.shadows.card },
   confirmIcon: { width: 52, height: 52, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  confirmTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '600', marginBottom: 8 },
-  confirmBody: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: 20 },
+  confirmTitle: { color: theme.colors.textPrimary, fontSize: 22, fontWeight: '600', marginBottom: 8 },
+  confirmBody: { color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: 20 },
   providerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
-  providerChipText: { fontSize: 14, fontWeight: '700' },
+  providerChipText: { fontSize: 14, fontWeight: '500' },
   platformContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 },
-  platformEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.1, textAlign: 'center' },
-  platformTitle: { marginTop: 10, color: Colors.textPrimary, fontSize: 31, lineHeight: 37, fontWeight: '600', letterSpacing: -0.4, textAlign: 'center' },
-  platformBody: { marginTop: 12, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  platformEyebrow: { color: theme.colors.primary, fontSize: 12, fontWeight: '500', letterSpacing: 1.1, textAlign: 'center' },
+  platformTitle: { marginTop: 10, color: theme.colors.textPrimary, fontSize: 31, lineHeight: 37, fontWeight: '600', letterSpacing: -0.4, textAlign: 'center' },
+  platformBody: { marginTop: 12, color: theme.colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
   platformStack: { marginTop: 30, gap: 14 },
   questionContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 30 },
   answerStack: { marginTop: 28, gap: 12 },
-  answerCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: Radius.card, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.divider, ...Shadows.card },
+  answerCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: Radius.card, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, ...theme.shadows.card },
   answerIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   answerText: { flex: 1, marginHorizontal: 13 },
-  answerTitle: { color: Colors.textPrimary, fontSize: 16, lineHeight: 21, fontWeight: '600' },
-  answerDescription: { marginTop: 3, color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
-  platformCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: Radius.card, ...Shadows.card },
+  answerTitle: { color: theme.colors.textPrimary, fontSize: 16, lineHeight: 21, fontWeight: '600' },
+  answerDescription: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  platformCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: Radius.card, ...theme.shadows.card },
   platformIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   platformCardText: { flex: 1, marginHorizontal: 14 },
-  platformName: { color: Colors.textPrimary, fontSize: 18, fontWeight: '600' },
-  platformDescription: { marginTop: 3, color: Colors.textSecondary, fontSize: 14 },
+  platformName: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
+  platformDescription: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 14 },
   scrollView: { flex: 1 },
   stepContent: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  stepEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 0.9, textAlign: 'center' },
-  stepTitle: { marginTop: 8, color: Colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '600', textAlign: 'center' },
-  stepDescription: { maxWidth: 520, marginTop: 10, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
-  imageButton: { alignItems: 'center', marginTop: 22, padding: 10, borderRadius: Radius.card, backgroundColor: Colors.surface, ...Shadows.card },
-  screenshot: { borderRadius: 14, backgroundColor: Colors.white },
+  stepEyebrow: { fontSize: 11, fontWeight: '500', letterSpacing: 0.9, textAlign: 'center' },
+  stepTitle: { marginTop: 8, color: theme.colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '600', textAlign: 'center' },
+  stepDescription: { maxWidth: 520, marginTop: 10, color: theme.colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  imageButton: { alignItems: 'center', marginTop: 22, padding: 10, borderRadius: Radius.card, backgroundColor: theme.colors.surface, ...theme.shadows.card },
+  screenshot: { borderRadius: 14, backgroundColor: theme.colors.white },
   zoomHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
-  zoomHintText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  footer: { paddingTop: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: Colors.divider, backgroundColor: Colors.surface },
+  zoomHintText: { color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  footer: { paddingTop: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface },
   footerActions: { flexDirection: 'row', gap: 10 },
   footerPrimaryButton: { flex: 1 },
-  previousButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, borderWidth: 1, borderColor: Colors.divider, borderRadius: Radius.button, backgroundColor: Colors.surface },
-  previousButtonText: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  previousButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: Radius.button, backgroundColor: theme.colors.surface },
+  previousButtonText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
   progressTrack: { flexDirection: 'row', gap: 5, marginBottom: 12 },
-  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.gray200 },
+  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: theme.colors.gray200 },
   primaryButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: Radius.button },
-  primaryButtonText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
+  primaryButtonText: { color: theme.colors.white, fontSize: 17, fontWeight: '600' },
   notYetButton: { alignItems: 'center', paddingTop: 13, paddingBottom: 2 },
-  notYetText: { color: Colors.textSecondary, fontSize: 15, fontWeight: '700' },
-  zoomBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: Colors.alpha(Colors.black, 0.94) },
-  zoomClose: { position: 'absolute', right: 16, zIndex: 1, width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: Colors.alpha(Colors.white, 0.14) },
+  notYetText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '500' },
+  zoomBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: theme.colors.alpha(theme.colors.black, 0.94) },
+  zoomClose: { position: 'absolute', right: 16, zIndex: 1, width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: theme.colors.alpha(theme.colors.white, 0.14) },
   zoomedImage: { width: '100%', height: '88%' },
 });

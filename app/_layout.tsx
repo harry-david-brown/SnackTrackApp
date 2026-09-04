@@ -1,5 +1,6 @@
-import { Colors } from '@constants/theme';
+import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -18,25 +19,50 @@ import {
   useFonts,
   Fredoka_500Medium,
   Fredoka_600SemiBold,
-  Fredoka_700Bold,
 } from '@expo-google-fonts/fredoka';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { AppearanceProvider, useAppearance } from '@contexts/AppearanceContext';
+import { useEffect } from 'react';
 
 // Initialize Sentry as early as possible
 initSentry();
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  // Start loading Wrapped typography with the app rather than when the Summary
-  // tab is first opened. The journey still verifies readiness before rendering,
-  // but in normal navigation these fonts are already warm.
-  useFonts({
+  return <AppearanceProvider><ThemedRootLayout /></AppearanceProvider>;
+}
+
+function ThemedRootLayout() {
+  const { theme, scheme, isReady } = useAppearance();
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
     Fredoka_500Medium,
     Fredoka_600SemiBold,
-    Fredoka_700Bold,
   });
+  useEffect(() => {
+    if (fontsLoaded && isReady) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [fontsLoaded, isReady]);
+  if (!fontsLoaded || !isReady) return null;
+  const navigationBase = scheme === 'dark' ? NavigationDarkTheme : NavigationDefaultTheme;
+  const navigationTheme = {
+    ...navigationBase,
+    colors: {
+      ...navigationBase.colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.textPrimary,
+      border: theme.colors.divider,
+      notification: theme.colors.error,
+    },
+  };
 
   return (
     // Required for react-native-gesture-handler gestures (Wrapped drag-to-dismiss).
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationThemeProvider value={navigationTheme}>
       <ErrorBoundary>
         <AppAlertProvider>
           <QueryClientProvider client={appQueryClient}>
@@ -49,21 +75,21 @@ export default function RootLayout() {
                   <ImportNotificationController />
                   <Stack
                     screenOptions={{
-                      contentStyle: { backgroundColor: Colors.transparent },
+                      contentStyle: { backgroundColor: theme.colors.background },
                     }}
                   >
                     <Stack.Screen
                       name="(tabs)"
                       options={{
                         headerShown: false,
-                        contentStyle: { backgroundColor: Colors.transparent },
+                        contentStyle: { backgroundColor: theme.colors.background },
                       }}
                     />
                     <Stack.Screen
                       name="index"
                       options={{
                         headerShown: false,
-                        contentStyle: { backgroundColor: Colors.transparent },
+                        contentStyle: { backgroundColor: theme.colors.background },
                         animation: 'fade',
                       }}
                     />
@@ -71,7 +97,7 @@ export default function RootLayout() {
                       name="login"
                       options={{
                         headerShown: false,
-                        contentStyle: { backgroundColor: Colors.transparent },
+                        contentStyle: { backgroundColor: theme.colors.background },
                         animation: 'fade',
                       }}
                     />
@@ -79,7 +105,7 @@ export default function RootLayout() {
                       name="oauth-callback"
                       options={{
                         headerShown: false,
-                        contentStyle: { backgroundColor: Colors.transparent },
+                        contentStyle: { backgroundColor: theme.colors.background },
                         animation: 'fade',
                       }}
                     />
@@ -87,21 +113,29 @@ export default function RootLayout() {
                       name="receipts"
                       options={{
                         headerShown: false,
-                        contentStyle: { backgroundColor: Colors.transparent },
+                        contentStyle: { backgroundColor: theme.colors.background },
                         presentation: 'card',
                       }}
                     />
                     <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
                     <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
                     <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="data-tracking/email" options={{ headerShown: false }} />
+                    <Stack.Screen name="data-tracking/history" options={{ headerShown: false }} />
+                    <Stack.Screen name="data-tracking/provider/[provider]" options={{ headerShown: false }} />
+                    <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="settings/currency" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="settings/help-privacy" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="dev/visual-gallery" options={{ headerShown: false }} />
                   </Stack>
-                  <StatusBar style="auto" />
+                  <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
                 </OnboardingProvider>
               </UserProvider>
             </CurrencyProvider>
           </QueryClientProvider>
         </AppAlertProvider>
       </ErrorBoundary>
+      </NavigationThemeProvider>
     </GestureHandlerRootView>
   );
 }

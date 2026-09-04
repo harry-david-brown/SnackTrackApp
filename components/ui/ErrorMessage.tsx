@@ -1,7 +1,8 @@
-import { Colors } from '@constants/theme';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { AppText } from './AppText';
 
 export type ErrorType = 'network' | 'validation' | 'server' | 'unknown';
 
@@ -26,16 +27,16 @@ const getErrorIcon = (type: ErrorType): keyof typeof Ionicons.glyphMap => {
   }
 };
 
-const getErrorColor = (type: ErrorType): string => {
+const getErrorColor = (type: ErrorType, colors: ReturnType<typeof useAppTheme>['colors']): string => {
   switch (type) {
     case 'network':
-      return Colors.warning;
+      return colors.warning;
     case 'validation':
-      return Colors.errorBright;
+      return colors.errorBright;
     case 'server':
-      return Colors.error;
+      return colors.error;
     default:
-      return Colors.errorBright;
+      return colors.errorBright;
   }
 };
 
@@ -59,8 +60,10 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   onDismiss,
   showIcon = true,
 }) => {
+  const theme = useAppTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const iconName = getErrorIcon(type);
-  const color = getErrorColor(type);
+  const color = getErrorColor(type, theme.colors);
   const title = getErrorTitle(type);
 
   return (
@@ -71,43 +74,36 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
         )}
         
         <View style={styles.textContainer}>
-          <Text style={[styles.title, { color }]}>{title}</Text>
-          <Text style={styles.message}>{error}</Text>
+          <AppText variant="surfaceTitle" style={[styles.title, { color }]}>{title}</AppText>
+          <AppText variant="surfaceBody" style={styles.message}>{error}</AppText>
         </View>
 
         {onDismiss && (
           <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={20} color={Colors.textSecondary} />
+            <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
 
       {onRetry && (
         <TouchableOpacity style={[styles.retryButton, { backgroundColor: color }]} onPress={onRetry}>
-          <Ionicons name="refresh" size={16} color={Colors.white} />
-          <Text style={styles.retryText}>Try Again</Text>
+          <Ionicons name="refresh" size={16} color={theme.colors.white} />
+          <AppText variant="button" style={styles.retryText}>Try again</AppText>
         </TouchableOpacity>
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.divider,
+    borderColor: theme.colors.divider,
     borderLeftWidth: 4,
     marginVertical: 8,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...theme.shadows.card,
   },
   content: {
     flexDirection: 'row',
@@ -122,14 +118,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
     marginBottom: 4,
   },
   message: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
   },
   dismissButton: {
     padding: 4,
@@ -146,9 +137,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '600',
+    color: theme.colors.white,
     marginLeft: 6,
   },
 });

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius, Spacing } from '@constants/theme';
+import { Radius, Spacing } from '@constants/theme';
 import { AppButton } from '@components/ui/AppButton';
+import { useAppTheme } from '@contexts/AppearanceContext';
 
 export const MAX_DEV_INSIGHT_DAY_OFFSET = 365;
 
@@ -11,12 +12,13 @@ interface Props {
 }
 
 export function DashboardInsightsDevControls({ dayOffset, isFetching, onChangeDayOffset }: Props) {
+  const theme = useAppTheme();
   const dayLabel = dayOffset === 0 ? 'Today' : `+${dayOffset} ${dayOffset === 1 ? 'day' : 'days'}`;
   return (
-    <View style={styles.container} accessibilityLabel={`Development insight preview: ${dayLabel}`}>
+    <View style={[styles.container, { borderColor: theme.colors.divider, backgroundColor: theme.colors.infoTint }]} accessibilityLabel={`Development insight preview: ${dayLabel}`}>
       <View style={styles.copy}>
-        <Text style={styles.eyebrow}>DEV DAY TRAVELLER</Text>
-        <Text style={styles.label}>{dayLabel}{isFetching ? ' · loading…' : ''}</Text>
+        <Text style={[styles.eyebrow, { color: theme.colors.primary }]}>DEV DAY TRAVELLER</Text>
+        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>{dayLabel}{isFetching ? ' · loading…' : ''}</Text>
       </View>
       <View style={styles.actions}>
         <AppButton
@@ -54,12 +56,10 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.divider,
-    backgroundColor: Colors.infoTint,
     gap: Spacing.sm,
   },
   copy: { gap: 2 },
-  eyebrow: { color: Colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  label: { color: Colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+  label: { fontSize: 15, fontWeight: '500' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
 });
