@@ -306,14 +306,14 @@ export default function UberDataTutorial({
         </View>
         <View style={styles.platformContent}>
           <Text style={styles.platformEyebrow}>
-            {mode === 'request' ? 'COMPLETE YOUR HISTORY' : 'YOUR ARCHIVE IS READY'}
+            {mode === 'request' ? 'GET THE FULL PICTURE' : 'YOUR HISTORY IS READY'}
           </Text>
           <Text style={styles.platformTitle}>
-            {mode === 'request' ? 'Where do you want to import from?' : 'Which archive are you importing?'}
+            {mode === 'request' ? 'Where do most of your orders live?' : 'Which history are you bringing in?'}
           </Text>
           <Text style={styles.platformBody}>
             {mode === 'request'
-              ? 'Choose a provider and SnackTrack will guide you through requesting its official data archive.'
+              ? 'Choose a provider to fill in missing orders and unlock richer statistics. We’ll guide you from here.'
               : 'Choose the provider that sent your archive and we’ll guide you through downloading and adding it.'}
           </Text>
           <View style={styles.platformStack}>
@@ -570,8 +570,8 @@ export default function UberDataTutorial({
             <TouchableOpacity style={styles.notYetButton} onPress={showRequestedStatusQuestion}>
               <Text style={styles.notYetText}>I’ve already requested it</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.notYetButton} onPress={onClose}>
-              <Text style={styles.notYetText}>I’ll do this later</Text>
+            <TouchableOpacity style={styles.notYetButton} onPress={() => setHasChosenPlatform(false)}>
+              <Text style={styles.notYetText}>Choose another provider</Text>
             </TouchableOpacity>
           </>
         ) : null}
@@ -663,17 +663,17 @@ const styles = StyleSheet.create({
   },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 44 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: Colors.textPrimary },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary },
   confirmBackdrop: { flex: 1, backgroundColor: Colors.alpha(Colors.black, 0.55), alignItems: 'center', justifyContent: 'center', padding: 24 },
   confirmCard: { width: '100%', maxWidth: 440, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: 24, ...Shadows.card },
   confirmIcon: { width: 52, height: 52, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  confirmTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 8 },
+  confirmTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '600', marginBottom: 8 },
   confirmBody: { color: Colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: 20 },
   providerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
-  providerChipText: { fontSize: 14, fontWeight: '800' },
+  providerChipText: { fontSize: 14, fontWeight: '700' },
   platformContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 },
-  platformEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 1.1, textAlign: 'center' },
-  platformTitle: { marginTop: 10, color: Colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '800', textAlign: 'center' },
+  platformEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.1, textAlign: 'center' },
+  platformTitle: { marginTop: 10, color: Colors.textPrimary, fontSize: 31, lineHeight: 37, fontWeight: '600', letterSpacing: -0.4, textAlign: 'center' },
   platformBody: { marginTop: 12, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
   platformStack: { marginTop: 30, gap: 14 },
   questionContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 30 },
@@ -681,17 +681,17 @@ const styles = StyleSheet.create({
   answerCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: Radius.card, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.divider, ...Shadows.card },
   answerIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   answerText: { flex: 1, marginHorizontal: 13 },
-  answerTitle: { color: Colors.textPrimary, fontSize: 16, lineHeight: 21, fontWeight: '800' },
+  answerTitle: { color: Colors.textPrimary, fontSize: 16, lineHeight: 21, fontWeight: '600' },
   answerDescription: { marginTop: 3, color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
   platformCard: { minHeight: 84, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: Radius.card, ...Shadows.card },
   platformIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   platformCardText: { flex: 1, marginHorizontal: 14 },
-  platformName: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  platformName: { color: Colors.textPrimary, fontSize: 18, fontWeight: '600' },
   platformDescription: { marginTop: 3, color: Colors.textSecondary, fontSize: 14 },
   scrollView: { flex: 1 },
   stepContent: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  stepEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, textAlign: 'center' },
-  stepTitle: { marginTop: 8, color: Colors.textPrimary, fontSize: 27, lineHeight: 33, fontWeight: '800', textAlign: 'center' },
+  stepEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 0.9, textAlign: 'center' },
+  stepTitle: { marginTop: 8, color: Colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '600', textAlign: 'center' },
   stepDescription: { maxWidth: 520, marginTop: 10, color: Colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
   imageButton: { alignItems: 'center', marginTop: 22, padding: 10, borderRadius: Radius.card, backgroundColor: Colors.surface, ...Shadows.card },
   screenshot: { borderRadius: 14, backgroundColor: Colors.white },

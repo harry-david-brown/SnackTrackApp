@@ -3,7 +3,7 @@
  * Tests for the auth API service
  */
 
-import { authApi } from '@services/authApi';
+import { authApi, refreshStoredSession } from '@services/authApi';
 import api from '@services/api';
 import * as tokenManager from '@utils/tokenManager';
 import { authSessionFixture } from '@/__tests__/fixtures/contracts';
@@ -17,6 +17,8 @@ jest.mock('@utils/tokenManager');
 describe('Auth API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (tokenManager.updateAccessTokenIfRefreshTokenMatches as jest.Mock).mockResolvedValue(true);
+    (tokenManager.clearAuthTokensIfRefreshTokenMatches as jest.Mock).mockResolvedValue(true);
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
   });
@@ -253,7 +255,6 @@ describe('Auth API', () => {
       (tokenManager.isTokenExpired as jest.Mock).mockResolvedValueOnce(true);
       (tokenManager.getRefreshToken as jest.Mock).mockResolvedValueOnce('refresh-token');
       (api.post as jest.Mock).mockResolvedValueOnce(mockResponse);
-      (tokenManager.updateAccessToken as jest.Mock).mockResolvedValueOnce(undefined);
       (tokenManager.getAccessToken as jest.Mock).mockResolvedValueOnce('new-access-token');
 
       const result = await authApi.getValidToken();
@@ -262,6 +263,11 @@ describe('Auth API', () => {
       expect(api.post).toHaveBeenCalledWith('/auth/refresh', {
         refreshToken: 'refresh-token',
       });
+      expect(tokenManager.updateAccessTokenIfRefreshTokenMatches).toHaveBeenCalledWith(
+        'refresh-token',
+        'new-access-token',
+        'new-refresh-token',
+      );
     });
 
     it('retains credentials and surfaces retryable refresh failures', async () => {
@@ -272,6 +278,50 @@ describe('Auth API', () => {
 
       await expect(authApi.getValidToken()).rejects.toThrow('Refresh failed');
       expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stored session refresh coordination', () => {
+    it('deduplicates concurrent rotations of the same refresh token', async () => {
+      (tokenManager.getRefreshToken as jest.Mock).mockResolvedValue('old-refresh-token');
+      (api.post as jest.Mock).mockResolvedValue({
+        data: { accessToken: 'new-access-token', refreshToken: 'new-refresh-token' },
+      });
+
+      const first = refreshStoredSession('old-refresh-token');
+      const second = refreshStoredSession('old-refresh-token');
+
+      await expect(Promise.all([first, second])).resolves.toEqual([
+        'new-access-token',
+        'new-access-token',
+      ]);
+      expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not apply a refresh result after a newer login replaces the session', async () => {
+      (tokenManager.getRefreshToken as jest.Mock).mockResolvedValue('old-refresh-token');
+      (tokenManager.updateAccessTokenIfRefreshTokenMatches as jest.Mock).mockResolvedValue(false);
+      (api.post as jest.Mock).mockResolvedValue({
+        data: { accessToken: 'old-account-access', refreshToken: 'old-account-refresh' },
+      });
+
+      await expect(refreshStoredSession('old-refresh-token')).rejects.toMatchObject({
+        code: 'SESSION_REFRESH_SUPERSEDED',
+      });
+      expect(tokenManager.clearAuthTokensIfRefreshTokenMatches).not.toHaveBeenCalled();
+    });
+
+    it('reuses the latest rotation for a late unauthorized response from the same session', async () => {
+      (tokenManager.getRefreshToken as jest.Mock)
+        .mockResolvedValueOnce('first-old-refresh')
+        .mockResolvedValueOnce('first-new-refresh');
+      (api.post as jest.Mock).mockResolvedValueOnce({
+        data: { accessToken: 'first-new-access', refreshToken: 'first-new-refresh' },
+      });
+
+      await expect(refreshStoredSession('first-old-refresh')).resolves.toBe('first-new-access');
+      await expect(refreshStoredSession('first-old-refresh')).resolves.toBe('first-new-access');
+      expect(api.post).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -23,6 +23,8 @@ export interface EnvConfig {
   microsoftLoginClientId?: string;
   microsoftLoginIosRedirectUri?: string;
   microsoftLoginAndroidRedirectUri?: string;
+  admobNativeIosAdUnitId?: string;
+  admobNativeAndroidAdUnitId?: string;
 }
 
 function normalizeIosGoogleClientId(clientId?: string): string | undefined {
@@ -153,6 +155,8 @@ export function getEnvConfig(): EnvConfig {
     'EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI',
     false,
   );
+  const admobNativeIosAdUnitId = getEnvVar('EXPO_PUBLIC_ADMOB_NATIVE_IOS_AD_UNIT_ID', false);
+  const admobNativeAndroidAdUnitId = getEnvVar('EXPO_PUBLIC_ADMOB_NATIVE_ANDROID_AD_UNIT_ID', false);
 
   return {
     apiUrl,
@@ -167,6 +171,8 @@ export function getEnvConfig(): EnvConfig {
     microsoftLoginClientId,
     microsoftLoginIosRedirectUri,
     microsoftLoginAndroidRedirectUri,
+    admobNativeIosAdUnitId,
+    admobNativeAndroidAdUnitId,
   };
 }
 

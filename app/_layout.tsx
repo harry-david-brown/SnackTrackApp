@@ -91,6 +91,9 @@ export default function RootLayout() {
                         presentation: 'card',
                       }}
                     />
+                    <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
+                    <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
+                    <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
                   </Stack>
                   <StatusBar style="auto" />
                 </OnboardingProvider>

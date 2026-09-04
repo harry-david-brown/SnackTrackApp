@@ -74,6 +74,10 @@ export const PUBLIC_ENDPOINTS = [
   '/auth/login',
   '/auth/google',
   '/auth/apple',
+  '/auth/microsoft',
+  '/auth/password',
+  '/auth/email/verify',
   '/auth/refresh',
+  '/auth/logout',
   '/health',
 ] as const;

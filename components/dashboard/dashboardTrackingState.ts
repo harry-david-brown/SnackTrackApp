@@ -1,8 +1,7 @@
 import type { ExportProvider, ImportPreferencesResponse } from "@features/import-flow/contracts";
 import type { GmailConnectionPurpose } from "@features/import-flow/gmailConnectionPurpose";
-import { canMarkUberNotUsed } from "@features/import-flow/providerRelevance";
 
-export type DashboardTrackingAction = "open_import" | "connect_gmail" | "import_gmail" | "request_export" | "continue_export" | "open_gmail" | "enable_tracking" | "retry_tracking" | "retry_preferences" | "mark_uber_not_used";
+export type DashboardTrackingAction = "open_import" | "connect_gmail" | "import_gmail" | "request_export" | "continue_export" | "open_gmail" | "enable_tracking" | "retry_tracking" | "retry_preferences";
 export type DashboardTrackingTone = "brand" | "progress" | "success" | "warning" | "error";
 export type HomeGuidancePlacement = "priority" | "footer";
 
@@ -58,7 +57,6 @@ export function resolveHomeDataGuidance(
   const usefulHistory = preferences.coverage.emailReceiptCount + preferences.coverage.exportReceiptCount > 0;
   const uberFileCoverage = preferences.coverage.exportProviders.uberEats.hasData;
   const uberEmailEvidence = preferences.coverage.emailProviders.uberEats.hasData;
-  const eligibleNotUsed = canMarkUberNotUsed(preferences);
   const tracking = preferences.ongoingTracking;
   const emailAttempt = preferences.gmailBaseline.latestAttempt.status === "importing" || preferences.gmailBaseline.latestAttempt.status === "failed"
     ? preferences.gmailBaseline.latestAttempt : preferences.outlookBaseline.latestAttempt;
@@ -117,9 +115,7 @@ export function resolveHomeDataGuidance(
       title: reminderDate ? "Continue setting up your data" : "Build your SnackTrack history",
       body: reminderDate ? `You chose to come back later. We’ll remind you again after ${reminderDate}.` : "Use the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.",
       icon: "receipt-outline", tone: "brand", primaryAction: "open_import", primaryLabel: reminderDate ? "Continue setup" : "Get started",
-      secondaryAction: !reminderDate && eligibleNotUsed ? "mark_uber_not_used" : undefined,
-      secondaryLabel: !reminderDate && eligibleNotUsed ? "I don’t use Uber Eats" : undefined,
-      canMarkUberNotUsed: !reminderDate && eligibleNotUsed, display: reminderDate ? "compact" : "expanded",
+      display: reminderDate ? "compact" : "expanded",
     });
   }
 
@@ -132,9 +128,8 @@ export function resolveHomeDataGuidance(
       body: uberEmailEvidence ? "We found Uber Eats receipts in email. The official Uber history file can add older and more complete order details." : completedWithoutOrders ? "That archive didn’t contain usable orders, so your Uber Eats milestone is still incomplete." : "Your current orders are safe. Add the official Uber history file for deeper coverage.",
       icon: completedWithoutOrders ? "alert-circle-outline" : "cloud-download-outline", tone: completedWithoutOrders ? "warning" : "brand",
       primaryAction: completedWithoutOrders ? "continue_export" : "request_export", primaryProvider: "uber_eats",
-      primaryLabel: completedWithoutOrders ? "Review Uber steps" : "Add Uber Eats history",
-      secondaryAction: eligibleNotUsed ? "mark_uber_not_used" : undefined, secondaryLabel: eligibleNotUsed ? "I don’t use Uber Eats" : undefined,
-      canMarkUberNotUsed: eligibleNotUsed, display: "compact",
+      primaryLabel: completedWithoutOrders ? "Review import steps" : "Import missing orders",
+      canMarkUberNotUsed: false, display: "compact",
     });
   }
 

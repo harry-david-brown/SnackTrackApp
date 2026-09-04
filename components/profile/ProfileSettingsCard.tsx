@@ -86,18 +86,18 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
   const destructiveDisabled = props.destructiveActionBusy;
   return (
     <View>
-      <SettingsGroup title="Your data">
-        <SettingsRow icon="layers-outline" label="Add & manage data" description="Manage email connections, scans, and delivery-app history files." value={props.mailboxConnectionsLabel === 'Needs attention' ? 'Needs attention' : props.providerExportLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
+      <SettingsGroup title="Your SnackTrack">
         <SettingsRow icon="receipt-outline" label="Order history" description="Search and review imported orders." onActivate={props.onOpenReceipts} />
-        <SettingsRow icon="pulse-outline" label="Automatic updates" description="Check connected email accounts for new supported orders." value={props.ongoingTrackingLabel} onActivate={props.onToggleOngoingTracking} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} last />
+        <SettingsRow icon="layers-outline" label="Data & tracking" description="Coverage, sources, automatic updates, and privacy." value={props.mailboxConnectionsLabel === 'Needs attention' ? 'Needs attention' : props.providerExportLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
+        <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} last />
       </SettingsGroup>
 
-      <SettingsGroup title="Preferences">
+      <SettingsGroup title="Support & preferences">
+        <SettingsRow icon="help-circle-outline" label="Help & privacy" description="Answers, privacy details, and support." onActivate={props.onOpenHelp} />
+        <SettingsRow icon="pulse-outline" label="Automatic updates" description="Keep connected order stats current." value={props.ongoingTrackingLabel} onActivate={props.onToggleOngoingTracking} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} />
         <SettingsRow icon="notifications-circle-outline" label="Import completion notifications" description="Get a device notification when a background import finishes." value={props.importNotificationsLabel} onActivate={props.onToggleImportNotifications} />
         <SettingsRow icon="notifications-outline" label="History-file alerts" description="Get notified when a requested Uber file is ready." value={props.exportAlertsLabel} onActivate={props.onToggleExportAlerts} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} />
-        <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} />
-        <SettingsRow icon="book-outline" label="Import guide" onActivate={props.onOpenTutorial} />
-        <SettingsRow icon="help-circle-outline" label="Help & support" onActivate={props.onOpenHelp} last />
+        <SettingsRow icon="book-outline" label="Detailed-history guide" onActivate={props.onOpenTutorial} last />
       </SettingsGroup>
 
       <SettingsGroup title="Account">
@@ -114,13 +114,13 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
 
 const styles = StyleSheet.create({
   group: { marginBottom: 22 },
-  groupTitle: { marginBottom: 9, marginLeft: 4, fontSize: 13, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', color: Colors.textSecondary },
+  groupTitle: { marginBottom: 9, marginLeft: 4, fontSize: 12, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase', color: Colors.textSecondary },
   card: { overflow: 'hidden' },
   row: { minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   lastRow: { borderBottomWidth: 0 },
   iconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0, marginLeft: 12 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
+  label: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   destructiveLabel: { color: Colors.error },
   description: { marginTop: 3, fontSize: 12, lineHeight: 17, color: Colors.textSecondary },
   trailing: { maxWidth: '42%', marginLeft: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },

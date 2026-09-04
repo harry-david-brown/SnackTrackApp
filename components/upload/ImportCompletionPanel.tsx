@@ -10,19 +10,17 @@ interface ImportCompletionPanelProps {
   summary: ImportCompletionSummary;
   onHome: () => void;
   onNext: () => void;
-  onMarkUberNotUsed?: () => void;
   onTryAnotherEmail: () => void;
-  onDefer: () => void;
 }
 
-export function ImportCompletionPanel({ summary, onHome, onNext, onMarkUberNotUsed, onTryAnotherEmail, onDefer }: ImportCompletionPanelProps) {
+export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEmail }: ImportCompletionPanelProps) {
   const isEmpty = summary.emptyHistory === true;
   const hasChanges = summary.orderCount > 0;
   const recommendsProvider = summary.nextAction.kind === 'provider';
   return (
     <View accessibilityLiveRegion="polite">
       <View style={styles.mascot}><MascotPlaceholder pose={isEmpty ? "sad" : "prop-receipt"} size={88} /></View>
-      <Text style={styles.eyebrow}>{isEmpty ? 'No orders found' : 'History updated'}</Text>
+      <Text style={styles.eyebrow}>{isEmpty ? 'No orders found' : 'Import complete'}</Text>
       <Text style={styles.title}>{summary.title}</Text>
       <Text style={styles.subtitle}>{summary.message}</Text>
       <View style={styles.progress} accessibilityLabel="Step 3 of 3">
@@ -52,7 +50,12 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onMarkUberNotUs
       </Card>
 
       <View style={styles.actions}>
-        {recommendsProvider ? (
+        {isEmpty ? (
+          <>
+            <AppButton label="Try another email" onPress={onTryAnotherEmail} />
+            <AppButton label="Import delivery history" variant="secondary" onPress={onNext} />
+          </>
+        ) : recommendsProvider ? (
           <>
             <AppButton label={summary.nextAction.label} onPress={onNext} />
             <AppButton label="See my Home" variant="secondary" onPress={onHome} />
@@ -65,15 +68,6 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onMarkUberNotUs
             ) : null}
           </>
         )}
-        {summary.canMarkUberNotUsed && onMarkUberNotUsed ? (
-          <AppButton label="I don’t use Uber Eats" variant="secondary" onPress={onMarkUberNotUsed} />
-        ) : null}
-        {isEmpty ? (
-          <>
-            <AppButton label="Try another email" variant="secondary" onPress={onTryAnotherEmail} />
-            <AppButton label="Do this later" variant="secondary" onPress={onDefer} />
-          </>
-        ) : null}
       </View>
     </View>
   );

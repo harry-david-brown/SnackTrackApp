@@ -23,8 +23,9 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.eyebrow}>ACCOUNT</Text>
         <Text style={styles.title}>You</Text>
-        <Text style={styles.subtitle}>Your data, preferences, and account</Text>
+        <Text style={styles.subtitle}>Your SnackTrack, preferences, and privacy controls.</Text>
         <EmailVerificationBanner />
         <ProfileSummaryCard
           email={profile.user.email}
@@ -70,8 +71,9 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 20 },
-  title: { fontSize: 32, fontWeight: '800', color: Colors.textPrimary, marginBottom: 4 },
-  subtitle: { fontSize: 15, color: Colors.textSecondary, marginBottom: 4 },
+  eyebrow: { color: Colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 5 },
+  title: { fontSize: 32, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, lineHeight: 21, color: Colors.textSecondary, marginBottom: 14 },
   appInfo: { alignItems: 'center', padding: 20 },
   appInfoText: { fontSize: 14, color: Colors.gray500, marginBottom: 4 },
 });

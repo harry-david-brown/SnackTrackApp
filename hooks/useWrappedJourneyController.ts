@@ -45,7 +45,7 @@ export function useWrappedJourneyController() {
   const openExport = useCallback((showTutorial = false) => {
     void markClicked();
     router.push({
-      pathname: '/(tabs)/upload',
+      pathname: '/data-tracking',
       params: {
         focus: 'export',
         ...(exportOpportunity ? { provider: exportOpportunity.provider } : {}),
@@ -75,7 +75,7 @@ export function useWrappedJourneyController() {
       ? 'import_gmail'
       : 'connect_gmail';
     router.push({
-      pathname: '/(tabs)/upload',
+      pathname: '/data-tracking',
       params: {
         action,
         gmailPurpose: 'ongoing_tracking',
@@ -99,7 +99,7 @@ export function useWrappedJourneyController() {
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
     openExportTutorial: () => openExport(true),
-    openImport: () => router.push('/(tabs)/upload'),
+    openImport: () => router.push('/data-setup'),
     openTrackingSetup,
     finish: () => router.replace('/(tabs)'),
   };

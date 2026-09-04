@@ -89,7 +89,7 @@ export const GmailConnection: React.FC<GmailConnectionProps> = ({
           <View style={styles.reconnectNotice}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
             <Text style={styles.reconnectNoticeText}>
-              Reconnect Gmail from Add & manage data before running another scan.
+              Reconnect Gmail from Data & tracking before running another scan.
             </Text>
           </View>
         ) : (

@@ -44,7 +44,7 @@ export default function ExportReadyNotifier() {
     if (!userId) return;
     await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'downloaded');
     router.push(
-      `/(tabs)/upload?focus=export&provider=uber_eats&downloadedVersion=${encodeURIComponent(readyVersion)}`
+      `/data-tracking?focus=export&provider=uber_eats&downloadedVersion=${encodeURIComponent(readyVersion)}`
     );
   }, [userId]);
 
@@ -77,7 +77,7 @@ export default function ExportReadyNotifier() {
 
   const openDownloadGuide = useCallback(() => {
     isShowingDownloadPromptRef.current = false;
-    router.push('/(tabs)/upload?focus=export&provider=uber_eats&showExportTutorial=true');
+    router.push('/data-tracking?focus=export&provider=uber_eats&showExportTutorial=true');
   }, []);
 
   const showReadyPrompt = useCallback((readyVersion: string) => {

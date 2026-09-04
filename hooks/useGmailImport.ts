@@ -93,7 +93,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         const result = await gmailApi.importReceipts();
 
         if (userId) cacheImportOperation(queryClient, userId, result);
-        return true;
+        return result;
       } catch (error: unknown) {
         const domainError = toDomainError(error);
         if (domainError.code === "IMPORT_IN_PROGRESS") {

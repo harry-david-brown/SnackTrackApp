@@ -8,8 +8,7 @@ import { getConfig } from '@config/env';
 import { API_CONFIG, PUBLIC_ENDPOINTS, HTTP_STATUS } from '@/constants';
 import { logger } from '@utils/logger';
 import { checkRateLimit, RATE_LIMITS } from '@utils/rateLimiter';
-import { notifySessionExpired } from '@services/authSessionCoordinator';
-import { sessionExpiredError, toApiClientError } from './apiError';
+import { toApiClientError } from './apiError';
 import { isTerminalSessionError } from '@features/auth/contracts';
 
 // Get validated API URL from environment configuration
@@ -31,29 +30,10 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Token refresh mutex to prevent race conditions
-let isRefreshing = false;
-let refreshPromise: Promise<string> | null = null;
-let refreshAttempts = 0;
-const MAX_REFRESH_ATTEMPTS = 3;
-const REFRESH_COOLDOWN_MS = 1000; // 1 second cooldown between refresh attempts
-
-const onRefreshed = (token: string) => {
-  void token;
-  refreshAttempts = 0; // Reset attempts on success
-};
-
-const onRefreshFailed = () => undefined;
-
-const expireLocalSession = async () => {
-  try {
-    const { clearAuthTokens } = await import('@utils/tokenManager');
-    await clearAuthTokens();
-  } catch (error) {
-    logger.error('Failed to clear expired authentication tokens:', error);
-  }
-  await notifySessionExpired();
-};
+interface SessionAwareRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+  _sessionRefreshToken?: string | null;
+}
 
 /**
  * Extract pathname from URL (removes query parameters and fragments)
@@ -174,12 +154,13 @@ api.interceptors.request.use(
     // Skip auth for public endpoints
     if (!isPublicEndpoint(url)) {
       // Import token utilities directly (avoid circular dependency)
-      const { getAccessToken } = await import('@utils/tokenManager');
-      const token = await getAccessToken();
+      const { getAuthTokenSnapshot } = await import('@utils/tokenManager');
+      const { accessToken, refreshToken } = await getAuthTokenSnapshot();
 
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
       }
+      (config as SessionAwareRequestConfig)._sessionRefreshToken = refreshToken;
     }
 
     return config;
@@ -196,10 +177,10 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as SessionAwareRequestConfig | undefined;
 
     // Handle 401 Unauthorized - Token expired or invalid
-    if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && !originalRequest._retry) {
+    if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && originalRequest && !originalRequest._retry) {
       // Check if this is a public endpoint - if so, don't try to refresh
       if (isPublicEndpoint(originalRequest.url || '')) {
         const clientError = toApiClientError(error);
@@ -207,84 +188,25 @@ api.interceptors.response.use(
         return Promise.reject(clientError);
       }
 
-      // Check if we've exceeded max refresh attempts
-      if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-        logger.error('Max token refresh attempts exceeded');
-        await expireLocalSession();
-        refreshAttempts = 0;
-        return Promise.reject(sessionExpiredError(error));
-      }
-
-      // If refresh is in progress, wait for it
-      if (isRefreshing && refreshPromise) {
-        try {
-          const token = await refreshPromise;
-          if (token) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            originalRequest._retry = true;
-            return api(originalRequest);
-          } else {
-            return Promise.reject(sessionExpiredError(error));
-          }
-        } catch (err) {
-          const clientError = toApiClientError(err);
-          return Promise.reject(isTerminalSessionError(clientError.code) ? sessionExpiredError(err) : clientError);
-        }
-      }
-
       // Mark request as retried to prevent infinite loops
       originalRequest._retry = true;
 
-      // Start refresh process with mutex
-      isRefreshing = true;
-      refreshAttempts++;
-
-      refreshPromise = (async () => {
-        try {
-          // Add cooldown to prevent rapid refresh attempts
-          if (refreshAttempts > 1) {
-            await new Promise(resolve => setTimeout(resolve, REFRESH_COOLDOWN_MS));
-          }
-
-          // Dynamically import to avoid circular dependency
-          const { authApi } = await import('@services/authApi');
-          const { getRefreshToken, updateAccessToken } = await import('@utils/tokenManager');
-          const storedRefreshToken = await getRefreshToken();
-          if (!storedRefreshToken) throw sessionExpiredError();
-          const response = await authApi.refresh(storedRefreshToken);
-          await updateAccessToken(response.accessToken, response.refreshToken);
-
-          logger.debug('Token refresh successful');
-          isRefreshing = false;
-          refreshPromise = null;
-          onRefreshed(response.accessToken);
-
-          return response.accessToken;
-        } catch (refreshError) {
-          logger.error('Token refresh failed:', refreshError);
-          isRefreshing = false;
-          refreshPromise = null;
-          onRefreshFailed();
-
-          const clientError = toApiClientError(refreshError);
-          if (isTerminalSessionError(clientError.code)) {
-            await expireLocalSession();
-            throw sessionExpiredError(refreshError);
-          }
-          refreshAttempts = 0;
-          throw clientError;
-        }
-      })();
-
       try {
-        const newToken = await refreshPromise;
+        const { refreshStoredSession } = await import('@services/authApi');
+        const newToken = await refreshStoredSession(originalRequest._sessionRefreshToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        logger.debug('Token refresh successful');
         return api(originalRequest);
       } catch (refreshError) {
         const clientError = toApiClientError(refreshError);
-        return Promise.reject(
-          isTerminalSessionError(clientError.code) ? sessionExpiredError(refreshError) : clientError,
-        );
+        if (clientError.code === 'SESSION_REFRESH_SUPERSEDED') {
+          logger.debug('Discarded a refresh result from an older session');
+        } else if (isTerminalSessionError(clientError.code)) {
+          logger.warn('Session refresh rejected', { code: clientError.code });
+        } else {
+          logger.error('Token refresh failed:', clientError);
+        }
+        return Promise.reject(clientError);
       }
     }
 

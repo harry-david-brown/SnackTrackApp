@@ -28,14 +28,25 @@ import {
   type DashboardPeriod,
 } from '@features/dashboard/dashboardPeriodSummary';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import { DashboardAdPlacement } from '@features/ads/DashboardAdPlacement';
+import { isAdEligible } from '@features/ads/contracts';
+import { claimAdOpportunity, getDailyAdImpressions, getSessionAdImpressions, isAdSessionSuppressed, recordDailyAdImpression, recordSessionAdImpression } from '@features/ads/adSession';
+import { useAdRuntimeConfiguration } from '@features/ads/useAdRuntimeConfiguration';
+import { useImportOperation } from '@hooks/useImportOperation';
+import { ImportOperationCard } from '@components/import/ImportOperationCard';
 
 export default function DashboardScreen() {
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
   const [insightsDayOffset, setInsightsDayOffset] = React.useState(0);
   const [dashboardPeriod, setDashboardPeriod] = React.useState<DashboardPeriod>('current_month');
+  const [sessionAdImpressions, setSessionAdImpressions] = React.useState(0);
+  const [dailyAdImpressions, setDailyAdImpressions] = React.useState<number | null>(null);
+  const [adClaimed, setAdClaimed] = React.useState(false);
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
   const insightsQuery = useDashboardInsightsQuery(state.user?.id, __DEV__ ? insightsDayOffset : 0);
+  const adRuntime = useAdRuntimeConfiguration(state.user?.id);
+  const { operation: importOperation } = useImportOperation(Boolean(state.user?.id), true);
   const { data: analytics, refetch: loadAnalytics } = analyticsQuery;
   const analyticsSummaryState = resolveAnalyticsSummaryState({
     summary: analytics,
@@ -51,8 +62,6 @@ export default function DashboardScreen() {
     refreshIfStale: refreshImportPreferencesIfStale,
     setOngoingTrackingConsent,
     checkOngoingTracking,
-    setProviderRelevance,
-    setSetupDeferral,
     error: importPreferencesError,
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(
@@ -71,6 +80,31 @@ export default function DashboardScreen() {
     isError: insightsQuery.isError,
     receiptCount: analytics?.totalReceipts ?? (analyticsQuery.isLoading ? null : 0),
   });
+  React.useEffect(() => {
+    setSessionAdImpressions(state.user?.id ? getSessionAdImpressions(state.user.id) : 0);
+    if (state.user?.id) void getDailyAdImpressions(state.user.id).then(setDailyAdImpressions);
+  }, [adRuntime.appActive, state.user?.id]);
+  const baseAdEligible = isAdEligible({
+    configuration: adRuntime.configuration,
+    configurationFresh: adRuntime.configurationFresh,
+    receiptCount: analytics?.totalReceipts ?? null,
+    insightsReady: insightSectionState.id === 'success' || insightSectionState.id === 'stale-success',
+    appActive: adRuntime.appActive,
+    impressionsThisSession: sessionAdImpressions,
+    impressionsToday: dailyAdImpressions ?? Number.MAX_SAFE_INTEGER,
+    placement: 'dashboard_after_insights',
+    sessionSuppressed: (state.user?.id ? isAdSessionSuppressed(state.user.id) : true)
+      || Boolean(importOperation && ['pending_dispatch','queued','running','retrying'].includes(importOperation.status)),
+  });
+  React.useEffect(() => {
+    if (baseAdEligible && state.user?.id) setAdClaimed(claimAdOpportunity(state.user.id, 'dashboard_after_insights'));
+  }, [baseAdEligible, state.user?.id]);
+  const adEligible = baseAdEligible && adClaimed;
+  const recordAdImpression = React.useCallback(() => {
+    if (!state.user?.id) return;
+    setSessionAdImpressions(recordSessionAdImpression(state.user.id));
+    void recordDailyAdImpression(state.user.id).then(setDailyAdImpressions);
+  }, [state.user?.id]);
   
   useFocusEffect(
     React.useCallback(() => {
@@ -97,38 +131,14 @@ export default function DashboardScreen() {
       void refreshImportPreferences();
       return;
     }
-    if (action === 'mark_uber_not_used') {
-      showAlert(
-        'Stop recommending Uber Eats history?',
-        'We’ll stop recommending Uber Eats history. You can add it later from Add & manage data.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'I don’t use Uber Eats',
-            onPress: () => {
-              void setProviderRelevance('uber_eats', 'not_used').catch(() => {
-                showSimpleAlert(
-                  'Uber Eats is still relevant',
-                  'SnackTrack found Uber Eats activity or an active history request. Refresh your data status and try again.',
-                );
-              });
-            },
-          },
-        ],
-      );
-      return;
-    }
     if (action === 'open_import') {
-      if (trackingCardState.id === 'setup_deferred') {
-        void setSetupDeferral('resume');
-      }
-      router.push('/(tabs)/upload');
+      router.push('/data-tracking');
       return;
     }
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
       router.push({
-        pathname: '/(tabs)/upload',
+        pathname: '/data-tracking',
         params: {
           action,
           intentId: `${action}:${Date.now()}`,
@@ -139,7 +149,7 @@ export default function DashboardScreen() {
       return;
     }
     if (action === 'open_gmail') {
-      router.push('/(tabs)/upload?focus=export&provider=uber_eats&showExportTutorial=true');
+      router.push('/data-tracking?focus=export&provider=uber_eats&showExportTutorial=true');
       return;
     }
     if (action === 'enable_tracking') {
@@ -200,7 +210,7 @@ export default function DashboardScreen() {
           <View style={styles.header}>
             <View style={styles.headerBrand}>
               {/* MASCOT: small logo bust — neutral pose, no label */}
-              <MascotPlaceholder pose="neutral" size={44} hideLabel />
+              <MascotPlaceholder pose="sunglasses" size={52} hideLabel />
               <View style={styles.headerCopy}>
                 <Text style={styles.title}>{greetingForDate()}</Text>
                 <Text style={styles.subtitle}>Here’s your delivery picture.</Text>
@@ -236,6 +246,8 @@ export default function DashboardScreen() {
             </View>
           ) : null}
 
+          {importOperation?.presentation?.mode === 'delayed' ? <ImportOperationCard operation={importOperation} /> : null}
+
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
             <SectionHeader title={insightSectionState.title} subtitle={insightSectionState.subtitle} />
@@ -251,11 +263,11 @@ export default function DashboardScreen() {
                 insights={insightSectionState.edition.insights}
                 partialExportProvider={insightSectionState.edition.partialExportProvider}
                 onOpenExport={() => router.push({
-                  pathname: '/(tabs)/upload',
+                  pathname: '/data-tracking',
                   params: { action: 'request_export', intentId: `request_export:${Date.now()}` },
                 })}
                 onOpenProviderExport={(provider) => router.push({
-                  pathname: '/(tabs)/upload',
+                  pathname: '/data-tracking',
                   params: { action: 'request_export', provider, intentId: `request_export:${provider}:${Date.now()}` },
                 })}
               />
@@ -283,6 +295,27 @@ export default function DashboardScreen() {
             )}
           </View>
 
+          {analytics ? <View style={styles.compactStats}>
+            <Card style={styles.compactStatCard}>
+              <Ionicons name="receipt-outline" size={19} color={Colors.primary} />
+              <Text style={styles.compactStatValue}>{analytics.totalReceipts}</Text>
+              <Text style={styles.compactStatLabel}>Orders tracked</Text>
+            </Card>
+            <Card style={styles.compactStatCard}>
+              <Ionicons name="wallet-outline" size={19} color={Colors.primary} />
+              <Text style={styles.compactStatValue}>{formatCurrency(analytics.averageOrderValue)}</Text>
+              <Text style={styles.compactStatLabel}>Average order</Text>
+            </Card>
+          </View> : null}
+
+          {adEligible && adRuntime.configuration ? (
+            <DashboardAdPlacement
+              placement="dashboard_after_insights"
+              configurationVersion={adRuntime.configuration.configurationVersion}
+              onImpression={recordAdImpression}
+            />
+          ) : null}
+
           {trackingCardState.placement === 'footer' ? (
             <View style={styles.actionsContainer}>
               <SectionHeader title={trackingCardState.sectionLabel} />
@@ -294,6 +327,7 @@ export default function DashboardScreen() {
               />
             </View>
           ) : null}
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -329,7 +363,7 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   title: {
     fontSize: 25,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 4,
   },
@@ -352,6 +386,10 @@ const styles = StyleSheet.create({
   activityContainer: {
     marginTop: 24,
   },
+  compactStats: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  compactStatCard: { flex: 1, minHeight: 112, padding: 15 },
+  compactStatValue: { color: Colors.textPrimary, fontSize: 21, fontWeight: '600', marginTop: 13 },
+  compactStatLabel: { color: Colors.textSecondary, fontSize: 12, marginTop: 3 },
   emptyState: {
     padding: 40,
     alignItems: 'center',

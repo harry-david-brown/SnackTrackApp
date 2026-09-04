@@ -169,7 +169,7 @@ export function useProfileController() {
                   { text: 'Not Now', style: 'cancel' },
                   {
                     text: 'Manage connections',
-                    onPress: () => router.push('/(tabs)/upload'),
+                    onPress: () => router.push('/data-tracking'),
                   },
                 ]);
               }
@@ -193,7 +193,7 @@ export function useProfileController() {
       showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your downloaded history and establish where future checks should begin.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Go to Import', onPress: () => router.push({
-          pathname: '/(tabs)/upload',
+          pathname: '/data-tracking',
           params: { action: 'import_gmail', gmailPurpose: 'ongoing_tracking', intentId: `import_gmail:${Date.now()}` },
         }) },
       ]);
@@ -206,7 +206,7 @@ export function useProfileController() {
     if (trackingRecovery.kind === 'reconnect') {
       showAlert('Reconnect email first', 'Ongoing tracking needs a durable Gmail or Outlook connection. Manage email connections from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Manage connections', onPress: () => router.push('/(tabs)/upload') },
+        { text: 'Manage connections', onPress: () => router.push('/data-tracking') },
       ]);
       return;
     }
@@ -268,7 +268,7 @@ export function useProfileController() {
     await setExportDownloadHandoffState(userId, provider, readyVersion, 'downloaded');
     setActiveModal(null);
     router.push({
-      pathname: '/(tabs)/upload',
+      pathname: '/data-tracking',
       params: { focus: 'export', provider, downloadedVersion: readyVersion },
     });
   }, [preferences?.export.providers, userId]);
@@ -325,7 +325,7 @@ export function useProfileController() {
     openModal: setActiveModal,
     closeModal: () => setActiveModal(null),
     openReceipts: () => router.push('/(tabs)/history'),
-    openImport: () => router.push('/(tabs)/upload'),
+    openImport: () => router.push('/data-tracking'),
     requestLogout,
     requestClearReceipts,
     requestDevelopmentReset,

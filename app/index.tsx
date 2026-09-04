@@ -6,10 +6,11 @@ import { useUser } from '@contexts/UserContext';
 import { useOnboarding } from '@contexts/OnboardingContext';
 import { LoginScreen } from '@components/auth/LoginScreen';
 import OnboardingScreen from '@components/OnboardingScreen';
-import { useAnalyticsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { ErrorMessage } from '@components/ui/ErrorMessage';
-import { useSetupGuidanceQuery } from '@hooks/queries/useSetupGuidanceQuery';
-import { resolveInitialDataEntry } from '@features/import-flow/initialDataEntry';
+import { useExperienceStateQuery } from '@hooks/queries/useExperienceStateQuery';
+import { loadExportUpsellStateForUser } from '@hooks/useExportUpsell';
+import { experienceApi } from '@services/experienceApi';
+import { useEffect, useRef } from 'react';
 
 /**
  * Entry route. Everything here is derived directly from auth/onboarding
@@ -24,16 +25,25 @@ import { resolveInitialDataEntry } from '@features/import-flow/initialDataEntry'
 export default function HomeScreen() {
   const { state } = useUser();
   const { hasCompletedOnboarding, isLoading: onboardingLoading, completeOnboarding } = useOnboarding();
-  const analyticsQuery = useAnalyticsQuery(state.user?.id);
-  const setupGuidanceQuery = useSetupGuidanceQuery(state.user?.id);
+  const experienceQuery = useExperienceStateQuery(state.user?.id);
+  const migratedLocalRecapFor = useRef<string | null>(null);
+  useEffect(() => {
+    const userId = state.user?.id;
+    if (!userId || experienceQuery.data?.firstRecap.state !== 'ready' || migratedLocalRecapFor.current === userId) return;
+    migratedLocalRecapFor.current = userId;
+    void loadExportUpsellStateForUser(userId).then(local => {
+      if (local.wrappedSeenAt) return experienceApi.markFirstRecapSeen().then(() => experienceQuery.refetch());
+      return undefined;
+    }).catch(() => undefined);
+  }, [experienceQuery, state.user?.id]);
 
   // Wait for auth + onboarding hydration, and — when authenticated — for the
-  // lightweight guidance and receipt probes that decide the cold-launch destination.
+  // canonical account experience state that decides the cold-launch destination.
   const isLoading =
     state.isLoading ||
     onboardingLoading ||
     (state.isAuthenticated && Boolean(state.user)
-      && (analyticsQuery.isPending || setupGuidanceQuery.isPending));
+      && experienceQuery.isPending);
 
   if (isLoading) {
     return (
@@ -45,15 +55,15 @@ export default function HomeScreen() {
     );
   }
 
-  if (state.isAuthenticated && state.user && analyticsQuery.isError) {
+  if (state.isAuthenticated && state.user && experienceQuery.isError) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <ErrorMessage
             type="network"
-            error="We couldn’t load your SnackTrack history. Check your connection and try again."
+            error="We couldn’t load your SnackTrack setup. Check your connection and try again."
             onRetry={() => {
-              void analyticsQuery.refetch();
+              void experienceQuery.refetch();
             }}
           />
         </View>
@@ -62,15 +72,12 @@ export default function HomeScreen() {
   }
 
   if (state.isAuthenticated && state.user) {
-    const destination = resolveInitialDataEntry({
-      isAuthenticated: true,
-      hasUser: true,
-      totalReceipts: analyticsQuery.data?.totalReceipts ?? null,
-      guidance: setupGuidanceQuery.data ?? null,
-      isLoading: false,
-      hasError: setupGuidanceQuery.isError,
-    });
-    return <Redirect href={destination.id === 'guided_setup' ? '/(tabs)/upload' : '/(tabs)'} />;
+    const setupState = experienceQuery.data?.setup.state;
+    if (setupState === 'importing') {
+      const operationId = experienceQuery.data?.setup.activeOperationId;
+      return <Redirect href={operationId ? `/import-progress?operationId=${operationId}` : '/data-setup'} />;
+    }
+    return <Redirect href={setupState === 'required' ? '/data-setup' : '/(tabs)'} />;
   }
 
   if (!hasCompletedOnboarding) {

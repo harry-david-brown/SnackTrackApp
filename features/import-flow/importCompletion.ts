@@ -9,6 +9,5 @@ export interface ImportCompletionSummary {
   title: string;
   message: string;
   nextAction: ImportCompletionNextAction;
-  canMarkUberNotUsed?: boolean;
   emptyHistory?: boolean;
 }

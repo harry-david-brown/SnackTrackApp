@@ -65,7 +65,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
       <ImportTaskCard
         id="uber_export"
         title="Add delivery-app history"
-        description="Add your official Uber Eats or DoorDash order history for deeper coverage."
+        description="Import missing orders for deeper coverage and richer statistics."
         iconName="cloud-upload-outline"
         statusLabel={props.state.label}
         statusTone={props.state.tone}

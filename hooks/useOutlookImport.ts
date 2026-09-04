@@ -122,7 +122,7 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
       try {
         const result = await outlookApi.importReceipts();
         if (userId) cacheImportOperation(queryClient, userId, result);
-        return true;
+        return result;
       } catch (error) {
         const domainError = toDomainError(error);
         const reconnect = domainError.code === 'OUTLOOK_RECONNECT_REQUIRED';

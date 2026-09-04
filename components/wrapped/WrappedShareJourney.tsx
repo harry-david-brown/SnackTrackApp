@@ -60,6 +60,7 @@ import type {
 import { useWrappedSharing } from './useWrappedSharing';
 import type { TrackingEligibility } from '@features/import-flow/trackingEligibility';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import WrappedUpsellFinale from './WrappedUpsellFinale';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
 export { STORY_GRADIENTS } from './wrappedTheme';
@@ -91,6 +92,7 @@ interface WrappedShareJourneyProps {
   onExportUpgrade?: () => void;
   onExportTutorial?: () => void;
   onFinishPostWrapped?: () => void;
+  entryPoint?: 'automatic_first_import' | 'summary' | 'notification';
 }
 
 export default function WrappedShareJourney({
@@ -109,6 +111,7 @@ export default function WrappedShareJourney({
   onExportUpgrade,
   onExportTutorial,
   onFinishPostWrapped,
+  entryPoint = 'summary',
 }: WrappedShareJourneyProps) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -188,8 +191,8 @@ export default function WrappedShareJourney({
   const shouldAutoAdvance = currentSlide < slides.length - 1;
 
   React.useEffect(() => {
-    void trackAdminEvent('wrapped_started').catch(() => undefined);
-  }, []);
+    void trackAdminEvent('wrapped_started', { properties: { entryPoint } }).catch(() => undefined);
+  }, [entryPoint]);
 
   React.useEffect(() => {
     if (!activeSlide) return;
@@ -219,6 +222,7 @@ export default function WrappedShareJourney({
   React.useEffect(() => {
     if (showPostDeckOffer && postDeckStep === 'export') {
       onExportUpsellSeen?.();
+      void trackAdminEvent('upsell_example_viewed', { properties: { example: 'delivery_fee_trend' } }).catch(() => undefined);
     }
   }, [postDeckStep, showPostDeckOffer, onExportUpsellSeen]);
 
@@ -566,6 +570,17 @@ export default function WrappedShareJourney({
     );
   };
 
+  if (showPostDeckOffer) {
+    return <WrappedUpsellFinale
+      analytics={analytics}
+      exportStatus={exportStatus}
+      providerName={exportProviderName}
+      onUnlock={() => { setShowPostDeckOffer(false); onExportTutorial?.(); }}
+      onManage={() => { setShowPostDeckOffer(false); onExportUpgrade?.(); }}
+      onFinish={finishPostWrapped}
+    />;
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar hidden />
@@ -696,7 +711,7 @@ export default function WrappedShareJourney({
             style={styles.doneCtaButton}
             onPress={() => {
               void trackAdminEvent('wrapped_completed').catch(() => undefined);
-              setPostDeckStep(resolveInitialPostDeckStep(postWrappedExperience.exportEligibility));
+              setPostDeckStep('export');
               setShowPostDeckOffer(true);
             }}
             accessibilityRole="button"
@@ -872,7 +887,7 @@ export default function WrappedShareJourney({
                   />
                 </View>
                 <Text style={styles.offerEyebrow}>
-                  {hasRequestedExport ? `${providerName.toUpperCase()} REQUESTED` : 'COMPLETE THE PICTURE'}
+                  {hasRequestedExport ? `${providerName.toUpperCase()} REQUESTED` : 'THAT’S JUST THE SURFACE'}
                 </Text>
                 <Text style={styles.offerTitle}>
                   {hasRequestedExport
@@ -884,21 +899,21 @@ export default function WrappedShareJourney({
                       : exportStatus === 'failed'
                         ? `Your ${providerName} import needs another try`
                         : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? 'Your email receipts may not cover your full history'
-                          : 'Make your history more complete'}
+                          ? 'See what the missing orders are hiding'
+                          : 'Complete the picture. Unlock the good stuff.'}
                 </Text>
                 <Text style={styles.offerBody}>
                   {hasRequestedExport
-                    ? `When ${providerName} emails that the archive is ready, return to Add & manage data to download and add it. Uber-ready email checks can be enabled separately.`
+                    ? `When ${providerName} says your history is ready, return to Data & tracking to finish adding it.`
                     : exportStatus === 'file_ready'
-                      ? 'SnackTrack found the matching data-ready message. Open Add & manage data to finish adding the file to your history.'
+                      ? 'Your history is ready. Open Data & tracking to finish adding it.'
                     : exportStatus === 'import_processing'
                       ? 'Your file is being processed. Your history will update when the import finishes.'
                       : exportStatus === 'failed'
                         ? `The last ${providerName} file did not finish. Try again with a newly downloaded archive.`
                         : postWrappedExperience.coverageAssessment === 'sparse'
-                          ? `We only found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. An Uber Eats or DoorDash history archive can recover older orders.`
-                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Add another delivery app’s history to uncover older orders and fill in gaps.`}
+                          ? `We found ${exportOrderCount} delivery ${exportOrderCount === 1 ? 'receipt' : 'receipts'}. Complete your history to uncover the patterns email missed.`
+                          : `We built this from ${exportOrderCount} imported ${exportOrderCount === 1 ? 'order' : 'orders'}. Complete your delivery picture to reveal the patterns still hiding.`}
                 </Text>
                 {!hasRequestedExport && exportStatus === 'not_started' ? (
                   <View style={styles.consentDetails} accessibilityLabel="Examples of insights unlocked by downloaded delivery history">
@@ -914,6 +929,11 @@ export default function WrappedShareJourney({
                       <Ionicons name="time-outline" size={17} color={Colors.mascotHighlight} />
                       <Text style={styles.consentDetailText}>Your fastest and longest delivery records</Text>
                     </View>
+                    <View style={styles.consentDetailRow}>
+                      <Ionicons name="trending-up-outline" size={17} color={Colors.mascotHighlight} />
+                      <Text style={styles.consentDetailText}>How delivery companies quietly changed your fees over time*</Text>
+                    </View>
+                    <Text style={styles.offerBody}>*Available when your receipts include enough explicit fee detail. Your food wasn’t the only thing getting pricier—unless the receipts prove otherwise.</Text>
                   </View>
                 ) : null}
                 <View style={styles.exportActionStack}>
@@ -923,17 +943,16 @@ export default function WrappedShareJourney({
                         <TouchableOpacity
                           style={styles.affiliateButton}
                           onPress={() => {
+                            void trackAdminEvent('deeper_stats_selected').catch(() => undefined);
                             setShowPostDeckOffer(false);
                             onExportTutorial?.();
                           }}
                           accessibilityRole="button"
-                          accessibilityLabel="Choose a provider and see how to request delivery data"
+                          accessibilityLabel="Unlock deeper delivery statistics"
                         >
                           <Ionicons name="download-outline" size={20} style={styles.affiliateButtonIcon} />
                           <Text style={styles.affiliateButtonText}>
-                            {postWrappedExperience.coverageAssessment === 'sparse'
-                              ? `Get More ${providerName} History`
-                              : `Request ${providerName} Data`}
+                            Unlock deeper stats
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -958,7 +977,7 @@ export default function WrappedShareJourney({
                             ? styles.exportSecondaryButtonText
                             : styles.affiliateButtonText}
                         >
-                          Add an Existing History File
+                          Import a file I already have
                         </Text>
                       </TouchableOpacity>
                     </>

@@ -94,6 +94,13 @@ export type ImportOperationStatus =
   | "expired"
   | "superseded"
   | "cancelled";
+export interface ImportOperationPresentation {
+  readonly mode: "foreground" | "delayed";
+  readonly expectedDurationBand: "under_5_minutes" | "over_5_minutes" | "unknown";
+  readonly reason: "normal" | "queue_backlog" | "workers_unavailable" | "queue_paused" | "retrying" | "elapsed_over_threshold";
+  readonly stage: "waiting" | "discovering" | "building_history" | "preparing_recap";
+  readonly discoveredOrderCount: number | null;
+}
 export interface ImportOperation {
   readonly id: string;
   readonly kind: ImportOperationKind;
@@ -111,6 +118,7 @@ export interface ImportOperation {
   readonly startedAt: string | null;
   readonly completedAt: string | null;
   readonly updatedAt: string;
+  readonly presentation: ImportOperationPresentation | null;
 }
 
 export const isActiveImportOperation = (operation: ImportOperation | null | undefined): boolean =>

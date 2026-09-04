@@ -93,8 +93,11 @@ A native iOS and Android React Native/Expo app that shows you how much you waste
 - `EXPO_PUBLIC_API_URL` - required API base URL; `.env.example` uses `http://localhost:3000`
 - `EXPO_PUBLIC_APP_ENV` - Environment type (`development`, `staging`, `production`), defaults to `development`
 - `EXPO_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (optional - app works without it)
+- `EXPO_PUBLIC_ADMOB_IOS_APP_ID` and `EXPO_PUBLIC_ADMOB_ANDROID_APP_ID` - required AdMob application IDs for production native builds
+- `EXPO_PUBLIC_ADMOB_NATIVE_IOS_AD_UNIT_ID` and `EXPO_PUBLIC_ADMOB_NATIVE_ANDROID_AD_UNIT_ID` - required dashboard native-ad unit IDs for production native builds
 
 The `npm run setup` script creates a local `.env` automatically. Deployment environments must set their API URL explicitly.
+Google test IDs are used outside production. Native ads require a development/EAS build and are not available in Expo Go.
 
 **Error Tracking (Sentry):**
 - Sentry is integrated for production error tracking and crash reporting

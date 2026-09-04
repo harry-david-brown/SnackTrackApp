@@ -20,7 +20,18 @@ const getPathname = (urlStr: string): string => {
 };
 
 const isPublicEndpoint = (url: string): boolean => {
-  const publicEndpoints = ['/auth/register', '/auth/login', '/auth/google', '/auth/apple', '/auth/refresh', '/health'];
+  const publicEndpoints = [
+    '/auth/register',
+    '/auth/login',
+    '/auth/google',
+    '/auth/apple',
+    '/auth/microsoft',
+    '/auth/password',
+    '/auth/email/verify',
+    '/auth/refresh',
+    '/auth/logout',
+    '/health',
+  ];
   const pathname = getPathname(url || '');
   
   // Root path is public
@@ -75,6 +86,11 @@ describe('isPublicEndpoint', () => {
       expect(isPublicEndpoint('/auth/google')).toBe(true);
       expect(isPublicEndpoint('/auth/apple')).toBe(true);
       expect(isPublicEndpoint('/auth/refresh')).toBe(true);
+      expect(isPublicEndpoint('/auth/microsoft/attempt')).toBe(true);
+      expect(isPublicEndpoint('/auth/microsoft/email/confirm')).toBe(true);
+      expect(isPublicEndpoint('/auth/password/reset/request')).toBe(true);
+      expect(isPublicEndpoint('/auth/email/verify/confirm')).toBe(true);
+      expect(isPublicEndpoint('/auth/logout')).toBe(true);
       expect(isPublicEndpoint('/health')).toBe(true);
       expect(isPublicEndpoint('/')).toBe(true);
     });
@@ -161,5 +177,4 @@ describe('isPublicEndpoint', () => {
     });
   });
 });
-
 

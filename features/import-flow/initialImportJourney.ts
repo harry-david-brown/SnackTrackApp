@@ -1,11 +1,12 @@
 import type { ImportFlowState } from './importFlowResolver';
 
-export type ImportSetupPath = 'gmail' | 'outlook' | 'alternative' | null;
+export type ImportSetupPath = 'email' | 'gmail' | 'outlook' | 'alternative' | null;
 
 export type InitialImportJourneyState =
   | { kind: 'complete' }
   | { kind: 'provider_resume' }
   | { kind: 'choose_method' }
+  | { kind: 'choose_email_provider' }
   | { kind: 'choose_provider' }
   | {
       kind: 'review_email_scan';
@@ -46,6 +47,7 @@ export function resolveInitialImportJourney(
   if (flow.hasImportedEmailData || flow.hasAnyExportData) return { kind: 'complete' };
   if (providerJourneyStarted(flow)) return { kind: 'provider_resume' };
   if (selectedPath === 'alternative') return { kind: 'choose_provider' };
+  if (selectedPath === 'email') return { kind: 'choose_email_provider' };
 
   const inferredProvider = selectedPath
     ?? (flow.gmailConnected && !flow.outlookConnected

@@ -16,6 +16,27 @@ jest.mock('@sentry/react-native', () => ({
   startSpan: (_options: unknown, callback: (span: object) => unknown) => callback({}),
 }));
 
+jest.mock('react-native-google-mobile-ads', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const wrapper = ({ children }: { children?: React.ReactNode }) => React.createElement(View, null, children);
+  return {
+    __esModule: true,
+    default: () => ({ initialize: jest.fn().mockResolvedValue([]) }),
+    AdsConsent: { gatherConsent: jest.fn().mockResolvedValue({ canRequestAds: false }) },
+    NativeAd: { createForAdRequest: jest.fn() },
+    NativeAdChoicesPlacement: { TOP_RIGHT: 1 },
+    NativeAdEventType: { IMPRESSION: 'impression', CLICKED: 'clicked', PAID: 'paid' },
+    NativeAdView: wrapper,
+    NativeAsset: wrapper,
+    NativeAssetType: { ICON: 'icon', HEADLINE: 'headline', ADVERTISER: 'advertiser', BODY: 'body', CALL_TO_ACTION: 'callToAction' },
+    NativeMediaAspectRatio: { LANDSCAPE: 2 },
+    NativeMediaView: wrapper,
+    RevenuePrecisions: { UNKNOWN: 0, ESTIMATED: 1, PUBLISHER_PROVIDED: 2, PRECISE: 3 },
+    TestIds: { NATIVE: 'test-native-ad' },
+  };
+});
+
 // Mock Expo modules
 const mockRouter = {
   push: jest.fn(),

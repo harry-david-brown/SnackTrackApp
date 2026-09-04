@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@services/authApi';
 import {
@@ -13,6 +13,7 @@ import {
   getUserId, 
   isAuthenticated as checkIsAuthenticated,
   clearAuthTokens,
+  getAuthTokenSnapshot,
   storeAuthTokens,
   getRefreshToken,
   updateStoredUserData,
@@ -45,6 +46,7 @@ interface UserProviderProps {
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
   const queryClient = useQueryClient();
+  const interactiveAuthVersion = useRef(0);
 
   const clearUserStorage = useCallback(async () => {
     try {
@@ -76,15 +78,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   // Load user data from storage on app start
   useEffect(() => {
-    loadUserFromStorage();
+    void loadUserFromStorage(interactiveAuthVersion.current);
   }, []);
 
   useEffect(() => registerSessionExpiredHandler(async () => {
-    await clearUserStorage();
+    const currentSession = await getAuthTokenSnapshot();
+    if (currentSession.refreshToken) return;
     clearSentryUser();
     queryClient.clear();
     dispatch({ type: 'LOGOUT' });
-  }), [clearUserStorage, queryClient]);
+  }), [queryClient]);
 
   // Clear storage if user ID is not a valid UUID
   useEffect(() => {
@@ -95,7 +98,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   }, [clearUserStorage, state.user]);
 
-  const loadUserFromStorage = async () => {
+  const loadUserFromStorage = async (restoreVersion: number) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
@@ -113,8 +116,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           // Validate session
           try {
             const isValid = await authApi.validateSession();
+            if (interactiveAuthVersion.current !== restoreVersion) return;
             if (!isValid) {
               await clearAuthTokens();
+              if (interactiveAuthVersion.current !== restoreVersion) return;
               dispatch({ type: 'SET_USER', payload: null });
               return;
             }
@@ -129,6 +134,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             
             dispatch({ type: 'SET_USER', payload: userWithSpending });
           } catch (error: unknown) {
+            if (interactiveAuthVersion.current !== restoreVersion) return;
             // A temporary network/provider outage must not destroy a locally valid session.
             const userWithSpending: AppUser = {
               ...userData,
@@ -140,17 +146,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             dispatch({ type: 'SET_ERROR', payload: toDomainError(error).message });
           }
         } else {
+          if (interactiveAuthVersion.current !== restoreVersion) return;
           dispatch({ type: 'SET_USER', payload: null });
         }
       } else {
+        if (interactiveAuthVersion.current !== restoreVersion) return;
         dispatch({ type: 'SET_USER', payload: null });
       }
     } catch {
+      if (interactiveAuthVersion.current !== restoreVersion) return;
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load user data' });
     }
   };
 
   const register = async (email: string, password: string): Promise<RegisterResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -176,6 +186,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   };
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -199,6 +210,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
 
   const loginWithGoogle = async (idToken: string): Promise<LoginResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -216,6 +228,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   };
 
   const loginWithApple = async (identityToken: string, user?: { email?: string; name?: { firstName?: string; lastName?: string } }): Promise<LoginResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -246,6 +259,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     identityToken: string,
     attemptToken: string,
   ): Promise<MicrosoftLoginResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -268,6 +282,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     email: string,
     code: string,
   ): Promise<LoginResponse> => {
+    interactiveAuthVersion.current += 1;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });

@@ -48,6 +48,10 @@ describe('UserContext terminal session handling', () => {
       createdAt: '2026-08-13T00:00:00.000Z',
     });
     (tokenManager.clearAuthTokens as jest.Mock).mockResolvedValue(undefined);
+    (tokenManager.getAuthTokenSnapshot as jest.Mock).mockResolvedValue({
+      accessToken: null,
+      refreshToken: null,
+    });
     (authApi.validateSession as jest.Mock).mockResolvedValue(true);
     (authApi.login as jest.Mock).mockResolvedValue({
       userId,
@@ -79,7 +83,27 @@ describe('UserContext terminal session handling', () => {
 
     await waitFor(() => expect(screen.getByText('signed-out')).toBeTruthy());
     expect(queryClient.getQueryData(['analytics', userId, 'summary'])).toBeUndefined();
-    expect(tokenManager.clearAuthTokens).toHaveBeenCalled();
+    expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
+  });
+
+  it('ignores an expired-session notification after replacement credentials are stored', async () => {
+    (tokenManager.getAuthTokenSnapshot as jest.Mock).mockResolvedValue({
+      accessToken: 'replacement-access',
+      refreshToken: 'replacement-refresh',
+    });
+    const queryClient = createAppQueryClient({ forTests: true });
+    queryClient.setQueryData(['analytics', userId, 'summary'], { totalReceipts: 12 });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UserProvider><SessionHarness /></UserProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('signed-in')).toBeTruthy());
+    await act(async () => { await notifySessionExpired(); });
+
+    expect(screen.getByText('signed-in')).toBeTruthy();
+    expect(queryClient.getQueryData(['analytics', userId, 'summary'])).toEqual({ totalReceipts: 12 });
   });
 
   it('does not log authentication response tokens or email addresses', async () => {
@@ -100,6 +124,27 @@ describe('UserContext terminal session handling', () => {
     expect(logOutput).not.toContain('sensitive-access-token');
     expect(logOutput).not.toContain('sensitive-refresh-token');
     expect(logOutput).not.toContain('person@example.com');
+  });
+
+  it('does not let a late startup restoration overwrite an interactive login', async () => {
+    let resolveValidation!: (valid: boolean) => void;
+    (authApi.validateSession as jest.Mock).mockReturnValueOnce(
+      new Promise<boolean>((resolve) => { resolveValidation = resolve; }),
+    );
+    const queryClient = createAppQueryClient({ forTests: true });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UserProvider><SessionHarness /></UserProvider>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(authApi.validateSession).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(screen.getByText('Sign in'));
+    await waitFor(() => expect(screen.getByText('signed-in')).toBeTruthy());
+
+    await act(async () => { resolveValidation(false); });
+    expect(screen.getByText('signed-in')).toBeTruthy();
+    expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
   });
 
   it('retains credentials and query state when authoritative account deletion fails', async () => {

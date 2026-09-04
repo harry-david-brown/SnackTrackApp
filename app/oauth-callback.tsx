@@ -13,7 +13,7 @@ export default function OAuthCallback() {
 
   useEffect(() => {
     router.replace({
-      pathname: '/(tabs)/upload',
+      pathname: '/data-setup',
       params: {
         ...(gmail ? { gmail } : {}),
         ...(outlook ? { outlook } : {}),

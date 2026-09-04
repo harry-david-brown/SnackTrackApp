@@ -301,6 +301,18 @@ export interface WrappedAnalytics {
       totalOrders: number;
       message: string;
     };
+    deliveryFeeTrend?: {
+      currency: string;
+      coveredOrderCount: number;
+      coverageStart: string;
+      coverageEnd: string;
+      earliestPeriod: { quarter: string; orderCount: number; averageDeliveryFee: number; averageServiceFee: number; averageCompanyFees: number };
+      latestPeriod: { quarter: string; orderCount: number; averageDeliveryFee: number; averageServiceFee: number; averageCompanyFees: number };
+      deliveryFeeChangePercent: number;
+      companyFeeChangePercent: number;
+      trend: 'increased' | 'decreased' | 'flat';
+      series: { quarter: string; orderCount: number; averageDeliveryFee: number; averageServiceFee: number; averageCompanyFees: number }[];
+    };
   };
   patterns: {
     peakHungerHour?: {

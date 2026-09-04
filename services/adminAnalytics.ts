@@ -22,7 +22,28 @@ export type AdminAnalyticsEventName =
   | 'wrapped_share_failed'
   | 'export_offer_shown'
   | 'export_offer_clicked'
-  | 'export_offer_dismissed';
+  | 'export_offer_dismissed'
+  | 'ad_request_started'
+  | 'ad_loaded'
+  | 'ad_impression'
+  | 'ad_clicked'
+  | 'ad_load_failed'
+  | 'ad_revenue_paid'
+  | 'quick_setup_viewed'
+  | 'setup_method_selected'
+  | 'setup_completed'
+  | 'useful_history_reached'
+  | 'foreground_import_shown'
+  | 'import_stage_viewed'
+  | 'delayed_import_shown'
+  | 'delayed_import_explore_selected'
+  | 'automatic_recap_launched'
+  | 'data_tracking_viewed'
+  | 'data_source_action_selected'
+  | 'upsell_example_viewed'
+  | 'deeper_stats_selected'
+  | 'fee_trend_displayed'
+  | 'ad_suppressed';
 
 type AnalyticsProperty = string | number | boolean | null;
 interface QueuedEvent {

@@ -17,15 +17,13 @@ interface ImportSetupJourneyProps {
   flow: ImportFlowState;
   selectedPath: ImportSetupPath;
   busy: boolean;
+  onChooseEmailPath: () => void;
   onChooseEmail: (provider: 'gmail' | 'outlook') => void;
   onChooseAlternative: () => void;
   onChangeMethod: () => void;
   onImportGmail: () => void;
   onImportOutlook: () => void;
   onChooseProvider: (provider: DataPlatform) => void;
-  onDefer: () => void;
-  canMarkUberNotUsed: boolean;
-  onMarkUberNotUsed: () => void;
 }
 
 export function ImportSetupJourney(props: ImportSetupJourneyProps) {
@@ -36,9 +34,9 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
     return (
       <View>
         <JourneyHeader
-          eyebrow="Another way"
-          title="Add history without connecting email"
-          body="Choose a delivery app. We’ll walk you through requesting and adding its official order history."
+          eyebrow="GET THE FULL PICTURE"
+          title="Where do most of your orders live?"
+          body="Choose a delivery app and we’ll walk you through bringing your complete history into SnackTrack."
           step={2}
         />
         <Card style={styles.card}>
@@ -53,7 +51,7 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
             <ChoiceRow
               icon="car-outline"
               title="Uber Eats"
-              subtitle="Request your history from Uber"
+              subtitle="Fill in missing orders and unlock deeper stats"
               onPress={() => {
                 void trackAdminEvent('mailbox_provider_selected', { provider: 'uber_eats', properties: { provider: 'uber_eats' } }).catch(() => undefined);
                 props.onChooseProvider('uber');
@@ -63,7 +61,7 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
             <ChoiceRow
               icon="bag-handle-outline"
               title="DoorDash"
-              subtitle="Request your history from DoorDash"
+              subtitle="Fill in missing orders and unlock deeper stats"
               onPress={() => {
                 void trackAdminEvent('mailbox_provider_selected', { provider: 'doordash', properties: { provider: 'doordash' } }).catch(() => undefined);
                 props.onChooseProvider('doordash');
@@ -71,16 +69,9 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
               accent={Colors.doorDash}
             />
           </View>
-          <Text style={styles.helper}>
-            The delivery app prepares a ZIP file. SnackTrack will show you how to request it, find it when it’s ready, and add it here.
-          </Text>
+          <Text style={styles.helper}>We’ll explain the provider-specific steps only after you choose.</Text>
         </Card>
-        {props.canMarkUberNotUsed ? (
-          <AppButton label="I don’t use Uber Eats" variant="secondary" onPress={props.onMarkUberNotUsed} disabled={props.busy} />
-        ) : null}
         <AppButton label="Try connecting email instead" variant="secondary" onPress={props.onChangeMethod} />
-        <AppButton label="Do this later" variant="secondary" onPress={props.onDefer} disabled={props.busy} />
-        <Text style={styles.deferNote}>You can explore SnackTrack now. We’ll show setup again in 7 days.</Text>
       </View>
     );
   }
@@ -95,18 +86,18 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
       <View>
         <JourneyHeader
           eyebrow={`${journey.providerName} connected`}
-          title="Review your email scan"
+          title="Ready to find your orders?"
           body={journey.email
-            ? `Connected as ${journey.email}. Nothing has been imported yet.`
-            : `Your ${journey.providerName} account is connected. Nothing has been imported yet.`}
+            ? `Connected as ${journey.email}. Review this one-time scan, then start when you’re ready.`
+            : `Review this one-time scan, then start when you’re ready.`}
           step={2}
         />
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>What SnackTrack will do</Text>
+          <Text style={styles.cardEyebrow}>ONE-TIME RECEIPT SCAN</Text>
           <View style={styles.reviewList}>
-            <ReviewRow icon="search-outline" title="Find supported order receipts" body="Look for Uber Eats and DoorDash purchase emails." />
-            <ReviewRow icon="stats-chart-outline" title="Build your delivery history" body="Add matching orders to your SnackTrack stats." />
-            <ReviewRow icon="shield-checkmark-outline" title="Keep future access separate" body="This is a one-time scan. Ongoing updates are a later, optional choice." />
+            <ReviewRow icon="search-outline" title="Find supported receipts" body="Looks only for Uber Eats and DoorDash purchase emails." />
+            <ReviewRow icon="stats-chart-outline" title="Build your stats" body="Adds matching orders to your private SnackTrack history." />
+            <ReviewRow icon="shield-checkmark-outline" title="Stay in control" body="Future email checks are a separate choice." />
           </View>
           <Text style={styles.consentNote}>The scan starts only when you tap the button below.</Text>
         </Card>
@@ -117,25 +108,25 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
         ) : null}
         <View style={styles.actionStack}>
           <AppButton
-            label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : `Scan ${journey.providerName}`}
+            label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : 'Find my orders'}
             icon={journey.needsReconnect ? 'link-outline' : 'search-outline'}
             pending={props.busy}
             disabled={blocked}
             onPress={primaryAction}
           />
-          <AppButton label="Use a different method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
+          <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
         </View>
       </View>
     );
   }
 
-  return (
+  if (journey.kind === 'choose_email_provider') return (
     <View>
       <JourneyHeader
         eyebrow="Quick setup"
-        title="Start with your email receipts"
-        body="Choose the email service linked to your Uber Eats or DoorDash account. You can add another one later."
-        step={1}
+        title="Where do your receipts land?"
+        body="Choose the inbox linked to your delivery accounts. Nothing is scanned until you approve it."
+        step={2}
       />
       <Card style={styles.card}>
         <View style={styles.cardHeader}>
@@ -164,17 +155,28 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
               props.onChooseEmail('outlook');
             }}
           />
-          <ChoiceRow
-            icon="ellipsis-horizontal"
-            title="None of the above"
-            subtitle="Phone number, Apple sign-in, or another email service"
-            onPress={props.onChooseAlternative}
-          />
         </View>
         <Text style={styles.helper}>Connecting an email account does not start a scan. You’ll review it before anything is imported.</Text>
       </Card>
-      <AppButton label="Do this later" variant="secondary" onPress={props.onDefer} disabled={props.busy} />
-      <Text style={styles.deferNote}>You can explore SnackTrack now. We’ll show setup again in 7 days.</Text>
+      <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} />
+    </View>
+  );
+
+  return (
+    <View>
+      <JourneyHeader eyebrow="QUICK SETUP" title="Let’s build your first SnackTrack" body="Start with the place most likely to have your delivery history." step={1} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Find orders in my email. Recommended, usually takes 2 to 3 minutes." onPress={props.onChooseEmailPath} style={({ pressed }) => [styles.recommendedChoice, pressed && styles.choicePressed]}>
+        <View style={styles.recommendedTopline}>
+          <View style={styles.choiceIcon}><Ionicons name="mail-open-outline" size={22} color={Colors.primary} /></View>
+          <Text style={styles.recommendedBadge}>RECOMMENDED</Text>
+        </View>
+        <Text style={styles.recommendedTitle}>Find orders in my email</Text>
+        <Text style={styles.recommendedSubtitle}>Usually takes 2–3 minutes</Text>
+        <View style={styles.recommendedArrow}><Ionicons name="arrow-forward" size={20} color={Colors.white} /></View>
+      </Pressable>
+      <Text style={styles.anotherLabel}>ANOTHER OPTION</Text>
+      <ChoiceRow icon="download-outline" title="Use a history download" subtitle="Best for phone, Apple, or another sign-in" onPress={props.onChooseAlternative} accent={Colors.textSecondary} />
+      <Text style={styles.footerNote}>You’ll review what SnackTrack can access before anything is imported.</Text>
     </View>
   );
 }
@@ -234,8 +236,8 @@ function ReviewRow({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMap
 const styles = StyleSheet.create({
   journeyHeader: { marginBottom: Spacing.lg },
   mascot: { alignItems: 'center', marginBottom: 10 },
-  eyebrow: { color: Colors.primary, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6 },
-  title: { color: Colors.textPrimary, fontSize: 28, fontWeight: '800', lineHeight: 34, marginBottom: 8 },
+  eyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 },
+  title: { color: Colors.textPrimary, fontSize: 32, fontWeight: '600', lineHeight: 38, marginBottom: 10, letterSpacing: -0.5 },
   subtitle: { color: Colors.textSecondary, fontSize: 16, lineHeight: 24 },
   progress: { flexDirection: 'row', gap: 6, marginTop: 18 },
   progressSegment: { flex: 1, height: 5, borderRadius: Radius.pill, backgroundColor: Colors.gray250 },
@@ -243,26 +245,34 @@ const styles = StyleSheet.create({
   card: { padding: 18, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   headerCopy: { flex: 1 },
-  cardTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800', lineHeight: 24 },
+  cardTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', lineHeight: 24 },
+  cardEyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.1 },
   cardBody: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 3 },
   optionStack: { gap: 10 },
   choice: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: Colors.slate200, borderRadius: Radius.button, backgroundColor: Colors.surface },
   choicePressed: { borderColor: Colors.primary, backgroundColor: Colors.infoBg },
   choiceIcon: { width: 42, height: 42, borderRadius: Radius.input, alignItems: 'center', justifyContent: 'center' },
   choiceCopy: { flex: 1 },
-  choiceTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  choiceTitle: { color: Colors.textPrimary, fontSize: 16, fontWeight: '700' },
   choiceSubtitle: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },
   helper: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 14 },
   reviewList: { gap: 14, marginTop: 16 },
   reviewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   reviewIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: Colors.chipActiveBg, alignItems: 'center', justifyContent: 'center' },
   reviewCopy: { flex: 1 },
-  reviewTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  reviewTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '700' },
   reviewBody: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
   consentNote: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, borderTopWidth: 1, borderTopColor: Colors.divider, marginTop: 16, paddingTop: 14 },
   warning: { color: Colors.warningDeep, fontSize: 14, lineHeight: 20, marginBottom: 12 },
   actionStack: { gap: 10 },
-  deferNote: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 6 },
+  recommendedChoice: { minHeight: 190, borderRadius: 26, backgroundColor: '#E8F4E7', borderWidth: 1, borderColor: Colors.alpha(Colors.primary, 0.24), padding: 20, marginBottom: 22, overflow: 'hidden' },
+  recommendedTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recommendedBadge: { color: Colors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  recommendedTitle: { color: Colors.textPrimary, fontSize: 23, lineHeight: 29, fontWeight: '700', marginTop: 22, maxWidth: '80%' },
+  recommendedSubtitle: { color: Colors.primary, fontSize: 14, fontWeight: '600', marginTop: 7 },
+  recommendedArrow: { position: 'absolute', right: 18, bottom: 18, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary },
+  anotherLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1.1, marginBottom: 9, marginLeft: 2 },
+  footerNote: { color: Colors.textSecondary, textAlign: 'center', fontSize: 13, lineHeight: 19, marginTop: 20, paddingHorizontal: 18 },
 });
 
 export default ImportSetupJourney;

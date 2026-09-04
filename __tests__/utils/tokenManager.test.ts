@@ -14,7 +14,9 @@ import {
   updateStoredUserData,
   isTokenExpired,
   updateAccessToken,
+  updateAccessTokenIfRefreshTokenMatches,
   clearAuthTokens,
+  clearAuthTokensIfRefreshTokenMatches,
   isAuthenticated,
   AUTH_STORAGE_KEYS,
   TOKEN_EXPIRY,
@@ -324,6 +326,29 @@ describe('Token Manager', () => {
       (SecureStore.deleteItemAsync as jest.Mock).mockRejectedValueOnce(new Error('Remove error'));
 
       await expect(clearAuthTokens()).resolves.not.toThrow();
+    });
+  });
+
+  describe('conditional session mutations', () => {
+    it('does not overwrite tokens when a newer login changed the refresh token', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce('new-login-refresh');
+
+      await expect(updateAccessTokenIfRefreshTokenMatches(
+        'old-refresh',
+        'stale-access',
+        'stale-refresh',
+      )).resolves.toBe(false);
+
+      expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not clear credentials when a newer login changed the refresh token', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce('new-login-refresh');
+
+      await expect(clearAuthTokensIfRefreshTokenMatches('old-refresh')).resolves.toBe(false);
+
+      expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
     });
   });
 

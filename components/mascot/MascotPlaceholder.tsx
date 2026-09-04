@@ -56,6 +56,7 @@ const MASCOT_ASSETS: Partial<Record<MascotPose, ImageSourcePropType>> = {
   sleepy: require('../../assets/mascot/sleepy.png'),
   sheepish: require('../../assets/mascot/guilty-sheepish.png'),
   sad: require('../../assets/mascot/sad-apolagetic.png'),
+  celebrate: require('../../assets/mascot/celebrate.png'),
   'prop-receipt': require('../../assets/mascot/prop-receipt-disbelief.png'),
 };
 

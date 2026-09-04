@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { analyticsKeys, importPreferenceKeys, receiptKeys } from "./queryKeys";
+import { analyticsKeys, experienceKeys, importPreferenceKeys, receiptKeys } from "./queryKeys";
 
 export const invalidateAnalytics = (queryClient: QueryClient, userId: string) =>
   queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, userId] });
@@ -14,6 +14,7 @@ export const invalidateReceiptDerivedData = async (
     queryClient.invalidateQueries({
       queryKey: importPreferenceKeys.current(userId),
     }),
+    queryClient.invalidateQueries({ queryKey: experienceKeys.state(userId) }),
   ]);
 };
 
@@ -24,4 +25,5 @@ export const invalidateImportState = async (
   await queryClient.invalidateQueries({
     queryKey: importPreferenceKeys.current(userId),
   });
+  await queryClient.invalidateQueries({ queryKey: experienceKeys.state(userId) });
 };

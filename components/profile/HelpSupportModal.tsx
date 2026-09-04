@@ -36,14 +36,14 @@ export function HelpSupportModal({
 
           <ScrollView style={modalShellStyles.modalBody}>
             <View style={styles.helpSection}>
-              <Text style={styles.helpSectionTitle}>📋 Add & manage data</Text>
+              <Text style={styles.helpSectionTitle}>📋 Data & tracking</Text>
               <Text style={styles.helpSectionText}>
                 Fastest start:{'\n'}
-                1. Open Add & manage data{'\n'}
+                1. Open Data & tracking{'\n'}
                 2. Choose Gmail or Outlook{'\n'}
                 3. Connect the email registered with your delivery apps{'\n'}
                 4. Start a one-time email check when you are ready{'\n\n'}
-                Signed up with a phone number, Apple, or another email service? Choose None of the above and follow the guided Uber Eats or DoorDash history steps.
+                If email does not cover your orders, choose Import delivery history and follow the guided provider steps.
               </Text>
             </View>
 
@@ -54,7 +54,7 @@ export function HelpSupportModal({
                 A: Email scans begin only after you review and start them. Delivery history files begin processing as soon as you choose the ZIP.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Is my data secure?</Text>{'\n'}
-                A: Yes! We only use your data to generate your analytics. We never share it with third parties.{'\n\n'}
+                A: We don’t sell your data or use receipt details to target ads. Limited app and device information may be processed by service providers as described in our privacy policy.{'\n\n'}
 
                 <Text style={styles.helpQuestion}>Q: Which import method should I use?</Text>{'\n'}
                 A: Choose the email service registered with your delivery apps for the quickest setup. Choose None of the above for phone-number, Apple sign-in, or other email accounts.{'\n\n'}

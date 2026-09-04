@@ -18,6 +18,7 @@ export function useImportOperation(enabled = true, announce = false, watchedOper
   const queryClient = useQueryClient();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
   const announced = useRef<string|null>(null);
+  const canQuery = enabled && Boolean(userId);
   const queryKey = watchedOperationId && userId
     ? importOperationKeys.detail(userId, watchedOperationId)
     : importOperationKeys.active(userId ?? 'anonymous');
@@ -29,24 +30,25 @@ export function useImportOperation(enabled = true, announce = false, watchedOper
 
   const query = useQuery({
     queryKey,
-    enabled: enabled && Boolean(userId),
+    enabled: canQuery,
     queryFn: async () => {
+      if (!userId) throw new Error('Import operations require an authenticated user.');
       const current = queryClient.getQueryData<ImportOperation|null>(importOperationKeys.active(userId!));
       if (watchedOperationId) return importOperationsApi.get(watchedOperationId);
       return current && isActiveImportOperation(current) ? importOperationsApi.get(current.id) : importOperationsApi.getActive();
     },
-    refetchInterval: (state) => foreground && isActiveImportOperation(state.state.data) ? 2_000 : false,
+    refetchInterval: (state) => canQuery && foreground && isActiveImportOperation(state.state.data) ? 2_000 : false,
     staleTime: 1_000,
   });
   const { data: operation, isPending, refetch } = query;
 
   useEffect(() => {
-    if (watchedOperationId && userId) void refetch();
-  }, [refetch, userId, watchedOperationId]);
+    if (canQuery && watchedOperationId && userId) void refetch();
+  }, [canQuery, refetch, userId, watchedOperationId]);
 
   useEffect(() => {
-    if (foreground) void refetch();
-  }, [foreground, refetch]);
+    if (canQuery && foreground) void refetch();
+  }, [canQuery, foreground, refetch]);
 
   useEffect(() => {
     if (!announce || !userId || !operation || isActiveImportOperation(operation) || announced.current === `${operation.id}:${operation.status}`) return;

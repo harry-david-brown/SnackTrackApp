@@ -40,7 +40,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="upload" options={{ href: null, title: 'Add & manage data' }} />
+      <Tabs.Screen name="upload" options={{ href: null, title: 'Data & tracking' }} />
       <Tabs.Screen
         name="wrapped-journey"
         options={{

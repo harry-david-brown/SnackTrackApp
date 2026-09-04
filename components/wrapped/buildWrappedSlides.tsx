@@ -4,7 +4,7 @@
  * copy, poses, and ordering can change without touching the player.
  *
  * Deck shape (max MAX_DECK_SIZE slides):
- *   lifetime intro → lifetime damage → one strong candidate per editorial
+ *   recap-ready CTA → lifetime damage → one strong candidate per editorial
  *   category → case closed → lifetime archetype (climax + share card)
  *
  * The archetype card closes the deck: it's the shareable artifact, so it carries
@@ -158,29 +158,6 @@ export function buildWrappedSlides({
   };
 
   // ---------------------------------------------------------------- core ----
-
-  const intro: Slide = {
-    id: 'lifetime-intro',
-    category: 'headline',
-    scope: lifetimeScope,
-    gradient: 'forest',
-    emoji: '🎊',
-    mascotPose: 'wave',
-    durationMs: 2700,
-    a11y: `The Lifetime Damage. Based on ${coverageHeadline}.${coverage?.hasExportData ? ' Includes downloaded provider history.' : ''}`,
-    content: (
-      <>
-        <Text style={styles.wrappedYearTag}>LIFETIME</Text>
-        <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
-          The Lifetime Damage
-        </Text>
-        <Text style={styles.introText}>{coverageHeadline}</Text>
-        {coverage?.hasExportData && (
-          <Text style={styles.coverageSourceText}>Includes your downloaded delivery history</Text>
-        )}
-      </>
-    ),
-  };
 
   const totalDamageMessage = getDeterministicMessage('totalDamage', analytics, undefined, 0);
   const spendTop = percentiles?.totalSpent?.topPercent;
@@ -909,7 +886,6 @@ export function buildWrappedSlides({
   ).map(candidate => candidate.value);
 
   const slides: Slide[] = [
-    intro,
     damage,
     ...picked,
     closing,

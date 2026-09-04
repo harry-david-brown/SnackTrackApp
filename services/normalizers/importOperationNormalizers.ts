@@ -26,6 +26,24 @@ export const normalizeImportOperation = (value: unknown): ImportOperation => {
   if (provider !== null && provider !== 'uber_eats' && provider !== 'doordash') throw new Error('Invalid import operation response');
   if (!Number.isInteger(progress) || progress < 0 || progress > 100 || !Number.isInteger(attempts) || attempts < 0) throw new Error('Invalid import operation response');
   if (data.result !== null && data.result !== undefined && (typeof data.result !== 'object' || Array.isArray(data.result))) throw new Error('Invalid import operation response');
+  const presentationSource = data.presentation === null || data.presentation === undefined ? null : object(data.presentation);
+  const discoveredOrderCount = presentationSource?.discoveredOrderCount === null || presentationSource?.discoveredOrderCount === undefined
+    ? null
+    : Number(presentationSource.discoveredOrderCount);
+  const presentation: ImportOperation['presentation'] = presentationSource ? {
+    mode: presentationSource.mode === 'delayed' ? 'delayed' as const : 'foreground' as const,
+    expectedDurationBand: presentationSource.expectedDurationBand === 'under_5_minutes'
+      ? 'under_5_minutes' : presentationSource.expectedDurationBand === 'over_5_minutes' ? 'over_5_minutes' : 'unknown',
+    reason: ['normal','queue_backlog','workers_unavailable','queue_paused','retrying','elapsed_over_threshold'].includes(String(presentationSource.reason))
+      ? presentationSource.reason as 'normal'|'queue_backlog'|'workers_unavailable'|'queue_paused'|'retrying'|'elapsed_over_threshold'
+      : 'normal' as const,
+    stage: ['waiting','discovering','building_history','preparing_recap'].includes(String(presentationSource.stage))
+      ? presentationSource.stage as 'waiting'|'discovering'|'building_history'|'preparing_recap'
+      : 'waiting' as const,
+    discoveredOrderCount: discoveredOrderCount !== null && Number.isFinite(discoveredOrderCount) && discoveredOrderCount >= 0
+      ? Math.floor(discoveredOrderCount)
+      : null,
+  } : null;
   return {
     id: string(data.id), kind: kind as ImportOperationKind, trigger, status: status as ImportOperationStatus,
     phase: string(data.phase), progress, attempts,
@@ -34,6 +52,7 @@ export const normalizeImportOperation = (value: unknown): ImportOperation => {
     errorCode: nullableString(data.errorCode), errorMessage: nullableString(data.errorMessage),
     createdAt: string(data.createdAt), queuedAt: nullableString(data.queuedAt), startedAt: nullableString(data.startedAt),
     completedAt: nullableString(data.completedAt), updatedAt: string(data.updatedAt),
+    presentation,
   };
 };
 

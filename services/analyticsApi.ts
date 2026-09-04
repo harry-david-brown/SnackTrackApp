@@ -150,6 +150,17 @@ export const normalizeWrappedAnalytics = (value: unknown): WrappedAnalytics => {
     const block = asRecord(candidate, field);
     return { totalDeliveryFees: asNumber(block.totalDeliveryFees, `${field}.totalDeliveryFees`), averageDeliveryFee: asNumber(block.averageDeliveryFee, `${field}.averageDeliveryFee`), averageDeliveryFeePerMeal: asNumber(block.averageDeliveryFeePerMeal, `${field}.averageDeliveryFeePerMeal`), totalOrders: asNumber(block.totalOrders, `${field}.totalOrders`), message: asString(block.message, `${field}.message`) };
   };
+  const normalizeFeeTrend = (candidate: unknown, field: string) => {
+    const block = asRecord(candidate, field);
+    const period = (value: unknown, periodField: string) => {
+      const item = asRecord(value, periodField);
+      return { quarter: asString(item.quarter, `${periodField}.quarter`), orderCount: asNumber(item.orderCount, `${periodField}.orderCount`), averageDeliveryFee: asNumber(item.averageDeliveryFee, `${periodField}.averageDeliveryFee`), averageServiceFee: asNumber(item.averageServiceFee, `${periodField}.averageServiceFee`), averageCompanyFees: asNumber(item.averageCompanyFees, `${periodField}.averageCompanyFees`) };
+    };
+    if (!Array.isArray(block.series)) throw new Error(`Invalid analytics response: ${field}.series`);
+    const trend = asString(block.trend, `${field}.trend`);
+    if (!['increased', 'decreased', 'flat'].includes(trend)) throw new Error(`Invalid analytics response: ${field}.trend`);
+    return { currency: asString(block.currency, `${field}.currency`), coveredOrderCount: asNumber(block.coveredOrderCount, `${field}.coveredOrderCount`), coverageStart: asString(block.coverageStart, `${field}.coverageStart`), coverageEnd: asString(block.coverageEnd, `${field}.coverageEnd`), earliestPeriod: period(block.earliestPeriod, `${field}.earliestPeriod`), latestPeriod: period(block.latestPeriod, `${field}.latestPeriod`), deliveryFeeChangePercent: asNumber(block.deliveryFeeChangePercent, `${field}.deliveryFeeChangePercent`), companyFeeChangePercent: asNumber(block.companyFeeChangePercent, `${field}.companyFeeChangePercent`), trend: trend as 'increased'|'decreased'|'flat', series: block.series.map((item, index) => period(item, `${field}.series.${index}`)) };
+  };
   const normalizePeakHour = (candidate: unknown, field: string) => {
     const block = asRecord(candidate, field);
     return { hour: asNumber(block.hour, `${field}.hour`), hourDisplay: asString(block.hourDisplay, `${field}.hourDisplay`), orderCount: asNumber(block.orderCount, `${field}.orderCount`), percentageOfTotal: asNumber(block.percentageOfTotal, `${field}.percentageOfTotal`), message: asString(block.message, `${field}.message`) };
@@ -202,6 +213,7 @@ export const normalizeWrappedAnalytics = (value: unknown): WrappedAnalytics => {
       couldHaveBought: optional(comparative.couldHaveBought, 'wrappedAnalytics.comparative.couldHaveBought', normalizeCouldHaveBought),
       missedInvestment: optional(comparative.missedInvestment, 'wrappedAnalytics.comparative.missedInvestment', normalizeInvestment),
       costPerMeal: optional(comparative.costPerMeal, 'wrappedAnalytics.comparative.costPerMeal', normalizeCostPerMeal),
+      deliveryFeeTrend: optional(comparative.deliveryFeeTrend, 'wrappedAnalytics.comparative.deliveryFeeTrend', normalizeFeeTrend),
     },
     patterns: {
       peakHungerHour: optional(patterns.peakHungerHour, 'wrappedAnalytics.patterns.peakHungerHour', normalizePeakHour),

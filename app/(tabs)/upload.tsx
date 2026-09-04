@@ -1,6 +1,7 @@
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams, router } from 'expo-router';
 import { Colors } from '@constants/theme';
 import { parseImportRouteParams } from '@features/import-flow/importRouteParams';
 import { useImportFlowController } from '@hooks/useImportFlowController';
@@ -18,30 +19,76 @@ import { AppButton } from '@components/ui/AppButton';
 import { resolveHomeDataGuidance } from '@components/dashboard/dashboardTrackingState';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { ImportOperationCard } from '@components/import/ImportOperationCard';
+import { useEffect, useRef } from 'react';
+import { trackAdminEvent } from '@services/adminAnalytics';
+import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import UberDataTutorial from '@components/upload/UberDataTutorial';
 
-export default function UploadScreen() {
+export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'setup' | 'manage' }) {
   const rawParams = useLocalSearchParams();
   const route = parseImportRouteParams(rawParams);
-  const controller = useImportFlowController(route);
+  const controller = useImportFlowController(route, mode);
   const operationId = typeof rawParams.operationId === 'string' ? rawParams.operationId : undefined;
+  const showManagementDetail = mode === 'manage' && Boolean(rawParams.focus || rawParams.action || rawParams.downloadedVersion);
   const { operation } = useImportOperation(Boolean(controller.user), false, operationId);
+  const trackedOperationPresentation = useRef<string | null>(null);
   const initialJourney = resolveInitialImportJourney(controller.flow, controller.selectedSetupPath);
   const hubGuidance = resolveHomeDataGuidance(controller.importPreferences, false);
-  const managingNotUsed = controller.importPreferences?.export.providers.uberEats.relevance === 'not_used';
-  const showGuidedSetup = !managingNotUsed && (initialJourney.kind === 'choose_method'
+  const coverageSources = controller.importPreferences ? [
+    ...Object.values(controller.importPreferences.coverage.emailProviders),
+    ...Object.values(controller.importPreferences.coverage.exportProviders),
+  ].filter(source => source.hasData) : [];
+  const coverageDates = coverageSources.flatMap(source => [source.earliestOrderDate, source.latestOrderDate]).filter((value): value is string => Boolean(value)).sort();
+  const coverageRange = coverageDates.length
+    ? `${new Date(coverageDates[0]).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} – ${new Date(coverageDates[coverageDates.length - 1]).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`
+    : 'No covered dates yet';
+  const showGuidedSetup = mode !== 'manage' && (mode === 'setup' || initialJourney.kind === 'choose_method'
+    || initialJourney.kind === 'choose_email_provider'
     || initialJourney.kind === 'choose_provider'
     || initialJourney.kind === 'review_email_scan');
+
+  useEffect(() => {
+    if (mode === 'setup') void trackAdminEvent('quick_setup_viewed').catch(() => undefined);
+    if (mode === 'manage') void trackAdminEvent('data_tracking_viewed').catch(() => undefined);
+  }, [mode]);
+  useEffect(() => {
+    const active = controller.activeImportOperation;
+    if (!active?.presentation || !['pending_dispatch','queued','running','retrying'].includes(active.status)) return;
+    const key = `${active.id}:${active.presentation.mode}`;
+    if (trackedOperationPresentation.current === key) return;
+    trackedOperationPresentation.current = key;
+    void trackAdminEvent(active.presentation.mode === 'delayed' ? 'delayed_import_shown' : 'foreground_import_shown', {
+      properties: { operationKind: active.kind, reason: active.presentation.reason },
+    }).catch(() => undefined);
+  }, [controller.activeImportOperation]);
 
   if (!controller.user) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <ImportOperationCard operation={operation} />
-          <Text style={styles.title}>Add & manage data</Text>
+          <Text style={styles.title}>Data & tracking</Text>
           <Text style={styles.subtitle}>Please log in to connect email or add your delivery-app history.</Text>
         </View>
       </SafeAreaView>
     );
+  }
+
+  if (controller.showTutorial) {
+    return <UberDataTutorial
+      mode={controller.tutorialMode}
+      initialPlatform={controller.tutorialPlatform}
+      providerStatuses={{
+        uber: controller.flow.exportProviderProgress.uberEats.status,
+        doordash: controller.flow.exportProviderProgress.doorDash.status,
+      }}
+      entryJob={controller.tutorialEntryJob}
+      onRequestConfirmed={controller.completeTutorial}
+      onStillWaiting={controller.tutorialStillWaiting}
+      onArchiveDownloaded={controller.tutorialArchiveDownloaded}
+      onReadyConfirmed={controller.tutorialReadyConfirmed}
+      onClose={controller.closeTutorial}
+    />;
   }
 
   return (
@@ -54,47 +101,95 @@ export default function UploadScreen() {
         bounces
       >
         <View style={styles.content}>
+          {controller.activeImportOperation && controller.activeImportOperation.presentation?.mode === 'delayed' ? (
+            <ImportOperationCard operation={controller.activeImportOperation} />
+          ) : null}
           {controller.completionSummary ? (
             <ImportCompletionPanel
               summary={controller.completionSummary}
               onHome={controller.goHome}
               onNext={controller.continueAfterCompletion}
-              onMarkUberNotUsed={controller.confirmUberNotUsed}
               onTryAnotherEmail={controller.tryAnotherEmail}
-              onDefer={controller.deferInitialSetup}
             />
           ) : showGuidedSetup ? (
             <ImportSetupJourney
               flow={controller.flow}
               selectedPath={controller.selectedSetupPath}
               busy={controller.busy}
+              onChooseEmailPath={controller.chooseEmailSetup}
               onChooseEmail={controller.chooseSetupEmail}
               onChooseAlternative={controller.chooseAlternativeSetup}
               onChangeMethod={controller.changeSetupMethod}
               onImportGmail={controller.importEmail}
               onImportOutlook={controller.importOutlook}
               onChooseProvider={controller.openProviderTutorial}
-              onDefer={controller.deferInitialSetup}
-              canMarkUberNotUsed={controller.uberNotUsedEligible}
-              onMarkUberNotUsed={controller.confirmUberNotUsed}
             />
+          ) : mode === 'manage' && !showManagementDetail ? (
+            <>
+              <View style={styles.headerRow}>
+                <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.back()} />
+                <MascotPlaceholder pose="sunglasses" size={58} />
+              </View>
+              <Text style={styles.eyebrow}>DATA & TRACKING</Text>
+              <Text style={styles.title}>Your data, in one place</Text>
+              <Text style={styles.subtitle}>See what’s covered, fill the gaps, and decide how SnackTrack stays current.</Text>
+
+              <View style={styles.coverageHero}>
+                <Text style={styles.coverageEyebrow}>YOUR COVERAGE</Text>
+                <Text style={styles.coverageValue}>{(controller.importPreferences?.coverage.emailReceiptCount ?? 0) + (controller.importPreferences?.coverage.exportReceiptCount ?? 0)} orders</Text>
+                <Text style={styles.coverageRange}>{coverageRange}</Text>
+                <View style={styles.coverageChip}><Text style={styles.coverageChipText}>{coverageSources.length ? 'HISTORY CONNECTED' : 'READY TO START'}</Text></View>
+              </View>
+
+              <Text style={styles.groupTitle}>History sources</Text>
+              <Card style={styles.settingsCard}>
+                <ManagementRow icon="mail-outline" title="Email receipts" subtitle={controller.flow.hasImportedEmailData ? `${controller.importPreferences?.coverage.emailReceiptCount ?? 0} orders found` : 'Find supported delivery receipts'} onPress={controller.openGmailSettings} />
+                <View style={styles.rowDivider} />
+                <ManagementRow icon="albums-outline" title="Detailed order history" subtitle={controller.flow.hasAnyExportData ? `${controller.importPreferences?.coverage.exportReceiptCount ?? 0} detailed orders` : 'Fill gaps and unlock deeper stats'} onPress={controller.openTutorial} />
+              </Card>
+
+              <Text style={styles.groupTitle}>Automatic updates</Text>
+              <Card style={styles.settingsCard}>
+                <ManagementRow icon="sync-outline" title="Keep my stats current" subtitle={controller.ongoingUpdatesPresentation.body || 'Choose whether SnackTrack checks for new supported receipts.'} onPress={controller.setupOngoingUpdates} />
+              </Card>
+
+              <Text style={styles.groupTitle}>Privacy and control</Text>
+              <Card style={styles.settingsCard}>
+                <ManagementRow icon="shield-checkmark-outline" title="How SnackTrack uses my data" subtitle="Private by default, with controls for every source" onPress={() => router.push('/(tabs)/profile')} />
+              </Card>
+            </>
           ) : (
             <>
               <View style={styles.header}>
-                <Text style={styles.eyebrow}>ADD & MANAGE DATA</Text>
-                <Text style={styles.title}>Add & manage data</Text>
-                <Text style={styles.subtitle}>See what is connected, what has been added, and the single best next step for your order history.</Text>
+                {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.replace('/data-tracking')} /> : null}
+                <Text style={styles.eyebrow}>DATA & TRACKING</Text>
+                <Text style={styles.title}>Data & tracking</Text>
+                <Text style={styles.subtitle}>See your coverage, connected sources, automatic updates, and privacy controls.</Text>
               </View>
 
               <View style={styles.taskList}>
+            <SectionHeader title="Coverage" subtitle="What SnackTrack can currently see across your connected and imported sources." />
+            <Card style={styles.recommendationCard}>
+              <Text style={styles.relevanceTitle}>
+                {(controller.importPreferences?.coverage.emailReceiptCount ?? 0) + (controller.importPreferences?.coverage.exportReceiptCount ?? 0)} orders covered
+              </Text>
+              <Text style={styles.relevanceBody}>
+                {[
+                  controller.importPreferences?.coverage.emailProviders.uberEats.hasData || controller.importPreferences?.coverage.exportProviders.uberEats.hasData ? 'Uber Eats' : null,
+                  controller.importPreferences?.coverage.emailProviders.doorDash.hasData || controller.importPreferences?.coverage.exportProviders.doorDash.hasData ? 'DoorDash' : null,
+                ].filter(Boolean).join(' and ') || 'No providers represented yet'}
+              </Text>
+              <Text style={styles.relevanceBody}>{coverageRange}</Text>
+              <Text style={styles.recommendationHint}>Missing periods or providers will appear as the best next action below.</Text>
+            </Card>
             <SectionHeader title="Recommended next step" />
             <Card style={styles.recommendationCard} accessibilityLabel={`${hubGuidance.title}. ${hubGuidance.body}`}>
               <Text style={styles.relevanceTitle}>{hubGuidance.title}</Text>
               <Text style={styles.relevanceBody}>{hubGuidance.body}</Text>
               <Text style={styles.recommendationHint}>Use the matching source below to continue.</Text>
             </Card>
-            <SectionHeader title="Order-history sources" subtitle="Add each source separately. Connections, scans, and downloaded files have their own status." />
-            {(initialJourney.kind === 'complete' || managingNotUsed) && controller.gmailFeatureEnabled ? (
+            <SectionHeader title="Sources" subtitle="Connections, one-time scans, and imported files keep their own status." />
+            {(initialJourney.kind === 'complete' || mode === 'manage') && controller.gmailFeatureEnabled ? (
               <>
                 <ConnectEmailTaskSection
                   state={controller.flow.connectEmail}
@@ -154,16 +249,7 @@ export default function UploadScreen() {
               onUploadSuccess={controller.uploadSucceeded}
               onUploadError={controller.uploadFailed}
             />
-            {controller.importPreferences?.export.providers.uberEats.relevance === 'not_used' ? (
-              <Card style={styles.relevanceCard}>
-                <View style={styles.relevanceCopy}>
-                  <Text style={styles.relevanceTitle}>Uber Eats recommendations are off</Text>
-                  <Text style={styles.relevanceBody}>This changes guidance only. You can add Uber Eats history whenever you need it.</Text>
-                </View>
-                <AppButton label="Add Uber Eats after all" variant="secondary" onPress={controller.restoreUberRelevance} />
-              </Card>
-            ) : null}
-            {(initialJourney.kind === 'complete' || managingNotUsed) && controller.gmailFeatureEnabled ? (
+            {(initialJourney.kind === 'complete' || mode === 'manage') && controller.gmailFeatureEnabled ? (
               <>
                 <SectionHeader title="Automatic updates" subtitle="Optional periodic email checks are separate from one-time scans and downloaded history." />
                 <OngoingUpdatesSection
@@ -173,10 +259,10 @@ export default function UploadScreen() {
                 />
               </>
             ) : null}
-            <SectionHeader title="Help" />
+            <SectionHeader title="Privacy and control" />
             <Card style={styles.helpCard}>
               <Text style={styles.relevanceTitle}>How your data is handled</Text>
-              <Text style={styles.relevanceBody}>SnackTrack only starts a scan, request tutorial, or file import after you choose it. Existing history stays visible if a connection needs repair.</Text>
+              <Text style={styles.relevanceBody}>SnackTrack only scans supported delivery receipts after you explicitly start it. Disconnecting an inbox preserves imported history; reset and deletion controls remain under your account settings.</Text>
             </Card>
               </View>
             </>
@@ -185,7 +271,7 @@ export default function UploadScreen() {
       </ScrollView>
 
       <ImportWorkflowModals
-        tutorialVisible={controller.showTutorial}
+        tutorialVisible={false}
         tutorialMode={controller.tutorialMode}
         tutorialInitialPlatform={controller.tutorialPlatform}
         tutorialProviderStatuses={{
@@ -197,6 +283,8 @@ export default function UploadScreen() {
         gmailVisible={controller.showGmailModal}
         loadingVisible={controller.showGmailImportLoadingModal}
         primaryFlowState={controller.primaryFlowState}
+        operation={controller.activeImportOperation}
+        onExploreDelayed={controller.exploreDelayedImport}
         gmailConnectPhase={controller.gmailConnectPhase}
         gmailConnectionStatus={controller.gmailConnectionStatus}
         isGmailLoading={controller.isGmailLoading}
@@ -213,6 +301,11 @@ export default function UploadScreen() {
       />
     </SafeAreaView>
   );
+}
+
+export default function UploadScreen() {
+  const params = useLocalSearchParams();
+  return <Redirect href={{ pathname: '/data-tracking', params }} />;
 }
 
 const styles = StyleSheet.create({
@@ -232,4 +325,29 @@ const styles = StyleSheet.create({
   helpCard: { padding: 16, gap: 6, marginBottom: 28 },
   recommendationCard: { padding: 18, gap: 6, backgroundColor: Colors.infoBg },
   recommendationHint: { color: Colors.primary, fontSize: 13, fontWeight: '800', marginTop: 4 },
+  headerRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  coverageHero: { minHeight: 190, borderRadius: 28, padding: 22, marginTop: 22, backgroundColor: Colors.forest850 },
+  coverageEyebrow: { color: Colors.leaf300, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
+  coverageValue: { color: Colors.white, fontSize: 38, lineHeight: 44, fontWeight: '600', marginTop: 17 },
+  coverageRange: { color: Colors.alpha(Colors.white, 0.72), fontSize: 14, marginTop: 5 },
+  coverageChip: { alignSelf: 'flex-start', backgroundColor: Colors.alpha(Colors.leaf300, 0.15), borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginTop: 20 },
+  coverageChipText: { color: Colors.leaf300, fontSize: 10, letterSpacing: 0.9, fontWeight: '700' },
+  groupTitle: { color: Colors.textPrimary, fontSize: 17, fontWeight: '600', marginTop: 24, marginBottom: 9 },
+  settingsCard: { padding: 0, overflow: 'hidden' },
+  managementRow: { minHeight: 76, paddingHorizontal: 15, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  managementIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.alpha(Colors.primary, 0.1), alignItems: 'center', justifyContent: 'center' },
+  managementCopy: { flex: 1 },
+  managementTitle: { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  managementSubtitle: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  rowDivider: { height: 1, backgroundColor: Colors.divider, marginLeft: 69 },
 });
+
+function ManagementRow({ icon, title, subtitle, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`} onPress={onPress} style={({ pressed }) => [styles.managementRow, pressed && { backgroundColor: Colors.infoBg }]}>
+      <View style={styles.managementIcon}><Ionicons name={icon} size={20} color={Colors.primary} /></View>
+      <View style={styles.managementCopy}><Text style={styles.managementTitle}>{title}</Text><Text style={styles.managementSubtitle}>{subtitle}</Text></View>
+      <Ionicons name="chevron-forward" size={18} color={Colors.slate500} />
+    </Pressable>
+  );
+}

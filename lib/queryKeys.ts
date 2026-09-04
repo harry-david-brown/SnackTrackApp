@@ -33,3 +33,13 @@ export const importOperationKeys = {
   active: (userId: string) => [...importOperationKeys.all, userId, "active"] as const,
   detail: (userId: string, operationId: string) => [...importOperationKeys.all, userId, "detail", operationId] as const,
 };
+
+export const adKeys = {
+  all: ['ads'] as const,
+  runtime: (userId: string) => [...adKeys.all, userId, 'runtime'] as const,
+};
+
+export const experienceKeys = {
+  all: ['experience'] as const,
+  state: (userId: string) => [...experienceKeys.all, userId, 'state'] as const,
+};

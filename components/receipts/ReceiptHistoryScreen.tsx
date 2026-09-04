@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -33,6 +33,10 @@ import { ErrorMessage } from '@components/ui/ErrorMessage';
 import { LoadingSpinner } from '@components/ui/LoadingSpinner';
 import { resolveReceiptListState } from '@features/receipts/receiptListState';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import { DashboardAdPlacement } from '@features/ads/DashboardAdPlacement';
+import { isAdEligible } from '@features/ads/contracts';
+import { useAdRuntimeConfiguration } from '@features/ads/useAdRuntimeConfiguration';
+import { claimAdOpportunity, getDailyAdImpressions, getSessionAdImpressions, isAdSessionSuppressed, recordDailyAdImpression, recordSessionAdImpression } from '@features/ads/adSession';
 
 type ProviderFilter = 'all' | 'uber_eats' | 'doordash';
 
@@ -44,6 +48,9 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
   const [provider, setProvider] = useState<ProviderFilter>('all');
   const [dateRange, setDateRange] = useState<ReceiptHistoryDateRange>('all');
   const [showDateFilters, setShowDateFilters] = useState(false);
+  const [sessionAdImpressions, setSessionAdImpressions] = useState(0);
+  const [dailyAdImpressions, setDailyAdImpressions] = useState<number | null>(null);
+  const [adClaimed, setAdClaimed] = useState(false);
   const hasTrackedInitialFilters = useRef(false);
   const deferredSearch = useDeferredValue(search.trim());
   const filters = useMemo(() => ({
@@ -54,12 +61,14 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
   const receiptsQuery = useReceiptsQuery(state.user?.id, { pageSize: 30, filters });
   const analyticsQuery = useAnalyticsQuery(state.user?.id);
   const { preferences } = useImportPreferences(Boolean(state.user?.id));
+  const adRuntime = useAdRuntimeConfiguration(state.user?.id);
   const receipts = useMemo(
     () => receiptsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [receiptsQuery.data?.pages],
   );
   const total = receiptsQuery.data?.pages[0]?.pageInfo.total ?? receipts.length;
   const hasFilters = provider !== 'all' || dateRange !== 'all' || Boolean(deferredSearch);
+  const adAnchorId = !hasFilters && receipts.length >= 5 ? receipts[4]?.id : null;
   const sections = useMemo(
     () => resolveReceiptHistorySections(
       receipts,
@@ -79,12 +88,37 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
   const emptyMessage = hasFilters
     ? 'Try a different restaurant, delivery app, or date range.'
     : resolveGmailBaselineState(preferences).hasCompleted
-      ? 'Your email scan found no supported delivery orders. Check again later or add history from Uber Eats or DoorDash.'
-      : 'Connect Gmail or Outlook and run a history scan, or add Uber Eats or DoorDash history another way.';
+      ? 'Your email scan found no supported delivery orders. Try another source to build the full picture.'
+      : 'Find orders in your email or use a history download to build your first SnackTrack.';
 
   useEffect(() => {
     void trackAdminEvent('history_viewed').catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!state.user?.id) return;
+    setSessionAdImpressions(getSessionAdImpressions(state.user.id));
+    void getDailyAdImpressions(state.user.id).then(setDailyAdImpressions);
+  }, [adRuntime.appActive, state.user?.id]);
+  const baseAdEligible = isAdEligible({
+    configuration: adRuntime.configuration,
+    configurationFresh: adRuntime.configurationFresh,
+    receiptCount: analyticsQuery.data?.totalReceipts ?? null,
+    insightsReady: listState.id === 'success' || listState.id === 'refreshing',
+    appActive: adRuntime.appActive,
+    impressionsThisSession: sessionAdImpressions,
+    impressionsToday: dailyAdImpressions ?? Number.MAX_SAFE_INTEGER,
+    placement: 'history_after_fifth_order',
+    sessionSuppressed: state.user?.id ? isAdSessionSuppressed(state.user.id) : true,
+  });
+  useEffect(() => {
+    if (baseAdEligible && adAnchorId && state.user?.id) setAdClaimed(claimAdOpportunity(state.user.id, 'history_after_fifth_order'));
+  }, [adAnchorId, baseAdEligible, state.user?.id]);
+  const recordAdImpression = () => {
+    if (!state.user?.id) return;
+    setSessionAdImpressions(recordSessionAdImpression(state.user.id));
+    void recordDailyAdImpression(state.user.id).then(setDailyAdImpressions);
+  };
 
   useEffect(() => {
     if (!hasTrackedInitialFilters.current) {
@@ -116,22 +150,24 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
       <View style={styles.header}>
         {showBack ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.back()} /> : null}
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>Order history</Text>
+          <Text style={styles.eyebrow}>YOUR ORDERS</Text>
+          <Text style={styles.title}>History</Text>
           <Text style={styles.subtitle}>
             {hasFilters
               ? `${total} matching ${total === 1 ? 'order' : 'orders'}`
-              : `${analyticsQuery.data?.totalReceipts ?? total} orders · ${formatCurrency(analyticsQuery.data?.totalSpent ?? 0)}`}
+              : `${analyticsQuery.data?.totalReceipts ?? total} orders · ${formatCurrency(analyticsQuery.data?.totalSpent ?? 0)} tracked`}
           </Text>
         </View>
         <AppButton
-          label="Add history"
-          variant="secondary"
-          icon="add"
-          onPress={() => router.push('/(tabs)/upload')}
+          label="Filter orders"
+          variant="icon"
+          icon="options-outline"
+          accessibilityState={{ expanded: showDateFilters }}
+          onPress={() => setShowDateFilters(current => !current)}
         />
       </View>
 
-      <View style={styles.controls}>
+      {showDateFilters ? <View style={styles.controls}>
         <View style={styles.searchField}>
           <Ionicons name="search" size={20} color={Colors.textSecondary} />
           <TextInput
@@ -150,20 +186,17 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
             </Pressable>
           ) : null}
         </View>
-        <AppButton
-          label={showDateFilters ? 'Hide date filters' : 'Filter by date'}
-          variant="icon"
-          icon="options-outline"
-          accessibilityState={{ expanded: showDateFilters }}
-          onPress={() => setShowDateFilters((current) => !current)}
-        />
-      </View>
+      </View> : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         <FilterChip label="All" selected={provider === 'all'} onPress={() => setProvider('all')} />
         <FilterChip label="Uber Eats" selected={provider === 'uber_eats'} onPress={() => setProvider('uber_eats')} />
         <FilterChip label="DoorDash" selected={provider === 'doordash'} onPress={() => setProvider('doordash')} />
       </ScrollView>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/data-tracking')} style={styles.coverageLink}>
+        <Text style={styles.coverageLinkText}>Check coverage or import missing orders</Text>
+        <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+      </Pressable>
       {showDateFilters ? (
         <View style={styles.dateFilters} accessibilityLabel="Date range filters">
           <FilterChip label="All dates" selected={dateRange === 'all'} onPress={() => setDateRange('all')} />
@@ -178,12 +211,17 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
         <SectionList
           sections={sections}
           renderItem={({ item }) => (
-            <ReceiptCard
-              receipt={item}
-              expanded={expandedId === item.id}
-              formatCurrency={formatCurrency}
-              onToggle={(id) => setExpandedId((current) => current === id ? null : id)}
-            />
+            <Fragment>
+              <ReceiptCard
+                receipt={item}
+                expanded={expandedId === item.id}
+                formatCurrency={formatCurrency}
+                onToggle={(id) => setExpandedId((current) => current === id ? null : id)}
+              />
+              {item.id === adAnchorId && baseAdEligible && adClaimed && adRuntime.configuration ? (
+                <DashboardAdPlacement placement="history_after_fifth_order" configurationVersion={adRuntime.configuration.configurationVersion} onImpression={recordAdImpression} />
+              ) : null}
+            </Fragment>
           )}
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeader}>
@@ -198,8 +236,8 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
               icon="receipt-outline"
               title={hasFilters ? 'No matching orders' : 'No orders yet'}
               message={emptyMessage}
-              actionText={hasFilters ? 'Clear filters' : 'Add order history'}
-              onAction={hasFilters ? clearFilters : () => router.push('/(tabs)/upload')}
+              actionText={hasFilters ? 'Clear filters' : 'Import missing orders'}
+              onAction={hasFilters ? clearFilters : () => router.push('/data-tracking')}
             />
           )}
           ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={Colors.primary} /> : null}
@@ -228,14 +266,17 @@ function FilterChip({ label, selected, onPress }: { label: string; selected: boo
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  header: { minHeight: 104, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14 },
   headerCopy: { flex: 1 },
-  title: { color: Colors.textPrimary, fontSize: 25, fontWeight: '800' },
+  eyebrow: { color: Colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 4 },
+  title: { color: Colors.textPrimary, fontSize: 31, fontWeight: '600', letterSpacing: -0.4 },
   subtitle: { marginTop: 3, color: Colors.textSecondary, fontSize: 12 },
   controls: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
   searchField: { flex: 1, minHeight: 48, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: Colors.gray250, borderRadius: Radius.input, backgroundColor: Colors.surface },
   searchInput: { flex: 1, minHeight: 46, color: Colors.textPrimary, fontSize: 16 },
   chips: { minHeight: 58, alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  coverageLink: { minHeight: 40, marginHorizontal: 16, marginBottom: 6, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 13, backgroundColor: Colors.alpha(Colors.primary, 0.08) },
+  coverageLinkText: { color: Colors.primary, fontSize: 12, fontWeight: '600' },
   chip: { minHeight: 38, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill, backgroundColor: Colors.chipInactiveBg },
   chipSelected: { backgroundColor: Colors.chipActiveBg },
   chipText: { color: Colors.chipInactiveText, fontSize: 13, fontWeight: '700' },

@@ -2,6 +2,21 @@ const rawIosClientId = process.env.EXPO_PUBLIC_GMAIL_IOS_CLIENT_ID;
 const iosClientIdUniquePart = rawIosClientId
   ? rawIosClientId.replace(/\.apps\.googleusercontent\.com$/, '')
   : undefined;
+const appEnvironment = process.env.EXPO_PUBLIC_APP_ENV || 'development';
+const productionAds = appEnvironment === 'production';
+const testAdMobAppIds = {
+  ios: 'ca-app-pub-3940256099942544~1458002511',
+  android: 'ca-app-pub-3940256099942544~3347511713',
+};
+const adMobIosAppId = process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || (!productionAds ? testAdMobAppIds.ios : undefined);
+const adMobAndroidAppId = process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || (!productionAds ? testAdMobAppIds.android : undefined);
+
+if (!adMobIosAppId || !adMobAndroidAppId) {
+  throw new Error('Production builds require EXPO_PUBLIC_ADMOB_IOS_APP_ID and EXPO_PUBLIC_ADMOB_ANDROID_APP_ID.');
+}
+if (productionAds && (!process.env.EXPO_PUBLIC_ADMOB_NATIVE_IOS_AD_UNIT_ID || !process.env.EXPO_PUBLIC_ADMOB_NATIVE_ANDROID_AD_UNIT_ID)) {
+  throw new Error('Production builds require native AdMob ad unit IDs for iOS and Android.');
+}
 
 export default {
   expo: {
@@ -35,6 +50,14 @@ export default {
       ],
       "expo-apple-authentication",
       "expo-notifications",
+      [
+        "react-native-google-mobile-ads",
+        {
+          iosAppId: adMobIosAppId,
+          androidAppId: adMobAndroidAppId,
+          delayAppMeasurementInit: true
+        }
+      ],
       [
         "expo-media-library",
         {
@@ -82,6 +105,8 @@ export default {
       EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_CLIENT_ID,
       EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_IOS_REDIRECT_URI,
       EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI: process.env.EXPO_PUBLIC_MICROSOFT_LOGIN_ANDROID_REDIRECT_URI,
+      EXPO_PUBLIC_ADMOB_NATIVE_IOS_AD_UNIT_ID: process.env.EXPO_PUBLIC_ADMOB_NATIVE_IOS_AD_UNIT_ID,
+      EXPO_PUBLIC_ADMOB_NATIVE_ANDROID_AD_UNIT_ID: process.env.EXPO_PUBLIC_ADMOB_NATIVE_ANDROID_AD_UNIT_ID,
       eas: {
         projectId: "2b22d384-eb66-4917-8552-e0782cb72176"
       },

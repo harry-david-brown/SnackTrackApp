@@ -4,6 +4,8 @@ import { ActivityIndicator, Animated, Modal, StyleSheet, Text, View } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import { type GmailPrimaryFlowState } from '@hooks/useGmailImport';
 import { MascotPlaceholder } from '@components/mascot/MascotPlaceholder';
+import type { ImportOperation } from '@features/import-flow/contracts';
+import { AppButton } from '@components/ui/AppButton';
 
 const GMAIL_IMPORT_MESSAGES = [
   'This can take up to 1-2 minutes depending on your gluttony.',
@@ -21,6 +23,8 @@ interface GmailImportLoadingModalProps {
   flowState: GmailPrimaryFlowState;
   connectPhase: GmailConnectPhase;
   visible: boolean;
+  operation?: ImportOperation | null;
+  onExplore?: () => void;
 }
 
 /**
@@ -31,6 +35,8 @@ export function GmailImportLoadingModal({
   flowState,
   connectPhase,
   visible,
+  operation,
+  onExplore,
 }: GmailImportLoadingModalProps) {
   // A successful connect gets its own celebratory beat, distinct from an import.
   const showConnectSuccess = connectPhase === 'connected';
@@ -96,13 +102,20 @@ export function GmailImportLoadingModal({
     };
   }, [cardOpacity, cardScale, showSuccess, messageOpacity, successScale, visible]);
 
+  const delayed = operation?.presentation?.mode === 'delayed';
   const isConnecting = connectPhase === 'connecting';
-  const inProgressTitle = isConnecting ? 'Connecting Gmail' : 'Scanning Gmail';
+  const inProgressTitle = delayed ? 'This is taking longer than usual' : isConnecting ? 'Connecting email' : 'Importing your receipts';
   const statusText = isConnecting
     ? 'Securing your email connection...'
-    : flowState === 'preparing_import'
+    : delayed
+      ? 'Your import is safe and still running.'
+      : operation?.phase === 'refreshing_statistics'
+        ? 'Refreshing your statistics...'
+      : operation?.phase === 'saving_orders'
+        ? 'Saving your orders...'
+      : flowState === 'preparing_import'
       ? 'Preparing your receipt scan...'
-      : 'Checking supported delivery receipts...';
+      : 'Reading supported delivery receipts...';
   return (
     <Modal
       visible={visible}
@@ -153,7 +166,7 @@ export function GmailImportLoadingModal({
               <Text style={styles.loadingModalTitle}>{inProgressTitle}</Text>
               <Text style={styles.loadingModalStatus}>{statusText}</Text>
 
-              {!isConnecting && (
+              {!isConnecting && !delayed && (
                 <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>
                   {GMAIL_IMPORT_MESSAGES[messageIndex]}
                 </Animated.Text>
@@ -164,9 +177,10 @@ export function GmailImportLoadingModal({
                 <Text style={styles.loadingModalFooterText}>
                   {isConnecting
                     ? 'Keep this open while we finish connecting Gmail.'
-                    : 'Keep this open while SnackTrack finishes the scan.'}
+                    : delayed ? 'You can explore SnackTrack while we finish.' : 'Keep this open while SnackTrack finishes the import.'}
                 </Text>
               </View>
+              {delayed && onExplore ? <View style={styles.exploreAction}><AppButton label="Explore while we finish" onPress={onExplore} /></View> : null}
             </>
           )}
         </Animated.View>
@@ -259,6 +273,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginTop: 4,
   },
+  exploreAction: { width: '100%', marginTop: 18 },
   loadingModalFooterText: {
     flex: 1,
     fontSize: 12,

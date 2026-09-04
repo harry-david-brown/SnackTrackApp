@@ -43,7 +43,7 @@ const sanitizeState = (value: unknown): ExportUpsellState => {
   };
 };
 
-const loadStateForUser = async (userId: string): Promise<ExportUpsellState> => {
+export const loadExportUpsellStateForUser = async (userId: string): Promise<ExportUpsellState> => {
   const raw = await AsyncStorage.getItem(getStorageKey(userId));
   if (!raw) {
     return DEFAULT_STATE;
@@ -107,7 +107,7 @@ export function useExportUpsell(userId?: string | null) {
       setIsLoading(true);
 
       try {
-        const storedState = await loadStateForUser(userId);
+        const storedState = await loadExportUpsellStateForUser(userId);
         if (!cancelled) {
           setUpsellState(storedState);
         }

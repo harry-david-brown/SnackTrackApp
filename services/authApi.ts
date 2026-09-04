@@ -21,7 +21,13 @@ import {
   MicrosoftLoginResponse,
   MicrosoftVerificationCodeResponse,
 } from '@/types/api';
-import { getRefreshToken, updateAccessToken, clearAuthTokens, isTokenExpired, getAccessToken } from '@utils/tokenManager';
+import {
+  clearAuthTokensIfRefreshTokenMatches,
+  getAccessToken,
+  getRefreshToken,
+  isTokenExpired,
+  updateAccessTokenIfRefreshTokenMatches,
+} from '@utils/tokenManager';
 import { logger } from '@utils/logger';
 import { JWT_CONFIG } from '@/constants';
 import {
@@ -37,6 +43,27 @@ import {
 } from './normalizers/authNormalizers';
 import { isTerminalSessionError } from '@features/auth/contracts';
 import { toDomainError } from '@utils/domainError';
+import { ApiClientError, sessionExpiredError } from '@services/api/apiError';
+import { notifySessionExpired } from '@services/authSessionCoordinator';
+
+let activeStoredRefresh: {
+  readonly refreshToken: string;
+  readonly promise: Promise<string>;
+} | null = null;
+
+let latestStoredRefresh: {
+  readonly previousRefreshToken: string;
+  readonly currentRefreshToken: string;
+  readonly accessToken: string;
+} | null = null;
+
+const refreshSupersededError = (cause?: unknown): ApiClientError => new ApiClientError({
+  code: 'SESSION_REFRESH_SUPERSEDED',
+  message: 'A newer session replaced this refresh request.',
+  kind: 'validation',
+  retryable: false,
+  cause,
+});
 
 /**
  * Authentication API service
@@ -226,17 +253,13 @@ export const authApi = {
       
       if (expired) {
         logger.debug('Token expired, refreshing...');
-        const refreshed = await authApi.refresh();
-        await updateAccessToken(refreshed.accessToken, refreshed.refreshToken);
+        await refreshStoredSession();
       }
       
       return await getAccessToken();
     } catch (error: unknown) {
       const domainError = toDomainError(error);
-      if (isTerminalSessionError(domainError.code)) {
-        await clearAuthTokens();
-        return null;
-      }
+      if (isTerminalSessionError(domainError.code)) return null;
       throw error;
     }
   },
@@ -319,6 +342,73 @@ export const authApi = {
       
       return normalizeSuccessMessage(response.data);
   },
+};
+
+/**
+ * Coordinates every refresh of the locally stored SnackTrack session. Requests
+ * sharing a refresh token reuse one rotation, and a late result cannot mutate a
+ * newer provider/password login.
+ */
+export const refreshStoredSession = async (
+  expectedRefreshToken?: string | null,
+): Promise<string> => {
+  const storedRefreshToken = await getRefreshToken();
+  if (
+    expectedRefreshToken !== undefined
+    && storedRefreshToken !== expectedRefreshToken
+  ) {
+    if (
+      expectedRefreshToken
+      && latestStoredRefresh?.previousRefreshToken === expectedRefreshToken
+      && latestStoredRefresh.currentRefreshToken === storedRefreshToken
+    ) {
+      return latestStoredRefresh.accessToken;
+    }
+    throw refreshSupersededError();
+  }
+  if (!storedRefreshToken) {
+    const cleared = await clearAuthTokensIfRefreshTokenMatches(null);
+    if (!cleared) throw refreshSupersededError();
+    await notifySessionExpired();
+    throw sessionExpiredError();
+  }
+
+  if (activeStoredRefresh?.refreshToken === storedRefreshToken) {
+    return activeStoredRefresh.promise;
+  }
+
+  const promise = (async () => {
+    try {
+      const refreshed = await authApi.refresh(storedRefreshToken);
+      const applied = await updateAccessTokenIfRefreshTokenMatches(
+        storedRefreshToken,
+        refreshed.accessToken,
+        refreshed.refreshToken,
+      );
+      if (!applied) throw refreshSupersededError();
+      latestStoredRefresh = {
+        previousRefreshToken: storedRefreshToken,
+        currentRefreshToken: refreshed.refreshToken,
+        accessToken: refreshed.accessToken,
+      };
+      return refreshed.accessToken;
+    } catch (error: unknown) {
+      const domainError = toDomainError(error);
+      if (!isTerminalSessionError(domainError.code)) throw error;
+
+      const cleared = await clearAuthTokensIfRefreshTokenMatches(storedRefreshToken);
+      if (!cleared) throw refreshSupersededError(error);
+      await notifySessionExpired();
+      throw sessionExpiredError(error);
+    }
+  })();
+
+  activeStoredRefresh = { refreshToken: storedRefreshToken, promise };
+  try {
+    return await promise;
+  } finally {
+    if (activeStoredRefresh?.promise === promise) activeStoredRefresh = null;
+  }
 };
 
 export default authApi;
