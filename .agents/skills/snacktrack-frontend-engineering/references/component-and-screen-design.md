@@ -1,5 +1,7 @@
 # Component and screen design
 
+For any component or screen with visible presentation changes, also read [visual-and-accessibility.md](visual-and-accessibility.md) and [mockup-pattern-library.md](mockup-pattern-library.md). Architecture determines ownership and composition; the canonical mockup determines the product's visual hierarchy. Existing screen structure is not a reason to preserve legacy presentation.
+
 ## Screen composition
 
 Keep a screen easy to scan in this order:

@@ -1,6 +1,6 @@
 ---
 name: snacktrack-frontend-engineering
-description: Build and refactor the SnackTrack Expo/React Native frontend with consistent architecture, server-state ownership, typed API boundaries, component composition, design-system primitives, accessibility, and regression coverage. Use for any SnackTrackApp feature, screen, component, hook, state-management change, frontend API integration, UX implementation, or frontend refactor. Load snacktrack-import-flow for Gmail/exports/tracking and snacktrack-account-data-lifecycle for reset, clear, delete, or fresh-account behavior.
+description: Build and refactor the SnackTrack Expo/React Native frontend with the approved warm, restrained, mascot-led product language, consistent architecture, server-state ownership, typed API boundaries, accessible component composition, and regression coverage. Use for every SnackTrackApp UI or UX task, visual review, screen or component change, hook or state-management change, frontend API integration, and frontend refactor. Load snacktrack-import-flow for Gmail/exports/tracking and snacktrack-account-data-lifecycle for reset, clear, delete, or fresh-account behavior.
 ---
 
 # SnackTrack Frontend Engineering
@@ -14,14 +14,16 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
    - architecture and migration decisions: [references/architecture-patterns.md](references/architecture-patterns.md)
    - queries, mutations, caching, and synchronization: [references/server-state.md](references/server-state.md)
    - screens, hooks, components, and state resolvers: [references/component-and-screen-design.md](references/component-and-screen-design.md)
-   - UI consistency, interaction, and accessibility: [references/visual-and-accessibility.md](references/visual-and-accessibility.md)
+   - visual direction, type, color, spacing, mascot use, interaction, and accessibility: [references/visual-and-accessibility.md](references/visual-and-accessibility.md)
+   - exact component proportions and page compositions for visual work: [references/mockup-pattern-library.md](references/mockup-pattern-library.md)
    - verification requirements: [references/testing-and-definition-of-done.md](references/testing-and-definition-of-done.md)
 3. Identify the authoritative owner for every value before editing.
 4. Define the complete user-state matrix, including loading, empty, success, failure, reconnect, and retry states.
 5. For destructive account-data mutations, load `snacktrack-account-data-lifecycle` and inventory every query/device cache while preserving authentication storage.
-6. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
-7. Add regression coverage at the pure decision point and integration boundary.
-8. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, and suppressed errors, and run no tests or other checks unless the user explicitly requests them.
+6. For visual work, compare the affected screen with the canonical mockup before implementation. Record the hierarchy, page archetype, component treatments, mascot role, and primary/secondary action order that must survive the translation to React Native.
+7. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
+8. Add regression coverage at the pure decision point and integration boundary.
+9. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, and suppressed errors, and run no tests or other checks unless the user explicitly requests them.
 
 ## Core rules
 
@@ -31,7 +33,10 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 - Derive complicated UI states with typed pure resolvers. Do not spread the same precedence rules across JSX branches and effects.
 - Validate or explicitly normalize transport data before exposing typed domain objects to components.
 - Use configured path aliases for cross-directory imports and consume public module barrels where available; follow [references/architecture-patterns.md](references/architecture-patterns.md) for the import-boundary convention.
-- Use shared theme tokens and UI primitives. Do not recreate card, button, badge, or modal styling when a canonical primitive exists.
+- Treat the approved root-level `snacktrack-ux-revision.html` as the product visual source of truth. Its SnackTrack mobile screens and `.st-*` rules govern hierarchy and visual character; the visualization viewer chrome around them does not.
+- Treat current theme tokens and shared primitives as implementation, not immutable design authority. Reuse them when they match the approved visual language; revise or replace them deliberately when they preserve the older UI instead.
+- Centralize approved values in theme tokens and stable primitives as they are implemented. Do not scatter raw colors or recreate card, button, badge, row, or full-screen journey styling across screens.
+- Do not accept palette-only fidelity. A screen must also match the mockup's typography, weight, density, whitespace, radii, surface grouping, mascot scale, action hierarchy, and overall composition.
 - Preserve explicit consent boundaries and machine-readable recovery states.
 - After a destructive reset succeeds, remove affected query and device caches; do not leave stale data visible while merely invalidating/refetching.
 - Keep background effects idempotent, cancellable where appropriate, and safe under remounts or repeated focus.
@@ -59,3 +64,4 @@ Summarize:
 - accessibility considerations;
 - the TypeScript check result and any user-requested verification;
 - any intentionally retained legacy boundary.
+- any visual deviation from the canonical mockup and the product or accessibility reason for it.
