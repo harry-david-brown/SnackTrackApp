@@ -15,6 +15,7 @@ import { useAppTheme } from '@contexts/AppearanceContext';
 import { UBER_EXPORT_EMAIL_SUBJECT } from '@utils/exportDownloadHandoff';
 import { DOWNLOAD_QUESTION_PRIMARY } from '@features/import-flow/postOnboardingImportJourney';
 import { resolveImportCoverage } from '@features/import-flow/importJourneyState';
+import { resolveExportReadyAlertPresentation } from '@features/import-flow/exportReadyAlertPresentation';
 import type { PostOnboardingImportRoute } from '@features/import-flow/postOnboardingImportRoute';
 import { usePostOnboardingImportController } from '@hooks/usePostOnboardingImportController';
 
@@ -26,10 +27,14 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
   const shortName = provider?.provider === 'uber_eats' ? 'Uber' : 'DoorDash';
   const providers = resolveImportCoverage(c.importPreferences).providers;
   const status = provider?.provider === 'uber_eats' ? c.importPreferences?.export.providers.uberEats : c.importPreferences?.export.providers.doorDash;
+  const readyAlert = resolveExportReadyAlertPresentation(
+    c.importPreferences?.monitoring.effectiveState,
+    Boolean(c.importPreferences?.monitoring.capability.canMonitor),
+  );
   if (s.kind === 'email_settings') return <Redirect href={{ pathname: "/settings/accounts-permissions", params: { mailbox: c.selection.mailbox ?? undefined, returnTo: c.returnTo } }} />;
   if (s.kind === 'operation') return <Redirect href={{ pathname: ['awaiting_upload', 'pending_dispatch', 'queued', 'running', 'retrying'].includes(s.operation.status) ? '/import-progress' : '/import-result', params: { operationId: s.operation.id, returnTo: c.returnTo } }} />;
   if (c.showTutorial) return <UberDataTutorial mode={c.tutorialEntryJob === 'download' ? 'download' : 'request'} initialPlatform={c.tutorialPlatform} entryJob={c.tutorialEntryJob} skipRequestOverview returnToParentOnBack providerStatuses={{ uber: c.flow.exportProviderProgress.uberEats.status, doordash: c.flow.exportProviderProgress.doorDash.status }} onOpenRequest={c.openProviderRequestPage} onRequestNotSubmitted={c.requestNotSubmitted} onRequestConfirmed={c.completeTutorial} onStillWaiting={c.completeTutorial} onArchiveDownloaded={c.finishDownloadGuide} onReadyConfirmed={c.tutorialReadyConfirmed} onClose={c.closeTutorial} />;
-  if (s.kind === 'confirm_request') return <ProviderRequestConfirmation platform={s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'} pending={c.requestSaving} onBack={c.goBack} onConfirm={() => { void c.completeTutorial(s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'); }} onShowSteps={c.abandonPendingRequest} showStepsLabel="No, show the steps again" />;
+  if (s.kind === 'confirm_request') return <ProviderRequestConfirmation platform={s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'} pending={c.requestSaving} onBack={c.goBack} onConfirm={() => { void c.completeTutorial(s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'); }} onShowSteps={c.abandonPendingRequest} showStepsLabel="Check the steps again" />;
   const coverageDates = (p: 'uber_eats' | 'doordash') => {
     const coverage = p === 'uber_eats' ? c.importPreferences?.coverage.exportProviders.uberEats : c.importPreferences?.coverage.exportProviders.doorDash;
     const date = (value?: string | null) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString() : null;
@@ -48,7 +53,7 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
         {title('Which orders would you like to add?', 'Add your full available delivery history, including details email receipts may miss.')}
         {c.activeImportUnavailable ? <Surface><Choice icon="cloud-offline-outline" title="Import status is unavailable" body="We can’t confirm the latest progress. Reload before starting another import." onPress={c.refreshStatus} /></Surface> : null}
         {c.activeImportOperation ? <Surface><Choice icon="time-outline" title={c.activeImportUnavailable ? 'Last known import' : c.activeImportOperation.status === 'awaiting_upload' ? 'Finish your file upload' : c.importBlocked ? 'Your import is in progress' : 'Your latest import'} body="View its status without losing access to other sources." onPress={c.viewOperation} /></Surface> : null}
-        {(['uber_eats', 'doordash'] as const).filter(p => c.pendingRequests[p]).map(p => <Surface key={`pending-${p}`}><Choice icon="open-outline" title={`Continue your ${p === 'uber_eats' ? 'Uber' : 'DoorDash'} request`} body="You opened the request page. Confirm whether the delivery service accepted it." onPress={() => c.resumeProviderJourney(p)} /></Surface>)}
+        {(['uber_eats', 'doordash'] as const).filter(p => c.pendingRequests[p]).map(p => <Surface key={`pending-${p}`}><Choice icon="open-outline" title={`Continue your ${p === 'uber_eats' ? 'Uber' : 'DoorDash'} request`} body="You opened the request page. Confirm whether your data request was submitted." onPress={() => c.resumeProviderJourney(p)} /></Surface>)}
         {[providers.uberEats, providers.doorDash].filter(p => !c.pendingRequests[p.provider] && ['requested', 'file_ready', 'failed', 'import_processing'].includes(p.status)).map(p => <Surface key={p.provider}><Choice icon="bookmark-outline" title={`Continue with ${p.name}`} body={p.status === 'requested' ? 'Request saved · Waiting for the ready message' : p.status === 'file_ready' ? 'Your download is ready' : p.status === 'failed' ? 'The last import needs another try' : 'History is being processed'} onPress={() => c.resumeProviderJourney(p.provider)} /></Surface>)}
         <Surface>{s.providers.map(p => <Choice key={p.provider} icon={p.provider === 'uber_eats' ? 'car-outline' : 'bag-handle-outline'} title={p.name} body={p.imported ? `${p.receiptCount} imported orders${coverageDates(p.provider)} · You can add a newer file` : 'Full available history, including recent orders'} onPress={() => c.chooseProvider(p.provider)} />)}</Surface>
         {!c.importPreferences?.gmailBaseline.hasCompleted && !c.importPreferences?.outlookBaseline.hasCompleted ? <AppButton label="Connect email for automatic updates" variant="secondary" onPress={c.chooseEmail} /> : null}
@@ -87,14 +92,18 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
           <AppText variant="surfaceBody" tone="muted">Look for the email saying your download is ready.</AppText>
           {s.provider.provider === 'uber_eats' ? <View style={{ gap: 8, paddingVertical: 16 }}><AppText variant="sectionLabel">EMAIL SUBJECT</AppText><AppText variant="surfaceTitle" selectable>{UBER_EXPORT_EMAIL_SUBJECT}</AppText></View> : null}
         </Surface>
-        <Note text={`Your progress is saved. When the email arrives, return to Add orders → Continue with ${s.provider.name}.`} />
-        {btn('Return home', c.goHome)}
-        {s.provider.provider === 'uber_eats' ? c.importPreferences?.monitoring.effectiveState === 'enabled' ? <Note text="Uber ready-email checks are on. SnackTrack checks while the app is open. You still download the file yourself." /> : <>
-          <AppButton label={c.importPreferences?.monitoring.consentState === 'granted' ? 'Restore Uber email checks' : 'Check for Uber’s ready email'} variant="secondary" pending={c.readyAlertsBusy} onPress={c.enableReadyAlerts} />
-          <AppText variant="metadata" tone="muted">Optional: let SnackTrack check for Uber’s ready email while the app is active.</AppText>
-        </> : null}
+        {s.provider.provider === 'uber_eats' ? <View style={styles.waitingActions}>
+          {readyAlert.enabled ? <>
+            <Note text={readyAlert.supportingText} />
+            <AppButton label={readyAlert.primaryLabel} variant="tertiary" onPress={c.goHome} />
+          </> : <>
+            <AppButton label={readyAlert.primaryLabel} variant="primary" icon="notifications-outline" pending={c.readyAlertsBusy} onPress={c.enableReadyAlerts} />
+            <AppText variant="metadata" tone="muted" style={styles.waitingActionCopy}>{readyAlert.supportingText}</AppText>
+            <AppButton label="I’ll check my email myself" variant="tertiary" onPress={c.goHome} />
+          </>}
+        </View> : <AppButton label="Return home" variant="primary" onPress={c.goHome} />}
         <View style={styles.laterActions}>
-          <AppText variant="metadata" tone="muted">Ready to continue?</AppText>
+          <AppText variant="metadata" tone="muted">Already received it?</AppText>
           <AppButton label="I received the email" variant="secondary" icon="mail-open-outline" onPress={() => c.confirmProviderReady(s.provider.provider)} />
         </View>
       </>;
@@ -112,4 +121,4 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
 function Choice({ icon, title, body, onPress, disabled = false }: { disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress?: () => void }) { const theme = useAppTheme(); const content = <><Ionicons name={icon} size={24} color={disabled ? theme.colors.textSecondary : theme.colors.primary} /><View style={styles.copy}><AppText variant="rowTitle" tone={disabled ? 'muted' : 'primary'}>{title}</AppText><AppText variant="metadata" tone="muted">{body}</AppText></View>{onPress && !disabled ? <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} /> : null}</>; return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${body}`} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={styles.row}>{content}</Pressable> : <View style={styles.row}>{content}</View>; }
 function Note({ text }: { text: string }) { const theme = useAppTheme(); return <Surface style={{ backgroundColor: theme.colors.successSurface }}><AppText variant="metadata" tone="muted">{text}</AppText></Surface>; }
 function Phase({ current }: { current: number }) { return <View style={styles.top}>{['Request', 'Download', 'Upload'].map((label, i) => <AppText key={label} variant="metadata" tone={i === current ? 'brand' : 'muted'}>{i + 1}. {label}{i === current ? ' •' : ''}</AppText>)}</View>; }
-const styles = StyleSheet.create({ container: { flex: 1 }, content: { padding: 18, paddingBottom: 44, gap: 14 }, top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }, copy: { flex: 1, gap: 4 }, laterActions: { marginTop: 18, alignSelf: 'stretch', gap: 10 } });
+const styles = StyleSheet.create({ container: { flex: 1 }, content: { padding: 18, paddingBottom: 44, gap: 14 }, top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }, copy: { flex: 1, gap: 4 }, waitingActions: { alignSelf: 'stretch', gap: 8 }, waitingActionCopy: { textAlign: 'center', paddingHorizontal: 12 }, laterActions: { marginTop: 18, alignSelf: 'stretch', gap: 10 } });

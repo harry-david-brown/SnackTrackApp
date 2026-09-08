@@ -423,8 +423,6 @@ export default function WrappedShareJourney({
     onFinishPostWrapped?.();
   };
 
-  const providerName = exportProviderName ?? 'delivery provider';
-
   // `shareFrame` renders the slide at the fixed 9:16 export size (instead of
   // the device screen) for the off-screen capture.
   const renderSlideInner = (slide: Slide, animatedContent = false, shareFrame = false) => {

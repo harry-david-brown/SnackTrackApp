@@ -14,6 +14,8 @@ export interface ImportRouteParams {
   intentId: string | null;
   provider: ExportProvider | null;
   gmailPurpose: GmailConnectionPurpose | null;
+  connectionSucceeded?: boolean;
+  connectionFailed?: boolean;
 }
 
 type RawRouteValue = string | string[] | undefined;
@@ -29,6 +31,10 @@ export function parseImportRouteParams(raw: Record<string, RawRouteValue>): Impo
     || rawAction === 'request_export' || rawAction === 'continue_export'
     ? rawAction
     : null;
+  const gmailResult = firstValue(raw.gmail);
+  const outlookResult = firstValue(raw.outlook);
+  const connectionSucceeded = gmailResult === 'success' || outlookResult === 'success';
+  const connectionFailed = Boolean(firstValue(raw.error)) || gmailResult === 'error' || outlookResult === 'error';
   return {
     mailbox: firstValue(raw.mailbox) === 'outlook' || firstValue(raw.outlook) ? 'outlook' : firstValue(raw.mailbox) === 'gmail' || firstValue(raw.gmail) ? 'gmail' : null,
     journeyContext: firstValue(raw.journeyContext) === 'onboarding' ? 'onboarding' : undefined,
@@ -41,5 +47,7 @@ export function parseImportRouteParams(raw: Record<string, RawRouteValue>): Impo
     intentId: firstValue(raw.intentId) || null,
     provider: rawProvider === 'uber_eats' || rawProvider === 'doordash' ? rawProvider : null,
     gmailPurpose: parseGmailConnectionPurpose(firstValue(raw.gmailPurpose)),
+    ...(connectionSucceeded ? { connectionSucceeded: true } : {}),
+    ...(connectionFailed ? { connectionFailed: true } : {}),
   };
 }

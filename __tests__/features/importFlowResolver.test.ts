@@ -145,6 +145,23 @@ describe("parseImportRouteParams", () => {
       intentId: "intent-2",
     });
   });
+
+  it.each([
+    [{ gmail: 'success' }, 'gmail'],
+    [{ outlook: 'success' }, 'outlook'],
+  ] as const)('preserves a successful OAuth return for %s readiness handling', (raw, mailbox) => {
+    expect(parseImportRouteParams(raw)).toMatchObject({
+      mailbox,
+      connectionSucceeded: true,
+    });
+  });
+
+  it('preserves a failed OAuth return without treating it as success', () => {
+    expect(parseImportRouteParams({ gmail: 'error', error: 'authorization_denied' })).toMatchObject({
+      mailbox: 'gmail',
+      connectionFailed: true,
+    });
+  });
 });
 
 describe("resolveImportFlowState", () => {

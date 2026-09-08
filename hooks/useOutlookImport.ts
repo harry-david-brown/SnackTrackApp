@@ -16,8 +16,7 @@ import { invalidateImportState } from '@lib/queryInvalidation';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { toDomainError } from '@utils/domainError';
 import { cacheImportOperation } from '@hooks/useImportOperation';
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { waitForMailboxOAuthReadiness } from '@features/import-flow/mailboxOAuthReadiness';
 
 interface UseOutlookImportOptions {
   connectionStatus?: OutlookConnectionStatus | null;
@@ -65,13 +64,10 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
   }, [userId]);
 
   const waitForReady = useCallback(async () => {
-    let status: OutlookConnectionStatus | null = null;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      status = await refreshStatus();
-      if (status?.connected && status.canImport) return status;
-      if (attempt < 7) await sleep(500);
-    }
-    return status;
+    return waitForMailboxOAuthReadiness(refreshStatus, {
+      isReady: (status) => status.connected && status.canImport,
+      isTerminal: (status) => status.connectionHealth === 'reconnect_required',
+    });
   }, [refreshStatus]);
 
   const connectOutlook = useCallback(async (

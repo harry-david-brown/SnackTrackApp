@@ -1,8 +1,8 @@
 import { EmailImportReview } from '@components/import/EmailImportReview';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import type { ImportFlowState } from '@features/import-flow/importFlowResolver';
-import { resolveInitialImportJourney, type ImportSetupPath } from '@features/import-flow/initialImportJourney';
+import { resolveInitialImportJourney, type ImportSetupPath, type MailboxOAuthReturnState } from '@features/import-flow/initialImportJourney';
 import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
 import type { DataPlatform } from './UberDataTutorial';
@@ -13,6 +13,7 @@ import { useAppTheme } from '@contexts/AppearanceContext';
 interface ImportSetupJourneyProps {
   flow: ImportFlowState;
   selectedPath: ImportSetupPath;
+  oauthReturn?: MailboxOAuthReturnState | null;
   busy: boolean;
   connectionBusy?: boolean;
   automaticImportsDisabled?: boolean;
@@ -25,12 +26,27 @@ interface ImportSetupJourneyProps {
   onImportGmail: () => void;
   onImportOutlook: () => void;
   onChooseProvider: (provider: DataPlatform) => void;
+  onRetryOAuthConnection: () => void;
 }
 
 export function ImportSetupJourney(props: ImportSetupJourneyProps) {
   const theme = useAppTheme();
-  const journey = resolveInitialImportJourney(props.flow, props.selectedPath);
+  const journey = resolveInitialImportJourney(props.flow, props.selectedPath, props.oauthReturn);
   if (journey.kind === 'complete' || journey.kind === 'provider_resume') return null;
+
+  if (journey.kind === 'oauth_returning') return <View style={[styles.journey, styles.oauthStatus]}>
+    <ActivityIndicator size="large" color={theme.colors.primary} accessibilityLabel={`Completing ${journey.providerName} connection`} />
+    <JourneyHeading eyebrow="SECURE CONNECTION" title={`Completing ${journey.providerName} connection`} body="We’re confirming that your inbox is ready before showing the next step." />
+  </View>;
+
+  if (journey.kind === 'oauth_return_failed') return <View style={styles.journey}>
+    <Progress step={2} />
+    <JourneyHeading eyebrow="CONNECTION NEEDS ATTENTION" title={`We couldn’t finish connecting ${journey.providerName}`} body="Your existing SnackTrack data is safe. Try the connection again or choose another method." />
+    <View style={styles.actions}>
+      <AppButton label={`Try ${journey.providerName} again`} onPress={props.onRetryOAuthConnection} />
+      <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} />
+    </View>
+  </View>;
 
   if (journey.kind === 'choose_provider') return <View style={styles.journey}>
     <Progress step={2} />
@@ -108,7 +124,7 @@ function ChoiceRow({ icon, title, subtitle, onPress, accent }: { icon: keyof typ
   </Pressable>;
 }
 const styles = StyleSheet.create({
-  journey: { flex: 1 }, mascot: { alignSelf: 'center', marginBottom: 4 }, heading: { marginBottom: 18 }, title: { marginTop: 5 }, body: { marginTop: 9 },
+  journey: { flex: 1 }, oauthStatus: { justifyContent: 'center', gap: 24 }, mascot: { alignSelf: 'center', marginBottom: 4 }, heading: { marginBottom: 18 }, title: { marginTop: 5 }, body: { marginTop: 9 },
   progress: { flexDirection: 'row', gap: 6, marginTop: 3, marginBottom: 21 }, progressSegment: { flex: 1, height: 5, borderRadius: 999 },
   choiceStack: { gap: 10 }, choice: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, recommended: { minHeight: 78, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, pressed: { opacity: 0.76 },
   choiceIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, choiceCopy: { flex: 1 }, rowMeta: { marginTop: 3 },

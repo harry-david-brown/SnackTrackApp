@@ -1,6 +1,10 @@
 import type { ImportFlowState } from './importFlowResolver';
 
 export type ImportSetupPath = 'email' | 'gmail' | 'outlook' | 'alternative' | null;
+export type MailboxOAuthReturnState = {
+  readonly provider: 'gmail' | 'outlook';
+  readonly status: 'confirming' | 'failed';
+};
 
 export type InitialImportJourneyState =
   | { kind: 'complete' }
@@ -8,6 +12,7 @@ export type InitialImportJourneyState =
   | { kind: 'choose_method' }
   | { kind: 'choose_email_provider' }
   | { kind: 'choose_provider' }
+  | { kind: 'oauth_returning' | 'oauth_return_failed'; provider: 'gmail' | 'outlook'; providerName: 'Gmail' | 'Outlook' }
   | {
       kind: 'review_email_scan';
       provider: 'gmail' | 'outlook';
@@ -43,7 +48,15 @@ const providerJourneyStarted = (flow: JourneyInput): boolean =>
 export function resolveInitialImportJourney(
   flow: JourneyInput,
   selectedPath: ImportSetupPath,
+  oauthReturn: MailboxOAuthReturnState | null = null,
 ): InitialImportJourneyState {
+  if (oauthReturn) {
+    return {
+      kind: oauthReturn.status === 'confirming' ? 'oauth_returning' : 'oauth_return_failed',
+      provider: oauthReturn.provider,
+      providerName: oauthReturn.provider === 'gmail' ? 'Gmail' : 'Outlook',
+    };
+  }
   if (selectedPath === 'alternative') return { kind: 'choose_provider' };
   if (flow.hasImportedEmailData || flow.hasAnyExportData) return { kind: 'complete' };
   if (providerJourneyStarted(flow)) return { kind: 'provider_resume' };

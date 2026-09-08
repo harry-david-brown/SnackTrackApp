@@ -2,6 +2,7 @@ import type { ImportOperation } from './contracts';
 
 export type ImportProgressStepState = 'pending' | 'active' | 'complete';
 export const IMPORT_PROGRESS_MIN_STEP_MS = 500;
+export const IMPORT_PROGRESS_COMPLETION_STEP_MS = 700;
 
 export interface ImportProgressViewModel {
   eyebrow: string;

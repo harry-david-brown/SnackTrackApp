@@ -47,8 +47,8 @@ describe('UberDataTutorial', () => {
       appStateListener?.('background');
       appStateListener?.('active');
     });
-    expect(screen.getByText('Did Uber accept your request?')).toBeTruthy();
-    fireEvent.press(screen.getByText('Yes, Uber accepted it'));
+    expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
+    fireEvent.press(screen.getByText('Yes, my request was submitted'));
     expect(onRequestConfirmed).toHaveBeenCalledWith('uber');
   });
 
@@ -161,8 +161,8 @@ describe('UberDataTutorial', () => {
     fireEvent.press(screen.getByText('I already requested it'));
     fireEvent.press(screen.getByText('I’m waiting for DoorDash'));
 
-    expect(screen.getByText('Did DoorDash accept your request?')).toBeTruthy();
-    fireEvent.press(screen.getByText('Yes, DoorDash accepted it'));
+    expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
+    fireEvent.press(screen.getByText('Yes, my request was submitted'));
     expect(onRequestConfirmed).toHaveBeenCalledWith('doordash');
     expect(onStillWaiting).not.toHaveBeenCalled();
   });
@@ -192,7 +192,7 @@ describe('UberDataTutorial', () => {
       appStateListener?.('background');
       appStateListener?.('active');
     });
-    fireEvent.press(screen.getByText('Yes, Uber accepted it'));
+    fireEvent.press(screen.getByText('Yes, my request was submitted'));
     await waitFor(() => expect(onRequestConfirmed).toHaveBeenCalledWith('uber'));
     expect(screen.queryByText('Want us to tell you when it’s ready?')).toBeNull();
   });
@@ -204,21 +204,22 @@ describe('shared provider request confirmation', () => {
     const onConfirm = jest.fn();
     const onShowSteps = jest.fn();
     const screen = render(<ProviderRequestConfirmation platform="uber" onBack={jest.fn()} onConfirm={onConfirm} onShowSteps={onShowSteps} />);
-    expect(screen.getByText('Check your inbox')).toBeTruthy();
+    expect(screen.getByText('Want to double-check?')).toBeTruthy();
+    expect(screen.getByText('If Uber showed a confirmation that your request was submitted, you can continue.')).toBeTruthy();
     expect(screen.getByText('EMAIL SUBJECT')).toBeTruthy();
     expect(screen.getByText('Uber data request received')).toBeTruthy();
     expect(onConfirm).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByText('No, show the last step again'));
+    fireEvent.press(screen.getByText('Check the last step again'));
     expect(onShowSteps).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByText('Yes, Uber accepted it'));
+    fireEvent.press(screen.getByText('Yes, my request was submitted'));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
   it('keeps Uber email instructions out of DoorDash confirmation', () => {
     const screen = render(<ProviderRequestConfirmation platform="doordash" onBack={jest.fn()} onConfirm={jest.fn()} onShowSteps={jest.fn()} />);
     expect(screen.queryByText(/Uber data request received/)).toBeNull();
-    expect(screen.getByText('Did DoorDash accept your request?')).toBeTruthy();
+    expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
   });
 });
 
@@ -235,12 +236,12 @@ it('keeps confirmation visible after failed persistence and ignores duplicate ta
   fireEvent.press(screen.getByText('Open Uber’s data page'));
   await waitFor(() => expect(openRequest).toHaveBeenCalledWith('uber'));
   act(() => { listener?.('background'); listener?.('active'); });
-  const button = screen.getByText('Yes, Uber accepted it');
+  const button = screen.getByText('Yes, my request was submitted');
   fireEvent.press(button);
   fireEvent.press(button);
   expect(save).toHaveBeenCalledTimes(1);
   await act(async () => { finish(false); });
-  expect(screen.getByText('Did Uber accept your request?')).toBeTruthy();
-  expect(screen.getByText('Yes, Uber accepted it')).toBeTruthy();
+  expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
+  expect(screen.getByText('Yes, my request was submitted')).toBeTruthy();
   expect(screen.queryByText('Want us to tell you when it’s ready?')).toBeNull();
 });

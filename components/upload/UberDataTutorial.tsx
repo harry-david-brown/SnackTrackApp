@@ -710,7 +710,7 @@ export default function UberDataTutorial({
   );
 }
 
-export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onShowSteps, showStepsLabel = 'No, show the last step again', pending = false }: {
+export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onShowSteps, showStepsLabel = 'Check the last step again', pending = false }: {
   platform: DataPlatform;
   onBack: () => void;
   onConfirm: () => void;
@@ -728,16 +728,15 @@ export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onSho
         <TutorialHeader providerName={details.name} onBack={() => { if (!pending) onBack(); }} />
         <ScrollView contentContainerStyle={styles.decisionContent} showsVerticalScrollIndicator={false}>
           <View style={styles.decisionIcon}><Ionicons name="clipboard-outline" size={30} color={theme.colors.primary} /></View>
-          <Text style={styles.decisionEyebrow}>WELCOME BACK</Text>
-          <Text style={styles.decisionTitle}>Did {details.shortName} accept your request?</Text>
-          <Text style={styles.decisionBody}>Confirm only if {details.shortName} showed that your data request was submitted.</Text>
+          <Text accessibilityRole="header" style={styles.decisionTitle}>Was your data request submitted?</Text>
+          <Text style={styles.decisionBody}>If {details.shortName} showed a confirmation that your request was submitted, you can continue.</Text>
           {platform === 'uber' ? (
             <View style={[styles.decisionSurface, styles.requestEmailCard]}>
               <View style={styles.requestEmailHeading}>
-                <Ionicons name="mail-outline" size={26} color={theme.colors.primary} />
-                <Text accessibilityRole="header" style={styles.requestEmailTitle}>Check your inbox</Text>
+                <Ionicons name="mail-outline" size={22} color={theme.colors.primary} />
+                <Text accessibilityRole="header" style={styles.requestEmailTitle}>Want to double-check?</Text>
               </View>
-              <Text style={styles.requestEmailBody}>You should get a confirmation email from Uber with this subject:</Text>
+              <Text style={styles.requestEmailBody}>Look for a confirmation email from Uber with the subject:</Text>
               <View style={styles.requestEmailSubjectSurface}>
                 <Text style={styles.requestEmailSubjectLabel}>EMAIL SUBJECT</Text>
                 <Text selectable style={styles.requestEmailSubject}>Uber data request received</Text>
@@ -751,7 +750,7 @@ export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onSho
           )}
           <View style={styles.decisionActions}>
             <TouchableOpacity style={styles.primaryButton} onPress={onConfirm} disabled={pending} accessibilityState={{ busy: pending, disabled: pending }} accessibilityRole="button">
-              <Text style={styles.primaryButtonText}>{pending ? 'Saving your progress…' : `Yes, ${details.shortName} accepted it`}</Text>
+              <Text style={styles.primaryButtonText}>{pending ? 'Saving your progress…' : 'Yes, my request was submitted'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={onShowSteps} disabled={pending} accessibilityRole="button">
               <Text style={styles.secondaryButtonText}>{showStepsLabel}</Text>
@@ -921,17 +920,16 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   journeyStepLabel: { color: theme.colors.textSecondary, fontSize: 11, fontWeight: '500', letterSpacing: 0.8 },
   decisionContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 18, paddingBottom: 22 },
   decisionIcon: { width: 66, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 22, marginTop: 8, marginBottom: 16, backgroundColor: theme.colors.successBg },
-  decisionEyebrow: { color: theme.colors.primary, fontSize: 12, lineHeight: 15, fontWeight: '500', letterSpacing: 1.1, textAlign: 'center' },
   decisionTitle: { maxWidth: 350, marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.5, textAlign: 'center' },
   decisionBody: { maxWidth: 340, marginTop: 9, color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   decisionSurface: { alignSelf: 'stretch', marginTop: 18, paddingHorizontal: 16, paddingVertical: 4, borderRadius: Radius.card, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface, ...theme.shadows.card },
-  requestEmailCard: { paddingHorizontal: 20, paddingVertical: 22, gap: 16 },
+  requestEmailCard: { paddingHorizontal: 16, paddingVertical: 16, gap: 12, shadowOpacity: 0, elevation: 0 },
   requestEmailHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  requestEmailTitle: { flex: 1, color: theme.colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: '500' },
-  requestEmailBody: { color: theme.colors.textSecondary, fontSize: 16, lineHeight: 24 },
-  requestEmailSubjectSurface: { padding: 16, gap: 8, borderRadius: Radius.card, backgroundColor: theme.colors.successBg },
+  requestEmailTitle: { flex: 1, color: theme.colors.textPrimary, fontSize: 16, lineHeight: 20, fontWeight: '500' },
+  requestEmailBody: { color: theme.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  requestEmailSubjectSurface: { padding: 14, gap: 8, borderRadius: Radius.input, backgroundColor: theme.colors.successBg },
   requestEmailSubjectLabel: { color: theme.colors.primary, fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 1 },
-  requestEmailSubject: { color: theme.colors.textPrimary, fontSize: 22, lineHeight: 29, fontWeight: '500' },
+  requestEmailSubject: { color: theme.colors.textPrimary, fontSize: 16, lineHeight: 22, fontWeight: '500' },
   decisionRow: { minHeight: 72, flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 14 },
   decisionRowDivided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
   decisionRowCopy: { flex: 1 },

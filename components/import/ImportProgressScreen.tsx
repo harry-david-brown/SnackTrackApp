@@ -95,12 +95,13 @@ export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportP
   const timeEstimateText = importTimeEstimateText(stableTimeEstimate);
   const progress = Math.max(0, Math.min(100, Math.round(operation?.progress ?? 0)));
   const receiptsFound = operation?.presentation?.discoveredOrderCount ?? null;
-  const animatedProgress = useAnimatedCounter(progress, reducedMotion, 700);
-  const animatedReceipts = useAnimatedCounter(Math.max(0, receiptsFound ?? 0), reducedMotion, 850);
   const targetProgressPosition = useMemo(() => operation ? resolveImportProgressPosition(operation) : 0, [operation]);
   const {
+    visibleProgress,
     readyForCompletion,
-  } = useImportProgressPacing(operation?.id, targetProgressPosition);
+  } = useImportProgressPacing(operation?.id, targetProgressPosition, progress);
+  const animatedProgress = useAnimatedCounter(visibleProgress, reducedMotion, 700);
+  const animatedReceipts = useAnimatedCounter(Math.max(0, receiptsFound ?? 0), reducedMotion, 850);
 
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
@@ -182,8 +183,8 @@ export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportP
         <View
           style={styles.progressSection}
           accessibilityRole="progressbar"
-          accessibilityLabel={`${progress}% complete. ${progressStatus}${receiptsFound !== null && receiptsFound > 0 ? `. ${receiptsFound.toLocaleString()} receipts found` : ''}`}
-          accessibilityValue={{ min: 0, max: 100, now: progress }}
+          accessibilityLabel={`${visibleProgress}% complete. ${progressStatus}${receiptsFound !== null && receiptsFound > 0 ? `. ${receiptsFound.toLocaleString()} receipts found` : ''}`}
+          accessibilityValue={{ min: 0, max: 100, now: visibleProgress }}
         >
           <View style={styles.progressHeading}>
             <AppText variant="surfaceTitle" style={styles.animatedNumber}>{animatedProgress.displayed}% complete</AppText>

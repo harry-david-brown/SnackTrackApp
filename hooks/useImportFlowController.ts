@@ -43,7 +43,7 @@ import {
   resolveOngoingUpdatesPresentation,
   resolveTrackingRecovery,
 } from "@features/import-flow/trackingEligibility";
-import type { ImportSetupPath } from "@features/import-flow/initialImportJourney";
+import type { ImportSetupPath , MailboxOAuthReturnState } from "@features/import-flow/initialImportJourney";
 import type {
   ImportCompletionNextAction,
   ImportCompletionSummary,
@@ -56,6 +56,7 @@ import { trackAdminEvent } from "@services/adminAnalytics";
 import { emailUpdatesPresentation } from '@features/import-flow/emailImportPresentation';
 import { parseImportReturnTo } from '@features/import-flow/importNavigation';
 import { setPendingExportRequest, clearPendingExportRequest } from '@utils/exportDownloadHandoff';
+import { waitForMailboxOAuthReadiness } from '@features/import-flow/mailboxOAuthReadiness';
 
 type GmailImportMode = "initial" | "manual_check";
 
@@ -118,6 +119,13 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
   const [pendingTrackingSetup, setPendingTrackingSetup] = useState(false);
   const [selectedSetupPath, setSelectedSetupPath] =
     useState<ImportSetupPath>(route.sourcePicker ? "alternative" : route.mailbox ?? null);
+  const [oauthReturn, setOAuthReturn] = useState<MailboxOAuthReturnState | null>(() => {
+    if (!route.mailbox) return null;
+    if (route.connectionSucceeded) return { provider: route.mailbox, status: 'confirming' };
+    if (route.connectionFailed) return { provider: route.mailbox, status: 'failed' };
+    return null;
+  });
+  const oauthReturnAttempt = useRef(0);
   const [completionSummary, setCompletionSummary] =
     useState<ImportCompletionSummary | null>(null);
   const gmailFeatureEnabled = featureFlags.showGmailImport;
@@ -283,6 +291,49 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       route.showExportTutorial,
     ],
   );
+
+  useEffect(() => {
+    const provider = route.mailbox;
+    if (screenMode !== 'setup' || !provider) return;
+    if (route.connectionFailed) {
+      setOAuthReturn({ provider, status: 'failed' });
+      return;
+    }
+    if (!route.connectionSucceeded) return;
+
+    let cancelled = false;
+    const attempt = ++oauthReturnAttempt.current;
+    setSelectedSetupPath(provider);
+    setOAuthReturn({ provider, status: 'confirming' });
+
+    const connectionFor = (next: ImportPreferencesResponse) => provider === 'gmail'
+      ? next.gmailConnection
+      : next.outlookConnection;
+    const isReady = (next: ImportPreferencesResponse) => {
+      const connection = connectionFor(next);
+      return connection.connected
+        && connection.canImport !== false
+        && connection.connectionHealth !== 'reconnect_required'
+        && connection.connectionHealth !== 'unavailable';
+    };
+
+    void waitForMailboxOAuthReadiness(preferences.refresh, {
+      isReady,
+      isTerminal: (next) => connectionFor(next).connectionHealth === 'reconnect_required',
+    }).then((next) => {
+      if (cancelled || attempt !== oauthReturnAttempt.current) return;
+      if (next && isReady(next)) {
+        setOAuthReturn(null);
+        router.setParams({ gmail: undefined, outlook: undefined, error: undefined });
+        return;
+      }
+      setOAuthReturn({ provider, status: 'failed' });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preferences.refresh, route.connectionFailed, route.connectionSucceeded, route.mailbox, screenMode]);
 
   const handoffProvider: ExportProvider =
     route.provider ??
@@ -1064,12 +1115,28 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     ],
   );
 
+  const clearOAuthReturn = useCallback(() => {
+    oauthReturnAttempt.current += 1;
+    setOAuthReturn(null);
+    router.setParams({ gmail: undefined, outlook: undefined, error: undefined });
+  }, []);
+
+  const retryOAuthConnection = useCallback(() => {
+    const provider = oauthReturn?.provider ?? route.mailbox;
+    if (!provider) return;
+    clearOAuthReturn();
+    setSelectedSetupPath(provider);
+    if (provider === 'gmail') void connectEmail('receipt_import');
+    else void connectOutlook('receipt_import');
+  }, [clearOAuthReturn, connectEmail, connectOutlook, oauthReturn?.provider, route.mailbox]);
+
   return {
     user: userState.user,
     scrollViewRef,
     gmailFeatureEnabled,
     flow,
     selectedSetupPath,
+    oauthReturn,
     completionSummary,
     importPreferences: preferences.preferences,
     importPreferencesLoading: preferences.isLoading,
@@ -1115,7 +1182,11 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       void trackAdminEvent('setup_method_selected', { properties: { method: 'provider_history' } }).catch(() => undefined);
       setSelectedSetupPath("alternative");
     },
-    changeSetupMethod: () => setSelectedSetupPath(null),
+    changeSetupMethod: () => {
+      clearOAuthReturn();
+      setSelectedSetupPath(null);
+    },
+    retryOAuthConnection,
     continueAfterCompletion,
     importEmail: (mode?: GmailImportMode, automaticUpdates = false) => {
       void importEmail(mode, automaticUpdates);
@@ -1140,11 +1211,11 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         return;
       }
       showAlert(
-        'Check for Uber’s ready email?',
+        'Notify me when it’s ready?',
         'Allow SnackTrack to check your connected inbox for Uber’s data-ready email while the app is active. This does not turn on automatic order updates or download your file.',
         [
           { text: 'Not now', style: 'cancel' },
-          { text: 'Enable email check', onPress: () => {
+          { text: 'Turn on notifications', onPress: () => {
             void preferences.setMonitoringConsent('granted').catch(() => {
               showSimpleAlert('Couldn’t turn on alerts', 'Please try again. You can still watch for Uber’s email yourself.');
             });

@@ -39,7 +39,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
   const operationId = typeof rawParams.operationId === 'string' ? rawParams.operationId : undefined;
   const showManagementDetail = mode === 'manage' && Boolean(rawParams.focus || rawParams.action || rawParams.downloadedVersion);
   const { operation } = useImportOperation(Boolean(controller.user), false, operationId);
-  const initialJourney = resolveInitialImportJourney(controller.flow, controller.selectedSetupPath);
+  const initialJourney = resolveInitialImportJourney(controller.flow, controller.selectedSetupPath, controller.oauthReturn);
   const hubGuidance = resolveHomeDataGuidance(controller.importPreferences, false);
   const coverageSources = controller.importPreferences ? [
     ...Object.values(controller.importPreferences.coverage.emailProviders),
@@ -127,6 +127,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
               automaticImportsDisabled={controller.importPreferences?.ongoingTracking.consentState === 'declined' || controller.importPreferences?.ongoingTracking.consentState === 'revoked'}
               flow={controller.flow}
               selectedPath={controller.selectedSetupPath}
+              oauthReturn={controller.oauthReturn}
               busy={controller.busy}
               connectionBusy={controller.connectionBusy}
               onChooseEmailPath={controller.chooseEmailSetup}
@@ -136,6 +137,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
               onImportGmail={() => controller.importEmail('initial', controller.emailUpdates.automaticUpdates)}
               onImportOutlook={() => controller.importOutlook('initial', controller.emailUpdates.automaticUpdates)}
               onChooseProvider={(platform) => router.push({ pathname: '/add-history', params: { intent: 'provider', provider: platform === 'uber' ? 'uber_eats' : 'doordash', returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding' } })}
+              onRetryOAuthConnection={controller.retryOAuthConnection}
             />
           ) : mode === 'manage' && !showManagementDetail ? (
             <>

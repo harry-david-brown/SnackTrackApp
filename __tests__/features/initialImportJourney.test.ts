@@ -28,6 +28,20 @@ describe('resolveInitialImportJourney', () => {
     expect(resolveInitialImportJourney(makeFlow(), null)).toEqual({ kind: 'choose_method' });
   });
 
+  it.each(['gmail', 'outlook'] as const)('never flashes method selection while a successful %s callback is being confirmed', provider => {
+    expect(resolveInitialImportJourney(makeFlow(), provider, { provider, status: 'confirming' })).toMatchObject({
+      kind: 'oauth_returning',
+      provider,
+    });
+  });
+
+  it('keeps a failed callback scoped to the selected inbox', () => {
+    expect(resolveInitialImportJourney(makeFlow(), 'gmail', { provider: 'gmail', status: 'failed' })).toMatchObject({
+      kind: 'oauth_return_failed',
+      provider: 'gmail',
+    });
+  });
+
   it('routes none of the above to delivery-app selection', () => {
     expect(resolveInitialImportJourney(makeFlow(), 'alternative')).toEqual({ kind: 'choose_provider' });
   });

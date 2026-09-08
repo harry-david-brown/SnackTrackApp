@@ -19,10 +19,10 @@ import {
   parseGmailConnectionPurpose,
   type GmailConnectionPurpose,
 } from "@features/import-flow/gmailConnectionPurpose";
+import { waitForMailboxOAuthReadiness } from "@features/import-flow/mailboxOAuthReadiness";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const disconnectedGmailStatus: GmailConnectionStatus = { connected: false };
 
 export type GmailPrimaryFlowState =
@@ -139,23 +139,10 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   );
 
   const waitForImportReady = useCallback(async () => {
-    let latestStatus: GmailConnectionStatus | null = null;
-
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      latestStatus = await refreshConnectionStatus();
-
-      if (latestStatus?.connected && latestStatus.canImport !== false) {
-        return latestStatus;
-      }
-
-      // The preferences query may already be in flight when the browser
-      // returns from OAuth. Its first result can therefore describe the
-      // pre-authorization state even though the callback has committed the
-      // new credentials. Give the authoritative projection time to refresh.
-      if (attempt < 7) await sleep(500);
-    }
-
-    return latestStatus;
+    return waitForMailboxOAuthReadiness(refreshConnectionStatus, {
+      isReady: (status) => status.connected && status.canImport !== false,
+      isTerminal: (status) => status.connectionHealth === "reconnect_required",
+    });
   }, [refreshConnectionStatus]);
 
   const connectGmailInternal = useCallback(
