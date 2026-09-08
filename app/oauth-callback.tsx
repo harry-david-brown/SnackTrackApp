@@ -1,3 +1,4 @@
+import { parseImportReturnTo } from '@features/import-flow/importNavigation';
 import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -11,11 +12,17 @@ export default function OAuthCallback() {
   const error = typeof params.error === 'string' ? params.error : undefined;
   const gmailPurpose = typeof params.gmailPurpose === 'string' ? params.gmailPurpose : undefined;
   const outlookPurpose = typeof params.outlookPurpose === 'string' ? params.outlookPurpose : undefined;
+  const journeyContext = typeof params.journeyContext === 'string' ? params.journeyContext : undefined;
+  const returnTo = parseImportReturnTo(params.returnTo);
+  const mailbox = gmail ? 'gmail' : outlook ? 'outlook' : undefined;
+  const returnIntent = params.returnIntent === 'reconnect' ? 'reconnect' : 'email';
 
   useEffect(() => {
     router.replace({
-      pathname: '/data-setup',
+      pathname: journeyContext === 'post_onboarding' ? '/add-history' : '/data-setup',
       params: {
+        returnTo, mailbox,
+        ...(journeyContext === 'post_onboarding' ? { intent: returnIntent } : {}),
         ...(gmail ? { gmail } : {}),
         ...(outlook ? { outlook } : {}),
         ...(error ? { error } : {}),
@@ -23,7 +30,7 @@ export default function OAuthCallback() {
         ...(outlookPurpose ? { outlookPurpose } : {}),
       },
     });
-  }, [error, gmail, gmailPurpose, outlook, outlookPurpose]);
+  }, [error, gmail, gmailPurpose, journeyContext, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

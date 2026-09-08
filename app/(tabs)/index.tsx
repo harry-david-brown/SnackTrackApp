@@ -36,6 +36,8 @@ import { useImportOperation } from '@hooks/useImportOperation';
 import { ImportOperationCard } from '@components/import/ImportOperationCard';
 import { AppText } from '@components/ui/AppText';
 import { useAppTheme } from '@contexts/AppearanceContext';
+import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
+import { isActiveImportOperation } from '@features/import-flow/contracts';
 
 export default function DashboardScreen() {
   const theme = useAppTheme();
@@ -73,6 +75,7 @@ export default function DashboardScreen() {
     areImportPreferencesLoading,
     Boolean(importPreferencesError && !importPreferences),
   );
+  const activeImportOperation = isActiveImportOperation(importOperation) ? importOperation : null;
   const dashboardSummary = React.useMemo(
     () => resolveDashboardPeriodSummary(analytics ?? null, dashboardPeriod),
     [analytics, dashboardPeriod],
@@ -136,28 +139,27 @@ export default function DashboardScreen() {
       return;
     }
     if (action === 'open_import') {
-      router.push('/data-tracking');
+      router.push(trackingCardState.gmailPurpose === 'connection_recovery' ? '/add-history?intent=reconnect' : '/add-history');
       return;
     }
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
       if (action === 'request_export' && !trackingCardState.primaryProvider) {
-        router.push('/data-setup?sourcePicker=true');
+        router.push('/add-history?intent=provider');
         return;
       }
-      router.push({
-        pathname: '/data-tracking',
-        params: {
-          action,
-          intentId: `${action}:${Date.now()}`,
-          ...(trackingCardState.primaryProvider ? { provider: trackingCardState.primaryProvider } : {}),
-          ...(trackingCardState.gmailPurpose ? { gmailPurpose: trackingCardState.gmailPurpose } : {}),
-        },
-      });
+      if (action === 'request_export' && trackingCardState.primaryProvider) {
+        router.push(buildProviderHistoryDestination(trackingCardState.primaryProvider, (trackingCardState.primaryProvider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status));
+        return;
+      }
+      router.push({ pathname: '/add-history', params: {
+        intent: action === 'connect_gmail' ? 'reconnect' : action === 'import_gmail' ? 'email' : action === 'continue_export' ? 'resume_export' : 'provider',
+        ...(trackingCardState.primaryProvider ? { provider: trackingCardState.primaryProvider } : {}),
+      } });
       return;
     }
     if (action === 'open_gmail') {
-      router.push('/data-tracking?focus=export&provider=uber_eats&showExportTutorial=true');
+      router.push('/add-history?intent=resume_export&provider=uber_eats');
       return;
     }
     if (action === 'enable_tracking') {
@@ -242,7 +244,15 @@ export default function DashboardScreen() {
             </AppText>
           ) : null}
 
-          {trackingCardState.placement === 'priority' ? (
+          {activeImportOperation ? (
+            <View style={styles.priorityGuidance}>
+              <SectionHeader title="In progress" />
+              <ImportOperationCard
+                operation={activeImportOperation}
+                onPress={() => router.push({ pathname: '/import-progress', params: { operationId: activeImportOperation.id, returnTo: 'home' } })}
+              />
+            </View>
+          ) : trackingCardState.placement === 'priority' ? (
             <View style={styles.priorityGuidance}>
               <SectionHeader title={trackingCardState.sectionLabel} />
               <DashboardTrackingCard
@@ -253,8 +263,6 @@ export default function DashboardScreen() {
               />
             </View>
           ) : null}
-
-          {importOperation?.presentation?.mode === 'delayed' ? <ImportOperationCard operation={importOperation} /> : null}
 
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
@@ -270,11 +278,8 @@ export default function DashboardScreen() {
               <WhatWeNoticedCarousel
                 insights={insightSectionState.edition.insights}
                 partialExportProvider={insightSectionState.edition.partialExportProvider}
-                onOpenExport={() => router.push('/data-setup?sourcePicker=true')}
-                onOpenProviderExport={(provider) => router.push({
-                  pathname: '/data-tracking',
-                  params: { action: 'request_export', provider, intentId: `request_export:${provider}:${Date.now()}` },
-                })}
+                onOpenExport={() => router.push('/add-history?intent=provider')}
+                onOpenProviderExport={(provider) => router.push(buildProviderHistoryDestination(provider, (provider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status))}
               />
             ) : insightSectionState.id === 'loading' ? (
               <Card style={styles.emptyState} accessibilityLabel="Preparing today’s dashboard insights">
@@ -321,7 +326,7 @@ export default function DashboardScreen() {
             />
           ) : null}
 
-          {trackingCardState.placement === 'footer' ? (
+          {!activeImportOperation && trackingCardState.placement === 'footer' ? (
             <View style={styles.actionsContainer}>
               <SectionHeader title={trackingCardState.sectionLabel} />
               <DashboardTrackingCard

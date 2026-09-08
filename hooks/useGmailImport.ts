@@ -6,6 +6,7 @@ import { gmailApi } from "@services/gmailApi";
 import type {
   GmailConnectionStatus,
   GmailImportResponse,
+  ImportJourneyContext,
 } from "@features/import-flow/contracts";
 import { useUser } from "@contexts/UserContext";
 import { showAlert, showSimpleAlert } from "@utils/platformAlert";
@@ -36,6 +37,8 @@ interface UseGmailImportOptions {
   connectionStatusLoading?: boolean;
   onImportSuccess?: (result: GmailImportResponse) => void;
   onDisconnectSuccess?: () => void;
+  journeyContext?: ImportJourneyContext;
+  returnTo?: import('@features/import-flow/importNavigation').ImportReturnTo;
 }
 
 export function useGmailImport(options: UseGmailImportOptions = {}) {
@@ -43,6 +46,8 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     connectionStatus: projectedConnectionStatus,
     connectionStatusLoading = false,
     onDisconnectSuccess,
+    journeyContext = 'legacy',
+    returnTo = 'home',
   } = options;
   const { state } = useUser();
   const queryClient = useQueryClient();
@@ -77,7 +82,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   }, [queryClient, userId]);
 
   const importReceiptsInternal = useCallback(
-    async (statusOverride?: GmailConnectionStatus | null) => {
+    async (statusOverride?: GmailConnectionStatus | null, automaticUpdates = false) => {
       try {
         const effectiveStatus = statusOverride ?? connectionStatus;
 
@@ -90,9 +95,12 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
           return false;
         }
 
-        const result = await gmailApi.importReceipts();
+        const result = await gmailApi.importReceipts(journeyContext, automaticUpdates);
 
-        if (userId) cacheImportOperation(queryClient, userId, result);
+        if (userId) {
+          cacheImportOperation(queryClient, userId, result);
+          if (automaticUpdates) void queryClient.invalidateQueries({ queryKey: importPreferenceKeys.current(userId) });
+        }
         return result;
       } catch (error: unknown) {
         const domainError = toDomainError(error);
@@ -123,6 +131,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
     },
     [
       connectionStatus,
+      journeyContext,
       queryClient,
       refreshConnectionStatus,
       userId,
@@ -157,10 +166,15 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         setIsLoading(true);
         setPrimaryFlowState("connecting");
 
-        const redirectUri = AuthSession.makeRedirectUri({
+        const baseRedirectUri = AuthSession.makeRedirectUri({
           scheme: "snacktrack",
           path: "oauth-callback",
         });
+        const redirect = new URL(baseRedirectUri);
+        redirect.searchParams.set('journeyContext', journeyContext);
+        redirect.searchParams.set('returnTo', returnTo);
+        redirect.searchParams.set('returnIntent', purpose === 'connection_recovery' ? 'reconnect' : 'email');
+        const redirectUri = redirect.toString();
 
         const { authUrl } = await gmailApi.getAuthUrl(redirectUri, purpose);
         const authResult = await WebBrowser.openAuthSessionAsync(
@@ -169,6 +183,9 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         );
 
         if (authResult.type !== "success" || !authResult.url) {
+          if (journeyContext === 'post_onboarding' && (authResult.type === 'cancel' || authResult.type === 'dismiss')) {
+            showSimpleAlert('Connection cancelled', 'No inbox was connected. You can try again or choose another email service.');
+          }
           if (authResult.type !== "cancel" && authResult.type !== "dismiss") {
             showSimpleAlert(
               "Error",
@@ -221,7 +238,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         setIsLoading(false);
       }
     },
-    [waitForImportReady],
+    [returnTo, journeyContext, waitForImportReady],
   );
 
   const runPrimaryFlow = useCallback(
@@ -283,10 +300,10 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
   );
 
   const importReceipts = useCallback(
-    async (statusOverride?: GmailConnectionStatus | null) => {
+    async (statusOverride?: GmailConnectionStatus | null, automaticUpdates = false) => {
       return runPrimaryFlow(async () => {
         setPrimaryFlowState("importing");
-        return importReceiptsInternal(statusOverride);
+        return importReceiptsInternal(statusOverride, automaticUpdates);
       }, false);
     },
     [importReceiptsInternal, runPrimaryFlow],

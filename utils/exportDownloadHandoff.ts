@@ -1,12 +1,44 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
 import type { ExportProvider } from '@features/import-flow/contracts';
+import { parseImportReturnTo, type ImportReturnTo } from '@features/import-flow/importNavigation';
 
 export type ExportDownloadHandoffState = 'not_downloaded' | 'checking_email' | 'downloaded';
 
 interface StoredExportDownloadHandoff {
   readyVersion: string;
   state: ExportDownloadHandoffState;
+  pendingRequest?: PendingExportRequest;
+}
+
+export interface PendingExportRequest { startedAt: number; returnTo: ImportReturnTo }
+
+/** A seven-day local return hint, never evidence that a request was submitted. */
+export async function getPendingExportRequest(userId: string, provider: ExportProvider, serverUpdatedAt?: string | null): Promise<PendingExportRequest | null> {
+  try {
+    const value = JSON.parse(await AsyncStorage.getItem(storageKey(userId, provider)) ?? '{}');
+    const pending = value.pendingRequest;
+    if (!pending || typeof pending.startedAt !== 'number') return null;
+    if (Date.now() - pending.startedAt > 7 * 24 * 60 * 60 * 1000 || (serverUpdatedAt && Date.parse(serverUpdatedAt) > pending.startedAt)) {
+      await clearPendingExportRequest(userId, provider);
+      return null;
+    }
+    return { startedAt: pending.startedAt, returnTo: parseImportReturnTo(pending.returnTo) };
+  } catch { return null; }
+}
+
+export async function setPendingExportRequest(userId: string, provider: ExportProvider, returnTo: ImportReturnTo): Promise<void> {
+  await AsyncStorage.setItem(storageKey(userId, provider), JSON.stringify({ readyVersion: '', state: 'not_downloaded', pendingRequest: { startedAt: Date.now(), returnTo } }));
+}
+
+export async function clearPendingExportRequest(userId: string, provider: ExportProvider): Promise<void> {
+  const serialized = await AsyncStorage.getItem(storageKey(userId, provider));
+  if (!serialized) return;
+  try {
+    const stored = JSON.parse(serialized);
+    delete stored.pendingRequest;
+    await AsyncStorage.setItem(storageKey(userId, provider), JSON.stringify(stored));
+  } catch { await AsyncStorage.removeItem(storageKey(userId, provider)); }
 }
 
 const STORAGE_KEY_PREFIX = 'export-download-handoff';
@@ -19,7 +51,6 @@ export const UBER_EXPORT_EMAIL_SENDER_NAME = 'Uber – Download Your Data';
 export const UBER_EXPORT_EMAIL_ADDRESS = 'noreply@uber.com';
 export const UBER_EXPORT_EMAIL_SUBJECT = 'Your Uber data is ready for download';
 export const UBER_EXPORT_EMAIL_ACTION = 'Go to Download Page';
-export const UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS = 7;
 export const UBER_EXPORT_EMAIL_SEARCH_QUERY =
   `from:${UBER_EXPORT_EMAIL_ADDRESS} subject:"${UBER_EXPORT_EMAIL_SUBJECT}"`;
 export const UBER_EXPORT_GMAIL_SEARCH_URL =

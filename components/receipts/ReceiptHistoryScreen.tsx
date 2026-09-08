@@ -196,8 +196,8 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
         <FilterChip label="Uber Eats" selected={provider === 'uber_eats'} onPress={() => setProvider('uber_eats')} />
         <FilterChip label="DoorDash" selected={provider === 'doordash'} onPress={() => setProvider('doordash')} />
       </ScrollView>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/data-tracking')} style={styles.coverageLink}>
-        <AppText variant="metadata" style={styles.coverageLinkText}>Check coverage or import missing orders</AppText>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/add-history?returnTo=history')} style={styles.coverageLink}>
+        <AppText variant="metadata" style={styles.coverageLinkText}>Add orders</AppText>
         <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
       </Pressable>
       {showDateFilters ? (
@@ -241,8 +241,8 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
               icon="receipt-outline"
               title={hasFilters ? 'No matching orders' : 'No orders yet'}
               message={emptyMessage}
-              actionText={hasFilters ? 'Clear filters' : 'Import missing orders'}
-              onAction={hasFilters ? clearFilters : () => router.push('/data-tracking')}
+              actionText={hasFilters ? 'Clear filters' : 'Add orders'}
+              onAction={hasFilters ? clearFilters : () => router.push('/add-history?returnTo=history')}
             />
           )}
           ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} /> : null}

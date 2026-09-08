@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@components/ui/Card';
 import { useMemo } from 'react';
@@ -18,7 +18,13 @@ const sourceName = (operation: ImportOperation): string => {
   }
 };
 
-export function ImportOperationCard({ operation }: { readonly operation: ImportOperation|null }) {
+export function ImportOperationCard({
+  operation,
+  onPress,
+}: {
+  readonly operation: ImportOperation|null;
+  readonly onPress?: () => void;
+}) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   if (!operation) return null;
@@ -32,8 +38,9 @@ export function ImportOperationCard({ operation }: { readonly operation: ImportO
     : succeeded ? resultCount > 0 ? `${resultCount} ${resultCount === 1 ? 'order was' : 'orders were'} added.` : 'Finished with no new supported orders.'
     : cancelled ? 'The pending import was cancelled by an administrator. Your existing history is safe.'
     : operation.errorMessage ?? 'Your existing history is safe. Try the source again when ready.';
-  return (
-    <Card style={styles.card} accessibilityLiveRegion="polite" accessibilityLabel={`${title}. ${detail}`}>
+  const progress = Math.max(0, Math.min(100, Math.round(operation.progress)));
+  const content = (
+    <Card style={styles.card} accessibilityLiveRegion="polite">
       <View style={styles.row}>
         <View style={[styles.icon, succeeded ? styles.successIcon : !active ? styles.errorIcon : null]}>
           {active ? <ActivityIndicator color={theme.colors.primary} /> : <Ionicons name={succeeded ? 'checkmark' : 'alert'} size={20} color={succeeded ? theme.colors.success : theme.colors.error} />}
@@ -42,8 +49,31 @@ export function ImportOperationCard({ operation }: { readonly operation: ImportO
           <AppText variant="rowTitle">{title}</AppText>
           <AppText variant="metadata" style={styles.detail}>{detail}</AppText>
         </View>
+        {onPress ? <Ionicons name="chevron-forward" size={19} color={theme.colors.textSecondary} /> : null}
       </View>
+      {active ? (
+        <View style={styles.progress} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: progress }}>
+          <View style={styles.progressLabels}>
+            <AppText variant="metadata" tone="muted">Import progress</AppText>
+            <AppText variant="metadata" tone="brand">{progress}%</AppText>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+        </View>
+      ) : null}
     </Card>
+  );
+  if (!onPress) return <View accessibilityLabel={`${title}. ${detail}`}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${detail}. ${progress}% complete. View progress.`}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -55,4 +85,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   errorIcon: { backgroundColor: theme.colors.errorSurface },
   copy: { flex: 1, gap: 3 },
   detail: { marginTop: 3 },
+  progress: { marginTop: 4, gap: 8 },
+  progressLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  progressTrack: { height: 7, overflow: 'hidden', borderRadius: theme.radii.pill, backgroundColor: theme.colors.progressTrack },
+  progressFill: { height: '100%', borderRadius: theme.radii.pill, backgroundColor: theme.colors.progressFill },
+  pressed: { opacity: 0.78 },
 });

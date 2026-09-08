@@ -46,7 +46,8 @@ export function ImportBackgroundController() {
   }, [preferences?.ongoingTracking.effectiveState]);
 
   useEffect(() => {
-    if (!preferences || !['setting_up', 'active'].includes(preferences.ongoingTracking.effectiveState) || isUpdating) return;
+    if (!preferences || !preferences.ongoingTracking.baseline.eligible || !['setting_up', 'active'].includes(preferences.ongoingTracking.effectiveState) || isUpdating) return;
+    if (operation && ['awaiting_upload', 'pending_dispatch', 'queued', 'running', 'retrying'].includes(operation.status)) return;
 
     const lastChecked = preferences.ongoingTracking.activity.lastSuccessfulCheckAt;
     const lastCheckedAt = lastChecked ? new Date(lastChecked).getTime() : 0;
@@ -56,12 +57,13 @@ export function ImportBackgroundController() {
     if (trackingCheckKey.current === operationKey) return;
     trackingCheckKey.current = operationKey;
     void checkOngoingTracking().catch(() => undefined);
-  }, [checkOngoingTracking, isUpdating, preferences]);
+  }, [checkOngoingTracking, isUpdating, preferences, operation]);
 
   useEffect(() => {
     const userId = state.user?.id;
     if (!userId || !operation || operation.status !== 'succeeded' || operation.trigger !== 'user'
       || operation.kind === 'manual_tracking' || operation.kind === 'scheduled_tracking'
+      || operation.journeyContext === 'post_onboarding'
       || pathname === '/data-setup' || pathname === '/import-progress' || handledOperation.current === operation.id) return;
     handledOperation.current = operation.id;
     void experienceApi.getState().then(experience => {

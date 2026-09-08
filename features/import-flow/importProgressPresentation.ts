@@ -29,6 +29,18 @@ export const resolveImportProgressSteps = (
 
 export function resolveImportProgressPresentation(operation: ImportOperation): ImportProgressViewModel {
   const current = resolveImportProgressPosition(operation);
+  if (operation.journeyContext === 'post_onboarding') return {
+    eyebrow: operation.kind === 'export_file' ? 'ADDING YOUR ORDERS' : 'CHECKING EMAIL',
+    title: current >= 2 ? 'Updating your order history' : operation.kind === 'export_file' ? 'Reading your delivery history' : 'Looking for delivery receipts',
+    body: 'Your submitted import continues in the background. You can return to Add orders to check its status.',
+    steps: resolveImportProgressSteps(current),
+  };
+  if (operation.kind === 'export_file') return {
+    eyebrow: 'BUILDING YOUR HISTORY',
+    title: current >= 2 ? 'Building your delivery stats' : 'Reading your delivery history',
+    body: 'Your file is submitted. SnackTrack is adding supported orders and preparing your stats. Processing continues in the background.',
+    steps: resolveImportProgressSteps(current),
+  };
   const found = (operation.presentation?.discoveredOrderCount ?? 0) > 0 || current >= 2;
   const steps = resolveImportProgressSteps(current);
   return {

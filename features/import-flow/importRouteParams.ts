@@ -1,7 +1,11 @@
+import { parseImportReturnTo, type ImportReturnTo } from './importNavigation';
 import type { ExportProvider } from './contracts';
 import { parseGmailConnectionPurpose, type GmailConnectionPurpose } from './gmailConnectionPurpose';
 
 export interface ImportRouteParams {
+  mailbox?: 'gmail' | 'outlook' | null;
+  journeyContext?: 'onboarding' | 'post_onboarding';
+  returnTo?: ImportReturnTo;
   sourcePicker: boolean;
   showExportTutorial: boolean;
   focus: 'export' | null;
@@ -26,6 +30,9 @@ export function parseImportRouteParams(raw: Record<string, RawRouteValue>): Impo
     ? rawAction
     : null;
   return {
+    mailbox: firstValue(raw.mailbox) === 'outlook' || firstValue(raw.outlook) ? 'outlook' : firstValue(raw.mailbox) === 'gmail' || firstValue(raw.gmail) ? 'gmail' : null,
+    journeyContext: firstValue(raw.journeyContext) === 'onboarding' ? 'onboarding' : undefined,
+    returnTo: parseImportReturnTo(raw.returnTo),
     sourcePicker: firstValue(raw.sourcePicker) === 'true',
     showExportTutorial: firstValue(raw.showExportTutorial) === 'true',
     focus: firstValue(raw.focus) === 'export' ? 'export' : null,

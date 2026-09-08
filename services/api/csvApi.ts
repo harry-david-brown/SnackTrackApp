@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import type { ExportProvider, ImportOperation } from '@features/import-flow/contracts';
+import type { ExportProvider, ImportJourneyContext, ImportOperation } from '@features/import-flow/contracts';
 import { importOperationsApi } from '@services/importOperationsApi';
 import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
@@ -16,6 +16,7 @@ type ProviderImportFile = (
   onProgress?: (progress: number) => void,
   existingOperationId?: string,
   onIntent?: (operation: ImportOperation) => void,
+  journeyContext?: ImportJourneyContext,
 ) => Promise<ImportOperation>;
 
 const importProviderFile = async (
@@ -25,13 +26,20 @@ const importProviderFile = async (
     onProgress?: (progress: number) => void,
     existingOperationId?: string,
     onIntent?: (operation: ImportOperation) => void,
+    journeyContext: ImportJourneyContext = 'legacy',
   ): Promise<ImportOperation> => {
     await validateAndAuthorizeUserId(userId);
+    if (existingOperationId) {
+      const existing = await importOperationsApi.get(existingOperationId);
+      if (existing.provider !== provider) throw new Error('The pending upload belongs to a different delivery provider.');
+      if (['pending_dispatch', 'queued', 'running', 'retrying', 'succeeded'].includes(existing.status)) return existing;
+      if (existing.status !== 'awaiting_upload') existingOperationId = undefined;
+    }
     const intent = existingOperationId
       ? await importOperationsApi.refreshUploadIntent(existingOperationId)
       : provider === 'uber_eats'
-        ? await importOperationsApi.createUberEatsUploadIntent(exportFile)
-        : await importOperationsApi.createDoorDashUploadIntent(exportFile);
+        ? await importOperationsApi.createUberEatsUploadIntent(exportFile, journeyContext)
+        : await importOperationsApi.createDoorDashUploadIntent(exportFile, journeyContext);
     if (intent.operation.provider !== provider) throw new Error('The pending upload belongs to a different delivery provider.');
     onIntent?.(intent.operation);
     const task = FileSystem.createUploadTask(

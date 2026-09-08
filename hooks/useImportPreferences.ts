@@ -143,6 +143,8 @@ export function useImportPreferences(enabled = true) {
     preferences: preferencesQuery.data ?? null,
     isLoading: enabled && Boolean(userId) && preferencesQuery.isPending,
     isUpdating,
+    queryError: preferencesQuery.isError ? preferencesQuery.error : null,
+    mutationError,
     error:
       preferencesQuery.isError || mutationError
         ? "Unable to update import settings. Please try again."

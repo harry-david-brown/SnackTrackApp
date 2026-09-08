@@ -56,7 +56,6 @@ export function resolveHomeDataGuidance(
   const providers = [uber, doorDash];
   const usefulHistory = preferences.coverage.emailReceiptCount + preferences.coverage.exportReceiptCount > 0;
   const uberFileCoverage = preferences.coverage.exportProviders.uberEats.hasData;
-  const uberEmailEvidence = preferences.coverage.emailProviders.uberEats.hasData;
   const tracking = preferences.ongoingTracking;
   const emailAttempt = preferences.gmailBaseline.latestAttempt.status === "importing" || preferences.gmailBaseline.latestAttempt.status === "failed"
     ? preferences.gmailBaseline.latestAttempt : preferences.outlookBaseline.latestAttempt;
@@ -123,12 +122,14 @@ export function resolveHomeDataGuidance(
     const completedWithoutOrders = uber.status === "completed";
     return card({
       id: completedWithoutOrders ? "uber_no_usable_orders" : "missing_uber_history", sectionLabel: "Next step",
-      eyebrow: completedWithoutOrders ? "NO UBER EATS ORDERS ADDED" : "COMPLETE YOUR HISTORY",
-      title: completedWithoutOrders ? "Try another Uber Eats history file" : "Complete your history with Uber Eats",
-      body: uberEmailEvidence ? "We found Uber Eats receipts in email. The official Uber history file can add older and more complete order details." : completedWithoutOrders ? "That archive didn’t contain usable orders, so your Uber Eats milestone is still incomplete." : "Your current orders are safe. Add the official Uber history file for deeper coverage.",
+      eyebrow: completedWithoutOrders ? "NO UBER EATS ORDERS ADDED" : "ADD MORE HISTORY",
+      title: completedWithoutOrders ? "Try another Uber Eats history file" : "Complete your Uber Eats history",
+      body: completedWithoutOrders
+        ? "That archive didn’t contain usable orders, so your Uber Eats milestone is still incomplete."
+        : "Import your data directly from Uber to build a more detailed order history.",
       icon: completedWithoutOrders ? "alert-circle-outline" : "cloud-download-outline", tone: completedWithoutOrders ? "warning" : "brand",
       primaryAction: completedWithoutOrders ? "continue_export" : "request_export", primaryProvider: "uber_eats",
-      primaryLabel: completedWithoutOrders ? "Review import steps" : "Import missing orders",
+      primaryLabel: completedWithoutOrders ? "Review import steps" : "Add orders",
       canMarkUberNotUsed: false, display: "compact",
     });
   }
@@ -138,7 +139,7 @@ export function resolveHomeDataGuidance(
     title: uberFileCoverage ? "Your history is ready" : "Your saved sources are up to date",
     body: tracking.effectiveState === "active" ? "Ongoing email updates are on." : "Your imported order history is ready to explore.",
     icon: "checkmark-circle-outline", tone: "success", placement: "footer", display: "compact",
-    primaryAction: "open_import", primaryLabel: "Manage data", showActivity: tracking.effectiveState === "active",
+    primaryAction: "open_import", primaryLabel: "Add orders", showActivity: tracking.effectiveState === "active",
   });
 }
 

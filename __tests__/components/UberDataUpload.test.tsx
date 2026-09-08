@@ -1,136 +1,79 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { UberDataUpload } from '@components/upload/UberDataUpload';
-import { useUser } from '@contexts/UserContext';
-import { useNetworkStatus } from '@hooks/useNetworkStatus';
-import { showAlert } from '@utils/platformAlert';
-
-const mockImportFile = jest.fn();
-
-jest.mock('@contexts/UserContext', () => ({ useUser: jest.fn() }));
-jest.mock('@hooks/useNetworkStatus', () => ({ useNetworkStatus: jest.fn() }));
-jest.mock('@hooks/useExportImport', () => ({
-  useExportImport: () => ({
-    importFile: mockImportFile,
-    isPending: false,
-    error: null,
-    reset: jest.fn(),
-  }),
-}));
+import { showSimpleAlert } from '@utils/platformAlert';
+const mockImport = jest.fn();
+const mockReset = jest.fn();
+let mockOffline = false;
+jest.mock('@contexts/AppearanceContext', () => ({ useAppTheme: () => jest.requireActual('@constants/theme').LightTheme }));
+jest.mock('@contexts/UserContext', () => ({ useUser: () => ({ state: { user: { id: 'user-1' } } }) }));
+jest.mock('@hooks/useNetworkStatus', () => ({ useNetworkStatus: () => ({ isConnected: !mockOffline, isInternetReachable: !mockOffline, type: mockOffline ? 'none' : 'wifi' }) }));
+jest.mock('@hooks/useExportImport', () => ({ useExportImport: () => ({ importUberEatsFile: mockImport, importDoorDashFile: mockImport, isPending: false, error: null, reset: mockReset, uploadProgress: 0 }) }));
 jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }));
-jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn() }));
-jest.mock('@utils/sentry', () => ({ captureException: jest.fn() }));
-
-const validArchive = {
-  canceled: false as const,
-  assets: [{
-    uri: 'file://delivery-history.zip',
-    name: 'delivery-history.zip',
-    size: 1024,
-    mimeType: 'application/zip',
-    lastModified: Date.now(),
-  }],
-};
-
-describe('UberDataUpload', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (useUser as jest.Mock).mockReturnValue({ state: { user: { id: 'user-1' } } });
-    (useNetworkStatus as jest.Mock).mockReturnValue({
-      isConnected: true,
-      isInternetReachable: true,
-      type: 'wifi',
-    });
-    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({ canceled: true });
-  });
-
-  it('uploads a valid archive immediately after it is chosen', async () => {
-    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue(validArchive);
-    const result = {
-      importedCount: 15,
-      totalAmount: 20,
-      message: 'Success',
-      fileType: 'zip',
-      provider: 'uber_eats',
-    };
-    mockImportFile.mockResolvedValue(result);
-    const onUploadSuccess = jest.fn();
-    const view = render(<UberDataUpload onUploadSuccess={onUploadSuccess} />);
-
-    fireEvent.press(view.getByText('Choose downloaded ZIP'));
-
-    await waitFor(() => expect(mockImportFile).toHaveBeenCalledWith({
-      userId: 'user-1',
-      file: {
-        uri: 'file://delivery-history.zip',
-        type: 'application/zip',
-        name: 'delivery-history.zip',
-      },
-    }));
-    expect(onUploadSuccess).toHaveBeenCalledWith(result);
-  });
-
-  it('keeps a failed archive available for a one-tap retry', async () => {
-    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue(validArchive);
-    mockImportFile.mockRejectedValueOnce({ code: 'NETWORK_ERROR', message: 'Network Error' });
-    mockImportFile.mockResolvedValueOnce({
-      importedCount: 2,
-      totalAmount: 10,
-      message: 'Success',
-      fileType: 'zip',
-      provider: 'uber_eats',
-    });
-    const view = render(<UberDataUpload />);
-
-    fireEvent.press(view.getByText('Choose downloaded ZIP'));
-    await waitFor(() => expect(view.getByText('Try this file again')).toBeTruthy());
-    fireEvent.press(view.getByText('Try this file again'));
-
-    await waitFor(() => expect(mockImportFile).toHaveBeenCalledTimes(2));
-  });
-
-  it('explains invalid file types without entering the upload flow', async () => {
-    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
-      canceled: false,
-      assets: [{ ...validArchive.assets[0], name: 'notes.txt', mimeType: 'text/plain' }],
-    });
-    const view = render(<UberDataUpload />);
-
-    fireEvent.press(view.getByText('Choose downloaded ZIP'));
-
-    await waitFor(() => expect(showAlert).toHaveBeenCalledWith(
-      'Choose a delivery history file',
-      'Choose the original ZIP or CSV file from Uber Eats or DoorDash.',
-    ));
-    expect(mockImportFile).not.toHaveBeenCalled();
-  });
-
-  it('disables file selection while offline', () => {
-    (useNetworkStatus as jest.Mock).mockReturnValue({
-      isConnected: false,
-      isInternetReachable: false,
-      type: 'none',
-    });
-    const view = render(<UberDataUpload />);
-
-    expect(view.getByText('Reconnect to the internet before choosing the file.')).toBeTruthy();
-    expect(view.getByRole('button', { name: 'Choose downloaded ZIP' }).props.accessibilityState)
-      .toMatchObject({ disabled: true });
-  });
-
-  it('gives specific recovery when an archive contains no supported orders', async () => {
-    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue(validArchive);
-    mockImportFile.mockRejectedValue({
-      code: 'NO_VALID_EXPORT_ORDERS',
-      message: 'No orders found',
-    });
-    const view = render(<UberDataUpload />);
-
-    fireEvent.press(view.getByText('Choose downloaded ZIP'));
-
-    await waitFor(() => expect(showAlert).toHaveBeenCalledWith(
-      'No supported orders found',
-      expect.stringContaining('request a newer archive'),
-    ));
-  });
+jest.mock('expo-file-system/legacy', () => ({ getInfoAsync: jest.fn() }));
+jest.mock('@utils/platformAlert', () => ({ showSimpleAlert: jest.fn() }));
+const file = { uri: 'file:///history.zip', name: 'history.zip', size: 900, lastModified: 0 };
+beforeEach(() => { jest.clearAllMocks(); mockOffline = false; jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [file] }); jest.mocked(FileSystem.getInfoAsync).mockResolvedValue({ exists: true, size: 1024 } as never); mockImport.mockResolvedValue({ id: 'accepted' }); });
+it('shows measured size and requires review on legacy routes', async () => {
+  const success = jest.fn();
+  const screen = render(<UberDataUpload onUploadSuccess={success} />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('Uber Eats · 1 KB')).toBeTruthy());
+  expect(mockImport).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByText('Import this file'));
+  await waitFor(() => expect(success).toHaveBeenCalledWith({ id: 'accepted' }));
+});
+it('retains a file through a failed submission for a one-tap retry', async () => {
+  mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
+  const screen = render(<UberDataUpload />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('Import this file')).toBeTruthy());
+  fireEvent.press(screen.getByText('Import this file'));
+  await waitFor(() => expect(showSimpleAlert).toHaveBeenCalled());
+  expect(screen.getByText('history.zip')).toBeTruthy();
+  fireEvent.press(screen.getByText('Import this file'));
+  await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(2));
+  expect(mockReset).toHaveBeenCalledTimes(1);
+});
+it('allows offline selection, blocks submission, and resumes when connected', async () => {
+  mockOffline = true;
+  const screen = render(<UberDataUpload />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
+  fireEvent.press(screen.getByText('Import this file'));
+  expect(mockImport).not.toHaveBeenCalled();
+  mockOffline = false;
+  screen.rerender(<UberDataUpload />);
+  fireEvent.press(screen.getByText('Import this file'));
+  await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
+});
+it('keeps a valid selection and its retry association after invalid replacement', async () => {
+  const screen = render(<UberDataUpload />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
+  jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [{ ...file, name: 'notes.txt' }] });
+  fireEvent.press(screen.getByText('Choose another file'));
+  await waitFor(() => expect(showSimpleAlert).toHaveBeenCalledWith('Choose the original download', expect.any(String)));
+  expect(screen.getByText('history.zip')).toBeTruthy();
+  expect(mockReset).toHaveBeenCalledTimes(1);
+});
+it('allows choosing a file while another accepted import blocks submission', async () => {
+  const screen = render(<UberDataUpload importBlocked />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
+  fireEvent.press(screen.getByText('Import this file'));
+  expect(mockImport).not.toHaveBeenCalled();
+});
+it('prevents a second submission while the upload is pending', async () => {
+  let finish!: (value: { id: string }) => void;
+  mockImport.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const screen = render(<UberDataUpload />);
+  fireEvent.press(screen.getByText('Choose history file'));
+  await waitFor(() => expect(screen.getByText('Import this file')).toBeTruthy());
+  fireEvent.press(screen.getByText('Import this file'));
+  await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
+  expect(screen.queryByText('Choose another file')).toBeNull();
+  expect(screen.getByText(/Keep SnackTrack open until processing/)).toBeTruthy();
+  await act(async () => { finish({ id: 'accepted' }); });
 });

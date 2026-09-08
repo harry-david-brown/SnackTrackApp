@@ -1,9 +1,11 @@
+import { importPreferenceKeys } from '@lib/queryKeys';
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import type {
   GmailImportResponse,
+  ImportJourneyContext,
   OutlookConnectionStatus,
 } from '@features/import-flow/contracts';
 import type { GmailConnectionPurpose } from '@features/import-flow/gmailConnectionPurpose';
@@ -21,12 +23,16 @@ interface UseOutlookImportOptions {
   connectionStatus?: OutlookConnectionStatus | null;
   onImportSuccess?: (result: GmailImportResponse) => void;
   onDisconnectSuccess?: () => void;
+  journeyContext?: ImportJourneyContext;
+  returnTo?: import('@features/import-flow/importNavigation').ImportReturnTo;
 }
 
 export function useOutlookImport(options: UseOutlookImportOptions = {}) {
   const {
     connectionStatus: projectedConnectionStatus,
     onDisconnectSuccess,
+    journeyContext = 'legacy',
+    returnTo = 'home',
   } = options;
   const { state } = useUser();
   const queryClient = useQueryClient();
@@ -75,13 +81,21 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
     const action = (async () => {
       setIsLoading(true);
       try {
-        const redirectUri = AuthSession.makeRedirectUri({
+        const baseRedirectUri = AuthSession.makeRedirectUri({
           scheme: 'snacktrack',
           path: 'oauth-callback',
         });
+        const redirect = new URL(baseRedirectUri);
+        redirect.searchParams.set('journeyContext', journeyContext);
+        redirect.searchParams.set('returnTo', returnTo);
+        redirect.searchParams.set('returnIntent', purpose === 'connection_recovery' ? 'reconnect' : 'email');
+        const redirectUri = redirect.toString();
         const { authUrl } = await outlookApi.getAuthUrl(redirectUri, purpose);
         const authResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-        if (authResult.type !== 'success' || !authResult.url) return null;
+        if (authResult.type !== 'success' || !authResult.url) {
+          if (journeyContext === 'post_onboarding') showSimpleAlert(authResult.type === 'cancel' || authResult.type === 'dismiss' ? 'Connection cancelled' : 'Could not connect Outlook', 'No inbox was connected. You can try again or choose another email service.');
+          return null;
+        }
         const resultUrl = new URL(authResult.url);
         if (resultUrl.searchParams.get('outlook') !== 'success') {
           const errorCode = resultUrl.searchParams.get('error');
@@ -113,15 +127,18 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
     })();
     activeAction.current = action;
     return action;
-  }, [queryClient, userId, waitForReady]);
+  }, [returnTo, journeyContext, queryClient, userId, waitForReady]);
 
-  const importReceipts = useCallback(async () => {
+  const importReceipts = useCallback(async (automaticUpdates = false) => {
     if (activeAction.current || !connectionStatus.canImport) return false;
     const action = (async () => {
       setIsImporting(true);
       try {
-        const result = await outlookApi.importReceipts();
-        if (userId) cacheImportOperation(queryClient, userId, result);
+        const result = await outlookApi.importReceipts(journeyContext, automaticUpdates);
+        if (userId) {
+          cacheImportOperation(queryClient, userId, result);
+          if (automaticUpdates) void queryClient.invalidateQueries({ queryKey: importPreferenceKeys.current(userId) });
+        }
         return result;
       } catch (error) {
         const domainError = toDomainError(error);
@@ -135,7 +152,7 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
     })();
     activeAction.current = action;
     return action;
-  }, [connectionStatus.canImport, queryClient, userId]);
+  }, [connectionStatus.canImport, journeyContext, queryClient, userId]);
 
   const disconnectOutlook = useCallback(() => {
     showAlert('Disconnect Outlook', 'Your imported receipts will remain in SnackTrack.', [

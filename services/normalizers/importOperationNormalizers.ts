@@ -1,7 +1,8 @@
-import type { ImportOperation, ImportOperationKind, ImportOperationStatus } from '@features/import-flow/contracts';
+import type { ImportJourneyContext, ImportOperation, ImportOperationKind, ImportOperationStatus, ImportTimeEstimate } from '@features/import-flow/contracts';
 
 const kinds: readonly ImportOperationKind[] = ['gmail_historical','outlook_historical','manual_tracking','scheduled_tracking','export_file'];
 const statuses: readonly ImportOperationStatus[] = ['awaiting_upload','pending_dispatch','queued','running','retrying','succeeded','failed','expired','superseded','cancelled'];
+const journeyContexts: readonly ImportJourneyContext[] = ['onboarding','post_onboarding','routine','legacy'];
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid import operation response');
   return value as Record<string, unknown>;
@@ -11,13 +12,32 @@ const string = (value: unknown): string => {
   return value;
 };
 const nullableString = (value: unknown): string | null => value === null || value === undefined ? null : string(value);
+const normalizeTimeEstimate = (value: unknown): ImportTimeEstimate | null => {
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return null;
+  const estimate = value as Record<string, unknown>;
+  const kind = String(estimate.kind);
+  const minimumMinutes = estimate.minimumMinutes === null ? null : Number(estimate.minimumMinutes);
+  const maximumMinutes = estimate.maximumMinutes === null ? null : Number(estimate.maximumMinutes);
+  const revision = Number(estimate.revision);
+  if (!['total','remaining','retry_wait','finishing'].includes(kind) || !Number.isInteger(revision) || revision < 0) return null;
+  if (kind === 'finishing') {
+    return minimumMinutes === null && maximumMinutes === null
+      ? { kind, minimumMinutes: null, maximumMinutes: null, revision }
+      : null;
+  }
+  if (typeof minimumMinutes !== 'number' || typeof maximumMinutes !== 'number'
+    || !Number.isInteger(minimumMinutes) || !Number.isInteger(maximumMinutes)
+    || minimumMinutes < 1 || maximumMinutes < minimumMinutes) return null;
+  return { kind: kind as Exclude<ImportTimeEstimate['kind'], 'finishing'>, minimumMinutes, maximumMinutes, revision };
+};
 
 export const normalizeImportOperation = (value: unknown): ImportOperation => {
   const data = object(value);
   const kind = string(data.kind);
   const status = string(data.status);
   const trigger = string(data.trigger);
-  if (!kinds.includes(kind as ImportOperationKind) || !statuses.includes(status as ImportOperationStatus) || (trigger !== 'user' && trigger !== 'scheduler')) {
+  const journeyContext = data.journeyContext === undefined ? 'legacy' : string(data.journeyContext);
+  if (!kinds.includes(kind as ImportOperationKind) || !statuses.includes(status as ImportOperationStatus) || !journeyContexts.includes(journeyContext as ImportJourneyContext) || (trigger !== 'user' && trigger !== 'scheduler')) {
     throw new Error('Invalid import operation response');
   }
   const progress = Number(data.progress);
@@ -43,9 +63,10 @@ export const normalizeImportOperation = (value: unknown): ImportOperation => {
     discoveredOrderCount: discoveredOrderCount !== null && Number.isFinite(discoveredOrderCount) && discoveredOrderCount >= 0
       ? Math.floor(discoveredOrderCount)
       : null,
+    timeEstimate: normalizeTimeEstimate(presentationSource.timeEstimate),
   } : null;
   return {
-    id: string(data.id), kind: kind as ImportOperationKind, trigger, status: status as ImportOperationStatus,
+    id: string(data.id), kind: kind as ImportOperationKind, trigger, journeyContext: journeyContext as ImportJourneyContext, status: status as ImportOperationStatus,
     phase: string(data.phase), progress, attempts,
     provider,
     result: data.result ? data.result as Readonly<Record<string,unknown>> : null,

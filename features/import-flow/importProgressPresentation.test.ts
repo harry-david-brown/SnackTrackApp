@@ -2,10 +2,10 @@ import type { ImportOperation } from './contracts';
 import { IMPORT_PROGRESS_MIN_STEP_MS, resolveImportProgressPresentation, resolveImportProgressSteps } from './importProgressPresentation';
 
 const operation = (stage: NonNullable<ImportOperation['presentation']>['stage'], discoveredOrderCount: number | null): ImportOperation => ({
-  id: 'operation-1', kind: 'gmail_historical', trigger: 'user', status: 'running', phase: 'processing', progress: 10,
+  id: 'operation-1', kind: 'gmail_historical', trigger: 'user', journeyContext: 'legacy', status: 'running', phase: 'processing', progress: 10,
   result: null, errorCode: null, errorMessage: null, attempts: 1, provider: null,
   createdAt: '2026-09-03T00:00:00.000Z', queuedAt: null, startedAt: null, completedAt: null, updatedAt: '2026-09-03T00:00:00.000Z',
-  presentation: { mode: 'foreground', expectedDurationBand: 'under_5_minutes', reason: 'normal', stage, discoveredOrderCount },
+  presentation: { mode: 'foreground', expectedDurationBand: 'under_5_minutes', reason: 'normal', stage, discoveredOrderCount, timeEstimate: null },
 });
 
 describe('import progress presentation', () => {
@@ -29,4 +29,13 @@ describe('import progress presentation', () => {
     expect(resolveImportProgressSteps(2)).toEqual(['complete', 'complete', 'active', 'pending']);
     expect(resolveImportProgressSteps(4)).toEqual(['complete', 'complete', 'complete', 'complete']);
   });
+});
+
+
+test('returning users get background progress without first-import or recap promises', () => {
+  const view = resolveImportProgressPresentation({ ...operation('discovering', 0), journeyContext: 'post_onboarding' });
+  expect(view.body).toContain('background');
+  expect(view.body).toContain('Add orders');
+  expect(view.body).not.toMatch(/first|recap/);
+  expect(view.title).toBe('Looking for delivery receipts');
 });

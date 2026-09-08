@@ -3,6 +3,7 @@ import type { GmailConnectionPurpose } from '@features/import-flow/gmailConnecti
 import type {
   GmailAuthUrlResponse,
   ImportOperation,
+  ImportJourneyContext,
   OutlookConnectionStatus,
 } from '@features/import-flow/contracts';
 import {
@@ -27,7 +28,7 @@ export const outlookApi = {
     return normalizeOutlookConnectionStatus(response.data);
   },
 
-  importReceipts: (): Promise<ImportOperation> => importOperationsApi.startOutlook(),
+  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false): Promise<ImportOperation> => importOperationsApi.startOutlook(journeyContext, automaticUpdates),
 
   disconnect: async (
     options: { resetImportStatus?: boolean } = {},

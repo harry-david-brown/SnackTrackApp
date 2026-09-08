@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useUser } from '@contexts/UserContext';
@@ -8,7 +8,6 @@ import { showAlert } from '@utils/platformAlert';
 import {
   getExportDownloadHandoffState,
   setExportDownloadHandoffState,
-  UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS,
   UBER_EXPORT_EMAIL_ACTION,
   UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
@@ -23,6 +22,9 @@ const NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
  */
 export default function ExportReadyNotifier() {
   const { state } = useUser();
+  const pathname = usePathname();
+  // Import screens already show saved progress; never interrupt a local decision with a global dialog.
+  const handlingUber = pathname === '/add-history' || pathname === '/data-setup' || pathname === '/upload';
   const userId = state.user?.id;
   const { preferences, checkExportReady } = useImportPreferences(Boolean(userId));
   const uberExport = preferences?.export.providers.uberEats;
@@ -43,13 +45,11 @@ export default function ExportReadyNotifier() {
   const openImportForUpload = useCallback(async (readyVersion: string) => {
     if (!userId) return;
     await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'downloaded');
-    router.push(
-      `/data-tracking?focus=export&provider=uber_eats&downloadedVersion=${encodeURIComponent(readyVersion)}`
-    );
+    router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider: 'uber_eats', downloadedVersion: readyVersion } });
   }, [userId]);
 
   const showDownloadFollowUp = useCallback((readyVersion: string) => {
-    if (!userId || isShowingDownloadPromptRef.current) return;
+    if (!userId || handlingUber || uberExport?.readySource === 'user_confirmed' || isShowingDownloadPromptRef.current) return;
     isShowingDownloadPromptRef.current = true;
 
     showAlert(
@@ -73,20 +73,20 @@ export default function ExportReadyNotifier() {
         },
       ]
     );
-  }, [openImportForUpload, userId]);
+  }, [openImportForUpload, userId, handlingUber, uberExport?.readySource]);
 
   const openDownloadGuide = useCallback(() => {
     isShowingDownloadPromptRef.current = false;
-    router.push('/data-tracking?focus=export&provider=uber_eats&showExportTutorial=true');
+    router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider: 'uber_eats', showDownloadSteps: 'true' } });
   }, []);
 
   const showReadyPrompt = useCallback((readyVersion: string) => {
-    if (!userId || isShowingDownloadPromptRef.current) return;
+    if (!userId || handlingUber || uberExport?.readySource === 'user_confirmed' || isShowingDownloadPromptRef.current) return;
     isShowingDownloadPromptRef.current = true;
 
     showAlert(
       'Your Uber data is ready',
-      `Find Uber’s “${UBER_EXPORT_EMAIL_SUBJECT}” email or text, then open the download page. Uber keeps the download available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.\n\nHave you already saved the ZIP?`,
+      `Find Uber’s “${UBER_EXPORT_EMAIL_SUBJECT}” email or text, then open the download page. Check the download deadline in Uber’s email.\n\nHave you already saved the ZIP?`,
       [
         {
           text: 'Later',
@@ -109,11 +109,12 @@ export default function ExportReadyNotifier() {
         },
       ]
     );
-  }, [openDownloadGuide, openImportForUpload, userId]);
+  }, [openDownloadGuide, openImportForUpload, userId, handlingUber, uberExport?.readySource]);
 
   const handleReadyExport = useCallback(async (readyVersion: string) => {
     if (!userId) return;
 
+    if (uberExport?.readySource === 'user_confirmed' || handlingUber) return;
     readyVersionRef.current = readyVersion;
     const handoffState = await getExportDownloadHandoffState(userId, 'uber_eats', readyVersion);
     if (handoffState === 'checking_email') {
@@ -128,7 +129,7 @@ export default function ExportReadyNotifier() {
 
     await AsyncStorage.setItem(notificationKey, readyVersion);
     showReadyPrompt(readyVersion);
-  }, [showDownloadFollowUp, showReadyPrompt, userId]);
+  }, [showDownloadFollowUp, showReadyPrompt, userId, uberExport?.readySource, handlingUber]);
 
   const checkForReadyExport = useCallback(async () => {
     if (!userId || isCheckingRef.current) return;

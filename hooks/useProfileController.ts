@@ -19,10 +19,8 @@ import { toDomainError } from '@utils/domainError';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import {
   setExportDownloadHandoffState,
-  UBER_EXPORT_EMAIL_ADDRESS,
-  UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
-import { registerImportNotificationDevice } from '@components/import/ImportNotificationController';
+import { requestImportNotifications } from '@components/import/ImportNotificationController';
 import { notificationDeviceApi } from '@services/notificationDeviceApi';
 import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 
@@ -54,7 +52,7 @@ export function useProfileController() {
     if (userId) void Promise.all([
       Notifications.getPermissionsAsync(),
       AsyncStorage.getItem(notificationEnabledKey(userId)),
-    ]).then(([permission, enabled]) => setImportNotificationsEnabled(permission.granted && enabled === 'true'));
+    ]).then(([permission, enabled]) => setImportNotificationsEnabled(permission.granted && enabled === 'true')).catch(() => setImportNotificationsEnabled(false));
   }, [refresh, userId]));
 
   const toggleImportNotifications = useCallback(() => {
@@ -69,22 +67,14 @@ export function useProfileController() {
       ]);
       return;
     }
-    void (async () => {
-      const permission = await Notifications.requestPermissionsAsync();
-      if (!permission.granted) {
-        setImportNotificationsEnabled(false);
-        showSimpleAlert('Notifications are off', 'You can enable SnackTrack notifications later in your device settings.');
-        return;
-      }
-      try {
-        await registerImportNotificationDevice();
-        if (userId) await AsyncStorage.setItem(notificationEnabledKey(userId), 'true');
-        setImportNotificationsEnabled(true);
-      } catch {
-        setImportNotificationsEnabled(false);
-        showSimpleAlert('Could not enable notifications', 'Try again when this device is online.');
-      }
-    })();
+    if (!userId) return;
+    void requestImportNotifications(userId).then(enabled => {
+      setImportNotificationsEnabled(enabled);
+      if (!enabled) showSimpleAlert('Notifications aren’t enabled', 'Allow SnackTrack notifications in your device Settings. Your import continues; you can check it in Add orders.');
+    }).catch(() => {
+      setImportNotificationsEnabled(false);
+      showSimpleAlert('Could not enable notifications', 'Reconnect to the internet and try again. Your import continues in the background.');
+    });
   }, [importNotificationsEnabled, userId]);
 
   const settings = useMemo(
@@ -157,7 +147,7 @@ export function useProfileController() {
       return;
     }
     showAlert(
-      'Turn on history-file alerts?',
+      'Enable Uber ready-email checks?',
       'SnackTrack will check only for Uber’s data-ready email while the app is active. It will not open the link or download the file, and you can turn this off at any time.',
       [
         { text: 'Not Now', style: 'cancel' },
@@ -169,7 +159,7 @@ export function useProfileController() {
                   { text: 'Not Now', style: 'cancel' },
                   {
                     text: 'Manage connections',
-                    onPress: () => router.push('/data-tracking'),
+                    onPress: () => router.push('/settings/accounts-permissions'),
                   },
                 ]);
               }
@@ -183,9 +173,9 @@ export function useProfileController() {
   const toggleOngoingTracking = useCallback(() => {
     if (preferences?.ongoingTracking.consentState === 'granted'
       && preferences.ongoingTracking.effectiveState !== 'paused') {
-      showAlert('Turn off ongoing tracking?', 'SnackTrack will stop periodically checking connected email accounts for new delivery receipts. Your imported history will remain.', [
+      showAlert('Turn off automatic email updates?', 'SnackTrack will stop periodically checking connected email accounts for new delivery receipts. Your imported history will remain.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Turn Off', style: 'destructive', onPress: () => void setOngoingTrackingConsent('revoked') },
+        { text: 'Turn Off', style: 'destructive', onPress: () => { void setOngoingTrackingConsent('revoked').catch(() => showSimpleAlert('Could not turn off updates', 'Your previous setting is unchanged. Please try again.')); } },
       ]);
       return;
     }
@@ -193,8 +183,8 @@ export function useProfileController() {
       showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your downloaded history and establish where future checks should begin.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Go to Import', onPress: () => router.push({
-          pathname: '/data-tracking',
-          params: { action: 'import_gmail', gmailPurpose: 'ongoing_tracking', intentId: `import_gmail:${Date.now()}` },
+          pathname: '/add-history',
+          params: { intent: 'email', returnTo: 'settings' },
         }) },
       ]);
       return;
@@ -206,39 +196,30 @@ export function useProfileController() {
     if (trackingRecovery.kind === 'reconnect') {
       showAlert('Reconnect email first', 'Ongoing tracking needs a durable Gmail or Outlook connection. Manage email connections from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Manage connections', onPress: () => router.push('/data-tracking') },
+        { text: 'Manage connections', onPress: () => router.push('/settings/accounts-permissions') },
       ]);
       return;
     }
-    showAlert('Allow ongoing order tracking?', preferences?.ongoingTracking.baseline.source === 'exports'
+    showAlert('Turn on automatic email updates?', preferences?.ongoingTracking.baseline.source === 'exports'
       ? 'SnackTrack will check connected email accounts for supported delivery receipts newer than your downloaded history and periodically check for future orders. You can turn this off at any time.'
       : 'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update spending and stats. You can turn this off at any time.', [
       { text: 'Not Now', style: 'cancel' },
-      { text: 'Allow tracking', onPress: () => void setOngoingTrackingConsent('granted') },
+      { text: 'Turn on updates', onPress: () => { void setOngoingTrackingConsent('granted').catch(() => showSimpleAlert('Could not turn on updates', 'Your previous setting is unchanged. Please try again.')); } },
     ]);
   }, [preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
 
-  const saveExportRequest = useCallback(async (platform: DataPlatform, decision?: 'granted' | 'declined') => {
+  const completeTutorial = useCallback(async (platform: DataPlatform): Promise<boolean> => {
+    const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
     try {
-      if (decision) await setMonitoringConsent(decision);
-      const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
       await markExportRequested(provider);
+      setActiveModal(null);
+      router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo: 'settings' } });
+      return true;
     } catch {
-      showAlert('Status Not Saved', 'The tutorial is complete, but we could not save your history request status.');
+      showSimpleAlert('Request not saved', 'Please try again. Your confirmation is still available.');
+      return false;
     }
-  }, [markExportRequested, setMonitoringConsent]);
-
-  const completeTutorial = useCallback((platform: DataPlatform) => {
-    setActiveModal(null);
-    if (platform === 'doordash' || preferences?.monitoring.consentState === 'granted') {
-      void saveExportRequest(platform);
-      return;
-    }
-    showAlert('Notify you when it’s ready?', 'Allow SnackTrack to check only for Uber’s data-ready email and let you know when the download is available. SnackTrack will not open the link or download the file.', [
-      { text: 'Not Now', style: 'cancel', onPress: () => void saveExportRequest(platform, 'declined') },
-      { text: 'Notify Me', onPress: () => void saveExportRequest(platform, 'granted') },
-    ]);
-  }, [preferences?.monitoring.consentState, saveExportRequest]);
+  }, [markExportRequested]);
 
   const tutorialReadyConfirmed = useCallback((platform: DataPlatform) => {
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
@@ -247,16 +228,7 @@ export function useProfileController() {
     });
   }, [confirmExportReady]);
 
-  const tutorialStillWaiting = useCallback((platform: DataPlatform) => {
-    setActiveModal(null);
-    void saveExportRequest(platform);
-    showSimpleAlert(
-      `Your ${platform === 'uber' ? 'Uber Eats' : 'DoorDash'} history request is on the way`,
-      platform === 'uber'
-        ? `Uber typically takes a few hours, though it can take longer. Watch for “${UBER_EXPORT_EMAIL_SUBJECT}” from ${UBER_EXPORT_EMAIL_ADDRESS}.`
-        : 'DoorDash typically takes a few hours, though it can take longer. Watch for an email saying your archive is ready with “View Your Data Archive.”',
-    );
-  }, [saveExportRequest]);
+  const tutorialStillWaiting = completeTutorial;
 
   const tutorialArchiveDownloaded = useCallback(async (platform: DataPlatform) => {
     if (!userId) return;
@@ -268,8 +240,8 @@ export function useProfileController() {
     await setExportDownloadHandoffState(userId, provider, readyVersion, 'downloaded');
     setActiveModal(null);
     router.push({
-      pathname: '/data-tracking',
-      params: { focus: 'export', provider, downloadedVersion: readyVersion },
+      pathname: '/add-history',
+      params: { intent: 'resume_export', provider, downloadedVersion: readyVersion, returnTo: 'settings' },
     });
   }, [preferences?.export.providers, userId]);
 
@@ -325,7 +297,7 @@ export function useProfileController() {
     openModal: setActiveModal,
     closeModal: () => setActiveModal(null),
     openReceipts: () => router.push('/(tabs)/history'),
-    openImport: () => router.push('/data-tracking'),
+    openImport: () => router.push('/settings/accounts-permissions'),
     requestLogout,
     requestClearReceipts,
     requestDevelopmentReset,

@@ -12,6 +12,8 @@ jest.mock('@services/importOperationsApi', () => ({
     createUberEatsUploadIntent: jest.fn(),
     createDoorDashUploadIntent: jest.fn(),
     submitUpload: jest.fn(),
+    get: jest.fn(),
+    refreshUploadIntent: jest.fn(),
   },
 }));
 jest.mock('@utils/securityValidation', () => ({
@@ -65,7 +67,7 @@ describe('exportImportApi provider uploads', () => {
       id: operation.id,
       status: 'pending_dispatch',
     });
-    expect(importOperationsApi.createUberEatsUploadIntent).toHaveBeenCalledWith(file);
+    expect(importOperationsApi.createUberEatsUploadIntent).toHaveBeenCalledWith(file, 'legacy');
     expect(FileSystem.createUploadTask).toHaveBeenCalledWith(
       'http://storage.test/upload',
       file.uri,
@@ -83,4 +85,19 @@ describe('exportImportApi provider uploads', () => {
     await expect(exportImportApi.importUberEatsFile(userId, file)).rejects.toThrow('secure import storage');
     expect(importOperationsApi.submitUpload).not.toHaveBeenCalled();
   });
+  it('does not upload twice after submission succeeded but its response was lost', async () => {
+    (importOperationsApi.get as jest.Mock).mockResolvedValue({ ...operation, status: 'queued' });
+    await expect(exportImportApi.importUberEatsFile(userId, file, undefined, operation.id)).resolves.toMatchObject({ status: 'queued' });
+    expect(FileSystem.createUploadTask).not.toHaveBeenCalled();
+    expect(importOperationsApi.submitUpload).not.toHaveBeenCalled();
+  });
+  it('refreshes the same awaiting-upload intent for a retry', async () => {
+    (importOperationsApi.get as jest.Mock).mockResolvedValue(operation);
+    (importOperationsApi.refreshUploadIntent as jest.Mock).mockResolvedValue({ operation, uploadUrl: 'http://storage.test/retry', headers: {} });
+    (FileSystem.createUploadTask as jest.Mock).mockReturnValue({ uploadAsync: jest.fn().mockResolvedValue({ status: 200 }) });
+    await exportImportApi.importUberEatsFile(userId, file, undefined, operation.id);
+    expect(importOperationsApi.refreshUploadIntent).toHaveBeenCalledWith(operation.id);
+    expect(importOperationsApi.createUberEatsUploadIntent).not.toHaveBeenCalled();
+  });
+
 });

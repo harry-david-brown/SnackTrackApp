@@ -74,3 +74,32 @@ describe('exportDownloadHandoff', () => {
     );
   });
 });
+
+describe('interrupted external requests', () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async key => store.get(key) ?? null);
+    jest.mocked(AsyncStorage.setItem).mockImplementation(async (key, value) => { store.set(key, value); });
+    jest.mocked(AsyncStorage.removeItem).mockImplementation(async key => { store.delete(key); });
+  });
+  it('stores only a per-user/provider confirmation hint and origin', async () => {
+    const { setPendingExportRequest, getPendingExportRequest } = await import('@utils/exportDownloadHandoff');
+    await setPendingExportRequest('user-1', 'uber_eats', 'history');
+    expect(await getPendingExportRequest('user-1', 'uber_eats')).toMatchObject({ returnTo: 'history' });
+    expect(await getPendingExportRequest('user-1', 'doordash')).toBeNull();
+    expect(await getPendingExportRequest('user-2', 'uber_eats')).toBeNull();
+    expect([...store.values()][0]).not.toMatch(/requested|fileUri|bytes|uploadIntent/);
+  });
+  it('clears a hint when server progress is newer, after resolution, or on data reset', async () => {
+    const { setPendingExportRequest, getPendingExportRequest, clearPendingExportRequest } = await import('@utils/exportDownloadHandoff');
+    await setPendingExportRequest('user-1', 'uber_eats', 'home');
+    expect(await getPendingExportRequest('user-1', 'uber_eats', new Date(Date.now() + 1000).toISOString())).toBeNull();
+    await setPendingExportRequest('user-1', 'uber_eats', 'home');
+    await clearPendingExportRequest('user-1', 'uber_eats');
+    expect(await getPendingExportRequest('user-1', 'uber_eats')).toBeNull();
+    await setPendingExportRequest('user-1', 'uber_eats', 'home');
+    await resetExportDownloadStateForUser('user-1');
+    expect(await getPendingExportRequest('user-1', 'uber_eats')).toBeNull();
+  });
+});

@@ -41,19 +41,12 @@ export default function ProfileScreen() {
         <ProfileSettingsCard
           currency={profile.currency}
           mailboxConnectionsLabel={profile.settings.mailboxConnectionsLabel}
-          exportAlertsLabel={profile.settings.exportAlertsLabel}
-          ongoingTrackingLabel={profile.settings.ongoingTrackingLabel}
-          providerExportLabel={profile.settings.providerExportLabel}
           importNotificationsLabel={profile.importNotificationsLabel}
-          importPreferencesBusy={profile.arePreferencesBusy}
           destructiveActionBusy={profile.isClearingReceipts || profile.isDeleting}
           showDevelopmentReset={profile.showDevelopmentReset}
           onOpenReceipts={profile.openReceipts}
           onOpenImport={profile.openImport}
-          onToggleExportAlerts={profile.toggleExportAlerts}
-          onToggleOngoingTracking={profile.toggleOngoingTracking}
           onToggleImportNotifications={profile.toggleImportNotifications}
-          onOpenTutorial={() => profile.openModal('tutorial')}
           onOpenCurrency={() => router.push('/settings/currency')}
           onOpenAppearance={() => router.push('/settings/appearance')}
           onOpenHelp={() => router.push('/settings/help-privacy')}

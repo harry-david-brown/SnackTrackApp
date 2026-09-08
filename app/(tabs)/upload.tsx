@@ -1,3 +1,4 @@
+import { usePendingExportRequests } from '@hooks/usePendingExportRequests';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +21,7 @@ import { AppButton } from '@components/ui/AppButton';
 import { resolveHomeDataGuidance } from '@components/dashboard/dashboardTrackingState';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { ImportOperationCard } from '@components/import/ImportOperationCard';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { trackAdminEvent } from '@services/adminAnalytics';
 import { Mascot } from '@components/mascot/Mascot';
 import UberDataTutorial from '@components/upload/UberDataTutorial';
@@ -33,10 +34,11 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
   const rawParams = useLocalSearchParams();
   const route = parseImportRouteParams(rawParams);
   const controller = useImportFlowController(route, mode);
+  const pendingRequests = usePendingExportRequests(controller.user?.id, controller.importPreferences);
+  const pendingProvider = route.provider ?? (pendingRequests.uber_eats ? 'uber_eats' : pendingRequests.doordash ? 'doordash' : null);
   const operationId = typeof rawParams.operationId === 'string' ? rawParams.operationId : undefined;
   const showManagementDetail = mode === 'manage' && Boolean(rawParams.focus || rawParams.action || rawParams.downloadedVersion);
   const { operation } = useImportOperation(Boolean(controller.user), false, operationId);
-  const trackedOperationPresentation = useRef<string | null>(null);
   const initialJourney = resolveInitialImportJourney(controller.flow, controller.selectedSetupPath);
   const hubGuidance = resolveHomeDataGuidance(controller.importPreferences, false);
   const coverageSources = controller.importPreferences ? [
@@ -56,17 +58,6 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
     if (mode === 'setup') void trackAdminEvent('quick_setup_viewed').catch(() => undefined);
     if (mode === 'manage') void trackAdminEvent('data_tracking_viewed').catch(() => undefined);
   }, [mode]);
-  useEffect(() => {
-    const active = controller.activeImportOperation;
-    if (!active?.presentation || !['pending_dispatch','queued','running','retrying'].includes(active.status)) return;
-    const key = `${active.id}:${active.presentation.mode}`;
-    if (trackedOperationPresentation.current === key) return;
-    trackedOperationPresentation.current = key;
-    void trackAdminEvent(active.presentation.mode === 'delayed' ? 'delayed_import_shown' : 'foreground_import_shown', {
-      properties: { operationKind: active.kind, reason: active.presentation.reason },
-    }).catch(() => undefined);
-  }, [controller.activeImportOperation]);
-
   if (!controller.user) {
     return (
       <SafeAreaView style={styles.container}>
@@ -79,6 +70,17 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
     );
   }
 
+  if (controller.importPreferencesLoading || controller.importPreferencesError) {
+    return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}><PageHeader title={controller.importPreferencesError ? 'We couldn’t load your import options' : 'Loading your import options'} body="Your saved orders and requests are still available." />{controller.importPreferencesError ? <AppButton label="Try again" onPress={() => { void controller.refreshImportPreferences(); }} /> : null}</ScrollView></SafeAreaView>;
+  }
+  if (route.action) return <Redirect href={{ pathname: '/add-history', params: { ...rawParams, journeyContext: 'onboarding', returnTo: route.returnTo ?? 'home' } }} />;
+  if (!controller.showTutorial && !controller.completionSummary && !controller.selectedSetupPath && !route.action && !route.downloadedVersion && !route.mailbox && pendingProvider && pendingRequests[pendingProvider]) {
+    return <Redirect href={{ pathname: '/add-history', params: { intent: 'resume_export', provider: pendingProvider, confirmRequest: 'true', returnTo: pendingRequests[pendingProvider]!.returnTo, journeyContext: 'onboarding' } }} />;
+  }
+  if (!controller.importPreferencesLoading && controller.importPreferences && !controller.showTutorial && !controller.completionSummary && (route.downloadedVersion || initialJourney.kind === 'provider_resume' || initialJourney.kind === 'complete')) {
+    const provider = route.provider ?? controller.flow.exportReadyProvider ?? (controller.flow.exportProviderProgress.uberEats.status !== 'not_started' ? 'uber_eats' : controller.flow.exportProviderProgress.doorDash.status !== 'not_started' ? 'doordash' : undefined);
+    return <Redirect href={{ pathname: '/add-history', params: { intent: route.mailbox ? 'email' : provider ? 'resume_export' : 'choose', mailbox: route.mailbox ?? undefined, provider, returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding', ...(route.downloadedVersion ? { downloadedVersion: route.downloadedVersion } : {}) } }} />;
+  }
   if (controller.showTutorial) {
     return <UberDataTutorial
       mode={controller.tutorialMode}
@@ -88,6 +90,8 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
         doordash: controller.flow.exportProviderProgress.doorDash.status,
       }}
       entryJob={controller.tutorialEntryJob}
+      onOpenRequest={controller.openProviderRequestPage}
+      onRequestNotSubmitted={controller.requestNotSubmitted}
       onRequestConfirmed={controller.completeTutorial}
       onStillWaiting={controller.tutorialStillWaiting}
       onArchiveDownloaded={controller.tutorialArchiveDownloaded}
@@ -118,16 +122,20 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
             />
           ) : showGuidedSetup ? (
             <ImportSetupJourney
+              automaticUpdatesLabel={controller.emailUpdates.label}
+              automaticUpdatesDescription={controller.emailUpdates.description}
+              automaticImportsDisabled={controller.importPreferences?.ongoingTracking.consentState === 'declined' || controller.importPreferences?.ongoingTracking.consentState === 'revoked'}
               flow={controller.flow}
               selectedPath={controller.selectedSetupPath}
               busy={controller.busy}
+              connectionBusy={controller.connectionBusy}
               onChooseEmailPath={controller.chooseEmailSetup}
               onChooseEmail={controller.chooseSetupEmail}
               onChooseAlternative={controller.chooseAlternativeSetup}
               onChangeMethod={controller.changeSetupMethod}
-              onImportGmail={controller.importEmail}
-              onImportOutlook={controller.importOutlook}
-              onChooseProvider={controller.openProviderTutorial}
+              onImportGmail={() => controller.importEmail('initial', controller.emailUpdates.automaticUpdates)}
+              onImportOutlook={() => controller.importOutlook('initial', controller.emailUpdates.automaticUpdates)}
+              onChooseProvider={(platform) => router.push({ pathname: '/add-history', params: { intent: 'provider', provider: platform === 'uber' ? 'uber_eats' : 'doordash', returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding' } })}
             />
           ) : mode === 'manage' && !showManagementDetail ? (
             <>
@@ -164,7 +172,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
           ) : (
             <>
               <View style={styles.header}>
-                {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.replace('/data-tracking')} /> : null}
+                {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.replace('/add-history')} /> : null}
                 <PageHeader eyebrow="DATA & TRACKING" title="Source details" body="Manage this source, its history, and how it keeps your stats current." />
               </View>
 
@@ -225,8 +233,8 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
                     disconnectedHelper={controller.flow.gmailImportPresentation.disconnectedHelper}
                     passive={controller.flow.gmailImportPresentation.passive}
                     onToggle={controller.toggleTask}
-                    onImportGmail={controller.importEmail}
-                    onImportOutlook={controller.importOutlook}
+                    onImportGmail={() => controller.importEmail('initial', controller.emailUpdates.automaticUpdates)}
+                    onImportOutlook={() => controller.importOutlook('initial', controller.emailUpdates.automaticUpdates)}
                   />
                 ) : null}
               </>
@@ -285,7 +293,6 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
         loadingVisible={controller.showGmailImportLoadingModal}
         primaryFlowState={controller.primaryFlowState}
         operation={controller.activeImportOperation}
-        onExploreDelayed={controller.exploreDelayedImport}
         gmailConnectPhase={controller.gmailConnectPhase}
         gmailConnectionStatus={controller.gmailConnectionStatus}
         isGmailLoading={controller.isGmailLoading}
@@ -306,7 +313,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
 
 export default function UploadScreen() {
   const params = useLocalSearchParams();
-  return <Redirect href={{ pathname: '/data-tracking', params }} />;
+  return <Redirect href={{ pathname: '/add-history', params }} />;
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({

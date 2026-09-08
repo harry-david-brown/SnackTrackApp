@@ -65,8 +65,12 @@ export function DashboardTrackingCard({
     || (state.passive && !state.secondaryAction && !state.progress);
 
   if (isCompactStatus) {
-    return (
-      <Card accessibilityLabel={`${state.eyebrow}. ${state.title}. ${state.body}`} accessibilityState={{ busy: state.busy }} style={[styles.compactCard, { backgroundColor: tone.surface }]}>
+    const compactContent = (
+      <Card
+        accessibilityLabel={state.primaryAction ? undefined : `${state.eyebrow}. ${state.title}. ${state.body}`}
+        accessibilityState={state.primaryAction ? undefined : { busy: state.busy }}
+        style={[styles.compactCard, { backgroundColor: tone.surface }]}
+      >
         <View style={[styles.compactIcon, { backgroundColor: theme.colors.surface }]}>
           <Ionicons name={state.icon as any} size={21} color={tone.accent} />
           {state.id === 'tracking_active' ? (
@@ -81,15 +85,9 @@ export function DashboardTrackingCard({
           ) : null}
         </View>
         {state.primaryAction ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={state.primaryLabel ?? state.title}
-            disabled={busy}
-            onPress={() => onAction(state.primaryAction!)}
-            style={styles.compactAction}
-          >
+          <View style={styles.compactAction}>
             <Ionicons name="arrow-forward" size={21} color={tone.accent} />
-          </Pressable>
+          </View>
         ) : state.busy ? (
           <Animated.View accessibilityRole="progressbar">
             <Ionicons name="sync" size={22} color={tone.accent} />
@@ -98,6 +96,22 @@ export function DashboardTrackingCard({
           <Ionicons name="checkmark-circle" size={22} color={tone.accent} />
         )}
       </Card>
+    );
+
+    if (!state.primaryAction) return compactContent;
+
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={state.primaryLabel ?? state.title}
+        accessibilityHint={state.body}
+        accessibilityState={{ busy: state.busy || busy, disabled: busy }}
+        disabled={busy}
+        onPress={() => onAction(state.primaryAction!)}
+        style={({ pressed }) => pressed && styles.compactPressed}
+      >
+        {compactContent}
+      </Pressable>
     );
   }
 
@@ -166,6 +180,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   compactBody: { marginTop: 2 },
   compactActivity: { marginTop: 4, fontFamily: FontFamily.medium },
   compactAction: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  compactPressed: { opacity: 0.78 },
   card: {
     padding: 20,
     gap: 10,

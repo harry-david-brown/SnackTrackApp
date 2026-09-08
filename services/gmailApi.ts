@@ -14,6 +14,7 @@ import type {
   GmailAuthUrlResponse,
   GmailConnectionStatus,
   ImportOperation,
+  ImportJourneyContext,
   ImportPreferencesResponse,
   ProviderRelevance,
   SetupGuidance,
@@ -105,7 +106,7 @@ export const gmailApi = {
    * Incrementally merges new or updated Gmail receipts.
    * Note: This operation can take a while, so we use a longer timeout
    */
-  importReceipts: (): Promise<ImportOperation> => importOperationsApi.startGmail(),
+  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false): Promise<ImportOperation> => importOperationsApi.startGmail(journeyContext, automaticUpdates),
 
   /**
    * Disconnect Gmail account

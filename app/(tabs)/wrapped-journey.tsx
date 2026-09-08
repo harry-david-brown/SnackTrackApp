@@ -78,7 +78,7 @@ export default function WrappedJourneyScreen() {
         <Mascot pose="prop-receipt" size={132} />
         <AppText variant="pageTitle" style={styles.emptyTitle}>Your summary starts with one order</AppText>
         <AppText variant="body" style={styles.emptySubtitle}>Add delivery history, then SnackTrack can turn it into totals, habits, and a recap.</AppText>
-        <AppButton label="Add order history" icon="add-circle-outline" onPress={journey.openImport} />
+        <AppButton label="Add orders" icon="add-circle-outline" onPress={journey.openImport} />
       </SafeAreaView>
     );
   }

@@ -17,8 +17,8 @@ jest.mock('@sentry/react-native', () => ({
 }));
 
 jest.mock('react-native-google-mobile-ads', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+  const React: typeof import('react') = jest.requireActual('react');
+  const { View }: typeof import('react-native') = jest.requireActual('react-native');
   const wrapper = ({ children }: { children?: React.ReactNode }) => React.createElement(View, null, children);
   return {
     __esModule: true,
@@ -53,7 +53,10 @@ jest.mock('expo-router', () => ({
     back: mockRouter.back,
     setParams: mockRouter.setParams,
   }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: jest.fn(() => ({})),
+  useGlobalSearchParams: jest.fn(() => ({})),
+  usePathname: jest.fn(() => '/'),
+  Redirect: () => null,
   Stack: ({ children }: { children: React.ReactNode }) => children,
   Tabs: ({ children }: { children: React.ReactNode }) => children,
   Tab: ({ children }: { children: React.ReactNode }) => children,
@@ -108,3 +111,6 @@ afterAll(async () => {
   // Give time for cleanup to complete
   await new Promise(resolve => setTimeout(resolve, 100));
 });
+
+// Navigation is inspected through callbacks without requiring a native stack.
+jest.mock('@react-navigation/native', () => ({ ...jest.requireActual('@react-navigation/native'), usePreventRemove: jest.fn() }));

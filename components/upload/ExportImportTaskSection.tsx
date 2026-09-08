@@ -6,7 +6,7 @@ import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportFlowState, ImportTaskState } from '@features/import-flow/importFlowResolver';
 import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import {
-  UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS, UBER_EXPORT_EMAIL_ACTION, UBER_EXPORT_EMAIL_ADDRESS,
+  UBER_EXPORT_EMAIL_ACTION, UBER_EXPORT_EMAIL_ADDRESS,
   UBER_EXPORT_EMAIL_SENDER_NAME, UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
 import { AppButton } from '@components/ui/AppButton';
@@ -83,7 +83,7 @@ export function ExportImportTaskSection(props: ExportImportTaskSectionProps) {
             : props.fileReady
               ? readyProvider === 'doordash'
                 ? 'DoorDash says your data archive is ready. Download the ZIP from its email, then return here.'
-                : `Uber says your export is ready. Its download link is available for ${UBER_EXPORT_DOWNLOAD_EXPIRY_DAYS} days.`
+                : 'Uber says your download is ready. Check the download deadline in Uber’s email.'
               : processingPlatform
                   ? `${processingProviderName} is being added to your SnackTrack history.`
                   : failedPlatform

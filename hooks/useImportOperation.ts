@@ -6,6 +6,7 @@ import type { ImportOperation } from '@features/import-flow/contracts';
 import { isActiveImportOperation } from '@features/import-flow/contracts';
 import { importOperationKeys } from '@lib/queryKeys';
 import { invalidateImportState, invalidateReceiptDerivedData } from '@lib/queryInvalidation';
+import { parseApiError } from '@utils/errorUtils';
 import { importOperationsApi } from '@services/importOperationsApi';
 
 export const cacheImportOperation = (queryClient: QueryClient, userId: string, operation: ImportOperation): void => {
@@ -64,5 +65,5 @@ export function useImportOperation(enabled = true, announce = false, watchedOper
     }
   }, [announce, operation, queryClient, userId]);
 
-  return { operation: operation ?? null, isLoading: isPending, refresh: refetch };
+  return { operation: operation ?? null, isLoading: isPending, isUnavailable: query.isError && ![404, 410].includes(parseApiError(query.error).statusCode ?? 0), refresh: refetch };
 }

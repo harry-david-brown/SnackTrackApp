@@ -83,6 +83,7 @@ export type ImportOperationKind =
   | "manual_tracking"
   | "scheduled_tracking"
   | "export_file";
+export type ImportJourneyContext = "onboarding" | "post_onboarding" | "routine" | "legacy";
 export type ImportOperationStatus =
   | "awaiting_upload"
   | "pending_dispatch"
@@ -94,17 +95,25 @@ export type ImportOperationStatus =
   | "expired"
   | "superseded"
   | "cancelled";
+export interface ImportTimeEstimate {
+  readonly kind: "total" | "remaining" | "retry_wait" | "finishing";
+  readonly minimumMinutes: number | null;
+  readonly maximumMinutes: number | null;
+  readonly revision: number;
+}
 export interface ImportOperationPresentation {
   readonly mode: "foreground" | "delayed";
   readonly expectedDurationBand: "under_5_minutes" | "over_5_minutes" | "unknown";
   readonly reason: "normal" | "queue_backlog" | "workers_unavailable" | "queue_paused" | "retrying" | "elapsed_over_threshold";
   readonly stage: "waiting" | "discovering" | "building_history" | "preparing_recap";
   readonly discoveredOrderCount: number | null;
+  readonly timeEstimate: ImportTimeEstimate | null;
 }
 export interface ImportOperation {
   readonly id: string;
   readonly kind: ImportOperationKind;
   readonly trigger: "user" | "scheduler";
+  readonly journeyContext: ImportJourneyContext;
   readonly status: ImportOperationStatus;
   readonly phase: string;
   readonly progress: number;

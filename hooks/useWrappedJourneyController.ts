@@ -1,3 +1,4 @@
+import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { resolvePostWrappedExperience } from '@components/wrapped/postWrappedState';
@@ -44,19 +45,12 @@ export function useWrappedJourneyController() {
 
   const openExport = useCallback((showTutorial = false) => {
     void markClicked();
-    router.push({
-      pathname: '/data-tracking',
-      params: {
-        focus: 'export',
-        ...(exportOpportunity ? { provider: exportOpportunity.provider } : {}),
-        ...(showTutorial ? { showExportTutorial: 'true' } : {}),
-      },
-    });
+    router.push(exportOpportunity ? buildProviderHistoryDestination(exportOpportunity.provider, exportOpportunity.status, 'summary') : '/add-history?intent=provider&returnTo=summary');
   }, [exportOpportunity, markClicked]);
 
   const openExportSourcePicker = useCallback(() => {
     void markClicked();
-    router.push('/data-setup?sourcePicker=true');
+    router.push('/add-history?intent=provider&returnTo=summary');
   }, [markClicked]);
 
   const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
@@ -80,11 +74,10 @@ export function useWrappedJourneyController() {
       ? 'import_gmail'
       : 'connect_gmail';
     router.push({
-      pathname: '/data-tracking',
+      pathname: '/add-history',
       params: {
-        action,
-        gmailPurpose: 'ongoing_tracking',
-        intentId: `${action}:${Date.now()}`,
+        returnTo: 'summary',
+        intent: action === 'import_gmail' ? 'email' : 'reconnect',
       },
     });
   }, [trackingRecovery.kind]);
@@ -104,7 +97,7 @@ export function useWrappedJourneyController() {
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
     openExportTutorial: openExportSourcePicker,
-    openImport: () => router.push('/data-setup'),
+    openImport: () => router.push('/add-history?returnTo=summary'),
     openTrackingSetup,
     finish: () => router.replace('/(tabs)'),
   };

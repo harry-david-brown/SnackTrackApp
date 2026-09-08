@@ -1,10 +1,10 @@
+import { EmailImportReview } from '@components/import/EmailImportReview';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { ImportFlowState } from '@features/import-flow/importFlowResolver';
 import { resolveInitialImportJourney, type ImportSetupPath } from '@features/import-flow/initialImportJourney';
 import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
-import { Surface } from '@components/ui/Surface';
 import type { DataPlatform } from './UberDataTutorial';
 import { trackAdminEvent } from '@services/adminAnalytics';
 import { Mascot } from '@components/mascot/Mascot';
@@ -14,6 +14,10 @@ interface ImportSetupJourneyProps {
   flow: ImportFlowState;
   selectedPath: ImportSetupPath;
   busy: boolean;
+  connectionBusy?: boolean;
+  automaticImportsDisabled?: boolean;
+  automaticUpdatesLabel?: string;
+  automaticUpdatesDescription?: string;
   onChooseEmailPath: () => void;
   onChooseEmail: (provider: 'gmail' | 'outlook') => void;
   onChooseAlternative: () => void;
@@ -33,11 +37,11 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
     <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
     <JourneyHeading eyebrow="GET THE FULL PICTURE" title="Where do most of your orders live?" body="Choose a delivery app and we’ll guide you through bringing your complete history into SnackTrack." />
     <View style={styles.choiceStack}>
-      <ChoiceRow icon="car-outline" title="Uber Eats" subtitle="Fill in missing orders and unlock deeper stats" accent={theme.colors.uberDark} onPress={() => {
+      <ChoiceRow icon="car-outline" title="Uber Eats" subtitle="Full available history, including recent orders and more detail" accent={theme.colors.uberDark} onPress={() => {
         void trackAdminEvent('mailbox_provider_selected', { provider: 'uber_eats', properties: { provider: 'uber_eats' } }).catch(() => undefined);
         props.onChooseProvider('uber');
       }} />
-      <ChoiceRow icon="bag-handle-outline" title="DoorDash" subtitle="Fill in missing orders and unlock deeper stats" accent={theme.colors.doorDash} onPress={() => {
+      <ChoiceRow icon="bag-handle-outline" title="DoorDash" subtitle="Full available history, including recent orders and more detail" accent={theme.colors.doorDash} onPress={() => {
         void trackAdminEvent('mailbox_provider_selected', { provider: 'doordash', properties: { provider: 'doordash' } }).catch(() => undefined);
         props.onChooseProvider('doordash');
       }} />
@@ -52,17 +56,10 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
     return <View style={styles.journey}>
       <Progress step={2} />
       <JourneyHeading eyebrow={`${journey.providerName.toUpperCase()} CONNECTED`} title="Ready to find your orders?" body={journey.email ? `Connected as ${journey.email}. Review what SnackTrack will look for.` : 'Review what SnackTrack will look for.'} />
-      <Surface>
-        <AppText variant="sectionLabel" tone="brand">One-time receipt scan</AppText>
-        <View style={styles.reviewList}>
-          <ReviewRow icon="search-outline" title="Find supported receipts" body="Looks only for Uber Eats and DoorDash purchase emails." />
-          <ReviewRow divided icon="stats-chart-outline" title="Build your stats" body="Adds matching orders to your private SnackTrack history." />
-          <ReviewRow divided icon="shield-checkmark-outline" title="Stay in control" body="Future email checks are a separate choice." />
-        </View>
-      </Surface>
+      <EmailImportReview automaticUpdatesDescription={props.automaticUpdatesDescription ?? (props.automaticImportsDisabled ? 'Automatic updates are off. You can turn them on anytime in Settings.' : 'Import your delivery receipts and automatically add new ones. You can turn this off anytime in Settings.')} />
       {journey.needsReconnect || journey.temporarilyUnavailable ? <View style={[styles.warning, { backgroundColor: theme.colors.warningSurface }]}><AppText variant="surfaceBody" style={{ color: theme.colors.warningDeep }}>{journey.needsReconnect ? 'Reconnect this inbox before starting the scan. Your existing history is safe.' : 'This email service is temporarily unavailable. Your connection is still saved.'}</AppText></View> : null}
       <View style={styles.actions}>
-        <AppButton label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : 'Find my orders'} pending={props.busy} disabled={blocked} onPress={primaryAction} />
+        <AppButton label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : props.automaticUpdatesLabel ?? (props.automaticImportsDisabled ? 'Import my receipts' : 'Import & enable automatic updates')} pending={journey.needsReconnect ? props.connectionBusy : props.busy} disabled={blocked} onPress={primaryAction} />
         <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
       </View>
     </View>;
@@ -71,7 +68,7 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
   if (journey.kind === 'choose_email_provider') return <View style={styles.journey}>
     <Progress step={2} />
     <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
-    <JourneyHeading eyebrow="QUICK SETUP" title="Where do your receipts land?" body="Choose the inbox linked to your delivery accounts. You’ll review the scan before anything is imported." />
+    <JourneyHeading eyebrow="QUICK SETUP" title="Where do your receipts land?" body="Choose the inbox linked to your delivery accounts. You’ll review its address and automatic-update setting before importing." />
     <View style={styles.choiceStack}>
       <ChoiceRow icon="logo-google" title="Gmail" subtitle={props.flow.gmailConnected ? 'Connected · review the scan' : 'Continue with Google'} onPress={() => props.onChooseEmail('gmail')} />
       <ChoiceRow icon="mail-outline" title="Outlook" subtitle={props.flow.outlookConnected ? 'Connected · review the scan' : 'Continue with Microsoft'} onPress={() => props.onChooseEmail('outlook')} />
@@ -109,10 +106,6 @@ function ChoiceRow({ icon, title, subtitle, onPress, accent }: { icon: keyof typ
     <View style={styles.choiceCopy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" style={styles.rowMeta}>{subtitle}</AppText></View>
     <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
   </Pressable>;
-}
-function ReviewRow({ icon, title, body, divided = false }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; divided?: boolean }) {
-  const theme = useAppTheme();
-  return <View style={[styles.reviewRow, divided && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider }]}><View style={[styles.reviewIcon, { backgroundColor: theme.colors.chipActiveBg }]}><Ionicons name={icon} size={16} color={theme.colors.primary} /></View><View style={styles.choiceCopy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" style={styles.rowMeta}>{body}</AppText></View></View>;
 }
 const styles = StyleSheet.create({
   journey: { flex: 1 }, mascot: { alignSelf: 'center', marginBottom: 4 }, heading: { marginBottom: 18 }, title: { marginTop: 5 }, body: { marginTop: 9 },

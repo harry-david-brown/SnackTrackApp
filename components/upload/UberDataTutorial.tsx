@@ -1,12 +1,16 @@
+import { usePreventRemove } from '@react-navigation/native';
 import { Radius, type AppTheme } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   AppState,
   Image,
   ImageSourcePropType,
   Linking,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,41 +31,47 @@ interface TutorialStep {
   description: string;
   image: ImageSourcePropType;
   imageLabel: string;
+  fallback: string;
 }
 
 const REQUEST_STEPS: Record<DataPlatform, TutorialStep[]> = {
   uber: [
     {
-      title: 'Sign in on Uber’s website',
-      description: 'The button on the final step opens Uber’s website directly to the data-request page. Sign in there with the account you use for Uber Eats—do not open the Uber app.',
+      title: 'Sign in if Uber asks',
+      description: 'Use the phone number, email, or sign-in method connected to your Uber Eats account.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/1.png'),
       imageLabel: 'Uber sign-in page asking for a phone number or email',
+      fallback: 'If you’re already signed in, Uber may skip this page.',
     },
     {
       title: 'Find Additional data',
-      description: 'After signing in through our link, scroll down on the Your Uber data page. Under Additional data, tap Request download.',
+      description: 'On the “Your Uber data” page, scroll down until you see this dark section.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/2.png'),
       imageLabel: 'Your Uber data page with Request download highlighted under Additional data',
+      fallback: 'Uber’s page may look slightly different. Look for the words “Request download.”',
     },
     {
-      title: 'Request your data',
-      description: 'Tap Request Your Data. Uber will email or text you when the archive is ready to download.',
+      title: 'Tap “Request Your Data”',
+      description: 'Uber will send you an email or text when the download is ready.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/3.png'),
       imageLabel: 'Uber Download your data page with Request Your Data highlighted',
+      fallback: 'The final button opens Uber. You can return to these steps if you get stuck.',
     },
   ],
   doordash: [
     {
-      title: 'Sign in on DoorDash’s website',
-      description: 'The button on the final step opens DoorDash’s account-management page. Sign in with the phone number or account you use for DoorDash.',
+      title: 'Sign in if DoorDash asks',
+      description: 'Use the phone number or sign-in method connected to your DoorDash account.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/request-web/1.png'),
       imageLabel: 'DoorDash sign-in page asking for a phone number or social account',
+      fallback: 'If you’re already signed in, DoorDash may skip this page.',
     },
     {
-      title: 'Request your archive',
-      description: 'On the Manage Account page, find Account Data and tap Request Archive. DoorDash will notify you when the archive is ready.',
+      title: 'Tap “Request Archive”',
+      description: 'On Manage Account, find Account Data and request your archive.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/request-web/2.png'),
       imageLabel: 'DoorDash Manage Account page with Request Archive highlighted',
+      fallback: 'DoorDash’s page may look slightly different. Look for “Account Data” and “Request Archive.”',
     },
   ],
 };
@@ -69,66 +79,48 @@ const REQUEST_STEPS: Record<DataPlatform, TutorialStep[]> = {
 const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
   uber: [
     {
-      title: 'Open the notification',
-      description: 'Open Uber’s “Your Uber data is ready for download” email or text, then tap Go to Download Page. The link is available for 7 days.',
+      title: 'Open Uber’s ready message',
+      description: 'Find “Your Uber data is ready for download,” then tap the download-page link.',
       image: require('../../assets/UberDataTutorialScreenshots/2/1.webp'),
       imageLabel: 'Uber data-ready email with the download-page button highlighted',
+      fallback: 'Check the download deadline in Uber’s email. Request a new download if the link has expired.',
     },
     {
       title: 'Download your archive',
       description: 'Sign in if asked, then tap Download Data. Download links expire, so do this promptly.',
       image: require('../../assets/UberDataTutorialScreenshots/2/2.webp'),
       imageLabel: 'Uber data download page with Download Data highlighted',
+      fallback: 'Uber may ask you to verify your account again before showing the button.',
     },
     {
-      title: 'Confirm the download',
-      description: 'Approve the ZIP download when your browser asks.',
+      title: 'Confirm the ZIP download',
+      description: 'When your browser asks, choose “Download” and wait for it to finish.',
       image: require('../../assets/UberDataTutorialScreenshots/2/3.webp'),
       imageLabel: 'Browser confirmation dialog with Download highlighted',
-    },
-    {
-      title: 'Choose your downloaded ZIP',
-      description: 'Return to SnackTrack and choose your downloaded Uber ZIP file.',
-      image: require('../../assets/UberDataTutorialScreenshots/3/1.webp'),
-      imageLabel: 'SnackTrack history-file chooser highlighted',
-    },
-    {
-      title: 'Select the ZIP',
-      description: 'Pick the Uber archive from Recents or your Downloads folder. Keep the file zipped.',
-      image: require('../../assets/UberDataTutorialScreenshots/3/2.webp'),
-      imageLabel: 'Device file picker with an Uber ZIP archive highlighted',
+      fallback: 'Keep the file zipped. SnackTrack handles the contents for you.',
     },
   ],
   doordash: [
     {
-      title: 'Open the notification',
+      title: 'Open DoorDash’s ready message',
       description: 'Open DoorDash’s data-ready email or notification, then tap View Your Data Archive.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/2/1.webp'),
       imageLabel: 'DoorDash archive-ready email with View Your Data Archive highlighted',
+      fallback: 'The archive link expires, so download it promptly.',
     },
     {
       title: 'Download your archive',
       description: 'Tap Download before the archive link expires.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/2/2.webp'),
       imageLabel: 'DoorDash archive page with Download highlighted',
+      fallback: 'DoorDash may ask you to sign in again before showing the download.',
     },
     {
-      title: 'Confirm the download',
-      description: 'Approve the ZIP download when your browser asks.',
+      title: 'Confirm the ZIP download',
+      description: 'When your browser asks, choose “Download” and wait for it to finish.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/2/3.webp'),
       imageLabel: 'Browser confirmation dialog with Download highlighted',
-    },
-    {
-      title: 'Choose your downloaded ZIP',
-      description: 'Return to SnackTrack and choose your downloaded DoorDash ZIP file.',
-      image: require('../../assets/DoorDashDataTutorialScreenshots/3/1.webp'),
-      imageLabel: 'SnackTrack history-file chooser highlighted',
-    },
-    {
-      title: 'Select the ZIP',
-      description: 'Pick data_archive.zip from Recents or your Downloads folder. Keep the file zipped.',
-      image: require('../../assets/DoorDashDataTutorialScreenshots/3/2.webp'),
-      imageLabel: 'Device file picker with a DoorDash ZIP archive highlighted',
+      fallback: 'Keep the file zipped. SnackTrack handles the contents for you.',
     },
   ],
 };
@@ -136,6 +128,7 @@ const DOWNLOAD_STEPS: Record<DataPlatform, TutorialStep[]> = {
 const platformDetailsForTheme = (theme: AppTheme) => ({
   uber: {
     name: 'Uber Eats',
+    shortName: 'Uber',
     accent: theme.colors.uberDark,
     surface: theme.colors.successBg,
     icon: 'car-outline' as const,
@@ -143,6 +136,7 @@ const platformDetailsForTheme = (theme: AppTheme) => ({
   },
   doordash: {
     name: 'DoorDash',
+    shortName: 'DoorDash',
     accent: theme.colors.doorDash,
     surface: theme.colors.errorSurface,
     icon: 'bag-handle-outline' as const,
@@ -152,25 +146,32 @@ const platformDetailsForTheme = (theme: AppTheme) => ({
 
 interface UberDataTutorialProps {
   mode?: DataTutorialMode;
+  skipRequestOverview?: boolean;
   initialPlatform?: DataPlatform;
   providerStatuses?: Partial<Record<DataPlatform, string>>;
   entryJob?: ProviderTutorialJob;
-  onRequestConfirmed: (platform: DataPlatform) => void;
+  onRequestConfirmed: (platform: DataPlatform) => Promise<boolean>;
+  onRequestNotSubmitted?: (platform: DataPlatform) => void;
+  onOpenRequest?: (platform: DataPlatform) => Promise<void>;
   onStillWaiting?: (platform: DataPlatform) => void;
   onArchiveDownloaded?: (platform: DataPlatform) => void;
   onReadyConfirmed?: (platform: DataPlatform) => void;
+  returnToParentOnBack?: boolean;
   onClose: () => void;
 }
 
 export default function UberDataTutorial({
   mode = 'request',
+  skipRequestOverview = false,
   initialPlatform,
   providerStatuses,
   entryJob,
   onRequestConfirmed,
-  onStillWaiting,
+  onOpenRequest,
+  onRequestNotSubmitted,
   onArchiveDownloaded,
   onReadyConfirmed,
+  returnToParentOnBack = false,
   onClose,
 }: UberDataTutorialProps) {
   const theme = useAppTheme();
@@ -179,33 +180,41 @@ export default function UberDataTutorial({
   const [platform, setPlatform] = useState<DataPlatform>(initialPlatform ?? 'uber');
   const [hasChosenPlatform, setHasChosenPlatform] = useState(Boolean(initialPlatform));
   const initialProviderStatus = initialPlatform ? providerStatuses?.[initialPlatform] : undefined;
-  const initialEntry = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
-  const [tutorialMode, setTutorialMode] = useState<DataTutorialMode>(mode);
-  const [activeJob, setActiveJob] = useState<ProviderTutorialJob>(initialEntry);
-  const [showProviderOverview, setShowProviderOverview] = useState(Boolean(initialPlatform && mode === 'request' && initialEntry === 'request'));
+  const initialEntry = entryJob
+    ? { job: entryJob, mode }
+    : resolveProviderTutorialEntry(initialProviderStatus);
+  const [tutorialMode, setTutorialMode] = useState<DataTutorialMode>(initialEntry.mode);
+  const [activeJob, setActiveJob] = useState<ProviderTutorialJob>(initialEntry.job);
+  const [showProviderOverview, setShowProviderOverview] = useState(Boolean(!skipRequestOverview && initialPlatform && initialEntry.mode === 'request' && initialEntry.job === 'request'));
   const [showProgressQuestion, setShowProgressQuestion] = useState(false);
-  const [showRequestedQuestion, setShowRequestedQuestion] = useState(initialEntry === 'waiting');
+  const [showRequestedQuestion, setShowRequestedQuestion] = useState(initialEntry.job === 'waiting');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<TutorialStep | null>(null);
   const [awaitingVendorReturn, setAwaitingVendorReturn] = useState(false);
   const [showRequestConfirmation, setShowRequestConfirmation] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const confirmationInFlight = useRef(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const appState = useRef(AppState.currentState);
+  const carouselRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   useEffect(() => {
     setPlatform(initialPlatform ?? 'uber');
     setHasChosenPlatform(Boolean(initialPlatform));
-    setTutorialMode(mode);
-    const nextJob = entryJob ?? resolveProviderTutorialEntry(initialProviderStatus).job;
-    setActiveJob(nextJob);
-    setShowProviderOverview(Boolean(initialPlatform && mode === 'request' && nextJob === 'request'));
+    const nextEntry = entryJob
+      ? { job: entryJob, mode }
+      : resolveProviderTutorialEntry(initialProviderStatus);
+    setTutorialMode(nextEntry.mode);
+    setActiveJob(nextEntry.job);
+    setShowProviderOverview(Boolean(!skipRequestOverview && initialPlatform && nextEntry.mode === 'request' && nextEntry.job === 'request'));
     setShowProgressQuestion(false);
-    setShowRequestedQuestion(nextJob === 'waiting');
+    setShowRequestedQuestion(nextEntry.job === 'waiting');
     setCurrentIndex(0);
     setAwaitingVendorReturn(false);
     setShowRequestConfirmation(false);
-  }, [entryJob, initialPlatform, initialProviderStatus, mode]);
+  }, [entryJob, initialPlatform, initialProviderStatus, mode, skipRequestOverview]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -219,25 +228,17 @@ export default function UberDataTutorial({
     return () => subscription.remove();
   }, [awaitingVendorReturn, tutorialMode]);
 
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => subscription.remove();
+  }, []);
+
   const details = platformDetails[platform];
   const steps = tutorialMode === 'request' ? REQUEST_STEPS[platform] : DOWNLOAD_STEPS[platform];
   const currentStep = steps[currentIndex];
   const isLastStep = currentIndex === steps.length - 1;
-
-  const imageSize = useMemo(() => {
-    if (!currentStep) return { width: 0, height: 0 };
-    const resolved = Image.resolveAssetSource(currentStep.image);
-    const aspectRatio = resolved.width / resolved.height;
-    const maxWidth = Math.min(windowWidth - 40, 520);
-    const maxHeight = Math.min(windowHeight * 0.5, 520);
-    let displayWidth = maxWidth;
-    let displayHeight = displayWidth / aspectRatio;
-    if (displayHeight > maxHeight) {
-      displayHeight = maxHeight;
-      displayWidth = displayHeight * aspectRatio;
-    }
-    return { width: displayWidth, height: displayHeight };
-  }, [currentStep, windowHeight, windowWidth]);
+  const carouselImageHeight = Math.min(Math.max(windowHeight * 0.32, 220), 340);
 
   const choosePlatform = (nextPlatform: DataPlatform) => {
     const nextEntry = resolveProviderTutorialEntry(providerStatuses?.[nextPlatform]);
@@ -259,11 +260,24 @@ export default function UberDataTutorial({
     setActiveJob('waiting');
   };
 
+  const goToStep = (index: number) => {
+    const nextIndex = Math.max(0, Math.min(index, steps.length - 1));
+    setCurrentIndex(nextIndex);
+    carouselRef.current?.scrollTo({ x: nextIndex * windowWidth, animated: !reduceMotion });
+  };
+
+  const handleCarouselSettled = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+    setCurrentIndex(Math.max(0, Math.min(nextIndex, steps.length - 1)));
+  };
+
   const goBack = () => {
+    if (confirming) return;
     if (currentIndex > 0) {
-      setCurrentIndex((index) => index - 1);
+      goToStep(currentIndex - 1);
     } else if (initialPlatform) {
       const returningFromDownloadGuide = tutorialMode === 'download';
+      if (skipRequestOverview && returnToParentOnBack) { onClose(); return; }
       if (!returningFromDownloadGuide && activeJob === 'request') {
         setShowProviderOverview(true);
         return;
@@ -279,21 +293,42 @@ export default function UberDataTutorial({
 
   const goForward = () => {
     if (!isLastStep) {
-      setCurrentIndex((index) => index + 1);
+      goToStep(currentIndex + 1);
       return;
     }
     if (tutorialMode === 'request') {
-      onRequestConfirmed(platform);
+      setShowRequestConfirmation(true);
     } else {
       onArchiveDownloaded?.(platform);
       if (!onArchiveDownloaded) onClose();
     }
   };
 
+  const confirmAcceptedRequest = async () => {
+    if (confirmationInFlight.current) return;
+    confirmationInFlight.current = true;
+    setConfirming(true);
+    try {
+      const saved = await onRequestConfirmed(platform);
+      if (saved) setShowRequestConfirmation(false);
+    } catch {
+      showSimpleAlert('Could not save your request', 'Please try saving again. Your request may still be with the delivery service.');
+    } finally { confirmationInFlight.current = false; setConfirming(false); }
+  };
+  const confirmStillWaiting = () => { if (!confirmationInFlight.current) setShowRequestConfirmation(true); };
+
+  const showCurrentStepHelp = () => {
+    showSimpleAlert(
+      `Can’t find this on ${details.shortName}?`,
+      currentStep.fallback,
+    );
+  };
+
   const openVendorRequest = async () => {
     setAwaitingVendorReturn(true);
     try {
-      await Linking.openURL(details.requestUrl);
+      if (onOpenRequest) await onOpenRequest(platform);
+      else await Linking.openURL(details.requestUrl);
     } catch {
       setAwaitingVendorReturn(false);
       showSimpleAlert(
@@ -393,44 +428,46 @@ export default function UberDataTutorial({
     );
   }
 
+  if (showRequestConfirmation) {
+    return <ProviderRequestConfirmation platform={platform} onBack={() => setShowRequestConfirmation(false)} pending={confirming} onConfirm={() => { void confirmAcceptedRequest(); }} onShowSteps={() => { onRequestNotSubmitted?.(platform); setShowRequestConfirmation(false); }} />;
+  }
+
   if (showProviderOverview) {
+    const leaveOverview = () => {
+      if (returnToParentOnBack) {
+        onClose();
+        return;
+      }
+      setShowProviderOverview(false);
+      setHasChosenPlatform(false);
+    };
     return (
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.overviewHeader}>
-          <TouchableOpacity accessibilityLabel="Choose another source" style={styles.headerButton} onPress={() => {
-            setShowProviderOverview(false);
-            setHasChosenPlatform(false);
-          }}>
-            <Ionicons name="arrow-back" size={23} color={theme.colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.overviewProvider}>{details.name} · 1 of 3</Text>
-          <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.overviewContent}>
-          <Text style={styles.overviewEyebrow}>UNLOCK DEEPER STATS</Text>
+        <TutorialHeader trailingLabel="PART 1 OF 3" onBack={leaveOverview} />
+        <ScrollView contentContainerStyle={styles.overviewContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.decisionIcon}><Ionicons name="download-outline" size={30} color={theme.colors.primary} /></View>
+          <Text style={styles.overviewEyebrow}>GET YOUR {details.name.toUpperCase()} DATA</Text>
           <Text style={styles.overviewTitle}>First, ask {details.name} for your history</Text>
-          <Text style={styles.overviewBody}>We’ll open the right page. Sign in, request your data, then come back here.</Text>
+          <Text style={styles.overviewBody}>We’ll show you exactly what to tap, then open {details.shortName}’s official data page.</Text>
           <View style={styles.overviewSurface}>
-            <Text style={styles.overviewSurfaceTitle}>What happens next</Text>
-            <OverviewRow number="1" title="Request your history" body={`SnackTrack opens ${details.name}’s official privacy page.`} />
-            <OverviewRow divided number="2" title="Wait for the ready message" body={`${details.name} will email or notify you when it’s available.`} />
-            <OverviewRow divided number="3" title="Bring it back to SnackTrack" body="We’ll add the details and refresh your recap." />
+            <OverviewRow number="1" title="Follow the visual guide" body="A few short screens show you what to look for." />
+            <OverviewRow divided number="2" title="Request your history" body={`Sign in to ${details.shortName} and submit the request.`} />
+            <OverviewRow divided number="3" title="Come back when it’s ready" body={`Your place is saved while ${details.shortName} prepares it.`} />
+          </View>
+          <View style={styles.safeToLeaveNote}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.primary} />
+            <Text style={styles.safeToLeaveText}>You’ll briefly leave SnackTrack. Your progress will stay saved.</Text>
           </View>
           <View style={styles.overviewActions}>
             <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowProviderOverview(false)} accessibilityRole="button">
-              <Text style={styles.primaryButtonText}>Show me how</Text>
+              <Text style={styles.primaryButtonText}>Start the guided request</Text>
               <Ionicons name="arrow-forward" size={21} color={theme.colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.overviewSecondaryButton} onPress={() => {
-              setShowProviderOverview(false);
-              setHasChosenPlatform(false);
-            }} accessibilityRole="button">
-              <Text style={styles.overviewSecondaryText}>Choose another source</Text>
+            <TouchableOpacity style={styles.notYetButton} onPress={showRequestedStatusQuestion} accessibilityRole="button">
+              <Text style={styles.notYetText}>I already requested it</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -444,6 +481,10 @@ export default function UberDataTutorial({
             style={styles.headerButton}
             onPress={() => {
               if (showRequestedQuestion) {
+                if (returnToParentOnBack && entryJob === 'waiting') {
+                  onClose();
+                  return;
+                }
                 setShowRequestedQuestion(false);
                 setShowProgressQuestion(true);
               } else {
@@ -464,11 +505,11 @@ export default function UberDataTutorial({
         <View style={styles.questionContent}>
           <Text style={[styles.platformEyebrow, { color: details.accent }]}>LET’S FIND YOUR NEXT STEP</Text>
           <Text style={styles.platformTitle}>
-            {showRequestedQuestion ? 'What happened after you requested it?' : 'Have you requested your data yet?'}
+            {showRequestedQuestion ? 'Where are you in the process?' : 'Have you requested your data yet?'}
           </Text>
           <Text style={styles.platformBody}>
             {showRequestedQuestion
-              ? `Choose the option that matches where you are with ${details.name}.`
+              ? `Choose the option that matches what happened with ${details.shortName}. We’ll take you to the right next step.`
               : 'No digging around for a file you do not have yet. We’ll only ask you to choose a file when it makes sense.'}
           </Text>
           <View style={styles.answerStack}>
@@ -476,15 +517,15 @@ export default function UberDataTutorial({
               <>
                 <JourneyAnswer
                   icon="time-outline"
-                  title="I’m still waiting"
-                  description={`${details.name} has not said it’s ready yet.`}
+                  title={`I’m waiting for ${details.shortName}`}
+                  description="I requested my data, but it isn’t ready yet."
                   accent={details.accent}
-                  onPress={() => (onStillWaiting ?? onRequestConfirmed)(platform)}
+                  onPress={() => { void confirmStillWaiting(); }}
                 />
                 <JourneyAnswer
                   icon="mail-unread-outline"
-                  title="They said it’s ready"
-                  description="Show me how to download the archive."
+                  title={`${details.shortName} said it’s ready`}
+                  description="I received the email or notification."
                   accent={details.accent}
                   onPress={() => {
                     onReadyConfirmed?.(platform);
@@ -497,8 +538,8 @@ export default function UberDataTutorial({
                 {onArchiveDownloaded ? (
                   <JourneyAnswer
                     icon="checkmark-circle-outline"
-                    title="The ZIP is downloaded"
-                    description="Open the file picker so I can import it now."
+                    title="I downloaded it"
+                    description={`The ${details.shortName} download is saved on this device.`}
                     accent={details.accent}
                     onPress={() => onArchiveDownloaded(platform)}
                   />
@@ -523,6 +564,20 @@ export default function UberDataTutorial({
               </>
             )}
           </View>
+          {showRequestedQuestion ? (
+            <TouchableOpacity
+              style={styles.notYetButton}
+              onPress={() => {
+                setShowRequestedQuestion(false);
+                setActiveJob('request');
+                setTutorialMode('request');
+                setShowProviderOverview(true);
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.notYetText}>I haven’t requested it yet</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     );
@@ -530,104 +585,114 @@ export default function UberDataTutorial({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity accessibilityLabel="Previous tutorial step" style={styles.headerButton} onPress={goBack}>
-          <Ionicons name="arrow-back" size={23} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.providerChip, { backgroundColor: details.surface }]}
-          onPress={() => setHasChosenPlatform(false)}
-          accessibilityRole="button"
-          accessibilityLabel={`Change provider from ${details.name}`}
-        >
-          <Text style={[styles.providerChipText, { color: details.accent }]}>{details.name}</Text>
-          <Ionicons name="chevron-down" size={15} color={details.accent} />
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityLabel="Close tutorial" style={styles.headerButton} onPress={onClose}>
-          <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
+      <TutorialHeader providerName={details.name} onBack={goBack} />
+
+      <View style={styles.carouselIntro}>
+        <Text style={[styles.stepEyebrow, { color: details.accent }]}>
+          {tutorialMode === 'request' ? 'REQUEST YOUR DATA' : 'DOWNLOAD YOUR DATA'}
+        </Text>
+        <Text style={styles.carouselTitle}>
+          {tutorialMode === 'request'
+            ? `Follow these steps on ${details.shortName}`
+            : `Save your ${details.shortName} archive`}
+        </Text>
+        <Text style={styles.carouselBody}>Swipe or tap Next to move through each step.</Text>
+        <View style={styles.carouselProgressRow}>
+          <View style={styles.carouselDots}>
+            {steps.map((step, index) => (
+              <TouchableOpacity
+                key={step.title}
+                style={styles.carouselDotTarget}
+                onPress={() => goToStep(index)}
+                accessibilityRole="button"
+                accessibilityLabel={`Show step ${index + 1}: ${step.title}`}
+                accessibilityState={{ selected: index === currentIndex }}
+              >
+                <View style={[styles.carouselDot, index === currentIndex && styles.carouselDotActive]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text
+            style={styles.carouselCount}
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 1, max: steps.length, now: currentIndex + 1 }}
+            accessibilityLiveRegion="polite"
+          >
+            {currentIndex + 1} of {steps.length}
+          </Text>
+        </View>
       </View>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.stepContent}
-        showsVerticalScrollIndicator={false}
+        key={`${platform}-${tutorialMode}`}
+        testID="provider-tutorial-carousel"
+        ref={carouselRef}
+        horizontal
+        pagingEnabled
+        directionalLockEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleCarouselSettled}
+        style={styles.carousel}
+        accessibilityLabel={`${details.name} ${tutorialMode} tutorial slides`}
       >
-        <Text style={[styles.stepEyebrow, { color: details.accent }]}>
-          {tutorialMode === 'request' ? 'REQUEST YOUR ARCHIVE' : 'DOWNLOAD AND IMPORT'} · {currentIndex + 1}/{steps.length}
-        </Text>
-        <Text style={styles.stepTitle}>{currentStep.title}</Text>
-        <Text style={styles.stepDescription}>{currentStep.description}</Text>
-
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={styles.imageButton}
-          onPress={() => setZoomedImage(currentStep)}
-          accessibilityRole="imagebutton"
-          accessibilityLabel={`${currentStep.imageLabel}. Tap to enlarge.`}
-        >
-          <Image
-            source={currentStep.image}
-            style={[styles.screenshot, imageSize]}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-          <View style={styles.zoomHint}>
-            <Ionicons name="expand-outline" size={15} color={theme.colors.textSecondary} />
-            <Text style={styles.zoomHintText}>Tap to enlarge</Text>
-          </View>
-        </TouchableOpacity>
-
+        {steps.map((step, index) => (
+          <ScrollView
+            key={step.title}
+            style={{ width: windowWidth }}
+            contentContainerStyle={styles.carouselSlideContent}
+            showsVerticalScrollIndicator={false}
+            accessibilityElementsHidden={index !== currentIndex}
+            importantForAccessibility={index === currentIndex ? 'auto' : 'no-hide-descendants'}
+          >
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.carouselImageButton}
+              onPress={() => setZoomedImage(step)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={`${step.imageLabel}. Tap to enlarge.`}
+            >
+              <Image
+                source={step.image}
+                style={[styles.carouselScreenshot, { height: carouselImageHeight }]}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+              <View style={styles.zoomHint}>
+                <Ionicons name="expand-outline" size={15} color={theme.colors.textSecondary} />
+                <Text style={styles.zoomHintText}>Tap to enlarge</Text>
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.carouselStepTitle} accessibilityLiveRegion={index === currentIndex ? 'polite' : 'none'}>
+              {step.title}
+            </Text>
+            <Text style={styles.carouselStepDescription}>{step.description}</Text>
+            <View style={styles.stepFallback}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.stepFallbackText}>{step.fallback}</Text>
+            </View>
+          </ScrollView>
+        ))}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <View style={styles.progressTrack}>
-          {steps.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.progressSegment,
-                index <= currentIndex && { backgroundColor: details.accent },
-              ]}
-            />
-          ))}
-        </View>
-        <View style={styles.footerActions}>
-          <TouchableOpacity
-            style={styles.previousButton}
-            onPress={goBack}
-            accessibilityRole="button"
-            accessibilityLabel="Previous instruction"
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
-            <Text style={styles.previousButtonText}>Previous</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.primaryButton, styles.footerPrimaryButton, { backgroundColor: details.accent }]}
-            onPress={isLastStep && tutorialMode === 'request' ? openVendorRequest : goForward}
-            accessibilityRole={isLastStep && tutorialMode === 'request' ? 'link' : 'button'}
-            accessibilityLabel={isLastStep && tutorialMode === 'request' ? `Open ${details.name} website to submit the data request` : undefined}
-          >
-            <Text style={styles.primaryButtonText}>
-              {isLastStep
-                ? tutorialMode === 'request'
-                  ? platform === 'uber' ? 'Open Uber Data Page' : `Open ${details.name} Website`
-                  : onArchiveDownloaded ? 'I Downloaded the ZIP' : 'Back to Import'
-                : 'Next'}
-            </Text>
-            <Ionicons name={isLastStep ? tutorialMode === 'request' ? 'open-outline' : 'checkmark' : 'arrow-forward'} size={21} color={theme.colors.white} />
-          </TouchableOpacity>
-        </View>
-        {isLastStep && tutorialMode === 'request' ? (
-          <>
-            <TouchableOpacity style={styles.notYetButton} onPress={showRequestedStatusQuestion}>
-              <Text style={styles.notYetText}>I’ve already requested it</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.notYetButton} onPress={() => setHasChosenPlatform(false)}>
-              <Text style={styles.notYetText}>Choose another provider</Text>
-            </TouchableOpacity>
-          </>
-        ) : null}
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+          onPress={isLastStep && tutorialMode === 'request' ? openVendorRequest : goForward}
+          accessibilityRole={isLastStep && tutorialMode === 'request' ? 'link' : 'button'}
+          accessibilityLabel={isLastStep && tutorialMode === 'request' ? `Open ${details.name} website to submit the data request` : undefined}
+        >
+          <Text style={styles.primaryButtonText}>
+            {isLastStep
+              ? tutorialMode === 'request'
+                ? `Open ${details.shortName}’s data page`
+                : 'I downloaded the ZIP'
+              : 'Next'}
+          </Text>
+          <Ionicons name={isLastStep && tutorialMode === 'request' ? 'open-outline' : isLastStep ? 'checkmark' : 'arrow-forward'} size={21} color={theme.colors.white} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.notYetButton} onPress={showCurrentStepHelp} accessibilityRole="button">
+          <Text style={styles.notYetText}>I can’t find this</Text>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={Boolean(zoomedImage)} transparent animationType="fade" onRequestClose={() => setZoomedImage(null)}>
@@ -641,31 +706,83 @@ export default function UberDataTutorial({
         </View>
       </Modal>
 
-      <Modal visible={showRequestConfirmation} transparent animationType="fade" onRequestClose={() => setShowRequestConfirmation(false)}>
-        <View style={styles.confirmBackdrop}>
-          <View style={styles.confirmCard} accessibilityViewIsModal>
-            <View style={[styles.confirmIcon, { backgroundColor: details.surface }]}>
-              <Ionicons name="document-text-outline" size={26} color={details.accent} />
+    </View>
+  );
+}
+
+export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onShowSteps, showStepsLabel = 'No, show the last step again', pending = false }: {
+  platform: DataPlatform;
+  onBack: () => void;
+  onConfirm: () => void;
+  onShowSteps: () => void;
+  showStepsLabel?: string;
+  pending?: boolean;
+}) {
+  usePreventRemove(pending, () => showSimpleAlert('Saving your progress', 'Please wait for the request to be saved.'));
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const details = platformDetailsForTheme(theme)[platform];
+  return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <TutorialHeader providerName={details.name} onBack={() => { if (!pending) onBack(); }} />
+        <ScrollView contentContainerStyle={styles.decisionContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.decisionIcon}><Ionicons name="clipboard-outline" size={30} color={theme.colors.primary} /></View>
+          <Text style={styles.decisionEyebrow}>WELCOME BACK</Text>
+          <Text style={styles.decisionTitle}>Did {details.shortName} accept your request?</Text>
+          <Text style={styles.decisionBody}>Confirm only if {details.shortName} showed that your data request was submitted.</Text>
+          {platform === 'uber' ? (
+            <View style={[styles.decisionSurface, styles.requestEmailCard]}>
+              <View style={styles.requestEmailHeading}>
+                <Ionicons name="mail-outline" size={26} color={theme.colors.primary} />
+                <Text accessibilityRole="header" style={styles.requestEmailTitle}>Check your inbox</Text>
+              </View>
+              <Text style={styles.requestEmailBody}>You should get a confirmation email from Uber with this subject:</Text>
+              <View style={styles.requestEmailSubjectSurface}>
+                <Text style={styles.requestEmailSubjectLabel}>EMAIL SUBJECT</Text>
+                <Text selectable style={styles.requestEmailSubject}>Uber data request received</Text>
+              </View>
+              <Text style={styles.requestEmailBody}>This confirms Uber received your request. A separate email will tell you when your data is ready to download.</Text>
             </View>
-            <Text style={styles.confirmTitle}>Did you submit the request?</Text>
-            <Text style={styles.confirmBody}>Confirm only after {details.name} accepted your data request.</Text>
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: details.accent }]}
-              onPress={() => {
-                setShowRequestConfirmation(false);
-                onRequestConfirmed(platform);
-              }}
-              accessibilityRole="button"
-            >
-              <Text style={styles.primaryButtonText}>Yes, I Requested It</Text>
-              <Ionicons name="checkmark" size={21} color={theme.colors.white} />
+          ) : (
+            <View style={styles.decisionSurface}>
+              <DecisionRow icon="checkmark-circle-outline" title="What success looks like" body={`${details.shortName} confirms the request and says it will notify you when the data is ready.`} />
+            </View>
+          )}
+          <View style={styles.decisionActions}>
+            <TouchableOpacity style={styles.primaryButton} onPress={onConfirm} disabled={pending} accessibilityState={{ busy: pending, disabled: pending }} accessibilityRole="button">
+              <Text style={styles.primaryButtonText}>{pending ? 'Saving your progress…' : `Yes, ${details.shortName} accepted it`}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.notYetButton} onPress={() => setShowRequestConfirmation(false)} accessibilityRole="button">
-              <Text style={styles.notYetText}>Not yet</Text>
+            <TouchableOpacity style={styles.secondaryButton} onPress={onShowSteps} disabled={pending} accessibilityRole="button">
+              <Text style={styles.secondaryButtonText}>{showStepsLabel}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
+      </View>
+  );
+}
+
+function TutorialHeader({ providerName, trailingLabel, onBack }: { providerName?: string; trailingLabel?: string; onBack: () => void }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={styles.journeyHeader}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={styles.journeyBack} onPress={onBack}>
+        <Ionicons name="arrow-back" size={22} color={theme.colors.primary} />
+        <Text style={styles.journeyBackText}>Back</Text>
+      </TouchableOpacity>
+      {providerName ? <View style={styles.providerChip}><Text style={styles.journeyChipText}>{providerName}</Text></View> : <Text style={styles.journeyStepLabel}>{trailingLabel}</Text>}
+    </View>
+  );
+}
+
+function DecisionRow({ icon, title, body, divided = false }: { icon: React.ComponentProps<typeof Ionicons>['name']; title: string; body: string; divided?: boolean }) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={[styles.decisionRow, divided && styles.decisionRowDivided]}>
+      <Ionicons name={icon} size={22} color={theme.colors.primary} />
+      <View style={styles.decisionRowCopy}><Text style={styles.decisionRowTitle}>{title}</Text><Text style={styles.decisionRowBody}>{body}</Text></View>
     </View>
   );
 }
@@ -733,14 +850,11 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 44 },
   headerTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
-  overviewHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
-  overviewProvider: { color: theme.colors.textSecondary, fontSize: 11, fontWeight: '500' },
-  overviewContent: { flex: 1, paddingHorizontal: 18, paddingBottom: 6 },
-  overviewEyebrow: { marginTop: 10, color: theme.colors.primary, fontSize: 12, fontWeight: '500', letterSpacing: 1.1 },
+  overviewContent: { flexGrow: 1, paddingHorizontal: 18, paddingBottom: 20 },
+  overviewEyebrow: { marginTop: 2, color: theme.colors.primary, fontSize: 12, fontWeight: '500', letterSpacing: 1.1 },
   overviewTitle: { marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.4 },
   overviewBody: { marginTop: 9, color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22 },
   overviewSurface: { marginTop: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 5, borderRadius: Radius.card, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface, ...theme.shadows.card },
-  overviewSurfaceTitle: { color: theme.colors.textPrimary, fontSize: 16, lineHeight: 20, fontWeight: '500' },
   overviewRow: { minHeight: 68, flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 11 },
   overviewRowDivided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
   overviewNumber: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: theme.colors.chipActiveBg },
@@ -748,15 +862,10 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   overviewRowCopy: { flex: 1 },
   overviewRowTitle: { color: theme.colors.textPrimary, fontSize: 14, lineHeight: 18, fontWeight: '500' },
   overviewRowBody: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  overviewActions: { marginTop: 'auto', gap: 10, paddingTop: 18 },
-  overviewSecondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.button, borderWidth: 1, borderColor: theme.colors.buttonSecondaryBorder, backgroundColor: theme.colors.surface },
-  overviewSecondaryText: { color: theme.colors.buttonSecondaryText, fontSize: 14, fontWeight: '500' },
-  confirmBackdrop: { flex: 1, backgroundColor: theme.colors.alpha(theme.colors.black, 0.55), alignItems: 'center', justifyContent: 'center', padding: 24 },
-  confirmCard: { width: '100%', maxWidth: 440, backgroundColor: theme.colors.surface, borderRadius: Radius.card, padding: 24, ...theme.shadows.card },
-  confirmIcon: { width: 52, height: 52, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  confirmTitle: { color: theme.colors.textPrimary, fontSize: 22, fontWeight: '600', marginBottom: 8 },
-  confirmBody: { color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: 20 },
-  providerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
+  overviewActions: { marginTop: 'auto', gap: 8, paddingTop: 18 },
+  safeToLeaveNote: { marginTop: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 13, borderRadius: Radius.input, backgroundColor: theme.colors.successBg },
+  safeToLeaveText: { flex: 1, color: theme.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  providerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, backgroundColor: theme.colors.successBg },
   providerChipText: { fontSize: 14, fontWeight: '500' },
   platformContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 },
   platformEyebrow: { color: theme.colors.primary, fontSize: 12, fontWeight: '500', letterSpacing: 1.1, textAlign: 'center' },
@@ -775,27 +884,58 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   platformCardText: { flex: 1, marginHorizontal: 14 },
   platformName: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
   platformDescription: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 14 },
-  scrollView: { flex: 1 },
-  stepContent: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28 },
-  stepEyebrow: { fontSize: 11, fontWeight: '500', letterSpacing: 0.9, textAlign: 'center' },
-  stepTitle: { marginTop: 8, color: theme.colors.textPrimary, fontSize: 29, lineHeight: 35, fontWeight: '600', textAlign: 'center' },
-  stepDescription: { maxWidth: 520, marginTop: 10, color: theme.colors.textSecondary, fontSize: 16, lineHeight: 23, textAlign: 'center' },
-  imageButton: { alignItems: 'center', marginTop: 22, padding: 10, borderRadius: Radius.card, backgroundColor: theme.colors.surface, ...theme.shadows.card },
-  screenshot: { borderRadius: 14, backgroundColor: theme.colors.white },
+  stepEyebrow: { fontSize: 11, fontWeight: '500', letterSpacing: 0.9 },
+  carouselIntro: { paddingHorizontal: 18, paddingTop: 4 },
+  carouselTitle: { marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.4 },
+  carouselBody: { marginTop: 7, color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20 },
+  carouselProgressRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  carouselDots: { flexDirection: 'row', alignItems: 'center' },
+  carouselDotTarget: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
+  carouselDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.gray200 },
+  carouselDotActive: { width: 22, backgroundColor: theme.colors.primary },
+  carouselCount: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  carousel: { flex: 1 },
+  carouselSlideContent: { paddingHorizontal: 18, paddingBottom: 16 },
+  carouselImageButton: { alignItems: 'center', padding: 9, borderRadius: Radius.card, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface, ...theme.shadows.card },
+  carouselScreenshot: { width: '100%', borderRadius: 14, backgroundColor: theme.colors.white },
+  carouselStepTitle: { marginTop: 14, color: theme.colors.textPrimary, fontSize: 20, lineHeight: 24, fontWeight: '500', letterSpacing: -0.2 },
+  carouselStepDescription: { marginTop: 4, color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20 },
   zoomHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
-  zoomHintText: { color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  footer: { paddingTop: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: theme.colors.divider, backgroundColor: theme.colors.surface },
-  footerActions: { flexDirection: 'row', gap: 10 },
-  footerPrimaryButton: { flex: 1 },
-  previousButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: Radius.button, backgroundColor: theme.colors.surface },
-  previousButtonText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  progressTrack: { flexDirection: 'row', gap: 5, marginBottom: 12 },
-  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: theme.colors.gray200 },
-  primaryButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: Radius.button },
-  primaryButtonText: { color: theme.colors.white, fontSize: 17, fontWeight: '600' },
+  zoomHintText: { color: theme.colors.textSecondary, fontSize: 12, fontWeight: '500' },
+  stepFallback: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 11 },
+  stepFallbackText: { flex: 1, color: theme.colors.textSecondary, fontSize: 12, lineHeight: 17 },
+  footer: { paddingTop: 10, paddingHorizontal: 18, backgroundColor: theme.colors.background },
+  primaryButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: Radius.button, backgroundColor: theme.colors.primary },
+  primaryButtonText: { color: theme.colors.white, fontSize: 14, fontWeight: '500' },
+  secondaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, borderRadius: Radius.button, borderWidth: 1, borderColor: theme.colors.buttonSecondaryBorder, backgroundColor: theme.colors.surface },
+  secondaryButtonText: { color: theme.colors.buttonSecondaryText, fontSize: 14, fontWeight: '500', textAlign: 'center' },
   notYetButton: { alignItems: 'center', paddingTop: 13, paddingBottom: 2 },
   notYetText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '500' },
   zoomBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: theme.colors.alpha(theme.colors.black, 0.94) },
   zoomClose: { position: 'absolute', right: 16, zIndex: 1, width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: theme.colors.alpha(theme.colors.white, 0.14) },
   zoomedImage: { width: '100%', height: '88%' },
+  journeyHeader: { minHeight: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18 },
+  journeyBack: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, paddingRight: 8 },
+  journeyBackText: { color: theme.colors.primary, fontSize: 14, fontWeight: '500' },
+  journeyChipText: { color: theme.colors.primary, fontSize: 12, fontWeight: '500' },
+  journeyStepLabel: { color: theme.colors.textSecondary, fontSize: 11, fontWeight: '500', letterSpacing: 0.8 },
+  decisionContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 18, paddingBottom: 22 },
+  decisionIcon: { width: 66, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 22, marginTop: 8, marginBottom: 16, backgroundColor: theme.colors.successBg },
+  decisionEyebrow: { color: theme.colors.primary, fontSize: 12, lineHeight: 15, fontWeight: '500', letterSpacing: 1.1, textAlign: 'center' },
+  decisionTitle: { maxWidth: 350, marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.5, textAlign: 'center' },
+  decisionBody: { maxWidth: 340, marginTop: 9, color: theme.colors.textSecondary, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  decisionSurface: { alignSelf: 'stretch', marginTop: 18, paddingHorizontal: 16, paddingVertical: 4, borderRadius: Radius.card, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface, ...theme.shadows.card },
+  requestEmailCard: { paddingHorizontal: 20, paddingVertical: 22, gap: 16 },
+  requestEmailHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  requestEmailTitle: { flex: 1, color: theme.colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: '500' },
+  requestEmailBody: { color: theme.colors.textSecondary, fontSize: 16, lineHeight: 24 },
+  requestEmailSubjectSurface: { padding: 16, gap: 8, borderRadius: Radius.card, backgroundColor: theme.colors.successBg },
+  requestEmailSubjectLabel: { color: theme.colors.primary, fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 1 },
+  requestEmailSubject: { color: theme.colors.textPrimary, fontSize: 22, lineHeight: 29, fontWeight: '500' },
+  decisionRow: { minHeight: 72, flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 14 },
+  decisionRowDivided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
+  decisionRowCopy: { flex: 1 },
+  decisionRowTitle: { color: theme.colors.textPrimary, fontSize: 14, lineHeight: 18, fontWeight: '500' },
+  decisionRowBody: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 12, lineHeight: 16 },
+  decisionActions: { alignSelf: 'stretch', marginTop: 'auto', gap: 9, paddingTop: 24 },
 });

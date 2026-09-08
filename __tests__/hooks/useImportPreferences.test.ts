@@ -193,3 +193,16 @@ describe("useImportPreferences", () => {
     expect(result.current.preferences).toBeNull();
   });
 });
+
+it('keeps a failed request save separate from the authoritative preference query', async () => {
+  const current = createImportPreferencesFixture();
+  jest.mocked(gmailApi.getImportPreferences).mockResolvedValue(current);
+  jest.mocked(gmailApi.markExportRequested).mockRejectedValue(new Error('Save failed'));
+  const { Wrapper } = createQueryTestWrapper();
+  const { result } = renderHook(() => useImportPreferences(), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.preferences).toEqual(current));
+  await act(async () => { await result.current.markExportRequested('uber_eats').catch(() => undefined); });
+  expect(result.current.mutationError).toBeTruthy();
+  expect(result.current.queryError).toBeNull();
+  expect(result.current.preferences).toEqual(current);
+});

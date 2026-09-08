@@ -1,202 +1,63 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { Radius, type AppTheme } from '@constants/theme';
-import { useAppTheme } from '@contexts/AppearanceContext';
-import { useUser } from '@contexts/UserContext';
-import { useNetworkStatus } from '@hooks/useNetworkStatus';
-import { useExportImport } from '@hooks/useExportImport';
-import { parseApiError } from '@utils/errorUtils';
-import { captureException } from '@utils/sentry';
-import { showAlert } from '@utils/platformAlert';
-import type { ExportProvider, ImportOperation } from '@features/import-flow/contracts';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { usePreventRemove } from '@react-navigation/native';
 import { AppButton } from '@components/ui/AppButton';
+import { AppText } from '@components/ui/AppText';
+import { Surface } from '@components/ui/Surface';
+import { useAppTheme } from '@contexts/AppearanceContext';
+import { useImportFileSession, type ImportFileSession } from '@hooks/useImportFileSession';
+import { showSimpleAlert } from '@utils/platformAlert';
+import type { ExportProvider, ImportJourneyContext, ImportOperation } from '@features/import-flow/contracts';
 
-interface UberDataUploadProps {
+export const formatImportFileSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} KB` : `${(bytes / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 2 })} MB`;
+
+interface Props {
   provider?: ExportProvider;
-  onUploadSuccess?: (result: ImportOperation) => void | Promise<void>;
-  onUploadError?: (error: string) => void | Promise<void>;
+  journeyContext?: ImportJourneyContext;
+  session?: ImportFileSession;
+  importBlocked?: boolean;
+  buttonLabel?: string;
   autoOpenToken?: string | null;
   onAutoOpenConsumed?: () => void;
+  onUploadSuccess?: (operation: ImportOperation) => void | Promise<void>;
+  onUploadError?: (message: string) => void | Promise<void>;
 }
-
-interface SelectedArchive {
-  name: string;
-  size: number;
-  uri: string;
+export function ExportDataUpload(props: Props) {
+  return props.session ? <UploadReview {...props} fileSession={props.session} /> : <LocalUpload {...props} />;
 }
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes <= 0) return 'Unknown size';
-  const units = ['Bytes', 'KB', 'MB', 'GB'];
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-};
-
-const validateAsset = (asset: DocumentPicker.DocumentPickerAsset): string | null => {
-  const name = asset.name.toLowerCase();
-  if (!name.endsWith('.zip') && !name.endsWith('.csv')) {
-    return 'Choose the original ZIP or CSV file from Uber Eats or DoorDash.';
-  }
-  const maxBytes = name.endsWith('.zip') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-  if (asset.size && asset.size > maxBytes) {
-    return `${name.endsWith('.zip') ? 'ZIP' : 'CSV'} files must be smaller than ${name.endsWith('.zip') ? '50' : '10'} MB.`;
-  }
-  return null;
-};
-
-export function ExportDataUpload({
-  provider = 'uber_eats',
-  onUploadSuccess,
-  onUploadError,
-  autoOpenToken = null,
-  onAutoOpenConsumed,
-}: UberDataUploadProps) {
+function LocalUpload(props: Props) {
+  const session = useImportFileSession(props.provider ?? 'uber_eats', props.journeyContext ?? 'legacy', props.importBlocked);
+  return <UploadReview {...props} fileSession={session} />;
+}
+function UploadReview({ provider = 'uber_eats', fileSession, buttonLabel, autoOpenToken, onAutoOpenConsumed, onUploadSuccess }: Props & { fileSession: ImportFileSession }) {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const { state } = useUser();
-  const network = useNetworkStatus();
-  const exportImport = useExportImport();
-  const [selectedArchive, setSelectedArchive] = useState<SelectedArchive | null>(null);
-  const lastAutoOpenToken = useRef<string | null>(null);
-  const isOffline = network.type === 'none'
-    || network.isConnected === false
-    || network.isInternetReachable === false;
-
-  const uploadArchive = useCallback(async (archive: SelectedArchive) => {
-    if (!state.user || exportImport.isPending) return;
-    if (isOffline) {
-      showAlert('No internet connection', 'Reconnect and try adding the archive again.');
-      return;
-    }
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(archive.uri);
-      const measuredSize = fileInfo?.exists && typeof fileInfo.size === 'number' ? fileInfo.size : 0;
-      if (measuredSize <= 0) {
-        showAlert('Archive could not be read', 'SnackTrack could not determine this file’s size. Choose the original downloaded file again.');
-        return;
-      }
-      const maximumBytes = archive.name.toLowerCase().endsWith('.zip') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (measuredSize > maximumBytes) {
-        showAlert('File is too large', `${archive.name.toLowerCase().endsWith('.zip') ? 'ZIP' : 'CSV'} files must be smaller than ${maximumBytes / 1024 / 1024} MB.`);
-        return;
-      }
-      const measuredArchive = { ...archive, size: measuredSize };
-      setSelectedArchive(measuredArchive);
-      const isZip = archive.name.toLowerCase().endsWith('.zip');
-      const importFile = provider === 'uber_eats' ? exportImport.importUberEatsFile : exportImport.importDoorDashFile;
-      const result = await importFile({
-        userId: state.user.id,
-        file: {
-          uri: measuredArchive.uri,
-          type: isZip ? 'application/zip' : 'text/csv',
-          name: measuredArchive.name,
-          size: measuredArchive.size,
-        },
-      });
-      setSelectedArchive(null);
-      await onUploadSuccess?.(result);
-    } catch (error: unknown) {
-      const parsedError = parseApiError(error);
-      if (parsedError.isRetryable || parsedError.type === 'server' || parsedError.type === 'network') {
-        captureException(error instanceof Error ? error : new Error(parsedError.message), {
-          context: 'ExportDataUpload',
-          fileSize: archive.size,
-          errorType: parsedError.type,
-          statusCode: parsedError.statusCode,
-        });
-      }
-      const noOrders = parsedError.code === 'NO_VALID_EXPORT_ORDERS';
-      showAlert(
-        noOrders ? 'No supported orders found' : 'Archive could not be added',
-        noOrders
-              ? `Confirm this is the original ${provider === 'uber_eats' ? 'Uber Eats' : 'DoorDash'} archive. If your account should contain orders, request a newer archive.`
-          : `${parsedError.message} Your existing SnackTrack history is unchanged.`,
-      );
-      await onUploadError?.(parsedError.message);
-    }
-  }, [exportImport, isOffline, onUploadError, onUploadSuccess, provider, state.user]);
-
-  const chooseArchive = useCallback(async () => {
-    if (!state.user) {
-      showAlert('Log in required', 'Log in before adding a delivery history file.');
-      return;
-    }
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/zip', 'application/x-zip-compressed', 'text/csv', 'application/csv'],
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled || !result.assets[0]) return;
-      const asset = result.assets[0];
-      const validationError = validateAsset(asset);
-      if (validationError) {
-        showAlert('Choose a delivery history file', validationError);
-        return;
-      }
-      await uploadArchive({ name: asset.name, size: asset.size ?? 0, uri: asset.uri });
-    } catch {
-      showAlert('Could not open your files', 'Try again and choose the original ZIP downloaded from Uber Eats or DoorDash.');
-    }
-  }, [state.user, uploadArchive]);
-
+  const handled = useRef<string | null>(null);
+  const opened = useRef<string | null>(null);
+  const chooseFile = fileSession.choose;
+  usePreventRemove(fileSession.isPending, () => showSimpleAlert('Keep SnackTrack open', 'Your file is being uploaded and submitted. You can leave this page once processing is accepted.'));
   useEffect(() => {
-    if (!autoOpenToken || lastAutoOpenToken.current === autoOpenToken) return;
-    lastAutoOpenToken.current = autoOpenToken;
-    onAutoOpenConsumed?.();
-    void chooseArchive();
-  }, [autoOpenToken, chooseArchive, onAutoOpenConsumed]);
-
-  if (exportImport.isPending && selectedArchive) {
-    return (
-      <View style={styles.processing} accessibilityLiveRegion="polite" accessibilityLabel={`Adding ${selectedArchive.name}`}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <View style={styles.processingCopy}>
-          <Text style={styles.processingTitle}>{exportImport.uploadProgress < 1 ? 'Uploading your history…' : 'Queued for import'}</Text>
-          <Text style={styles.processingFile} numberOfLines={1}>{selectedArchive.name}</Text>
-          <Text style={styles.processingHint}>{exportImport.uploadProgress < 1 ? `${Math.round(exportImport.uploadProgress * 100)}% uploaded` : 'You can leave this screen. SnackTrack will finish in the background.'}</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.actions}>
-      {selectedArchive ? (
-        <View style={styles.selectedFile}>
-          <Ionicons name="document-text-outline" size={24} color={theme.colors.primary} />
-          <View style={styles.selectedCopy}>
-            <Text style={styles.fileName} numberOfLines={1}>{selectedArchive.name}</Text>
-            <Text style={styles.fileSize}>{formatFileSize(selectedArchive.size)}</Text>
-          </View>
-        </View>
-      ) : null}
-      <AppButton
-        label={selectedArchive ? 'Try this file again' : 'Choose export file'}
-        icon={selectedArchive ? 'refresh-outline' : 'cloud-upload-outline'}
-        disabled={isOffline}
-        onPress={selectedArchive ? () => void uploadArchive(selectedArchive) : () => void chooseArchive()}
-      />
-      {isOffline ? <Text style={styles.offline}>Reconnect to the internet before choosing the file.</Text> : null}
-    </View>
-  );
+    if (!autoOpenToken || opened.current === autoOpenToken) return;
+    opened.current = autoOpenToken; onAutoOpenConsumed?.(); void chooseFile();
+  }, [autoOpenToken, chooseFile, onAutoOpenConsumed]);
+  useEffect(() => {
+    if (!fileSession.operation || fileSession.isPending || handled.current === fileSession.operation.id) return;
+    handled.current = fileSession.operation.id; void onUploadSuccess?.(fileSession.operation);
+  }, [fileSession.operation, fileSession.isPending, onUploadSuccess]);
+  const name = provider === 'uber_eats' ? 'Uber Eats' : 'DoorDash';
+  if (fileSession.isPending) return <Surface accessibilityLiveRegion="polite"><ActivityIndicator color={theme.colors.primary} /><AppText variant="surfaceTitle">{fileSession.progress < 1 ? 'Uploading your file' : 'Submitting your file'}</AppText><AppText>{fileSession.file?.name}</AppText><AppText tone="muted">{fileSession.progress < 1 ? `${Math.round(fileSession.progress * 100)}% uploaded. ` : ''}Keep SnackTrack open until processing is accepted.</AppText></Surface>;
+  return <View style={{ gap: 14 }}>
+    <AppText variant="surfaceBody" tone="muted">Original {name} ZIP up to 50 MB, or supported CSV up to 10 MB.</AppText>
+    {fileSession.file ? <Surface>
+      <AppText variant="sectionLabel">SELECTED FILE</AppText>
+      <AppText variant="surfaceTitle" selectable>{fileSession.file.name}</AppText>
+      <AppText variant="surfaceBody" tone="muted">{name} · {formatImportFileSize(fileSession.file.size)}</AppText>
+      <AppText variant="surfaceBody">Matching orders may gain details without being added twice. Newer email orders outside this download’s history stay saved.</AppText>
+    </Surface> : null}
+    {fileSession.offline ? <AppText accessibilityLiveRegion="polite" tone="muted">You can choose a file now. Reconnect to the internet before importing it.</AppText> : null}
+    {fileSession.statusUnavailable ? <AppText tone="muted">Import status is unavailable. Reload status before submitting this file.</AppText> : fileSession.importBlocked ? <AppText tone="muted">Another import is processing. You can choose a file now and import it when that finishes.</AppText> : null}
+    <AppButton label={fileSession.file ? fileSession.error ? 'Try this file again' : 'Import this file' : buttonLabel ?? 'Choose history file'} pending={fileSession.choosing} disabled={Boolean(fileSession.file && (fileSession.offline || fileSession.importBlocked || fileSession.statusUnavailable))} onPress={() => void (fileSession.file ? fileSession.submit() : fileSession.choose())} />
+    {fileSession.file ? <AppButton label="Choose another file" variant="secondary" disabled={fileSession.choosing} onPress={() => void fileSession.choose()} /> : null}
+  </View>;
 }
-
-const createStyles = (theme: AppTheme) => StyleSheet.create({
-  actions: { gap: 10 },
-  processing: { minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: Radius.input, backgroundColor: theme.colors.infoBg, borderWidth: 1, borderColor: theme.colors.infoBorder },
-  processingCopy: { flex: 1 },
-  processingTitle: { color: theme.colors.textPrimary, fontSize: 16, fontWeight: '600' },
-  processingFile: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 4 },
-  processingHint: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 5 },
-  selectedFile: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: Radius.input, backgroundColor: theme.colors.slate50, borderWidth: 1, borderColor: theme.colors.slate200 },
-  selectedCopy: { flex: 1 },
-  fileName: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
-  fileSize: { color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 },
-  offline: { color: theme.colors.warningDeep, fontSize: 13, lineHeight: 18, textAlign: 'center' },
-});
-
 export const UberDataUpload = ExportDataUpload;
 export default ExportDataUpload;

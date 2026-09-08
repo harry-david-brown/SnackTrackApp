@@ -118,7 +118,9 @@ function ThemedRootLayout() {
                       }}
                     />
                     <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
+                    <Stack.Screen name="add-history" options={{ headerShown: false, presentation: 'card' }} />
                     <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
+                    <Stack.Screen name="import-result" options={{ headerShown: false }} />
                     <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
                     <Stack.Screen name="data-tracking/email" options={{ headerShown: false }} />
                     <Stack.Screen name="data-tracking/history" options={{ headerShown: false }} />
@@ -126,6 +128,7 @@ function ThemedRootLayout() {
                     <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: 'card' }} />
                     <Stack.Screen name="settings/currency" options={{ headerShown: false, presentation: 'card' }} />
                     <Stack.Screen name="settings/help-privacy" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="settings/accounts-permissions" options={{ headerShown: false, presentation: 'card' }} />
                     <Stack.Screen name="dev/visual-gallery" options={{ headerShown: false }} />
                   </Stack>
                   <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

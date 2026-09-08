@@ -67,19 +67,12 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 interface ProfileSettingsCardProps {
   currency: CurrencyCode;
   mailboxConnectionsLabel: string;
-  exportAlertsLabel: string;
-  ongoingTrackingLabel: string;
-  providerExportLabel: string;
   importNotificationsLabel: string;
-  importPreferencesBusy: boolean;
   destructiveActionBusy: boolean;
   showDevelopmentReset: boolean;
   onOpenReceipts: () => void;
   onOpenImport: () => void;
-  onToggleExportAlerts: () => void;
-  onToggleOngoingTracking: () => void;
   onToggleImportNotifications: () => void;
-  onOpenTutorial: () => void;
   onOpenCurrency: () => void;
   onOpenAppearance: () => void;
   onOpenHelp: () => void;
@@ -95,17 +88,14 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
     <View>
       <SettingsGroup title="Your SnackTrack">
         <SettingsRow icon="receipt-outline" label="Order history" description="Search and review imported orders." onActivate={props.onOpenReceipts} />
-        <SettingsRow icon="layers-outline" label="Data & tracking" description="Coverage, sources, automatic updates, and privacy." value={props.mailboxConnectionsLabel === 'Needs attention' ? 'Needs attention' : props.providerExportLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
+        <SettingsRow icon="shield-checkmark-outline" label="Accounts & permissions" description="Connected inboxes, automatic updates, and data access." value={props.mailboxConnectionsLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
         <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} />
         <SettingsRow icon="contrast-outline" label="Appearance" description="System, light, or dark" onActivate={props.onOpenAppearance} last />
       </SettingsGroup>
 
       <SettingsGroup title="Support & preferences">
         <SettingsRow icon="help-circle-outline" label="Help & privacy" description="Answers, privacy details, and support." onActivate={props.onOpenHelp} />
-        <SettingsRow icon="pulse-outline" label="Automatic updates" description="Keep connected order stats current." value={props.ongoingTrackingLabel} onActivate={props.onToggleOngoingTracking} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} />
-        <SettingsRow icon="notifications-circle-outline" label="Import completion notifications" description="Get a device notification when a background import finishes." value={props.importNotificationsLabel} onActivate={props.onToggleImportNotifications} />
-        <SettingsRow icon="notifications-outline" label="History-file alerts" description="Get notified when a requested Uber file is ready." value={props.exportAlertsLabel} onActivate={props.onToggleExportAlerts} disabled={props.importPreferencesBusy} pending={props.importPreferencesBusy} />
-        <SettingsRow icon="book-outline" label="Detailed-history guide" onActivate={props.onOpenTutorial} last />
+        <SettingsRow icon="notifications-circle-outline" label="Import completion notifications" description="Get a device notification when a background import finishes." value={props.importNotificationsLabel} onActivate={props.onToggleImportNotifications} last />
       </SettingsGroup>
 
       <SettingsGroup title="Account">

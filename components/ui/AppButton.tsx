@@ -54,7 +54,7 @@ export function AppButton({
       {...props}
     >
       {pending ? <ActivityIndicator color={foreground} /> : icon ? <Ionicons name={icon} size={20} color={foreground} /> : null}
-      {variant !== 'icon' ? <AppText variant="button" style={{ color: foreground }}>{pending ? 'Please wait…' : label}</AppText> : null}
+      {variant !== 'icon' ? <AppText variant="button" style={{ color: foreground, flexShrink: 1, textAlign: 'center', paddingVertical: 10 }}>{pending ? 'Please wait…' : label}</AppText> : null}
     </Pressable>
   );
 }

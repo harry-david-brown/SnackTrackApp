@@ -19,7 +19,6 @@ interface ImportWorkflowModalsProps {
   gmailVisible: boolean;
   loadingVisible: boolean;
   operation: ImportOperation | null;
-  onExploreDelayed: () => void;
   primaryFlowState: GmailPrimaryFlowState;
   gmailConnectPhase: GmailConnectPhase;
   gmailConnectionStatus: GmailConnectionStatus;
@@ -28,7 +27,7 @@ interface ImportWorkflowModalsProps {
   canCheckForNewOrders: boolean;
   onCheckForNewOrders: () => void;
   onCloseTutorial: () => void;
-  onTutorialComplete: (platform: DataPlatform) => void;
+  onTutorialComplete: (platform: DataPlatform) => Promise<boolean>;
   onTutorialStillWaiting: (platform: DataPlatform) => void;
   onTutorialArchiveDownloaded: (platform: DataPlatform) => void;
   onTutorialReadyConfirmed: (platform: DataPlatform) => void;
@@ -79,7 +78,6 @@ export function ImportWorkflowModals(props: ImportWorkflowModalsProps) {
         flowState={props.primaryFlowState}
         connectPhase={props.gmailConnectPhase}
         operation={props.operation}
-        onExplore={props.onExploreDelayed}
       />
     </>
   );
