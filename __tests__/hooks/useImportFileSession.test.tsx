@@ -13,7 +13,14 @@ jest.mock('expo-document-picker', () => ({ getDocumentAsync: jest.fn() }));
 jest.mock('expo-file-system/legacy', () => ({ getInfoAsync: jest.fn().mockResolvedValue({ exists: true, size: 2048 }) }));
 jest.mock('@utils/platformAlert', () => ({ showSimpleAlert: jest.fn() }));
 const file = { uri: 'file:///history.zip', name: 'history.zip', lastModified: 0, size: 2048 };
-beforeEach(() => { jest.clearAllMocks(); mockRetryId = undefined; mockUserId = 'user-1'; jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [file] }); });
+beforeEach(() => { jest.clearAllMocks(); mockRetryId = undefined; mockUserId = 'user-1'; mockImport.mockResolvedValue({ id: 'accepted' }); jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [file] }); });
+it('submits the validated picker result immediately when requested', async () => {
+  const { result } = renderHook(() => useImportFileSession('uber_eats', 'post_onboarding'));
+  await act(async () => { expect(await result.current.chooseAndSubmit()).toBe(true); });
+  expect(mockImport).toHaveBeenCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'history.zip' }) }));
+  expect(result.current.file).toBeNull();
+  expect(result.current.operation?.id).toBe('accepted');
+});
 it('retains the retry association when the same file is selected again', async () => {
   const { result } = renderHook(() => useImportFileSession('uber_eats', 'post_onboarding'));
   await act(async () => { await result.current.choose(); });

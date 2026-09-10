@@ -34,7 +34,6 @@ export type AdminAnalyticsEventName =
   | 'setup_completed'
   | 'useful_history_reached'
   | 'import_stage_viewed'
-  | 'automatic_recap_launched'
   | 'data_tracking_viewed'
   | 'data_source_action_selected'
   | 'upsell_example_viewed'

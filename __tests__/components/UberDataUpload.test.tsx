@@ -2,6 +2,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { UberDataUpload } from '@components/upload/UberDataUpload';
+import type { ImportFileSession } from '@hooks/useImportFileSession';
 import { showSimpleAlert } from '@utils/platformAlert';
 const mockImport = jest.fn();
 const mockReset = jest.fn();
@@ -15,31 +16,27 @@ jest.mock('expo-file-system/legacy', () => ({ getInfoAsync: jest.fn() }));
 jest.mock('@utils/platformAlert', () => ({ showSimpleAlert: jest.fn() }));
 const file = { uri: 'file:///history.zip', name: 'history.zip', size: 900, lastModified: 0 };
 beforeEach(() => { jest.clearAllMocks(); mockOffline = false; jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [file] }); jest.mocked(FileSystem.getInfoAsync).mockResolvedValue({ exists: true, size: 1024 } as never); mockImport.mockResolvedValue({ id: 'accepted' }); });
-it('shows measured size and requires review on legacy routes', async () => {
+it('starts importing immediately after a valid file is selected', async () => {
   const success = jest.fn();
   const screen = render(<UberDataUpload onUploadSuccess={success} />);
-  fireEvent.press(screen.getByText('Choose history file'));
-  await waitFor(() => expect(screen.getByText('Uber Eats · 1 KB')).toBeTruthy());
-  expect(mockImport).not.toHaveBeenCalled();
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
+  await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'history.zip' }) })));
   await waitFor(() => expect(success).toHaveBeenCalledWith({ id: 'accepted' }));
 });
 it('retains a file through a failed submission for a one-tap retry', async () => {
   mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<UberDataUpload />);
-  fireEvent.press(screen.getByText('Choose history file'));
-  await waitFor(() => expect(screen.getByText('Import this file')).toBeTruthy());
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(showSimpleAlert).toHaveBeenCalled());
   expect(screen.getByText('history.zip')).toBeTruthy();
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Try this file again'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(2));
   expect(mockReset).toHaveBeenCalledTimes(1);
 });
 it('allows offline selection, blocks submission, and resumes when connected', async () => {
   mockOffline = true;
   const screen = render(<UberDataUpload />);
-  fireEvent.press(screen.getByText('Choose history file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
   fireEvent.press(screen.getByText('Import this file'));
   expect(mockImport).not.toHaveBeenCalled();
@@ -49,8 +46,9 @@ it('allows offline selection, blocks submission, and resumes when connected', as
   await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
 });
 it('keeps a valid selection and its retry association after invalid replacement', async () => {
+  mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<UberDataUpload />);
-  fireEvent.press(screen.getByText('Choose history file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [{ ...file, name: 'notes.txt' }] });
   fireEvent.press(screen.getByText('Choose another file'));
@@ -60,7 +58,7 @@ it('keeps a valid selection and its retry association after invalid replacement'
 });
 it('allows choosing a file while another accepted import blocks submission', async () => {
   const screen = render(<UberDataUpload importBlocked />);
-  fireEvent.press(screen.getByText('Choose history file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(screen.getByText('history.zip')).toBeTruthy());
   fireEvent.press(screen.getByText('Import this file'));
   expect(mockImport).not.toHaveBeenCalled();
@@ -69,11 +67,41 @@ it('prevents a second submission while the upload is pending', async () => {
   let finish!: (value: { id: string }) => void;
   mockImport.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   const screen = render(<UberDataUpload />);
-  fireEvent.press(screen.getByText('Choose history file'));
-  await waitFor(() => expect(screen.getByText('Import this file')).toBeTruthy());
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
   expect(screen.queryByText('Choose another file')).toBeNull();
   expect(screen.getByText(/Keep SnackTrack open until processing/)).toBeTruthy();
   await act(async () => { finish({ id: 'accepted' }); });
+});
+
+it('explains the provider limit inline, retains the file, and prevents another submission', () => {
+  const submit = jest.fn();
+  const choose = jest.fn();
+  const session = {
+    file: { uri: 'file:///history.zip', name: 'history.zip', size: 1024, type: 'application/zip' },
+    operation: null,
+    choosing: false,
+    offline: false,
+    importBlocked: false,
+    statusUnavailable: false,
+    isPending: false,
+    progress: 0,
+    error: new Error('limited'),
+    rateLimitNotice: {
+      provider: 'uber_eats',
+      retryAt: '2026-09-10T14:30:00.000Z',
+      title: 'Today’s Uber Eats import limit is reached',
+      message: 'You’ve started several Uber Eats imports recently. Your selected file is still here. Come back tomorrow to try again.',
+    },
+    choose,
+    chooseAndSubmit: jest.fn(),
+    submit,
+  } as ImportFileSession;
+
+  const screen = render(<UberDataUpload session={session} />);
+  expect(screen.getByText('history.zip')).toBeTruthy();
+  expect(screen.getByText(/Come back tomorrow to try again/)).toBeTruthy();
+  expect(screen.queryByText('Choose another file')).toBeNull();
+  fireEvent.press(screen.getByText('Come back tomorrow'));
+  expect(submit).not.toHaveBeenCalled();
 });

@@ -1,4 +1,5 @@
 export type ImportCompletionNextAction =
+  | { kind: 'recap'; label: string }
   | { kind: 'provider'; provider: 'uber' | 'doordash'; label: string }
   | { kind: 'tracking'; label: string }
   | { kind: 'done'; label: string };

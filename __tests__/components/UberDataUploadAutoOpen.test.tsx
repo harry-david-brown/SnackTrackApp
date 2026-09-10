@@ -58,7 +58,7 @@ describe('UberDataUpload automatic picker handoff', () => {
     await waitFor(() => expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledTimes(2));
   });
 
-  it('reviews an automatically opened file before submission and completion', async () => {
+  it('submits an automatically opened file without a review step', async () => {
     (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValue({
       canceled: false,
       assets: [{
@@ -78,9 +78,7 @@ describe('UberDataUpload automatic picker handoff', () => {
       <UberDataUpload autoOpenToken="ready-v3" onUploadSuccess={onUploadSuccess} />
     );
 
-    await waitFor(() => expect(view.getByText('Import this file')).toBeTruthy());
-    expect(mockImportFile).not.toHaveBeenCalled();
-    fireEvent.press(view.getByText('Import this file'));
+    await waitFor(() => expect(mockImportFile).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onUploadSuccess).toHaveBeenCalledWith({
       importedCount: 12,
       totalAmount: 42,

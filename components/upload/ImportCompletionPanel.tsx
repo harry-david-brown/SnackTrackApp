@@ -20,11 +20,12 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEma
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isEmpty = summary.emptyHistory === true;
   const hasChanges = summary.orderCount > 0;
+  const startsRecap = summary.nextAction.kind === 'recap';
   const recommendsProvider = summary.nextAction.kind === 'provider';
   return (
     <View accessibilityLiveRegion="polite">
-      <View style={styles.mascot}><Mascot pose={isEmpty ? "sad" : "prop-receipt"} size={88} /></View>
-      <Text style={styles.eyebrow}>{isEmpty ? 'No orders found' : 'Import complete'}</Text>
+      <View style={styles.mascot}><Mascot pose={isEmpty ? "sad" : startsRecap ? "celebrate" : "prop-receipt"} size={88} /></View>
+      <Text style={styles.eyebrow}>{isEmpty ? 'No orders found' : startsRecap ? 'Your history is ready' : 'Import complete'}</Text>
       <Text style={styles.title}>{summary.title}</Text>
       <Text style={styles.subtitle}>{summary.message}</Text>
       <View style={styles.progress} accessibilityLabel="Step 3 of 3">
@@ -58,6 +59,11 @@ export function ImportCompletionPanel({ summary, onHome, onNext, onTryAnotherEma
           <>
             <AppButton label="Try another email" onPress={onTryAnotherEmail} />
             <AppButton label="Import delivery history" variant="secondary" onPress={onNext} />
+          </>
+        ) : startsRecap ? (
+          <>
+            <AppButton label={summary.nextAction.label} icon="play" onPress={onNext} />
+            <AppButton label="See my Home" variant="secondary" onPress={onHome} />
           </>
         ) : recommendsProvider ? (
           <>

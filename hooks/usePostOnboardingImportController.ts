@@ -18,9 +18,10 @@ const platform = (p: ExportProvider) => p === 'uber_eats' ? 'uber' as const : 'd
 export function usePostOnboardingImportController(route: PostOnboardingImportRoute) {
   const [resumedReturnTo, setResumedReturnTo] = useState<ReturnType<typeof parseImportReturnTo> | null>(null);
   const returnTo = resumedReturnTo ?? parseImportReturnTo(route.returnTo);
-  const initial = useCallback((): GuidedImportSelection => ({ intent: route.intent === 'reconnect' && route.connectionSucceeded ? 'email' : route.intent, provider: route.provider, mailbox: route.mailbox ?? null, step: route.downloadedVersion ? 'upload' : route.confirmRequest ? 'confirm_request' : null }), [route.intent, route.connectionSucceeded, route.provider, route.mailbox, route.downloadedVersion, route.confirmRequest]);
+  const initial = useCallback((): GuidedImportSelection => ({ intent: route.intent === 'reconnect' && route.connectionSucceeded ? 'email' : route.intent, provider: route.provider, mailbox: route.mailbox ?? null, step: route.downloadedVersion ? 'ready' : route.confirmRequest ? 'confirm_request' : null }), [route.intent, route.connectionSucceeded, route.provider, route.mailbox, route.downloadedVersion, route.confirmRequest]);
   const [selection, setSelection] = useState(initial);
   const history = useRef<GuidedImportSelection[]>([]);
+  const handledDirectPicker = useRef<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Partial<Record<ExportProvider, PendingExportRequest>>>({});
   const legacyRoute = useMemo<ImportRouteParams>(() => ({ returnTo, journeyContext: route.journeyContext, sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: selection.provider, gmailPurpose: null }), [returnTo, route.journeyContext, selection.provider]);
   const base = useImportFlowController(legacyRoute, 'manage');
@@ -49,9 +50,10 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const close = useCallback(() => { if (!navigationBlocked) router.replace(importReturnDestination(returnTo)); }, [navigationBlocked, returnTo]);
   const goBack = useCallback(() => {
     if (navigationBlocked) return;
+    if (fileSession.operation) { close(); return; }
     const previous = history.current.pop();
     if (previous) setSelection(previous); else close();
-  }, [close, navigationBlocked]);
+  }, [close, fileSession.operation, navigationBlocked]);
   useEffect(() => {
     if (base.showTutorial) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
@@ -67,7 +69,27 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const operation = route.operationId ? selectedOperation.operation : base.activeImportOperation;
   const state = resolvePostOnboardingImportJourney({ preferences: base.importPreferences, preferencesLoading: base.importPreferencesLoading, preferencesUnavailable: Boolean(base.importPreferencesError), operation, operationRequested: Boolean(route.operationId), operationLoading: selectedOperation.isLoading, operationUnavailable: selectedOperation.isUnavailable, intent: selection.intent, selectedProvider: selection.provider, selectedMailbox: selection.mailbox, step: selection.step, downloadState: selection.step === 'upload' ? 'downloaded' : 'not_downloaded' });
   const chooseProvider = (provider: ExportProvider) => navigate({ provider, intent: 'provider', mailbox: null, step: selection.step === 'request' ? 'request' : null });
-  const chooseDownloadedFile = (provider = selection.provider) => { if (provider) { navigate({ provider, intent: 'provider', step: 'upload' }); void base.reportDownloaded(provider, false); } };
+  const selectedFile = fileSession.file;
+  const chooseFile = fileSession.choose;
+  const submitFile = fileSession.submit;
+  const canSubmitSelectedFile = !fileSession.offline && !fileSession.importBlocked && !fileSession.statusUnavailable;
+  const reportDownloaded = base.reportDownloaded;
+  const chooseDownloadedFile = useCallback(async (provider = selection.provider) => {
+    if (!provider) return false;
+    const selected = selectedFile ?? await chooseFile();
+    if (!selected) return false;
+    navigate({ provider, intent: 'provider', step: 'upload' });
+    void reportDownloaded(provider, false);
+    if (canSubmitSelectedFile) await submitFile(selected);
+    return true;
+  }, [canSubmitSelectedFile, chooseFile, navigate, reportDownloaded, selectedFile, selection.provider, submitFile]);
+  useEffect(() => {
+    if (!route.downloadedVersion || !route.provider) return;
+    const handoff = `${route.provider}:${route.downloadedVersion}`;
+    if (handledDirectPicker.current === handoff) return;
+    handledDirectPicker.current = handoff;
+    void chooseDownloadedFile(route.provider);
+  }, [chooseDownloadedFile, route.downloadedVersion, route.provider]);
   const chooseMailbox = (mailbox: MailboxProvider) => navigate({ intent: selection.intent === 'reconnect' ? 'reconnect' : 'email', mailbox, step: 'email_choice' });
   const startEmail = async () => {
     if (base.connectionBusy || !selection.mailbox || !base.importPreferences) return;
@@ -123,7 +145,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
       }
       openProviderGuide();
     },
-    finishDownloadGuide: (p: 'uber' | 'doordash') => { base.closeTutorial(); chooseDownloadedFile(p === 'uber' ? 'uber_eats' : 'doordash'); },
+    finishDownloadGuide: async (p: 'uber' | 'doordash') => { base.closeTutorial(); return chooseDownloadedFile(p === 'uber' ? 'uber_eats' : 'doordash'); },
     refreshStatus: () => { void base.refreshImportPreferences(); void base.refreshActiveImport(); if (route.operationId) void selectedOperation.refresh(); },
     viewOperation: () => { if (operation) router.push({ pathname: isActiveImportOperation(operation) ? '/import-progress' : '/import-result', params: { operationId: operation.id, returnTo } }); },
     goHome: () => { if (!navigationBlocked) router.replace('/(tabs)'); },

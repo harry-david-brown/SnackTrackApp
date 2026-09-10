@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, type LayoutChangeEvent, type ScrollView } from "react-native";
 import { router } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { featureFlags } from "@config/featureFlags";
 import { useUser } from "@contexts/UserContext";
 import type { ImportTaskId } from "@components/upload/ImportTaskCard";
@@ -82,6 +82,9 @@ const completionActionForRecommendation = (
 };
 
 export function useImportFlowController(route: ImportRouteParams, screenMode: 'auto' | 'setup' | 'manage' = 'auto') {
+  const isFocused = useIsFocused();
+  const focused = useRef(isFocused);
+  focused.current = isFocused;
   const { state: userState } = useUser();
   const userId = userState.user?.id;
   const returnTo = parseImportReturnTo(route.returnTo);
@@ -139,18 +142,19 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     message: string,
     nextPreferences: ImportPreferencesResponse | null,
   ) => {
+    if (!focused.current) return;
     if (userId) suppressAdsForSession(userId);
     const state = await experienceApi.getState().catch(() => null);
+    // Stack screens stay mounted behind the upload journey. A late response
+    // must not navigate over the foreground progress screen's completion hold.
+    if (!focused.current) return;
     if (state?.setup.state === 'complete') {
       void trackAdminEvent('setup_completed', { properties: { method: sourceName === 'Gmail' || sourceName === 'Outlook' ? 'email_receipts' : 'provider_archive' } }).catch(() => undefined);
     }
     if (state && state.receiptCount >= state.firstRecap.minimumOrderCount) {
       void trackAdminEvent('useful_history_reached').catch(() => undefined);
     }
-    if (state && resolvePostImportDestination({ experience: state }) === 'automatic_recap') {
-      router.replace({ pathname: "/(tabs)/wrapped-journey", params: { auto: "true", entryPoint: "automatic_first_import" } });
-      return;
-    }
+    const recapReady = state && resolvePostImportDestination({ experience: state }) === 'recap_ready';
     const recommendation = resolveImportSetupRecommendation({
       preferences: nextPreferences,
       gmailFeatureEnabled,
@@ -165,6 +169,8 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       message,
       nextAction: emptyHistory
         ? { kind: 'provider', provider: 'uber', label: 'Import delivery history' }
+        : recapReady
+          ? { kind: 'recap', label: 'Start my recap' }
         : completionActionForRecommendation(recommendation),
       emptyHistory,
     });
@@ -354,7 +360,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
   }, [route.sourcePicker]);
 
   useEffect(() => {
-    if (screenMode !== 'setup') return;
+    if (screenMode !== 'setup' || !isFocused) return;
     if (!activeImportOperation || activeImportOperation.status !== "succeeded"
       || !["gmail_historical", "outlook_historical", "export_file"].includes(activeImportOperation.kind)
       || handledCompletedOperation.current === activeImportOperation.id) return;
@@ -369,6 +375,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       ? Number(result.importedCount ?? result.newOrders ?? 0)
       : Number(result.newOrders ?? 0) + Number(result.updatedOrders ?? 0);
     void preferences.refresh().then((nextPreferences) => {
+      if (!focused.current) return;
       if (pendingTrackingSetup) {
         setPendingTrackingSetup(false);
         showAlert(
@@ -388,7 +395,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }
       void finishInitialImport(sourceName, orderCount, `${sourceName} import complete`, orderCount > 0 ? `${orderCount} orders were added or updated.` : "No new supported receipts were found.", nextPreferences);
     });
-  }, [activeImportOperation, finishInitialImport, pendingTrackingSetup, preferences, screenMode]);
+  }, [activeImportOperation, finishInitialImport, isFocused, pendingTrackingSetup, preferences, screenMode]);
 
   const connectionBusy = gmail.primaryFlowState !== "idle"
     || gmail.isChecking
@@ -1066,6 +1073,10 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     const nextAction = completionSummary?.nextAction;
     setCompletionSummary(null);
     if (!nextAction || nextAction.kind === "done") return;
+    if (nextAction.kind === "recap") {
+      router.replace({ pathname: "/(tabs)/wrapped-journey", params: { entryPoint: "automatic_first_import" } });
+      return;
+    }
     if (nextAction.kind === "provider") {
       openTutorial(nextAction.provider);
       return;
@@ -1197,7 +1208,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     checkForNewOrders,
     setupOngoingUpdates,
     readyAlertsBusy: preferences.isUpdating,
-    enableReadyAlerts: () => {
+    enableReadyAlerts: (onEnabled?: () => void) => {
       if (preferences.isUpdating) return;
       if (!preferences.preferences?.monitoring.capability.canMonitor) {
         showAlert(
@@ -1216,9 +1227,11 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         [
           { text: 'Not now', style: 'cancel' },
           { text: 'Turn on notifications', onPress: () => {
-            void preferences.setMonitoringConsent('granted').catch(() => {
-              showSimpleAlert('Couldn’t turn on alerts', 'Please try again. You can still watch for Uber’s email yourself.');
-            });
+            void preferences.setMonitoringConsent('granted')
+              .then(() => onEnabled?.())
+              .catch(() => {
+                showSimpleAlert('Couldn’t turn on alerts', 'Please try again. You can still watch for Uber’s email yourself.');
+              });
           } },
         ],
       );

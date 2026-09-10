@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mascot } from '@components/mascot/Mascot';
 import WrappedShareJourney from '@components/wrapped/WrappedShareJourney';
-import { WrappedRecapIntro } from '@components/wrapped/WrappedRecapIntro';
 import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
 import { PageHeader } from '@components/ui/PageHeader';
@@ -29,28 +28,23 @@ const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary 
 export default function WrappedJourneyScreen() {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const route = useLocalSearchParams<{ restart?: string | string[]; auto?: string | string[]; entryPoint?: string | string[] }>();
+  const route = useLocalSearchParams<{ restart?: string | string[]; entryPoint?: string | string[] }>();
   const { state: userState } = useUser();
   const journey = useWrappedJourneyController();
   const { formatCurrency } = useCurrency();
   const restartToken = useMemo(() => Array.isArray(route.restart) ? route.restart[0] : route.restart, [route.restart]);
-  const automatic = (Array.isArray(route.auto) ? route.auto[0] : route.auto) === 'true';
-  const entryPoint = (Array.isArray(route.entryPoint) ? route.entryPoint[0] : route.entryPoint) === 'notification'
-    ? 'notification' as const : automatic ? 'automatic_first_import' as const : 'summary' as const;
-  const [showJourney, setShowJourney] = useState(Boolean(restartToken) || automatic);
-  const [showIntro, setShowIntro] = useState(true);
+  const rawEntryPoint = Array.isArray(route.entryPoint) ? route.entryPoint[0] : route.entryPoint;
+  const entryPoint = rawEntryPoint === 'notification' ? 'notification' as const : rawEntryPoint === 'automatic_first_import' ? 'automatic_first_import' as const : 'summary' as const;
+  const [showJourney, setShowJourney] = useState(Boolean(restartToken) || entryPoint !== 'summary');
   const [recapSeenRecorded, setRecapSeenRecorded] = useState(false);
+  const visibleJourneyRecorded = useRef(false);
   const feeTrend = journey.analytics?.wrappedAnalytics?.comparative.deliveryFeeTrend;
 
   useEffect(() => {
     if (restartToken) {
-      setShowIntro(true);
       setShowJourney(true);
     }
   }, [restartToken]);
-  useEffect(() => {
-    if (automatic) void trackAdminEvent('automatic_recap_launched', { properties: { entryPoint } }).catch(() => undefined);
-  }, [automatic, entryPoint]);
   useEffect(() => {
     if (feeTrend) void trackAdminEvent('fee_trend_displayed', { properties: { trend: feeTrend.trend, coveredOrderCount: feeTrend.coveredOrderCount } }).catch(() => undefined);
   }, [feeTrend]);
@@ -61,6 +55,16 @@ export default function WrappedJourneyScreen() {
     if (userState.user?.id) suppressAdsForSession(userState.user.id);
     void experienceApi.markFirstRecapSeen().catch(() => setRecapSeenRecorded(false));
   }, [recapSeenRecorded, userState.user?.id]);
+
+  useEffect(() => {
+    if (!showJourney) {
+      visibleJourneyRecorded.current = false;
+      return;
+    }
+    if (!hasWrappedData(journey.analytics) || visibleJourneyRecorded.current) return;
+    visibleJourneyRecorded.current = true;
+    recordFirstSlide();
+  }, [journey.analytics, recordFirstSlide, showJourney]);
 
   if (journey.isLoading) {
     return (
@@ -84,15 +88,6 @@ export default function WrappedJourneyScreen() {
   }
 
   if (showJourney) {
-    if (showIntro) {
-      return <WrappedRecapIntro
-        orderCount={journey.analytics.totalReceipts}
-        entryPoint={entryPoint}
-        onVisible={recordFirstSlide}
-        onStart={() => setShowIntro(false)}
-        onClose={() => setShowJourney(false)}
-      />;
-    }
     return (
       <WrappedShareJourney
         key={resolveWrappedJourneyInstanceKey(journey.dataUpdatedAt, route.restart)}
@@ -102,8 +97,8 @@ export default function WrappedJourneyScreen() {
         onExportUpsellSeen={journey.markExportOfferSeen}
         onExportUpgrade={journey.openExportUpgrade}
         onExportTutorial={journey.openExportTutorial}
-        onFinishPostWrapped={() => { setShowIntro(true); setShowJourney(false); }}
-        onClose={() => { setShowIntro(true); setShowJourney(false); }}
+        onFinishPostWrapped={() => setShowJourney(false)}
+        onClose={() => setShowJourney(false)}
         entryPoint={entryPoint}
       />
     );
@@ -152,7 +147,7 @@ export default function WrappedJourneyScreen() {
             <AppText variant="surfaceBody" style={styles.recapBody}>Your personalized, shareable SnackTrack recap is ready whenever you are.</AppText>
           </View>
         </Card>
-        <AppButton label="Play my recap" icon="play" onPress={() => { setShowIntro(true); setShowJourney(true); }} />
+        <AppButton label="Play my recap" icon="play" onPress={() => setShowJourney(true)} />
         <View style={styles.secondaryAction}>
           <AppButton label="View order history" variant="secondary" icon="time-outline" onPress={() => router.push('/(tabs)/history')} />
         </View>

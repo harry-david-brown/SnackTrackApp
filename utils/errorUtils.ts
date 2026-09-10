@@ -7,6 +7,7 @@ export interface ApiError {
   message: string;
   type: ErrorType;
   statusCode?: number;
+  details?: unknown;
   isRetryable: boolean;
 }
 
@@ -101,6 +102,7 @@ export const parseApiError = (input: unknown): ApiError => {
     message: sanitizeErrorMessage(error.message, error.kind),
     type: error.kind,
     statusCode: error.statusCode,
+    details: error.details,
     isRetryable: error.retryable,
   };
 };

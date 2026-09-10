@@ -6,7 +6,6 @@ import { useImportOperation } from '@hooks/useImportOperation';
 import { router, usePathname } from 'expo-router';
 import { experienceApi } from '@services/experienceApi';
 import { resolvePostImportDestination } from '@features/import-flow/postImportNavigation';
-import { suppressAdsForSession } from '@features/ads/adSession';
 
 const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
 
@@ -64,13 +63,18 @@ export function ImportBackgroundController() {
     if (!userId || !operation || operation.status !== 'succeeded' || operation.trigger !== 'user'
       || operation.kind === 'manual_tracking' || operation.kind === 'scheduled_tracking'
       || operation.journeyContext === 'post_onboarding'
-      || pathname === '/data-setup' || pathname === '/import-progress' || handledOperation.current === operation.id) return;
-    handledOperation.current = operation.id;
+      // Add history hosts the same progress screen throughout upload and processing.
+      // That screen owns navigation after its visible 100% completion hold.
+      || pathname === '/data-setup' || pathname === '/import-progress' || pathname === '/add-history'
+      || handledOperation.current === operation.id) return;
+    let cancelled = false;
     void experienceApi.getState().then(experience => {
-      if (resolvePostImportDestination({ experience }) !== 'automatic_recap') return;
-      suppressAdsForSession(userId);
-      router.replace({ pathname: '/(tabs)/wrapped-journey', params: { auto: 'true', entryPoint: 'automatic_first_import' } });
+      if (cancelled) return;
+      handledOperation.current = operation.id;
+      if (resolvePostImportDestination({ experience }) !== 'recap_ready') return;
+      router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo: 'home' } });
     }).catch(() => undefined);
+    return () => { cancelled = true; };
   }, [operation, pathname, state.user?.id]);
 
   return null;

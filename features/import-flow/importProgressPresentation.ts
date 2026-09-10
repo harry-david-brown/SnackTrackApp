@@ -3,6 +3,9 @@ import type { ImportOperation } from './contracts';
 export type ImportProgressStepState = 'pending' | 'active' | 'complete';
 export const IMPORT_PROGRESS_MIN_STEP_MS = 500;
 export const IMPORT_PROGRESS_COMPLETION_STEP_MS = 700;
+export const IMPORT_PROGRESS_ANIMATION_MS = 700;
+export const IMPORT_PROGRESS_COMPLETE_HOLD_MS = 700;
+export const EXPORT_UPLOAD_PROGRESS_SHARE = 15;
 
 export interface ImportProgressViewModel {
   eyebrow: string;
@@ -19,6 +22,21 @@ export const resolveImportProgressPosition = (operation: ImportOperation): numbe
     case 'discovering': return 1;
     default: return 0;
   }
+};
+
+/** Treats file transfer as the opening part of one continuous export-import journey. */
+export const resolveOverallImportProgress = (
+  operation: ImportOperation | null | undefined,
+  uploadProgress?: number,
+): number => {
+  if (typeof uploadProgress === 'number') {
+    const normalizedUpload = Math.max(0, Math.min(1, uploadProgress));
+    return Math.round(normalizedUpload * EXPORT_UPLOAD_PROGRESS_SHARE);
+  }
+  const operationProgress = Math.max(0, Math.min(100, Math.round(operation?.progress ?? 0)));
+  if (operation?.kind !== 'export_file') return operationProgress;
+  if (operation.status === 'succeeded') return 100;
+  return Math.round(EXPORT_UPLOAD_PROGRESS_SHARE + (operationProgress / 100) * (100 - EXPORT_UPLOAD_PROGRESS_SHARE));
 };
 
 export const resolveImportProgressSteps = (

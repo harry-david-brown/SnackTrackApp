@@ -9,8 +9,8 @@ const experience = (overrides: Partial<ExperienceState> = {}): ExperienceState =
 });
 
 describe('post-import navigation', () => {
-  it('sends an eligible unseen first recap straight to Wrapped', () => {
-    expect(resolvePostImportDestination({ experience: experience() })).toBe('automatic_recap');
+  it('marks an eligible unseen first recap as ready for the completion action', () => {
+    expect(resolvePostImportDestination({ experience: experience() })).toBe('recap_ready');
   });
 
   it('keeps zero-result setup mandatory and treats small history separately', () => {

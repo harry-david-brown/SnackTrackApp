@@ -12,19 +12,20 @@ import { AppText } from '@components/ui/AppText';
 import { type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useUser } from '@contexts/UserContext';
-import { resolveImportProgressPosition, resolveImportProgressPresentation } from '@features/import-flow/importProgressPresentation';
-import { resolvePostImportDestination } from '@features/import-flow/postImportNavigation';
-import { suppressAdsForSession } from '@features/ads/adSession';
+import { IMPORT_PROGRESS_ANIMATION_MS, IMPORT_PROGRESS_COMPLETE_HOLD_MS, resolveImportProgressPosition, resolveImportProgressPresentation, resolveOverallImportProgress } from '@features/import-flow/importProgressPresentation';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { useImportProgressPacing } from '@hooks/useImportProgressPacing';
 import { useStableImportTimeEstimate } from '@hooks/useStableImportTimeEstimate';
 import { importTimeEstimateText } from '@features/import-flow/importTimeEstimate';
 import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
-import { experienceApi } from '@services/experienceApi';
-import { analyticsApi } from '@services/analyticsApi';
 import { trackAdminEvent } from '@services/adminAnalytics';
 
-interface ImportProgressScreenProps { operationId?: string; returnTo?: ImportReturnTo }
+interface ImportProgressScreenProps {
+  operationId?: string;
+  returnTo?: ImportReturnTo;
+  uploadActive?: boolean;
+  uploadProgress?: number;
+}
 
 interface StatPreview {
   readonly title: string;
@@ -82,7 +83,102 @@ const useAnimatedCounter = (
   return { animated, displayed };
 };
 
-export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportProgressScreenProps) {
+interface ImportProgressLoadingViewProps {
+  readonly progress: number;
+  readonly progressStatus: string;
+  readonly receiptsFound?: number | null;
+  readonly estimateText?: string | null;
+  readonly footerText?: string;
+  readonly onContinue?: () => void;
+  readonly onCompletionShown?: () => void;
+}
+
+/** Shared loading experience used before and after an upload is accepted. */
+export function ImportProgressLoadingView({
+  progress,
+  progressStatus,
+  receiptsFound = null,
+  estimateText = null,
+  footerText = 'You can leave—your import continues in the background.',
+  onContinue,
+  onCompletionShown,
+}: ImportProgressLoadingViewProps) {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const normalizedProgress = Math.max(0, Math.min(100, Math.round(progress)));
+  const animatedProgress = useAnimatedCounter(normalizedProgress, reducedMotion, IMPORT_PROGRESS_ANIMATION_MS);
+  const animatedReceipts = useAnimatedCounter(Math.max(0, receiptsFound ?? 0), reducedMotion, 850);
+  const progressDetails = receiptsFound !== null && receiptsFound > 0
+    ? `${progressStatus} · ${animatedReceipts.displayed.toLocaleString()} receipts found`
+    : progressStatus;
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (normalizedProgress !== 100 || animatedProgress.displayed !== 100 || !onCompletionShown) return;
+    const timer = setTimeout(onCompletionShown, IMPORT_PROGRESS_COMPLETE_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [animatedProgress.displayed, normalizedProgress, onCompletionShown]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.progressPage}>
+        <AppText variant="eyebrow" style={styles.eyebrow}>BUILDING YOUR HISTORY</AppText>
+        <View style={styles.titleRow}>
+          <View style={styles.titleCopy}>
+            <AppText variant="pageTitle" style={styles.title}>Your SnackTrack is taking shape</AppText>
+            <AppText variant="body" style={styles.body}>We’re turning your receipts into useful stats.</AppText>
+          </View>
+          <Mascot pose="thinking" size={78} accessibilityLabel="SnackTrack is thinking while your orders are imported" />
+        </View>
+
+        <View
+          style={styles.progressSection}
+          accessibilityRole="progressbar"
+          accessibilityLabel={`${normalizedProgress}% complete. ${progressStatus}${receiptsFound !== null && receiptsFound > 0 ? `. ${receiptsFound.toLocaleString()} receipts found` : ''}`}
+          accessibilityValue={{ min: 0, max: 100, now: normalizedProgress }}
+        >
+          <View style={styles.progressHeading}>
+            <AppText variant="surfaceTitle" style={styles.animatedNumber}>{animatedProgress.displayed}% complete</AppText>
+            {estimateText ? <AppText variant="metadata" tone="brand">{estimateText}</AppText> : null}
+          </View>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, { width: animatedProgress.animated.interpolate({
+              inputRange: [0, 100],
+              outputRange: ['0%', '100%'],
+              extrapolate: 'clamp',
+            }) }]} />
+          </View>
+          <AppText variant="metadata" tone="muted" style={[styles.progressDetails, styles.animatedNumber]}>{progressDetails}</AppText>
+        </View>
+
+        <StatPreviewCarousel reducedMotion={reducedMotion} theme={theme} />
+
+        <View style={styles.footer}>
+          <AppText variant="metadata" tone="muted" style={styles.keepOpen}>{footerText}</AppText>
+          {onContinue ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue using SnackTrack"
+              hitSlop={10}
+              onPress={onContinue}
+              style={({ pressed }) => [styles.textAction, pressed && styles.textActionPressed]}
+            >
+              <AppText variant="button" tone="brand">Continue using SnackTrack</AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+export function ImportProgressScreen({ operationId, returnTo = 'home', uploadActive = false, uploadProgress }: ImportProgressScreenProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
@@ -90,24 +186,19 @@ export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportP
   const { operation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(state.user?.id), false, operationId);
   const handled = useRef<string | null>(null);
   const announced = useRef<string | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [completionShownFor, setCompletionShownFor] = useState<string | null>(null);
   const stableTimeEstimate = useStableImportTimeEstimate(operation?.id, operation?.presentation?.timeEstimate);
   const timeEstimateText = importTimeEstimateText(stableTimeEstimate);
-  const progress = Math.max(0, Math.min(100, Math.round(operation?.progress ?? 0)));
+  const progress = resolveOverallImportProgress(operation, uploadActive ? uploadProgress ?? 0 : undefined);
   const receiptsFound = operation?.presentation?.discoveredOrderCount ?? null;
   const targetProgressPosition = useMemo(() => operation ? resolveImportProgressPosition(operation) : 0, [operation]);
   const {
     visibleProgress,
-    readyForCompletion,
   } = useImportProgressPacing(operation?.id, targetProgressPosition, progress);
-  const animatedProgress = useAnimatedCounter(visibleProgress, reducedMotion, 700);
-  const animatedReceipts = useAnimatedCounter(Math.max(0, receiptsFound ?? 0), reducedMotion, 850);
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
-    return () => subscription.remove();
-  }, []);
+  const operationIdForCompletion = operation?.id;
+  const markCompletionShown = useCallback(() => {
+    if (operationIdForCompletion) setCompletionShownFor(operationIdForCompletion);
+  }, [operationIdForCompletion]);
 
   useEffect(() => {
     if (!operation?.presentation?.stage || announced.current === operation.presentation.stage) return;
@@ -120,34 +211,22 @@ export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportP
   useEffect(() => {
     if (isUnavailable || !operation || handled.current === `${operation.id}:${operation.status}`) return;
     if (!['succeeded', 'failed', 'cancelled', 'expired', 'superseded'].includes(operation.status)) return;
-    if (operation.status === 'succeeded' && !readyForCompletion) return;
+    if (operation.status === 'succeeded' && completionShownFor !== operation.id) return;
     handled.current = `${operation.id}:${operation.status}`;
     if (operation.status !== 'succeeded') return;
     void (async () => {
       const userId = state.user?.id;
       if (!userId) return;
       await invalidateReceiptDerivedData(queryClient, userId);
-      if (operation.journeyContext === 'post_onboarding' || operation.journeyContext === 'routine') {
-        router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } });
-        return;
-      }
-      const experience = await experienceApi.getState();
-      const destination = resolvePostImportDestination({ experience, outcome: 'succeeded' });
-      if (destination === 'automatic_recap') {
-        suppressAdsForSession(userId);
-        await analyticsApi.getUserSummary(userId, true);
-        router.replace({ pathname: '/(tabs)/wrapped-journey', params: { auto: 'true', entryPoint: 'automatic_first_import' } });
-        return;
-      }
       router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } });
     })().catch(() => { router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } }); });
-  }, [operation, queryClient, readyForCompletion, state.user?.id, isUnavailable, returnTo]);
+  }, [completionShownFor, operation, queryClient, state.user?.id, isUnavailable, returnTo]);
 
-  if (!isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
+  if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
 
-  if (isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => router.replace('/(tabs)/history')} /></ScrollView></SafeAreaView>;
+  if (!uploadActive && isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => router.replace('/(tabs)/history')} /></ScrollView></SafeAreaView>;
 
-  if (!operation && !isLoading) {
+  if (!operation && !isLoading && !uploadActive) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.centered}>
@@ -164,60 +243,19 @@ export function ImportProgressScreen({ operationId, returnTo = 'home' }: ImportP
     return <ImportResultScreen operationId={operation.id} returnTo={returnTo} />;
   }
 
-  const progressStatus = importStageLabel(operation?.status, operation?.presentation?.stage);
-  const progressDetails = receiptsFound !== null && receiptsFound > 0
-    ? `${progressStatus} · ${animatedReceipts.displayed.toLocaleString()} receipts found`
-    : progressStatus;
+  const progressStatus = uploadActive
+    ? (uploadProgress ?? 0) < 1 ? 'Uploading your file' : 'Submitting your file'
+    : importStageLabel(operation?.status, operation?.presentation?.stage);
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.progressPage}>
-        <AppText variant="eyebrow" style={styles.eyebrow}>BUILDING YOUR HISTORY</AppText>
-        <View style={styles.titleRow}>
-          <View style={styles.titleCopy}>
-            <AppText variant="pageTitle" style={styles.title}>Your SnackTrack is taking shape</AppText>
-            <AppText variant="body" style={styles.body}>We’re turning your receipts into useful stats.</AppText>
-          </View>
-          <Mascot pose="thinking" size={78} accessibilityLabel="SnackTrack is thinking while your orders are imported" />
-        </View>
-
-        <View
-          style={styles.progressSection}
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${visibleProgress}% complete. ${progressStatus}${receiptsFound !== null && receiptsFound > 0 ? `. ${receiptsFound.toLocaleString()} receipts found` : ''}`}
-          accessibilityValue={{ min: 0, max: 100, now: visibleProgress }}
-        >
-          <View style={styles.progressHeading}>
-            <AppText variant="surfaceTitle" style={styles.animatedNumber}>{animatedProgress.displayed}% complete</AppText>
-            {timeEstimateText ? <AppText variant="metadata" tone="brand">{timeEstimateText}</AppText> : null}
-          </View>
-          <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, { width: animatedProgress.animated.interpolate({
-              inputRange: [0, 100],
-              outputRange: ['0%', '100%'],
-              extrapolate: 'clamp',
-            }) }]} />
-          </View>
-          <AppText variant="metadata" tone="muted" style={[styles.progressDetails, styles.animatedNumber]}>{progressDetails}</AppText>
-        </View>
-
-        <StatPreviewCarousel reducedMotion={reducedMotion} theme={theme} />
-
-        <View style={styles.footer}>
-          <AppText variant="metadata" tone="muted" style={styles.keepOpen}>You can leave—your import continues in the background.</AppText>
-          {operation ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Continue using SnackTrack"
-              hitSlop={10}
-              onPress={() => router.replace(importReturnDestination(returnTo))}
-              style={({ pressed }) => [styles.textAction, pressed && styles.textActionPressed]}
-            >
-              <AppText variant="button" tone="brand">Continue using SnackTrack</AppText>
-            </Pressable>
-          ) : null}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <ImportProgressLoadingView
+      progress={visibleProgress}
+      progressStatus={progressStatus}
+      receiptsFound={receiptsFound}
+      estimateText={timeEstimateText}
+      footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : undefined}
+      onContinue={!uploadActive && operation ? () => router.replace(importReturnDestination(returnTo)) : undefined}
+      onCompletionShown={operation?.status === 'succeeded' ? markCompletionShown : undefined}
+    />
   );
 }
 

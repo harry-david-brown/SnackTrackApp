@@ -19,39 +19,35 @@ beforeEach(() => {
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [firstFile] });
   mockImport.mockResolvedValue({ id: 'operation-1' });
 });
-it('does not upload on selection; submits only after explicit review confirmation', async () => {
+it('uploads immediately after file selection', async () => {
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose history file'));
-  await waitFor(() => expect(screen.getByText('Import this file')).toBeTruthy());
-  expect(mockImport).not.toHaveBeenCalled();
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'uber.zip' }), journeyContext: 'post_onboarding' })));
 });
 it('keeps the selected file when the user cancels choosing a replacement', async () => {
+  mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose history file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(screen.getByText('uber.zip')).toBeTruthy());
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: true, assets: null });
   fireEvent.press(screen.getByText('Choose another file'));
   await waitFor(() => expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledTimes(2));
   expect(screen.getByText('uber.zip')).toBeTruthy();
-  expect(mockImport).not.toHaveBeenCalled();
+  expect(mockImport).toHaveBeenCalledTimes(1);
 });
 it('clears the retry association when a replacement file is accepted', async () => {
+  mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose history file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(screen.getByText('uber.zip')).toBeTruthy());
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [{ ...firstFile, name: 'newer.zip', uri: 'file:///newer.zip' }] });
   fireEvent.press(screen.getByText('Choose another file'));
-  await waitFor(() => expect(screen.getByText('newer.zip')).toBeTruthy());
+  await waitFor(() => expect(mockImport).toHaveBeenLastCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'newer.zip' }) })));
   expect(mockReset).toHaveBeenCalledTimes(2);
-  expect(mockImport).not.toHaveBeenCalled();
+  expect(mockImport).toHaveBeenCalledTimes(2);
 });
-it('requires review confirmation during onboarding too', async () => {
+it('starts immediately during onboarding too', async () => {
   const screen = render(<ExportDataUpload journeyContext="onboarding" />);
-  fireEvent.press(screen.getByText('Choose history file'));
-  await waitFor(() => expect(screen.getByText('uber.zip')).toBeTruthy());
-  expect(mockImport).not.toHaveBeenCalled();
-  fireEvent.press(screen.getByText('Import this file'));
+  fireEvent.press(screen.getByText('Choose ZIP and import'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
 });

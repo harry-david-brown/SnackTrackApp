@@ -1,6 +1,7 @@
 import { importReturnDestination, type ImportReturnTo } from '@features/import-flow/importNavigation';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mascot } from '@components/mascot/Mascot';
@@ -14,24 +15,24 @@ import { useImportOperation } from '@hooks/useImportOperation';
 import { experienceApi } from '@services/experienceApi';
 
 export function ImportResultScreen({ operationId, returnTo = 'home' }: { operationId?: string; returnTo?: ImportReturnTo }) {
+  const isFocused = useIsFocused();
   const theme = useAppTheme();
   const { operation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(operationId), false, operationId);
   const [summaryEligible, setSummaryEligible] = useState(false);
-  const handledLegacy = useRef(false);
+  const [recapReady, setRecapReady] = useState(false);
   const summary = useMemo(() => operation ? resolveImportOperationResult(operation) : null, [operation]);
 
   useEffect(() => {
-    if (isUnavailable || !operation || operation.status !== 'succeeded') return;
+    if (!isFocused || isUnavailable || !operation || operation.status !== 'succeeded') return;
+    let cancelled = false;
     void experienceApi.getState().then(experience => {
+      if (cancelled) return;
       const destination = resolvePostImportDestination({ experience, outcome: 'succeeded' });
-      setSummaryEligible(destination === 'automatic_recap' || experience.receiptCount >= experience.firstRecap.minimumOrderCount);
-      if (operation.journeyContext === 'post_onboarding' || operation.journeyContext === 'routine' || handledLegacy.current) return;
-      handledLegacy.current = true;
-      if (destination === 'automatic_recap') {
-        router.replace({ pathname: '/(tabs)/wrapped-journey', params: { auto: 'true', entryPoint: 'automatic_first_import' } });
-      }
+      setRecapReady(destination === 'recap_ready');
+      setSummaryEligible(destination === 'recap_ready' || experience.receiptCount >= experience.firstRecap.minimumOrderCount);
     }).catch(() => undefined);
-  }, [operation, isUnavailable]);
+    return () => { cancelled = true; };
+  }, [isFocused, operation, isUnavailable]);
 
   if (!operationId) return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title="We couldn’t find that import" body="The import link is incomplete. Choose another import to continue."><AppButton label="Choose another import" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></ResultLayout>;
 
@@ -65,9 +66,9 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
       {summary.updatedOrders !== null ? <Count value={summary.updatedOrders} label="Updated" /> : null}
       {summary.unchangedOrders !== null ? <Count value={summary.unchangedOrders} label="Already saved" /> : null}
     </View>
-    <AppButton label="View order history" onPress={() => router.replace('/(tabs)/history')} />
-    <AppButton label={empty ? 'Choose another source' : 'Add orders'} variant="secondary" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} />
-    {summaryEligible ? <AppButton label="View Summary" variant="tertiary" onPress={() => router.replace('/(tabs)/wrapped-journey')} /> : null}
+    {recapReady ? <AppButton label="Start my recap" icon="play" onPress={() => router.replace({ pathname: '/(tabs)/wrapped-journey', params: { entryPoint: 'automatic_first_import' } })} /> : <AppButton label="View order history" onPress={() => router.replace('/(tabs)/history')} />}
+    <AppButton label={recapReady ? 'View order history' : empty ? 'Choose another source' : 'Add orders'} variant="secondary" onPress={() => recapReady ? router.replace('/(tabs)/history') : router.replace({ pathname: '/add-history', params: { returnTo } })} />
+    {summaryEligible && !recapReady ? <AppButton label="View Summary" variant="tertiary" onPress={() => router.replace('/(tabs)/wrapped-journey')} /> : null}
     <AppButton label="Close" variant="tertiary" onPress={() => router.replace(importReturnDestination(returnTo))} />
   </ResultLayout>;
 }

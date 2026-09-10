@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import {
+  IMPORT_PROGRESS_ANIMATION_MS,
+  IMPORT_PROGRESS_COMPLETE_HOLD_MS,
   IMPORT_PROGRESS_COMPLETION_STEP_MS,
   IMPORT_PROGRESS_MIN_STEP_MS,
 } from '@features/import-flow/importProgressPresentation';
@@ -64,7 +66,7 @@ describe('useImportProgressPacing', () => {
     act(() => { jest.advanceTimersByTime(1); });
     expect(result.current.visibleProgress).toBe(100);
 
-    act(() => { jest.advanceTimersByTime(IMPORT_PROGRESS_COMPLETION_STEP_MS - 1); });
+    act(() => { jest.advanceTimersByTime(IMPORT_PROGRESS_ANIMATION_MS + IMPORT_PROGRESS_COMPLETE_HOLD_MS - 1); });
     expect(result.current.readyForCompletion).toBe(false);
 
     act(() => { jest.advanceTimersByTime(1); });

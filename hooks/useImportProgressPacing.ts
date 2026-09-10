@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
+  IMPORT_PROGRESS_ANIMATION_MS,
+  IMPORT_PROGRESS_COMPLETE_HOLD_MS,
   IMPORT_PROGRESS_COMPLETION_STEP_MS,
   IMPORT_PROGRESS_MIN_STEP_MS,
 } from '@features/import-flow/importProgressPresentation';
@@ -80,7 +82,7 @@ export function useImportProgressPacing(
       setState(previous => previous.operationId === normalizedOperationId
         ? { ...previous, readyForCompletion: true }
         : previous);
-    }, IMPORT_PROGRESS_COMPLETION_STEP_MS);
+    }, IMPORT_PROGRESS_ANIMATION_MS + IMPORT_PROGRESS_COMPLETE_HOLD_MS);
     return () => clearTimeout(timer);
   }, [
     currentState.readyForCompletion,

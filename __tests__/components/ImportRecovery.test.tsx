@@ -2,8 +2,12 @@ import { act, fireEvent, render } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { router } from 'expo-router';
 import { ImportResultScreen } from '@components/import/ImportResultScreen';
-import { ImportProgressScreen } from '@components/import/ImportProgressScreen';
+import { ImportProgressLoadingView, ImportProgressScreen } from '@components/import/ImportProgressScreen';
 import type { ImportOperation } from '@features/import-flow/contracts';
+import { IMPORT_PROGRESS_COMPLETE_HOLD_MS } from '@features/import-flow/importProgressPresentation';
+import { experienceApi } from '@services/experienceApi';
+let mockFocused = true;
+jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }));
 let mockUnavailable = false;
 const mockRefresh = jest.fn();
 let mockOperation: ImportOperation;
@@ -17,9 +21,17 @@ jest.mock('@services/experienceApi', () => ({ experienceApi: { getState: jest.fn
 jest.mock('@services/adminAnalytics', () => ({ trackAdminEvent: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@components/import/ImportNotificationController', () => ({ requestImportNotifications: jest.fn() }));
 beforeEach(() => {
-  jest.clearAllMocks(); mockUnavailable = false;
+  jest.clearAllMocks(); mockUnavailable = false; mockFocused = true;
   jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
   mockOperation = { id: 'operation', kind: 'export_file', provider: 'uber_eats', journeyContext: 'post_onboarding', trigger: 'user', status: 'succeeded', phase: 'completed', progress: 100, result: {}, errorCode: null, errorMessage: null, attempts: 1, presentation: null, createdAt: '', queuedAt: null, startedAt: null, completedAt: null, updatedAt: '' };
+});
+it('does not let an unfocused result screen redirect over the active import journey', async () => {
+  mockFocused = false;
+  mockOperation = { ...mockOperation, journeyContext: 'onboarding' };
+  render(<ImportResultScreen operationId="operation" />);
+  await act(async () => {});
+  expect(experienceApi.getState).not.toHaveBeenCalled();
+  expect(router.replace).not.toHaveBeenCalled();
 });
 it('distinguishes duplicate-only completion and preserves explicit zero counts', async () => {
   mockOperation = { ...mockOperation, result: { newOrders: 0, updatedOrders: 0, unchangedOrders: 8 } };
@@ -86,4 +98,18 @@ it('keeps delayed imports on the standard progress screen and shows the time est
   expect(screen.getByText('Building your stats')).toBeTruthy();
   expect(screen.getByText('About 1–2 minutes remaining')).toBeTruthy();
   expect(screen.queryByText('This is taking longer than usual')).toBeNull();
+});
+
+it('does not finish until the rendered counter has held at 100 percent', async () => {
+  jest.useFakeTimers();
+  const onCompletionShown = jest.fn();
+  const screen = render(<ImportProgressLoadingView progress={100} progressStatus="Import complete" onCompletionShown={onCompletionShown} />);
+
+  await act(async () => {});
+  expect(screen.getByText('100% complete')).toBeTruthy();
+  act(() => { jest.advanceTimersByTime(IMPORT_PROGRESS_COMPLETE_HOLD_MS - 1); });
+  expect(onCompletionShown).not.toHaveBeenCalled();
+  act(() => { jest.advanceTimersByTime(1); });
+  expect(onCompletionShown).toHaveBeenCalledTimes(1);
+  jest.useRealTimers();
 });
