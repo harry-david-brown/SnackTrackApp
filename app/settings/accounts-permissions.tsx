@@ -1,6 +1,6 @@
 import { parseImportReturnTo, importReturnDestination } from '@features/import-flow/importNavigation';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,11 +12,13 @@ import type { AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportRouteParams } from '@features/import-flow/importRouteParams';
 import { useImportFlowController } from '@hooks/useImportFlowController';
+import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
 import { useProfileController } from '@hooks/useProfileController';
 
 const neutralRoute: ImportRouteParams = { sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: null, gmailPurpose: null };
 
 export default function AccountsPermissionsScreen() {
+  const navigation = useAppNavigation();
   const params = useLocalSearchParams();
   const returnTo = parseImportReturnTo(params.returnTo);
   const theme = useAppTheme();
@@ -27,11 +29,11 @@ export default function AccountsPermissionsScreen() {
   const outlook = imports.importPreferences?.outlookConnection;
 
   const lastCheck = imports.importPreferences?.ongoingTracking.activity.lastSuccessfulCheckAt;
-  const setupMailbox = (mailbox: 'gmail' | 'outlook', reconnect = false) => router.push({ pathname: '/add-history', params: { intent: reconnect ? 'reconnect' : 'email', mailbox, returnTo: 'settings' } });
-  if (imports.importPreferencesLoading || imports.importPreferencesError) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}><PageHeader title={imports.importPreferencesError ? 'We couldn’t load account settings' : 'Loading account settings'} body="Your saved connections and permissions have not changed." /><AppButton label="Reload settings" onPress={() => { void imports.refreshImportPreferences(); }} /><AppButton label="Back" variant="secondary" onPress={() => router.back()} /></ScrollView></SafeAreaView>;
+  const setupMailbox = (mailbox: 'gmail' | 'outlook', reconnect = false) => navigation.open(addHistoryDestination({ intent: reconnect ? 'reconnect' : 'email', mailbox, returnTo: 'settings' }));
+  if (imports.importPreferencesLoading || imports.importPreferencesError) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}><PageHeader title={imports.importPreferencesError ? 'We couldn’t load account settings' : 'Loading account settings'} body="Your saved connections and permissions have not changed." /><AppButton label="Reload settings" onPress={() => { void imports.refreshImportPreferences(); }} /><AppButton label="Back" variant="secondary" onPress={() => navigation.backOr(appDestinations.profile)} /></ScrollView></SafeAreaView>;
   return <SafeAreaView style={styles.container}>
     <ScrollView contentContainerStyle={styles.content}>
-      <AppButton label="Back" icon="arrow-back" variant="tertiary" onPress={() => router.replace(params.returnTo && returnTo !== 'settings' ? importReturnDestination(returnTo) : '/(tabs)/profile')} />
+      <AppButton label="Back" icon="arrow-back" variant="tertiary" onPress={() => navigation.replace(params.returnTo && returnTo !== 'settings' ? importReturnDestination(returnTo) : appDestinations.profile)} />
       <PageHeader eyebrow="YOU" title={params.mailbox === 'gmail' ? 'Gmail and automatic updates' : params.mailbox === 'outlook' ? 'Outlook and automatic updates' : 'Accounts & permissions'} body="Manage the connections that find orders and the permissions that keep your history current." />
 
       <AppText variant="sectionLabel">CONNECTED INBOXES</AppText>
@@ -52,7 +54,7 @@ export default function AccountsPermissionsScreen() {
       {lastCheck && !Number.isNaN(Date.parse(lastCheck)) ? <AppText variant="metadata" tone="muted">Last successful email check: {new Date(lastCheck).toLocaleString()}</AppText> : null}
       <Surface><PermissionRow icon="notifications-outline" title="Import completion notifications" detail="Get a device notification when SnackTrack finishes adding your orders. This does not check for Uber’s email." value={profile.importNotificationsLabel} onPress={profile.toggleImportNotifications} disabled={profile.arePreferencesBusy} /></Surface>
       <Surface style={styles.privacy}><Ionicons name="shield-checkmark-outline" size={25} color={theme.colors.primary} /><View style={styles.flex}><AppText variant="rowTitle">Your imported history stays yours</AppText><AppText variant="metadata" tone="muted">Disconnecting an inbox stops future access. Orders already imported remain until you reset imported data.</AppText></View></Surface>
-      <AppButton label="Add orders" variant="secondary" onPress={() => router.push('/add-history?returnTo=settings')} />
+      <AppButton label="Add orders" variant="secondary" onPress={() => navigation.open(addHistoryDestination({ returnTo: 'settings' }))} />
     </ScrollView>
   </SafeAreaView>;
 }

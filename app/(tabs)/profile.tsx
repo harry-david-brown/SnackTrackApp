@@ -10,9 +10,10 @@ import { PageHeader } from '@components/ui/PageHeader';
 import type { AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useProfileController } from '@hooks/useProfileController';
-import { router } from 'expo-router';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 export default function ProfileScreen() {
+  const navigation = useAppNavigation();
   const profile = useProfileController();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -47,9 +48,9 @@ export default function ProfileScreen() {
           onOpenReceipts={profile.openReceipts}
           onOpenImport={profile.openImport}
           onToggleImportNotifications={profile.toggleImportNotifications}
-          onOpenCurrency={() => router.push('/settings/currency')}
-          onOpenAppearance={() => router.push('/settings/appearance')}
-          onOpenHelp={() => router.push('/settings/help-privacy')}
+          onOpenCurrency={() => navigation.open(appDestinations.currency)}
+          onOpenAppearance={() => navigation.open(appDestinations.appearance)}
+          onOpenHelp={() => navigation.open(appDestinations.helpPrivacy)}
           onDevelopmentReset={profile.requestDevelopmentReset}
           onClearReceipts={profile.requestClearReceipts}
           onDeleteAccount={profile.requestAccountDeletion}

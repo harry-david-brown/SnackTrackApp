@@ -285,6 +285,20 @@ export const Gradients = {
   celebration: [Colors.primary, Colors.secondary, Colors.accent] as const,
 };
 
+/** Approved deeper-history preview: fixed dark story surface in either appearance. */
+export const HistoryPreviewColors = {
+  background: '#100E2B',
+  backgroundEnd: '#211B49',
+  surface: '#2B2549',
+  surfaceBorder: '#655774',
+  iconSurface: '#302B4C',
+  divider: '#423A5A',
+  text: '#FFFAF1',
+  muted: '#C7C0D6',
+  subtle: '#B8B0CA',
+  gold: '#E6C26D',
+} as const;
+
 export const FontFamily = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',

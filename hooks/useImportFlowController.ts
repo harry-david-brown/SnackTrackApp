@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, type LayoutChangeEvent, type ScrollView } from "react-native";
-import { router } from "expo-router";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { appDestinations, useAppNavigation } from "@features/navigation";
 import { featureFlags } from "@config/featureFlags";
 import { useUser } from "@contexts/UserContext";
 import type { ImportTaskId } from "@components/upload/ImportTaskCard";
@@ -82,6 +82,7 @@ const completionActionForRecommendation = (
 };
 
 export function useImportFlowController(route: ImportRouteParams, screenMode: 'auto' | 'setup' | 'manage' = 'auto') {
+  const navigation = useAppNavigation();
   const isFocused = useIsFocused();
   const focused = useRef(isFocused);
   focused.current = isFocused;
@@ -330,7 +331,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       if (cancelled || attempt !== oauthReturnAttempt.current) return;
       if (next && isReady(next)) {
         setOAuthReturn(null);
-        router.setParams({ gmail: undefined, outlook: undefined, error: undefined });
+        navigation.setParams({ gmail: undefined, outlook: undefined, error: undefined });
         return;
       }
       setOAuthReturn({ provider, status: 'failed' });
@@ -339,7 +340,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     return () => {
       cancelled = true;
     };
-  }, [preferences.refresh, route.connectionFailed, route.connectionSucceeded, route.mailbox, screenMode]);
+  }, [navigation, preferences.refresh, route.connectionFailed, route.connectionSucceeded, route.mailbox, screenMode]);
 
   const handoffProvider: ExportProvider =
     route.provider ??
@@ -643,7 +644,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         if (operation && mode === 'manual_check') manualOperationIds.current.add(operation.id);
         if (operation && mode !== 'manual_check') {
           if (userId) suppressAdsForSession(userId);
-          router.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
+          navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
         }
       } finally {
         gmailImportMode.current = "initial";
@@ -655,6 +656,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       flow.gmailConnected,
       flow.hasImportedEmailData,
       gmail,
+      navigation,
       returnTo,
       userId,
     ],
@@ -669,7 +671,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         if (operation && mode === 'manual_check') manualOperationIds.current.add(operation.id);
         if (operation && mode !== 'manual_check') {
           if (userId) suppressAdsForSession(userId);
-          router.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
+          navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
         }
       } finally {
         gmailImportMode.current = "initial";
@@ -679,6 +681,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       flow.canImportFromOutlook,
       flow.hasImportedEmailData,
       flow.outlookConnected,
+      navigation,
       outlook,
       returnTo,
       userId,
@@ -859,7 +862,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }
     }
 
-    router.setParams({
+    navigation.setParams({
       action: undefined,
       intentId: undefined,
       provider: undefined,
@@ -874,6 +877,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     flow.exportProviderProgress.doorDash,
     flow.exportProviderProgress.uberEats,
     flow.exportRequested,
+    navigation,
     flow.canImportFromGmail,
     flow.canImportFromOutlook,
     flow.gmailConnected,
@@ -924,9 +928,9 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     setTutorialPlatform(undefined);
     setTutorialEntryJob(undefined);
     void trackAdminEvent('setup_completed', { properties: { method: 'provider_history_request' } }).catch(() => undefined);
-    if (screenMode === 'setup') router.replace({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo, journeyContext: 'onboarding' } });
+    if (screenMode === 'setup') navigation.replace({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo, journeyContext: 'onboarding' } });
     return true;
-  }, [markExportRequested, returnTo, screenMode, userId]);
+  }, [markExportRequested, navigation, returnTo, screenMode, userId]);
 
   const tutorialStillWaiting = completeTutorial;
 
@@ -967,9 +971,9 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       setTutorialEntryJob(undefined);
       const provider = platform === 'uber' ? 'uber_eats' : 'doordash';
       void reportDownloaded(provider, false);
-      router.replace({ pathname: '/add-history', params: { intent: 'provider', provider, downloadedVersion: 'saved', returnTo, journeyContext: route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding') } });
+      navigation.replace({ pathname: '/add-history', params: { intent: 'provider', provider, downloadedVersion: 'saved', returnTo, journeyContext: route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding') } });
     },
-    [reportDownloaded, returnTo, route.journeyContext, screenMode],
+    [navigation, reportDownloaded, returnTo, route.journeyContext, screenMode],
   );
 
   const tutorialReadyConfirmed = useCallback(
@@ -1032,9 +1036,9 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     async (operation: ImportOperation) => {
       setActiveTaskId("uber_export");
       if (userId) suppressAdsForSession(userId);
-      router.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
+      navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo } });
     },
-    [returnTo, userId],
+    [navigation, returnTo, userId],
   );
 
   const openTutorial = useCallback(
@@ -1061,20 +1065,20 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
 
   const closeTutorial = useCallback(() => {
     if (screenMode === 'setup' && route.showExportTutorial) {
-      router.back();
+      navigation.backOr(appDestinations.dataSetup);
       return;
     }
     setShowTutorial(false);
     setTutorialPlatform(undefined);
     setTutorialEntryJob(undefined);
-  }, [route.showExportTutorial, screenMode]);
+  }, [navigation, route.showExportTutorial, screenMode]);
 
   const continueAfterCompletion = useCallback(() => {
     const nextAction = completionSummary?.nextAction;
     setCompletionSummary(null);
     if (!nextAction || nextAction.kind === "done") return;
     if (nextAction.kind === "recap") {
-      router.replace({ pathname: "/(tabs)/wrapped-journey", params: { entryPoint: "automatic_first_import" } });
+      navigation.replace({ pathname: "/(tabs)/wrapped-journey", params: { entryPoint: "automatic_first_import" } });
       return;
     }
     if (nextAction.kind === "provider") {
@@ -1086,13 +1090,13 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       return;
     }
     setupOngoingUpdates();
-  }, [completionSummary?.nextAction, flow.hasConnectedEmail, openTutorial, setupOngoingUpdates]);
+  }, [completionSummary?.nextAction, flow.hasConnectedEmail, navigation, openTutorial, setupOngoingUpdates]);
 
   const autoOpenConsumed = useCallback(() => {
     setAutoOpenExportPickerToken(null);
     if (route.downloadedVersion)
-      router.setParams({ downloadedVersion: undefined });
-  }, [route.downloadedVersion]);
+      navigation.setParams({ downloadedVersion: undefined });
+  }, [navigation, route.downloadedVersion]);
 
   const gmailButtonLabel =
     gmail.primaryFlowState === "connecting"
@@ -1129,8 +1133,8 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
   const clearOAuthReturn = useCallback(() => {
     oauthReturnAttempt.current += 1;
     setOAuthReturn(null);
-    router.setParams({ gmail: undefined, outlook: undefined, error: undefined });
-  }, []);
+    navigation.setParams({ gmail: undefined, outlook: undefined, error: undefined });
+  }, [navigation]);
 
   const retryOAuthConnection = useCallback(() => {
     const provider = oauthReturn?.provider ?? route.mailbox;
@@ -1216,7 +1220,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
           'Connect or reconnect the inbox that receives your Uber emails, then return here to turn on the alert. Your request is saved.',
           [
             { text: 'Not now', style: 'cancel' },
-            { text: 'Manage inboxes', onPress: () => router.push('/settings/accounts-permissions') },
+            { text: 'Manage inboxes', onPress: () => navigation.open(appDestinations.accountsPermissions) },
           ],
         );
         return;
@@ -1247,7 +1251,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         ? ("download" as const)
         : ("request" as const),
     closeTutorial,
-    openTutorial: () => router.push('/data-setup?sourcePicker=true'),
+    openTutorial: () => navigation.open({ pathname: '/data-setup', params: { sourcePicker: 'true' } }),
     openProviderTutorial: openTutorial,
     completeTutorial,
     requestNotSubmitted: (platform: DataPlatform) => {
@@ -1275,7 +1279,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     disconnectGmail: gmail.disconnectGmail,
     disconnectOutlook: outlook.disconnectOutlook,
     goHome: () => {
-      router.replace("/(tabs)");
+      navigation.replace(appDestinations.home);
     },
     tryAnotherEmail: () => {
       setCompletionSummary(null);

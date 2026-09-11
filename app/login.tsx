@@ -1,4 +1,3 @@
-// A distinct route is required for logout. The root URL ("/") is shared by
-// app/index.tsx and (tabs)/index.tsx, so redirecting there from inside the tabs
-// can resolve back to the tabs layout and create an infinite redirect loop.
+// Keep a stable public address for signed-out links. Protected route removal
+// is owned by app/_layout.tsx; this screen shares the entry state resolver.
 export { default } from './index';

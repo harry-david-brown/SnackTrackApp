@@ -3,7 +3,7 @@ import { ImportProgressScreen } from './ImportProgressScreen';
 import { providerPreparationCopy } from '@features/import-flow/importNavigation';
 import { hasMailboxBaseline } from '@features/import-flow/emailImportPresentation';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@components/ui/AppButton';
@@ -20,8 +20,10 @@ import { resolveImportCoverage } from '@features/import-flow/importJourneyState'
 import { resolveExportReadyAlertPresentation } from '@features/import-flow/exportReadyAlertPresentation';
 import type { PostOnboardingImportRoute } from '@features/import-flow/postOnboardingImportRoute';
 import { usePostOnboardingImportController } from '@hooks/usePostOnboardingImportController';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImportRoute }) {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const c = usePostOnboardingImportController(route);
   const s = c.state;
@@ -51,8 +53,8 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
   const content = (() => {
     switch (s.kind) {
       case 'loading': return <><ActivityIndicator color={theme.colors.primary} />{title('Loading your import options', 'Your saved history is still available.')}</>;
-      case 'temporary_outage': return <>{title('We can’t load import status', 'Your saved history is available. Try loading the status before starting the same import again.')}{btn('Try again', c.refreshStatus)}{btn('View order history', () => router.replace('/(tabs)/history'), true)}</>;
-      case 'missing_operation': return <>{title('This import link is unavailable', 'It may be an old link. Your existing orders are still available.')}{btn('Add orders', () => router.replace({ pathname: '/add-history', params: { returnTo: c.returnTo } }))}</>;
+      case 'temporary_outage': return <>{title('We can’t load import status', 'Your saved history is available. Try loading the status before starting the same import again.')}{btn('Try again', c.refreshStatus)}{btn('View order history', () => navigation.replace(appDestinations.history), true)}</>;
+      case 'missing_operation': return <>{title('This import link is unavailable', 'It may be an old link. Your existing orders are still available.')}{btn('Add orders', () => navigation.replace({ pathname: '/add-history', params: { returnTo: c.returnTo } }))}</>;
       case 'choose_method': return <>
         {title('Which orders would you like to add?', 'Add your full available delivery history, including details email receipts may miss.')}
         {c.activeImportUnavailable ? <Surface><Choice icon="cloud-offline-outline" title="Import status is unavailable" body="We can’t confirm the latest progress. Reload before starting another import." onPress={c.refreshStatus} /></Surface> : null}
@@ -61,7 +63,7 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
         {[providers.uberEats, providers.doorDash].filter(p => !c.pendingRequests[p.provider] && ['requested', 'file_ready', 'failed', 'import_processing'].includes(p.status)).map(p => <Surface key={p.provider}><Choice icon="bookmark-outline" title={`Continue with ${p.name}`} body={p.status === 'requested' ? 'Request saved · Waiting for the ready message' : p.status === 'file_ready' ? 'Your download is ready' : p.status === 'failed' ? 'The last import needs another try' : 'History is being processed'} onPress={() => c.resumeProviderJourney(p.provider)} /></Surface>)}
         <Surface>{s.providers.map(p => <Choice key={p.provider} icon={p.provider === 'uber_eats' ? 'car-outline' : 'bag-handle-outline'} title={p.name} body={p.imported ? `${p.receiptCount} imported orders${coverageDates(p.provider)} · You can add a newer file` : 'Full available history, including recent orders'} onPress={() => c.chooseProvider(p.provider)} />)}</Surface>
         {!c.importPreferences?.gmailBaseline.hasCompleted && !c.importPreferences?.outlookBaseline.hasCompleted ? <AppButton label="Connect email for automatic updates" variant="secondary" onPress={c.chooseEmail} /> : null}
-        <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={() => router.push({ pathname: '/settings/accounts-permissions', params: { returnTo: c.returnTo } })} />
+        <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={() => navigation.open({ pathname: '/settings/accounts-permissions', params: { returnTo: c.returnTo } })} />
       </>;
       case 'provider_intro': return <>
         {title(`Do you already have your ${shortName} data download?`, `This is the file ${shortName} prepares when you request a copy of your account history.`, s.provider.name.toUpperCase())}

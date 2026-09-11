@@ -40,8 +40,10 @@ jest.mock('react-native-google-mobile-ads', () => {
 // Mock Expo modules
 const mockRouter = {
   push: jest.fn(),
+  navigate: jest.fn(),
   replace: jest.fn(),
   back: jest.fn(),
+  canGoBack: jest.fn(() => true),
   setParams: jest.fn(),
 };
 
@@ -49,18 +51,70 @@ jest.mock('expo-router', () => ({
   router: mockRouter,
   useRouter: () => ({
     push: mockRouter.push,
+    navigate: mockRouter.navigate,
     replace: mockRouter.replace,
     back: mockRouter.back,
+    canGoBack: mockRouter.canGoBack,
     setParams: mockRouter.setParams,
   }),
   useLocalSearchParams: jest.fn(() => ({})),
   useGlobalSearchParams: jest.fn(() => ({})),
   usePathname: jest.fn(() => '/'),
+  useSegments: jest.fn(() => ['(tabs)']),
   Redirect: () => null,
-  Stack: ({ children }: { children: React.ReactNode }) => children,
+  Stack: Object.assign(
+    ({ children }: { children: React.ReactNode }) => children,
+    {
+      Screen: () => null,
+      Protected: ({ children }: { children: React.ReactNode }) => children,
+    },
+  ),
   Tabs: ({ children }: { children: React.ReactNode }) => children,
   Tab: ({ children }: { children: React.ReactNode }) => children,
 }));
+
+jest.mock('@features/navigation', () => {
+  const actual = jest.requireActual('@features/navigation');
+  return {
+    ...actual,
+    useAppNavigation: jest.fn(() => ({
+      open: (destination: unknown) => { mockRouter.navigate(destination); return 'navigated'; },
+      replace: (destination: unknown) => { mockRouter.replace(destination); return 'navigated'; },
+      backOr: (fallback: unknown) => {
+        if (mockRouter.canGoBack()) mockRouter.back();
+        else mockRouter.replace(fallback);
+        return 'navigated';
+      },
+      setParams: (params: unknown) => mockRouter.setParams(params),
+      dispatchExternalNavigation: (intent: {
+        kind: 'import-result' | 'resume-export';
+        source: 'background' | 'notification' | 'export-ready';
+        operationId?: string;
+        provider?: string;
+        readyVersion?: string;
+        showDownloadSteps?: boolean;
+      }) => {
+        const destination = intent.kind === 'import-result'
+          ? { pathname: '/import-result', params: { operationId: intent.operationId, returnTo: 'home' } }
+          : {
+            pathname: '/add-history',
+            params: {
+              intent: 'resume_export',
+              provider: intent.provider,
+              returnTo: 'home',
+              ...(intent.readyVersion ? { downloadedVersion: intent.readyVersion } : {}),
+              ...(intent.showDownloadSteps ? { showDownloadSteps: 'true' } : {}),
+            },
+          };
+        if (intent.source === 'background') mockRouter.replace(destination);
+        else mockRouter.navigate(destination);
+        return 'navigated';
+      },
+      registerExternalBlocker: () => () => undefined,
+    })),
+    useExternalNavigationBlocker: jest.fn(),
+  };
+});
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
-import { router } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 import { isActiveImportOperation, type ExportProvider, type MailboxProvider } from '@features/import-flow/contracts';
 import type { ImportRouteParams } from '@features/import-flow/importRouteParams';
@@ -13,9 +12,11 @@ import { showSimpleAlert } from '@utils/platformAlert';
 import { useImportFlowController } from '@hooks/useImportFlowController';
 import { useImportFileSession } from '@hooks/useImportFileSession';
 import { useImportOperation } from '@hooks/useImportOperation';
+import { appDestinations, useAppNavigation, useExternalNavigationBlocker } from '@features/navigation';
 
 const platform = (p: ExportProvider) => p === 'uber_eats' ? 'uber' as const : 'doordash' as const;
 export function usePostOnboardingImportController(route: PostOnboardingImportRoute) {
+  const navigation = useAppNavigation();
   const [resumedReturnTo, setResumedReturnTo] = useState<ReturnType<typeof parseImportReturnTo> | null>(null);
   const returnTo = resumedReturnTo ?? parseImportReturnTo(route.returnTo);
   const initial = useCallback((): GuidedImportSelection => ({ intent: route.intent === 'reconnect' && route.connectionSucceeded ? 'email' : route.intent, provider: route.provider, mailbox: route.mailbox ?? null, step: route.downloadedVersion ? 'ready' : route.confirmRequest ? 'confirm_request' : null }), [route.intent, route.connectionSucceeded, route.provider, route.mailbox, route.downloadedVersion, route.confirmRequest]);
@@ -30,6 +31,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const importBlocked = isActiveImportOperation(base.activeImportOperation);
   const fileSession = useImportFileSession(selection.provider ?? 'uber_eats', route.journeyContext ?? 'post_onboarding', importBlocked && base.activeImportOperation?.status !== 'awaiting_upload', base.activeImportOperation, base.activeImportUnavailable);
   const navigationBlocked = fileSession.isPending || base.requestSaving;
+  useExternalNavigationBlocker('post-onboarding-import-submit', navigationBlocked);
   usePreventRemove(navigationBlocked, () => showSimpleAlert('Please keep this page open', fileSession.isPending ? 'Your file is being uploaded and submitted. You can leave once processing is accepted.' : 'Your request is being saved.'));
   const userId = base.user?.id;
   const providerStatuses = base.importPreferences?.export.providers;
@@ -47,7 +49,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     history.current = rememberImportSelection(history.current, selection);
     setSelection({ ...selection, ...patch });
   }, [navigationBlocked, selection]);
-  const close = useCallback(() => { if (!navigationBlocked) router.replace(importReturnDestination(returnTo)); }, [navigationBlocked, returnTo]);
+  const close = useCallback(() => { if (!navigationBlocked) navigation.replace(importReturnDestination(returnTo)); }, [navigation, navigationBlocked, returnTo]);
   const goBack = useCallback(() => {
     if (navigationBlocked) return;
     if (fileSession.operation) { close(); return; }
@@ -101,7 +103,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
       if (connected) setSelection(current => ({ ...current, intent: 'email' }));
       return;
     }
-    if (hasMailboxBaseline(base.importPreferences, selection.mailbox)) { router.replace({ pathname: '/settings/accounts-permissions', params: { mailbox: selection.mailbox, returnTo } }); return; }
+    if (hasMailboxBaseline(base.importPreferences, selection.mailbox)) { navigation.replace({ pathname: '/settings/accounts-permissions', params: { mailbox: selection.mailbox, returnTo } }); return; }
     if (!connection.canImport || importBlocked || base.activeImportUnavailable) return;
     if (selection.mailbox === 'gmail') base.importEmail('initial', base.emailUpdates.automaticUpdates);
     else base.importOutlook('initial', base.emailUpdates.automaticUpdates);
@@ -147,7 +149,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     },
     finishDownloadGuide: async (p: 'uber' | 'doordash') => { base.closeTutorial(); return chooseDownloadedFile(p === 'uber' ? 'uber_eats' : 'doordash'); },
     refreshStatus: () => { void base.refreshImportPreferences(); void base.refreshActiveImport(); if (route.operationId) void selectedOperation.refresh(); },
-    viewOperation: () => { if (operation) router.push({ pathname: isActiveImportOperation(operation) ? '/import-progress' : '/import-result', params: { operationId: operation.id, returnTo } }); },
-    goHome: () => { if (!navigationBlocked) router.replace('/(tabs)'); },
+    viewOperation: () => { if (operation) navigation.open({ pathname: isActiveImportOperation(operation) ? '/import-progress' : '/import-result', params: { operationId: operation.id, returnTo } }); },
+    goHome: () => { if (!navigationBlocked) navigation.replace(appDestinations.home); },
   };
 }

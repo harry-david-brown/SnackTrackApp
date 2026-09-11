@@ -5,7 +5,8 @@ import ExportReadyNotifier from '@components/upload/ExportReadyNotifier';
 import { useUser } from '@contexts/UserContext';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { showAlert } from '@utils/platformAlert';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
+import { useAppNavigation, type NavigationOutcome } from '@features/navigation';
 
 jest.mock('@contexts/UserContext', () => ({
   useUser: jest.fn(),
@@ -19,6 +20,7 @@ jest.mock('@utils/platformAlert', () => ({
 
 describe('ExportReadyNotifier', () => {
   const checkExportReady = jest.fn();
+  const dispatchExternalNavigation = jest.fn<NavigationOutcome, []>(() => 'navigated');
   const readyPreferences = () => ({
     monitoring: {
       consentState: 'granted',
@@ -57,6 +59,11 @@ describe('ExportReadyNotifier', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(useAppNavigation).mockReturnValue({
+      open: jest.fn(), replace: jest.fn(), backOr: jest.fn(), setParams: jest.fn(),
+      dispatchExternalNavigation,
+      registerExternalBlocker: jest.fn(() => () => undefined),
+    });
     jest.mocked(usePathname).mockReturnValue('/');
     (useUser as jest.Mock).mockReturnValue({
       state: { user: { id: 'user-1' } },
@@ -153,9 +160,11 @@ describe('ExportReadyNotifier', () => {
     await waitFor(() => expect(showAlert).toHaveBeenCalled());
     const buttons = (showAlert as jest.Mock).mock.calls[0][2];
     act(() => buttons.find((button: { text: string }) => button.text === 'Show Download Steps').onPress());
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/add-history',
-      params: { intent: 'resume_export', provider: 'uber_eats', showDownloadSteps: 'true' },
+    expect(dispatchExternalNavigation).toHaveBeenCalledWith({
+      kind: 'resume-export',
+      source: 'export-ready',
+      provider: 'uber_eats',
+      showDownloadSteps: true,
     });
   });
 
@@ -181,7 +190,38 @@ describe('ExportReadyNotifier', () => {
         state: 'downloaded',
       })
     ));
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/add-history', params: { intent: 'resume_export', provider: 'uber_eats', downloadedVersion: '2026-08-04T12:00:00.000Z' } });
+    expect(dispatchExternalNavigation).toHaveBeenCalledWith({
+      kind: 'resume-export',
+      source: 'export-ready',
+      provider: 'uber_eats',
+      readyVersion: '2026-08-04T12:00:00.000Z',
+    });
+  });
+
+  it('re-checks the live navigation policy when a previously shown alert is tapped', async () => {
+    dispatchExternalNavigation.mockReturnValueOnce('blocked');
+    render(<ExportReadyNotifier />);
+    await waitFor(() => expect(showAlert).toHaveBeenCalled());
+    const buttons = (showAlert as jest.Mock).mock.calls[0][2];
+    act(() => buttons.find((button: { text: string }) => button.text === 'Show Download Steps').onPress());
+    expect(dispatchExternalNavigation).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'resume-export',
+      source: 'export-ready',
+    }));
+  });
+
+  it('does not record a download handoff when a newly started upload blocks the alert action', async () => {
+    dispatchExternalNavigation.mockReturnValueOnce('blocked');
+    render(<ExportReadyNotifier />);
+    await waitFor(() => expect(showAlert).toHaveBeenCalled());
+    jest.mocked(AsyncStorage.setItem).mockClear();
+    const buttons = (showAlert as jest.Mock).mock.calls[0][2];
+    act(() => buttons.find((button: { text: string }) => button.text === 'Already Downloaded').onPress());
+    await waitFor(() => expect(dispatchExternalNavigation).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'resume-export',
+      readyVersion: '2026-08-04T12:00:00.000Z',
+    })));
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
   });
 
   it('asks whether the download worked after returning from the download page', async () => {

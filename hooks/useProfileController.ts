@@ -1,6 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,10 +22,12 @@ import {
 import { requestImportNotifications } from '@components/import/ImportNotificationController';
 import { notificationDeviceApi } from '@services/notificationDeviceApi';
 import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 type ProfileModal = 'tutorial' | 'help' | 'currency' | null;
 
 export function useProfileController() {
+  const navigation = useAppNavigation();
   const { state, logout, deleteAccount } = useUser();
   const { resetOnboarding } = useOnboarding();
   const { currency, setCurrency, formatCurrency } = useCurrency();
@@ -92,13 +93,13 @@ export function useProfileController() {
     try {
       await resetOnboarding();
       showAlert(successTitle, 'Your account import data has been reset and connected mailboxes were disconnected.');
-      router.replace('/');
+      navigation.replace(appDestinations.entry);
     } catch (error: unknown) {
       showAlert(failureTitle, toDomainError(error).message);
     } finally {
       setIsClearingReceipts(false);
     }
-  }, [isClearingReceipts, resetOnboarding, state.user]);
+  }, [isClearingReceipts, navigation, resetOnboarding, state.user]);
 
   const requestClearReceipts = useCallback(() => {
     if (!state.user || isClearingReceipts) return;
@@ -159,7 +160,7 @@ export function useProfileController() {
                   { text: 'Not Now', style: 'cancel' },
                   {
                     text: 'Manage connections',
-                    onPress: () => router.push('/settings/accounts-permissions'),
+                    onPress: () => navigation.open(appDestinations.accountsPermissions),
                   },
                 ]);
               }
@@ -168,7 +169,7 @@ export function useProfileController() {
         },
       ],
     );
-  }, [preferences?.monitoring.consentState, setMonitoringConsent]);
+  }, [navigation, preferences?.monitoring.consentState, setMonitoringConsent]);
 
   const toggleOngoingTracking = useCallback(() => {
     if (preferences?.ongoingTracking.consentState === 'granted'
@@ -182,7 +183,7 @@ export function useProfileController() {
     if (trackingRecovery.kind === 'baseline') {
       showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your downloaded history and establish where future checks should begin.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Import', onPress: () => router.push({
+        { text: 'Go to Import', onPress: () => navigation.open({
           pathname: '/add-history',
           params: { intent: 'email', returnTo: 'settings' },
         }) },
@@ -196,7 +197,7 @@ export function useProfileController() {
     if (trackingRecovery.kind === 'reconnect') {
       showAlert('Reconnect email first', 'Ongoing tracking needs a durable Gmail or Outlook connection. Manage email connections from the Import screen, then return here.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Manage connections', onPress: () => router.push('/settings/accounts-permissions') },
+        { text: 'Manage connections', onPress: () => navigation.open(appDestinations.accountsPermissions) },
       ]);
       return;
     }
@@ -206,20 +207,20 @@ export function useProfileController() {
       { text: 'Not Now', style: 'cancel' },
       { text: 'Turn on updates', onPress: () => { void setOngoingTrackingConsent('granted').catch(() => showSimpleAlert('Could not turn on updates', 'Your previous setting is unchanged. Please try again.')); } },
     ]);
-  }, [preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
+  }, [navigation, preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
 
   const completeTutorial = useCallback(async (platform: DataPlatform): Promise<boolean> => {
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
     try {
       await markExportRequested(provider);
       setActiveModal(null);
-      router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo: 'settings' } });
+      navigation.open({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo: 'settings' } });
       return true;
     } catch {
       showSimpleAlert('Request not saved', 'Please try again. Your confirmation is still available.');
       return false;
     }
-  }, [markExportRequested]);
+  }, [markExportRequested, navigation]);
 
   const tutorialReadyConfirmed = useCallback((platform: DataPlatform) => {
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
@@ -239,11 +240,11 @@ export function useProfileController() {
     const readyVersion = providerState?.updatedAt ?? 'ready';
     await setExportDownloadHandoffState(userId, provider, readyVersion, 'downloaded');
     setActiveModal(null);
-    router.push({
+    navigation.open({
       pathname: '/add-history',
       params: { intent: 'resume_export', provider, downloadedVersion: readyVersion, returnTo: 'settings' },
     });
-  }, [preferences?.export.providers, userId]);
+  }, [navigation, preferences?.export.providers, userId]);
 
   const openPrivacyPolicy = useCallback(async () => {
     const url = 'https://getsnacktrack.com/privacy-policy';
@@ -296,8 +297,8 @@ export function useProfileController() {
     showDevelopmentReset: featureFlags.showResetOnboarding,
     openModal: setActiveModal,
     closeModal: () => setActiveModal(null),
-    openReceipts: () => router.push('/(tabs)/history'),
-    openImport: () => router.push('/settings/accounts-permissions'),
+    openReceipts: () => navigation.open(appDestinations.history),
+    openImport: () => navigation.open(appDestinations.accountsPermissions),
     requestLogout,
     requestClearReceipts,
     requestDevelopmentReset,

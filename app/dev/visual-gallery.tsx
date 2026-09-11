@@ -1,5 +1,6 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Mascot } from '@components/mascot/Mascot';
 import { AppButton } from '@components/ui/AppButton';
@@ -10,11 +11,12 @@ import { Surface } from '@components/ui/Surface';
 import { useAppearance } from '@contexts/AppearanceContext';
 
 export default function VisualGallery() {
+  const navigation = useAppNavigation();
   const { preference, setPreference, theme } = useAppearance();
   const [largeText, setLargeText] = useState(false);
   if (!__DEV__) return <Redirect href="/" />;
   return <AppScreen scroll>
-    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.back}><AppText variant="button" tone="brand">Back</AppText></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.backOr(appDestinations.home)} style={styles.back}><AppText variant="button" tone="brand">Back</AppText></Pressable>
     <PageHeader eyebrow="VISUAL QA" title="SnackTrack gallery" body="Deterministic fixtures for checking theme, type scale, spacing, surfaces, actions, and mascot proportions." />
     <View style={styles.controls}>
       {(['system', 'light', 'dark'] as const).map(value => <Pressable key={value} onPress={() => void setPreference(value)} style={[styles.chip, { backgroundColor: preference === value ? theme.colors.chipActiveBg : theme.colors.chipInactiveBg }]}><AppText variant="metadata" style={{ color: preference === value ? theme.colors.chipActiveText : theme.colors.chipInactiveText }}>{value}</AppText></Pressable>)}

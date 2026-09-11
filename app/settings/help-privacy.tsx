@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen } from '@components/ui/AppScreen';
@@ -7,6 +6,7 @@ import { AppText } from '@components/ui/AppText';
 import { PageHeader } from '@components/ui/PageHeader';
 import { Surface } from '@components/ui/Surface';
 import { useAppTheme } from '@contexts/AppearanceContext';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 const rows = [
   { icon: 'shield-checkmark-outline' as const, title: 'Privacy policy', body: 'How SnackTrack handles account and receipt data.', url: 'https://getsnacktrack.com/privacy-policy' },
@@ -14,9 +14,10 @@ const rows = [
 ];
 
 export default function HelpPrivacyScreen() {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   return <AppScreen scroll>
-    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={21} color={theme.colors.primary} /></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.backOr(appDestinations.profile)} style={styles.back}><Ionicons name="arrow-back" size={21} color={theme.colors.primary} /></Pressable>
     <PageHeader eyebrow="HELP & PRIVACY" title="Answers and control" body="Learn how imports work, review privacy details, or get help from us." />
     <Surface style={styles.guide}>
       <AppText variant="surfaceTitle">Building your history</AppText>

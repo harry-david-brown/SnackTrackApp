@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { appQueryClient } from '@lib/queryClient';
-import { UserProvider } from '@contexts/UserContext';
+import { UserProvider, useUser } from '@contexts/UserContext';
 import { OnboardingProvider } from '@contexts/OnboardingContext';
 import { CurrencyProvider } from '@contexts/CurrencyContext';
 import { ErrorBoundary } from '@components/ui/ErrorBoundary';
@@ -22,6 +22,8 @@ import {
 } from '@expo-google-fonts/fredoka';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { AppearanceProvider, useAppearance } from '@contexts/AppearanceContext';
+import { NavigationPolicyProvider, resolveSessionNavigationState } from '@features/navigation';
+import type { AppTheme } from '@constants/theme';
 import { useEffect } from 'react';
 
 // Initialize Sentry as early as possible
@@ -29,7 +31,11 @@ initSentry();
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  return <AppearanceProvider><ThemedRootLayout /></AppearanceProvider>;
+  return (
+    <AppearanceProvider>
+      <ThemedRootLayout />
+    </AppearanceProvider>
+  );
 }
 
 function ThemedRootLayout() {
@@ -63,82 +69,105 @@ function ThemedRootLayout() {
     // Required for react-native-gesture-handler gestures (Wrapped drag-to-dismiss).
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationThemeProvider value={navigationTheme}>
-      <ErrorBoundary>
-        <AppAlertProvider>
-          <QueryClientProvider client={appQueryClient}>
-            <CurrencyProvider>
-              <UserProvider>
-                <AdminAnalyticsController />
-                <OnboardingProvider>
-                  <ExportReadyNotifier />
-                  <ImportBackgroundController />
-                  <ImportNotificationController />
-                  <Stack
-                    screenOptions={{
-                      contentStyle: { backgroundColor: theme.colors.background },
-                    }}
-                  >
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: theme.colors.background },
-                      }}
-                    />
-                    <Stack.Screen
-                      name="index"
-                      options={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: theme.colors.background },
-                        animation: 'fade',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="login"
-                      options={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: theme.colors.background },
-                        animation: 'fade',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="oauth-callback"
-                      options={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: theme.colors.background },
-                        animation: 'fade',
-                      }}
-                    />
-                    <Stack.Screen
-                      name="receipts"
-                      options={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: theme.colors.background },
-                        presentation: 'card',
-                      }}
-                    />
-                    <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
-                    <Stack.Screen name="add-history" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
-                    <Stack.Screen name="import-result" options={{ headerShown: false }} />
-                    <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="data-tracking/email" options={{ headerShown: false }} />
-                    <Stack.Screen name="data-tracking/history" options={{ headerShown: false }} />
-                    <Stack.Screen name="data-tracking/provider/[provider]" options={{ headerShown: false }} />
-                    <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="settings/currency" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="settings/help-privacy" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="settings/accounts-permissions" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="dev/visual-gallery" options={{ headerShown: false }} />
-                  </Stack>
-                  <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-                </OnboardingProvider>
-              </UserProvider>
-            </CurrencyProvider>
-          </QueryClientProvider>
-        </AppAlertProvider>
-      </ErrorBoundary>
+        <ErrorBoundary>
+          <AppAlertProvider>
+            <QueryClientProvider client={appQueryClient}>
+              <CurrencyProvider>
+                <UserProvider>
+                  <AdminAnalyticsController />
+                  <NavigationPolicyProvider>
+                    <OnboardingProvider>
+                      <SessionNavigation theme={theme} />
+                      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+                    </OnboardingProvider>
+                  </NavigationPolicyProvider>
+                </UserProvider>
+              </CurrencyProvider>
+            </QueryClientProvider>
+          </AppAlertProvider>
+        </ErrorBoundary>
       </NavigationThemeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function SessionNavigation({ theme }: { theme: AppTheme }) {
+  const { state } = useUser();
+  const sessionNavigation = resolveSessionNavigationState({
+    isLoading: state.isLoading,
+    isAuthenticated: state.isAuthenticated,
+    hasUser: Boolean(state.user),
+  });
+
+  return (
+    <>
+      {sessionNavigation.mountAuthenticatedControllers ? (
+        <>
+          <ExportReadyNotifier />
+          <ImportBackgroundController />
+          <ImportNotificationController />
+        </>
+      ) : null}
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: theme.colors.background },
+        }}
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
+          name="login"
+          options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+            animation: 'fade',
+          }}
+        />
+        <Stack.Protected guard={sessionNavigation.protectedRoutesAvailable}>
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.background },
+            }}
+          />
+          <Stack.Screen
+            name="oauth-callback"
+            options={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.background },
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name="receipts"
+            options={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.background },
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="add-history" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="import-result" options={{ headerShown: false }} />
+          <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="data-tracking/email" options={{ headerShown: false }} />
+          <Stack.Screen name="data-tracking/history" options={{ headerShown: false }} />
+          <Stack.Screen name="data-tracking/provider/[provider]" options={{ headerShown: false }} />
+          <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="settings/currency" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="settings/help-privacy" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="settings/accounts-permissions" options={{ headerShown: false, presentation: 'card' }} />
+          <Stack.Screen name="dev/visual-gallery" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }

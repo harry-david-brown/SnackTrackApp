@@ -1,5 +1,5 @@
 import { importReturnDestination, type ImportReturnTo } from '@features/import-flow/importNavigation';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
@@ -13,8 +13,10 @@ import { resolvePostImportDestination } from '@features/import-flow/postImportNa
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { experienceApi } from '@services/experienceApi';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 export function ImportResultScreen({ operationId, returnTo = 'home' }: { operationId?: string; returnTo?: ImportReturnTo }) {
+  const navigation = useAppNavigation();
   const isFocused = useIsFocused();
   const theme = useAppTheme();
   const { operation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(operationId), false, operationId);
@@ -34,7 +36,7 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
     return () => { cancelled = true; };
   }, [isFocused, operation, isUnavailable]);
 
-  if (!operationId) return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title="We couldn’t find that import" body="The import link is incomplete. Choose another import to continue."><AppButton label="Choose another import" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></ResultLayout>;
+  if (!operationId) return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title="We couldn’t find that import" body="The import link is incomplete. Choose another import to continue."><AppButton label="Choose another import" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></ResultLayout>;
 
   if (!isUnavailable && operation && ['awaiting_upload', 'pending_dispatch', 'queued', 'running', 'retrying'].includes(operation.status)) {
     return <Redirect href={{ pathname: '/import-progress', params: { operationId: operation.id, returnTo } }} />;
@@ -42,16 +44,16 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
 
   if (isLoading) return <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}><ActivityIndicator size="large" color={theme.colors.primary} /></SafeAreaView>;
 
-  if (isUnavailable) return <ResultLayout pose="thinking" eyebrow="STATUS UNAVAILABLE" title="We couldn’t load this result" body="Your saved history is available. Try loading the status before starting the same import again."><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => router.replace('/(tabs)/history')} /></ResultLayout>;
+  if (isUnavailable) return <ResultLayout pose="thinking" eyebrow="STATUS UNAVAILABLE" title="We couldn’t load this result" body="Your saved history is available. Try loading the status before starting the same import again."><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => navigation.replace(appDestinations.history)} /></ResultLayout>;
 
-  if (!operation || !summary) return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title="We couldn’t find that import" body="It may have expired or been replaced. Choose another import to continue."><AppButton label="Choose another import" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></ResultLayout>;
+  if (!operation || !summary) return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title="We couldn’t find that import" body="It may have expired or been replaced. Choose another import to continue."><AppButton label="Choose another import" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></ResultLayout>;
 
   if (operation.status !== 'succeeded') {
     const recovery = resolveImportOperationRecovery(operation, returnTo);
     const ended = operation.status === 'expired' || operation.status === 'superseded' || operation.status === 'cancelled';
     return <ResultLayout pose="sad" eyebrow="YOUR HISTORY IS SAFE" title={ended ? 'This import is no longer active' : 'This import needs another try'} body={operation.errorMessage || (ended ? 'A newer import may have replaced it. Nothing already in SnackTrack was removed.' : 'We could not finish this import. Your saved order history is still available.')}>
-      <AppButton label={recovery.label} onPress={() => router.replace(recovery.destination)} />
-      <AppButton label="Choose another source" variant="secondary" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} />
+      <AppButton label={recovery.label} onPress={() => navigation.replace(recovery.destination)} />
+      <AppButton label="Choose another source" variant="secondary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} />
     </ResultLayout>;
   }
 
@@ -66,10 +68,10 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
       {summary.updatedOrders !== null ? <Count value={summary.updatedOrders} label="Updated" /> : null}
       {summary.unchangedOrders !== null ? <Count value={summary.unchangedOrders} label="Already saved" /> : null}
     </View>
-    {recapReady ? <AppButton label="Start my recap" icon="play" onPress={() => router.replace({ pathname: '/(tabs)/wrapped-journey', params: { entryPoint: 'automatic_first_import' } })} /> : <AppButton label="View order history" onPress={() => router.replace('/(tabs)/history')} />}
-    <AppButton label={recapReady ? 'View order history' : empty ? 'Choose another source' : 'Add orders'} variant="secondary" onPress={() => recapReady ? router.replace('/(tabs)/history') : router.replace({ pathname: '/add-history', params: { returnTo } })} />
-    {summaryEligible && !recapReady ? <AppButton label="View Summary" variant="tertiary" onPress={() => router.replace('/(tabs)/wrapped-journey')} /> : null}
-    <AppButton label="Close" variant="tertiary" onPress={() => router.replace(importReturnDestination(returnTo))} />
+    {recapReady ? <AppButton label="Start my recap" icon="play" onPress={() => navigation.replace({ pathname: '/(tabs)/wrapped-journey', params: { entryPoint: 'automatic_first_import' } })} /> : <AppButton label="View order history" onPress={() => navigation.replace(appDestinations.history)} />}
+    <AppButton label={recapReady ? 'View order history' : empty ? 'Choose another source' : 'Add orders'} variant="secondary" onPress={() => recapReady ? navigation.replace(appDestinations.history) : navigation.replace({ pathname: '/add-history', params: { returnTo } })} />
+    {summaryEligible && !recapReady ? <AppButton label="View Summary" variant="tertiary" onPress={() => navigation.replace(appDestinations.summary)} /> : null}
+    <AppButton label="Close" variant="tertiary" onPress={() => navigation.replace(importReturnDestination(returnTo))} />
   </ResultLayout>;
 }
 

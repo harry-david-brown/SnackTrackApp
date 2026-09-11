@@ -1,7 +1,6 @@
 import { importReturnDestination, type ImportReturnTo } from '@features/import-flow/importNavigation';
 import { ImportResultScreen } from './ImportResultScreen';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ import { useStableImportTimeEstimate } from '@hooks/useStableImportTimeEstimate'
 import { importTimeEstimateText } from '@features/import-flow/importTimeEstimate';
 import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 interface ImportProgressScreenProps {
   operationId?: string;
@@ -179,6 +179,7 @@ export function ImportProgressLoadingView({
 }
 
 export function ImportProgressScreen({ operationId, returnTo = 'home', uploadActive = false, uploadProgress }: ImportProgressScreenProps) {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
@@ -218,13 +219,13 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
       const userId = state.user?.id;
       if (!userId) return;
       await invalidateReceiptDerivedData(queryClient, userId);
-      router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } });
-    })().catch(() => { router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } }); });
-  }, [completionShownFor, operation, queryClient, state.user?.id, isUnavailable, returnTo]);
+      navigation.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } });
+    })().catch(() => { navigation.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } }); });
+  }, [completionShownFor, operation, queryClient, state.user?.id, isUnavailable, navigation, returnTo]);
 
-  if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
+  if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
 
-  if (!uploadActive && isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => router.replace('/(tabs)/history')} /></ScrollView></SafeAreaView>;
+  if (!uploadActive && isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => navigation.replace(appDestinations.history)} /></ScrollView></SafeAreaView>;
 
   if (!operation && !isLoading && !uploadActive) {
     return (
@@ -233,7 +234,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
           <Mascot pose="sad" size={130} />
           <AppText variant="pageTitle" style={styles.title}>We couldn’t find that import</AppText>
           <AppText variant="body" style={styles.body}>Your saved history is available. Open Add orders to choose a source or find a saved import.</AppText>
-          <View style={styles.actions}><AppButton label="Choose another import" onPress={() => router.replace({ pathname: '/add-history', params: { returnTo } })} /></View>
+          <View style={styles.actions}><AppButton label="Choose another import" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -253,7 +254,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
       receiptsFound={receiptsFound}
       estimateText={timeEstimateText}
       footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : undefined}
-      onContinue={!uploadActive && operation ? () => router.replace(importReturnDestination(returnTo)) : undefined}
+      onContinue={!uploadActive && operation ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
       onCompletionShown={operation?.status === 'succeeded' ? markCompletionShown : undefined}
     />
   );

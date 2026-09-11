@@ -32,6 +32,12 @@ export function useImportOperation(enabled = true, announce = false, watchedOper
   const query = useQuery({
     queryKey,
     enabled: canQuery,
+    placeholderData: watchedOperationId && userId
+      ? () => {
+          const active = queryClient.getQueryData<ImportOperation | null>(importOperationKeys.active(userId));
+          return active?.id === watchedOperationId ? active : undefined;
+        }
+      : undefined,
     queryFn: async () => {
       if (!userId) throw new Error('Import operations require an authenticated user.');
       const current = queryClient.getQueryData<ImportOperation|null>(importOperationKeys.active(userId!));

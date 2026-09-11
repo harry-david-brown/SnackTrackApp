@@ -1,5 +1,4 @@
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
-import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { resolvePostWrappedExperience } from '@components/wrapped/postWrappedState';
 import { useUser } from '@contexts/UserContext';
@@ -9,8 +8,10 @@ import { useImportPreferences } from './useImportPreferences';
 import { showSimpleAlert } from '@utils/platformAlert';
 import { resolveTrackingEligibility, resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { resolveExportOpportunity, resolveImportCoverage } from '@features/import-flow/importJourneyState';
+import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
 
 export function useWrappedJourneyController() {
+  const navigation = useAppNavigation();
   const { state } = useUser();
   const userId = state.user?.id;
   const wrappedQuery = useWrappedAnalyticsQuery(userId);
@@ -45,13 +46,13 @@ export function useWrappedJourneyController() {
 
   const openExport = useCallback((showTutorial = false) => {
     void markClicked();
-    router.push(exportOpportunity ? buildProviderHistoryDestination(exportOpportunity.provider, exportOpportunity.status, 'summary') : '/add-history?intent=provider&returnTo=summary');
-  }, [exportOpportunity, markClicked]);
+    navigation.open(exportOpportunity ? buildProviderHistoryDestination(exportOpportunity.provider, exportOpportunity.status, 'summary') : addHistoryDestination({ intent: 'provider', returnTo: 'summary' }));
+  }, [exportOpportunity, markClicked, navigation]);
 
   const openExportSourcePicker = useCallback(() => {
     void markClicked();
-    router.push('/add-history?intent=provider&returnTo=summary');
-  }, [markClicked]);
+    navigation.open(addHistoryDestination({ intent: 'provider', returnTo: 'summary' }));
+  }, [markClicked, navigation]);
 
   const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
     try {
@@ -73,14 +74,14 @@ export function useWrappedJourneyController() {
     const action = trackingRecovery.kind === 'baseline'
       ? 'import_gmail'
       : 'connect_gmail';
-    router.push({
+    navigation.open({
       pathname: '/add-history',
       params: {
         returnTo: 'summary',
         intent: action === 'import_gmail' ? 'email' : 'reconnect',
       },
     });
-  }, [trackingRecovery.kind]);
+  }, [navigation, trackingRecovery.kind]);
 
   return {
     analytics: wrappedQuery.data ?? null,
@@ -97,8 +98,8 @@ export function useWrappedJourneyController() {
     markExportOfferSeen: () => void markSeen('wrapped'),
     openExportUpgrade: () => openExport(false),
     openExportTutorial: openExportSourcePicker,
-    openImport: () => router.push('/add-history?returnTo=summary'),
+    openImport: () => navigation.open(addHistoryDestination({ returnTo: 'summary' })),
     openTrackingSetup,
-    finish: () => router.replace('/(tabs)'),
+    finish: () => navigation.replace(appDestinations.home),
   };
 }

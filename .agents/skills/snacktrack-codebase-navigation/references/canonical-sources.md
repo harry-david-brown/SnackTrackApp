@@ -13,6 +13,7 @@
 - App request normalization: the matching file in `SnackTrackApp/services/`.
 - App transport/domain contracts: `SnackTrackApp/types/api.ts`, `features/auth/contracts.ts`, `features/import-flow/contracts.ts`, and the matching runtime normalizer.
 - UI state precedence: the closest pure resolver in `SnackTrackApp/components/` or `hooks/`.
+- App navigation: `SnackTrackApp/features/navigation/` owns imperative navigation, typed destinations, route normalization, external intents, and critical-flow blockers; `SnackTrackApp/app/_layout.tsx` owns the root protected route tree and authenticated global-controller lifetime.
 - Theme: `SnackTrackApp/constants/theme.ts`.
 - Admin transport and rendering: `SnackTrackAdmin/src/api.ts`, `src/contracts.ts`, and the matching file in `src/pages/`; API role enforcement remains canonical.
 - Expected regressions: focused tests nearest the behavior.

@@ -71,9 +71,11 @@ Do not independently calculate title, badge, completion, button action, and icon
 
 ## Navigation
 
-- Keep pathname and parameter construction near the route/controller boundary.
+- Follow the canonical policy in [architecture-patterns.md](architecture-patterns.md#navigation-policy). Use typed destination builders and `useAppNavigation()`; never introduce a second imperative router owner in a screen, component, or hook.
 - Parse route parameters once into typed domain inputs.
 - Make navigation an outcome of a successful action, not an implicit effect of unrelated state changes.
+- Give every back action an explicit safe fallback through `backOr()`, chosen for direct deep-link entry as well as normal stack entry.
+- Send asynchronous or externally initiated movement through `dispatchExternalNavigation()` and register critical upload/save ownership with `useExternalNavigationBlocker()`.
 - Avoid route parameters as a long-lived substitute for server or flow state.
 
 ## Legacy extraction approach

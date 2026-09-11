@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +20,14 @@ import { experienceApi } from '@services/experienceApi';
 import { suppressAdsForSession } from '@features/ads/adSession';
 import { useUser } from '@contexts/UserContext';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 
 type WrappedSummary = UserSummary & { wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']> };
 const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary =>
   Boolean(summary?.wrappedAnalytics && summary.totalReceipts && summary.totalReceipts > 0);
 
 export default function WrappedJourneyScreen() {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const route = useLocalSearchParams<{ restart?: string | string[]; entryPoint?: string | string[] }>();
@@ -149,7 +151,7 @@ export default function WrappedJourneyScreen() {
         </Card>
         <AppButton label="Play my recap" icon="play" onPress={() => setShowJourney(true)} />
         <View style={styles.secondaryAction}>
-          <AppButton label="View order history" variant="secondary" icon="time-outline" onPress={() => router.push('/(tabs)/history')} />
+          <AppButton label="View order history" variant="secondary" icon="time-outline" onPress={() => navigation.open(appDestinations.history)} />
         </View>
       </ScrollView>
     </SafeAreaView>

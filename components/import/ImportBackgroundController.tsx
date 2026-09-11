@@ -3,9 +3,10 @@ import { AccessibilityInfo } from 'react-native';
 import { useUser } from '@contexts/UserContext';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { useImportOperation } from '@hooks/useImportOperation';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { experienceApi } from '@services/experienceApi';
 import { resolvePostImportDestination } from '@features/import-flow/postImportNavigation';
+import { useAppNavigation } from '@features/navigation';
 
 const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
 
@@ -15,6 +16,7 @@ const TRACKING_FRESHNESS_MS = 15 * 60 * 1000;
  */
 export function ImportBackgroundController() {
   const { state } = useUser();
+  const { dispatchExternalNavigation } = useAppNavigation();
   const trackingCheckKey = useRef<string | null>(null);
   const previousTrackingState = useRef<string | null>(null);
   const handledOperation = useRef<string | null>(null);
@@ -70,12 +72,17 @@ export function ImportBackgroundController() {
     let cancelled = false;
     void experienceApi.getState().then(experience => {
       if (cancelled) return;
-      handledOperation.current = operation.id;
       if (resolvePostImportDestination({ experience }) !== 'recap_ready') return;
-      router.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo: 'home' } });
+      const outcome = dispatchExternalNavigation({
+        kind: 'import-result',
+        source: 'background',
+        operationId: operation.id,
+        returnTo: 'home',
+      });
+      if (outcome === 'navigated' || outcome === 'already-current') handledOperation.current = operation.id;
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [operation, pathname, state.user?.id]);
+  }, [dispatchExternalNavigation, operation, pathname, state.user?.id]);
 
   return null;
 }

@@ -58,6 +58,38 @@ Aliases improve readability and refactor safety; public barrels define ownership
 - Avoid interpreting durable lifecycle state from unrelated booleans.
 - Keep reusable components independent of route parameters.
 
+### Navigation policy
+
+`SnackTrackApp/features/navigation/` is the canonical owner for imperative navigation:
+
+- `NavigationPolicyProvider.tsx` owns calls to Expo Router's imperative `router` API and exposes `useAppNavigation()`.
+- `appDestinations.ts` owns typed destinations and parameter builders.
+- `navigationPolicy.ts` owns route-group normalization and semantic current-destination comparison.
+- `app/_layout.tsx` owns authenticated route registration through the root `Stack.Protected` tree.
+
+Production screens, components, and hooks must not import `router` or `useRouter` directly. Declarative `Redirect`, route-parameter hooks, and navigator components remain valid at route boundaries. Use:
+
+- `open(destination)` for reuse-style forward navigation;
+- `replace(destination)` when the current history entry must be replaced;
+- `backOr(fallback)` for every back action that can be reached by a deep link;
+- `setParams(params)` for deliberate updates to the current route;
+- `dispatchExternalNavigation(intent)` for notifications, background completion, and delayed alert actions.
+
+Build parameterized destinations as structured typed values rather than raw query strings. Current-route checks must normalize route groups and compare canonical flow parameters, including operation/provider identity and meaningful boolean flags. A genuinely different flow state may open; the same semantic destination must not stack or replace itself.
+
+Navigation is serialized until the observed route changes, with a bounded failure release. Do not add component-local double-tap locks or another navigation queue.
+
+Every new asynchronous navigation source must define and test:
+
+- whether authentication is required;
+- which current routes permit automatic movement;
+- how identical pending requests are deduplicated;
+- which critical flows block it;
+- whether a blocked request is discarded or deferred;
+- what return destination the user receives.
+
+Current policy discards blocked external actions rather than queueing them. Background import completion may replace only the actual Home tab. Notification taps may navigate from any authenticated, unblocked route. Export-ready actions must evaluate the live route and blocker state when the user taps, not when the alert was first displayed. The current import result for the same operation is always a no-op.
+
 ### API service
 
 - Own endpoint paths and transport normalization.

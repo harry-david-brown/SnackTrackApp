@@ -2,7 +2,7 @@ import { usePendingExportRequests } from '@hooks/usePendingExportRequests';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect, useLocalSearchParams, router } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { Colors, FontFamily, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { parseImportRouteParams } from '@features/import-flow/importRouteParams';
@@ -27,8 +27,10 @@ import { Mascot } from '@components/mascot/Mascot';
 import UberDataTutorial from '@components/upload/UberDataTutorial';
 import { AppText } from '@components/ui/AppText';
 import { PageHeader } from '@components/ui/PageHeader';
+import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
 
 export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'setup' | 'manage' }) {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const rawParams = useLocalSearchParams();
@@ -136,13 +138,13 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
               onChangeMethod={controller.changeSetupMethod}
               onImportGmail={() => controller.importEmail('initial', controller.emailUpdates.automaticUpdates)}
               onImportOutlook={() => controller.importOutlook('initial', controller.emailUpdates.automaticUpdates)}
-              onChooseProvider={(platform) => router.push({ pathname: '/add-history', params: { intent: 'provider', provider: platform === 'uber' ? 'uber_eats' : 'doordash', returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding' } })}
+              onChooseProvider={(platform) => navigation.open(addHistoryDestination({ intent: 'provider', provider: platform === 'uber' ? 'uber_eats' : 'doordash', returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding' }))}
               onRetryOAuthConnection={controller.retryOAuthConnection}
             />
           ) : mode === 'manage' && !showManagementDetail ? (
             <>
               <View style={styles.headerRow}>
-                <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.back()} />
+                <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => navigation.backOr(appDestinations.home)} />
                 <Mascot pose="sunglasses" size={58} />
               </View>
               <PageHeader eyebrow="DATA & TRACKING" title="Your data, in one place" body="See what’s covered, fill the gaps, and decide how SnackTrack stays current." />
@@ -168,13 +170,13 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
 
               <AppText variant="surfaceTitle" style={styles.groupTitle}>Privacy and control</AppText>
               <Card style={styles.settingsCard}>
-                <ManagementRow icon="shield-checkmark-outline" title="How SnackTrack uses my data" subtitle="Private by default, with controls for every source" onPress={() => router.push('/(tabs)/profile')} />
+                <ManagementRow icon="shield-checkmark-outline" title="How SnackTrack uses my data" subtitle="Private by default, with controls for every source" onPress={() => navigation.open(appDestinations.profile)} />
               </Card>
             </>
           ) : (
             <>
               <View style={styles.header}>
-                {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.replace('/add-history')} /> : null}
+                {mode === 'manage' ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => navigation.replace(addHistoryDestination())} /> : null}
                 <PageHeader eyebrow="DATA & TRACKING" title="Source details" body="Manage this source, its history, and how it keeps your stats current." />
               </View>
 

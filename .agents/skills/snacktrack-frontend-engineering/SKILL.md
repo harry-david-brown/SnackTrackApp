@@ -23,7 +23,8 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 6. For visual work, compare the affected screen with the canonical mockup before implementation. Record the hierarchy, page archetype, component treatments, mascot role, and primary/secondary action order that must survive the translation to React Native.
 7. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
 8. Add regression coverage at the pure decision point and integration boundary.
-9. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, and suppressed errors, and run no tests or other checks unless the user explicitly requests them.
+9. For any route, deep-link, back action, notification, or background-completion change, inspect the navigation ownership rules in [references/architecture-patterns.md](references/architecture-patterns.md) and the navigation checks in [references/testing-and-definition-of-done.md](references/testing-and-definition-of-done.md).
+10. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, suppressed errors, and navigation that bypasses the policy owner; run no tests or other checks unless the user explicitly requests them.
 
 ## Core rules
 
@@ -40,6 +41,9 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 - Preserve explicit consent boundaries and machine-readable recovery states.
 - After a destructive reset succeeds, remove affected query and device caches; do not leave stale data visible while merely invalidating/refetching.
 - Keep background effects idempotent, cancellable where appropriate, and safe under remounts or repeated focus.
+- Treat `features/navigation` as the sole owner of imperative Expo Router calls. Production screens, components, and hooks use `useAppNavigation()` plus typed destinations; they must not import `router` or `useRouter` directly.
+- Route notification taps, background completion, and delayed external actions through `dispatchExternalNavigation()`. Register critical upload/save work with `useExternalNavigationBlocker()` so external actions are discarded while the flow cannot safely move.
+- Keep authenticated route ownership in the root `Stack.Protected` tree. Do not add a competing screen- or tabs-level auth redirect.
 - Never silence a dependency warning until the lifecycle reasoning is documented and covered by a test.
 - Do not make unrelated architectural rewrites merely to satisfy an ideal pattern.
 
@@ -62,6 +66,7 @@ Summarize:
 - every user-visible state handled;
 - cache invalidation or refetch behavior;
 - accessibility considerations;
+- navigation ownership, external-intent behavior, and explicit back fallbacks when routes changed;
 - the TypeScript check result and any user-requested verification;
 - any intentionally retained legacy boundary.
 - any visual deviation from the canonical mockup and the product or accessibility reason for it.

@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { FontFamily, Radius, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useCurrency } from '@contexts/CurrencyContext';
@@ -33,6 +32,7 @@ import { ErrorMessage } from '@components/ui/ErrorMessage';
 import { LoadingSpinner } from '@components/ui/LoadingSpinner';
 import { resolveReceiptListState } from '@features/receipts/receiptListState';
 import { trackAdminEvent } from '@services/adminAnalytics';
+import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
 import { NativeAdPlacement } from '@features/ads/NativeAdPlacement';
 import { isAdEligible } from '@features/ads/contracts';
 import { useAdRuntimeConfiguration } from '@features/ads/useAdRuntimeConfiguration';
@@ -42,6 +42,7 @@ import { AppText } from '@components/ui/AppText';
 type ProviderFilter = 'all' | 'uber_eats' | 'doordash';
 
 export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean }) {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { formatCurrency } = useCurrency();
@@ -151,7 +152,7 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        {showBack ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => router.back()} /> : null}
+        {showBack ? <AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => navigation.backOr(appDestinations.history)} /> : null}
         <View style={styles.headerCopy}>
           <AppText variant="eyebrow" style={styles.eyebrow}>YOUR ORDERS</AppText>
           <AppText variant="pageTitle" style={styles.title}>History</AppText>
@@ -196,7 +197,7 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
         <FilterChip label="Uber Eats" selected={provider === 'uber_eats'} onPress={() => setProvider('uber_eats')} />
         <FilterChip label="DoorDash" selected={provider === 'doordash'} onPress={() => setProvider('doordash')} />
       </ScrollView>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/add-history?returnTo=history')} style={styles.coverageLink}>
+      <Pressable accessibilityRole="button" onPress={() => navigation.open(addHistoryDestination({ returnTo: 'history' }))} style={styles.coverageLink}>
         <AppText variant="metadata" style={styles.coverageLinkText}>Add orders</AppText>
         <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
       </Pressable>
@@ -242,7 +243,7 @@ export function ReceiptHistoryScreen({ showBack = false }: { showBack?: boolean 
               title={hasFilters ? 'No matching orders' : 'No orders yet'}
               message={emptyMessage}
               actionText={hasFilters ? 'Clear filters' : 'Add orders'}
-              onAction={hasFilters ? clearFilters : () => router.push('/add-history?returnTo=history')}
+              onAction={hasFilters ? clearFilters : () => navigation.open(addHistoryDestination({ returnTo: 'history' }))}
             />
           )}
           ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} /> : null}
@@ -282,7 +283,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   searchField: { flex: 1, minHeight: 50, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: theme.colors.gray250, borderRadius: Radius.input, backgroundColor: theme.colors.surface },
   searchInput: { flex: 1, minHeight: 48, color: theme.colors.textPrimary, fontSize: 15, fontFamily: FontFamily.regular },
   chips: { minHeight: 58, alignItems: 'center', gap: 8, paddingHorizontal: 16 },
-  coverageLink: { minHeight: 44, marginHorizontal: 16, marginBottom: 6, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: Radius.md, backgroundColor: theme.colors.alpha(theme.colors.primary, 0.08) },
+  coverageLink: { minHeight: 44, marginHorizontal: 16, marginTop: 12, marginBottom: 6, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: Radius.md, backgroundColor: theme.colors.alpha(theme.colors.primary, 0.08) },
   coverageLinkText: { color: theme.colors.primary, fontFamily: FontFamily.medium },
   chip: { minHeight: 38, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill, backgroundColor: theme.colors.chipInactiveBg },
   chipSelected: { backgroundColor: theme.colors.chipActiveBg },

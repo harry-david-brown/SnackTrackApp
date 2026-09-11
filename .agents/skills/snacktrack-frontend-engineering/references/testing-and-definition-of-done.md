@@ -46,6 +46,19 @@ Add or update integration coverage when a change crosses multiple steps, especia
 - clearing receipts and resetting source coverage.
 - fresh-account reset during active Gmail sync/export upload, including removal of stale query and device caches.
 
+### Navigation tests
+
+When navigation behavior changes, cover the narrowest relevant policy and controller boundaries:
+
+- route-group normalization and canonical parameter matching;
+- suppression of current-route and repeated pending transitions;
+- genuinely different operation/provider/flow parameters;
+- authenticated, hydrating, and signed-out protected-route states;
+- direct deep links with and without back history;
+- notification and delayed alert actions against the live route;
+- Home-only background completion and the same-operation result no-op;
+- critical upload/save blockers, including the rule that blocked external actions are discarded and do not mutate handoff state.
+
 ## Test hygiene
 
 - Wrap asynchronous state updates in the test framework’s required `act` flow.
@@ -80,6 +93,9 @@ Do not run focused tests, the full test suite, lint, theme validation, or `npm r
 - [ ] Interactive controls include accessibility semantics and sufficient touch targets.
 - [ ] No raw sensitive data or avoidable debug logging was introduced.
 - [ ] Cross-directory imports use configured aliases and public module barrels; no parent-traversal module imports remain.
+- [ ] Production screens, components, and hooks contain no direct imperative Expo Router imports; typed destinations and `useAppNavigation()` are used instead.
+- [ ] Authenticated routes remain under the root `Stack.Protected` owner, including hydration and logout behavior.
+- [ ] Back actions have explicit deep-link-safe fallbacks, and asynchronous navigation sources define auth, route, deduplication, blocker, discard/defer, and return behavior.
 - [ ] Focused regression tests cover the decision point.
 - [ ] Relevant journey integration coverage was considered.
 - [ ] The app TypeScript check passes.

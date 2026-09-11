@@ -5,7 +5,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Colors, FontFamily, Gradients, Radius, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { AppText } from '@components/ui/AppText';
+import { DashboardMonthNavigator } from './DashboardMonthNavigator';
 import type {
+  DashboardMonthOption,
   DashboardPeriod,
   DashboardPeriodSummary,
 } from '@features/dashboard/dashboardPeriodSummary';
@@ -13,17 +15,23 @@ import type {
 interface DashboardSpendingHeroProps {
   summary: DashboardPeriodSummary;
   period: DashboardPeriod;
+  months: DashboardMonthOption[];
+  selectedMonthKey: string;
   loading: boolean;
   formatCurrency: (value: number) => string;
   onChangePeriod: (period: DashboardPeriod) => void;
+  onSelectMonth: (monthKey: string) => void;
 }
 
 export function DashboardSpendingHero({
   summary,
   period,
+  months,
+  selectedMonthKey,
   loading,
   formatCurrency,
   onChangePeriod,
+  onSelectMonth,
 }: DashboardSpendingHeroProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -36,15 +44,17 @@ export function DashboardSpendingHero({
       ? 'Across all imported orders'
       : summary.receiptCount > 0
         ? 'Your first tracked month'
-        : 'No tracked orders this month yet';
+        : summary.isCurrentMonth
+          ? 'No tracked orders this month yet'
+          : `No tracked orders found in ${summary.monthLabel ?? 'this month'}`;
 
   return (
     <View>
       <View style={styles.segment} accessibilityRole="tablist">
         <PeriodTab
-          label="This month"
-          selected={period === 'current_month'}
-          onPress={() => onChangePeriod('current_month')}
+          label="Monthly"
+          selected={period === 'monthly'}
+          onPress={() => onChangePeriod('monthly')}
         />
         <PeriodTab
           label="All time"
@@ -52,12 +62,20 @@ export function DashboardSpendingHero({
           onPress={() => onChangePeriod('all_time')}
         />
       </View>
+      {period === 'monthly' ? (
+        <DashboardMonthNavigator
+          months={months}
+          selectedMonthKey={selectedMonthKey}
+          onSelectMonth={onSelectMonth}
+        />
+      ) : null}
       <LinearGradient
         colors={Gradients.hero}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
         accessibilityRole="summary"
+        accessibilityLiveRegion="polite"
         accessibilityLabel={`${summary.label}. ${loading ? 'Loading' : formatCurrency(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${formatCurrency(summary.averageOrderValue)}.`}
       >
         <AppText variant="metadata" style={styles.label}>{summary.label}</AppText>
@@ -112,7 +130,7 @@ const staticStyles = StyleSheet.create({
 });
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
-  segment: { flexDirection: 'row', padding: 4, marginBottom: 12, borderRadius: Radius.input, backgroundColor: theme.colors.gray100 },
+  segment: { flexDirection: 'row', padding: 4, marginBottom: 8, borderRadius: Radius.input, backgroundColor: theme.colors.gray100 },
   tab: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
   tabSelected: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider },
   tabPressed: { opacity: 0.78 },

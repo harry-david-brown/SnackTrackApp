@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
 import { useUser } from '@contexts/UserContext';
 import { notificationDeviceApi } from '@services/notificationDeviceApi';
 import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 import { beginAdForegroundSession } from '@features/ads/adSession';
+import { useAppNavigation } from '@features/navigation';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
@@ -45,6 +45,7 @@ export const requestImportNotifications = async (userId: string): Promise<boolea
 
 export function ImportNotificationController() {
   const { state } = useUser();
+  const { dispatchExternalNavigation } = useAppNavigation();
   const backgroundedAt = useRef<number | null>(null);
 
   useEffect(() => {
@@ -62,11 +63,15 @@ export function ImportNotificationController() {
     const response = Notifications.addNotificationResponseReceivedListener((event) => {
       const data = event.notification.request.content.data;
       if (data.type === 'import_operation' && typeof data.operationId === 'string') {
-        router.push({ pathname: '/import-result', params: { operationId: data.operationId } });
+        dispatchExternalNavigation({
+          kind: 'import-result',
+          source: 'notification',
+          operationId: data.operationId,
+        });
       }
     });
     return () => response.remove();
-  }, []);
+  }, [dispatchExternalNavigation]);
 
   return null;
 }

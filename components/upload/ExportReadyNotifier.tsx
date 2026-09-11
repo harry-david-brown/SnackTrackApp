@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useUser } from '@contexts/UserContext';
@@ -11,6 +11,7 @@ import {
   UBER_EXPORT_EMAIL_ACTION,
   UBER_EXPORT_EMAIL_SUBJECT,
 } from '@utils/exportDownloadHandoff';
+import { useAppNavigation } from '@features/navigation';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 const NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
@@ -22,6 +23,7 @@ const NOTIFICATION_KEY_PREFIX = 'export-ready-notified';
  */
 export default function ExportReadyNotifier() {
   const { state } = useUser();
+  const { dispatchExternalNavigation } = useAppNavigation();
   const pathname = usePathname();
   // Import screens already show saved progress; never interrupt a local decision with a global dialog.
   const handlingUber = pathname === '/add-history' || pathname === '/data-setup' || pathname === '/upload';
@@ -44,9 +46,16 @@ export default function ExportReadyNotifier() {
 
   const openImportForUpload = useCallback(async (readyVersion: string) => {
     if (!userId) return;
-    await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'downloaded');
-    router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider: 'uber_eats', downloadedVersion: readyVersion } });
-  }, [userId]);
+    const outcome = dispatchExternalNavigation({
+      kind: 'resume-export',
+      source: 'export-ready',
+      provider: 'uber_eats',
+      readyVersion,
+    });
+    if (outcome === 'navigated' || outcome === 'already-current') {
+      await setExportDownloadHandoffState(userId, 'uber_eats', readyVersion, 'downloaded');
+    }
+  }, [dispatchExternalNavigation, userId]);
 
   const showDownloadFollowUp = useCallback((readyVersion: string) => {
     if (!userId || handlingUber || uberExport?.readySource === 'user_confirmed' || isShowingDownloadPromptRef.current) return;
@@ -77,8 +86,13 @@ export default function ExportReadyNotifier() {
 
   const openDownloadGuide = useCallback(() => {
     isShowingDownloadPromptRef.current = false;
-    router.push({ pathname: '/add-history', params: { intent: 'resume_export', provider: 'uber_eats', showDownloadSteps: 'true' } });
-  }, []);
+    dispatchExternalNavigation({
+      kind: 'resume-export',
+      source: 'export-ready',
+      provider: 'uber_eats',
+      showDownloadSteps: true,
+    });
+  }, [dispatchExternalNavigation]);
 
   const showReadyPrompt = useCallback((readyVersion: string) => {
     if (!userId || handlingUber || uberExport?.readySource === 'user_confirmed' || isShowingDownloadPromptRef.current) return;

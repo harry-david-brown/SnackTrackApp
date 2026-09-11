@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useMemo } from 'react';
+import { appDestinations, useAppNavigation } from '@features/navigation';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen } from '@components/ui/AppScreen';
 import { AppText } from '@components/ui/AppText';
@@ -11,11 +11,12 @@ import { useCurrency } from '@contexts/CurrencyContext';
 import { SUPPORTED_CURRENCIES } from '@utils/currency';
 
 export default function CurrencyScreen() {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const { currency, setCurrency } = useCurrency();
   const styles = useMemo(() => createStyles(theme.colors.divider), [theme.colors.divider]);
   return <AppScreen scroll>
-    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={21} color={theme.colors.primary} /></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.backOr(appDestinations.profile)} style={styles.back}><Ionicons name="arrow-back" size={21} color={theme.colors.primary} /></Pressable>
     <PageHeader eyebrow="CURRENCY" title="How should totals appear?" body="Choose the currency used to format your SnackTrack statistics." />
     <Surface style={styles.surface}>{Object.values(SUPPORTED_CURRENCIES).map((item, index) => {
       const selected = currency === item.code;

@@ -1,10 +1,12 @@
 import { parseImportReturnTo } from '@features/import-flow/importNavigation';
 import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useAppTheme } from '@contexts/AppearanceContext';
+import { useAppNavigation } from '@features/navigation';
 
 export default function OAuthCallback() {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const params = useLocalSearchParams();
   const gmail = typeof params.gmail === 'string' ? params.gmail : undefined;
@@ -18,7 +20,7 @@ export default function OAuthCallback() {
   const returnIntent = params.returnIntent === 'reconnect' ? 'reconnect' : 'email';
 
   useEffect(() => {
-    router.replace({
+    navigation.replace({
       pathname: journeyContext === 'post_onboarding' ? '/add-history' : '/data-setup',
       params: {
         returnTo, mailbox,
@@ -30,7 +32,7 @@ export default function OAuthCallback() {
         ...(outlookPurpose ? { outlookPurpose } : {}),
       },
     });
-  }, [error, gmail, gmailPurpose, journeyContext, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
+  }, [error, gmail, gmailPurpose, journeyContext, navigation, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

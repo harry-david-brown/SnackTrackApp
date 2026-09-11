@@ -20,8 +20,7 @@ import { useEffect, useMemo, useRef } from 'react';
  *   authed       → redirect into Home or guided data setup
  *   first launch → onboarding
  *   otherwise    → login
- * The reverse direction (signed out while inside tabs) is handled by the
- * Redirect guard in app/(tabs)/_layout.tsx.
+ * The reverse direction is handled by the protected screens in app/_layout.tsx.
  */
 export default function HomeScreen() {
   const theme = useAppTheme();

@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@contexts/UserContext';
 import { useCurrency } from '@contexts/CurrencyContext';
-import { router } from 'expo-router';
 import { ErrorMessage } from '@components/ui/ErrorMessage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Mascot } from '@components/mascot/Mascot';
@@ -16,6 +15,7 @@ import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { DashboardSpendingHero } from '@components/dashboard/DashboardSpendingHero';
+import { HistoricalMonthSummaryCard } from '@components/dashboard/HistoricalMonthSummaryCard';
 import { AppButton } from '@components/ui/AppButton';
 import { Card } from '@components/ui/Card';
 import { SectionHeader } from '@components/ui/SectionHeader';
@@ -24,6 +24,7 @@ import { DashboardInsightsDevControls } from '@components/dashboard/DashboardIns
 import { resolveAnalyticsSummaryState } from '@features/dashboard/analyticsSummaryState';
 import {
   greetingForDate,
+  resolveDashboardMonthOptions,
   resolveDashboardPeriodSummary,
   type DashboardPeriod,
 } from '@features/dashboard/dashboardPeriodSummary';
@@ -38,14 +39,17 @@ import { AppText } from '@components/ui/AppText';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
 import { isActiveImportOperation } from '@features/import-flow/contracts';
+import { addHistoryDestination, importProgressDestination, useAppNavigation } from '@features/navigation';
 
 export default function DashboardScreen() {
+  const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const { state, logout } = useUser();
   const { formatCurrency } = useCurrency();
   const [insightsDayOffset, setInsightsDayOffset] = React.useState(0);
-  const [dashboardPeriod, setDashboardPeriod] = React.useState<DashboardPeriod>('current_month');
+  const [dashboardPeriod, setDashboardPeriod] = React.useState<DashboardPeriod>('monthly');
+  const [selectedMonthOverride, setSelectedMonthOverride] = React.useState<string | null>(null);
   const [sessionAdImpressions, setSessionAdImpressions] = React.useState(0);
   const [dailyAdImpressions, setDailyAdImpressions] = React.useState<number | null>(null);
   const [adClaimed, setAdClaimed] = React.useState(false);
@@ -76,10 +80,24 @@ export default function DashboardScreen() {
     Boolean(importPreferencesError && !importPreferences),
   );
   const activeImportOperation = isActiveImportOperation(importOperation) ? importOperation : null;
-  const dashboardSummary = React.useMemo(
-    () => resolveDashboardPeriodSummary(analytics ?? null, dashboardPeriod),
-    [analytics, dashboardPeriod],
+  const dashboardNow = React.useMemo(
+    () => new Date(`${insightsQuery.localDate}T12:00:00`),
+    [insightsQuery.localDate],
   );
+  const currentMonthKey = insightsQuery.localDate.slice(0, 7);
+  const dashboardMonths = React.useMemo(
+    () => resolveDashboardMonthOptions(analytics ?? null, dashboardNow),
+    [analytics, dashboardNow],
+  );
+  const requestedMonthKey = selectedMonthOverride ?? currentMonthKey;
+  const selectedMonthKey = dashboardMonths.some((month) => month.key === requestedMonthKey)
+    ? requestedMonthKey
+    : currentMonthKey;
+  const dashboardSummary = React.useMemo(
+    () => resolveDashboardPeriodSummary(analytics ?? null, dashboardPeriod, selectedMonthKey, dashboardNow),
+    [analytics, dashboardNow, dashboardPeriod, selectedMonthKey],
+  );
+  const isHistoricalMonth = dashboardPeriod === 'monthly' && !dashboardSummary.isCurrentMonth;
   const insightSectionState = resolveDashboardInsightsState({
     edition: insightsQuery.data,
     isLoading: insightsQuery.isLoading,
@@ -122,14 +140,13 @@ export default function DashboardScreen() {
 
 
 
-  // Navigation after logout is handled declaratively by the Redirect guard
-  // in app/(tabs)/_layout.tsx — clearing auth state is all that's needed here.
+  // Root protected-route ownership removes the tabs after local auth clears.
   const handleLogout = async () => {
     try {
       await logout();
     } catch {
       // Even if the API call fails, local auth state is cleared and the
-      // tabs layout redirects to the login screen.
+      // protected stack returns to the public entry screen.
     }
   };
 
@@ -139,27 +156,27 @@ export default function DashboardScreen() {
       return;
     }
     if (action === 'open_import') {
-      router.push(trackingCardState.gmailPurpose === 'connection_recovery' ? '/add-history?intent=reconnect' : '/add-history');
+      navigation.open(addHistoryDestination({ intent: trackingCardState.gmailPurpose === 'connection_recovery' ? 'reconnect' : 'choose' }));
       return;
     }
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
       if (action === 'request_export' && !trackingCardState.primaryProvider) {
-        router.push('/add-history?intent=provider');
+        navigation.open(addHistoryDestination({ intent: 'provider' }));
         return;
       }
       if (action === 'request_export' && trackingCardState.primaryProvider) {
-        router.push(buildProviderHistoryDestination(trackingCardState.primaryProvider, (trackingCardState.primaryProvider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status));
+        navigation.open(buildProviderHistoryDestination(trackingCardState.primaryProvider, (trackingCardState.primaryProvider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status));
         return;
       }
-      router.push({ pathname: '/add-history', params: {
+      navigation.open({ pathname: '/add-history', params: {
         intent: action === 'connect_gmail' ? 'reconnect' : action === 'import_gmail' ? 'email' : action === 'continue_export' ? 'resume_export' : 'provider',
         ...(trackingCardState.primaryProvider ? { provider: trackingCardState.primaryProvider } : {}),
       } });
       return;
     }
     if (action === 'open_gmail') {
-      router.push('/add-history?intent=resume_export&provider=uber_eats');
+      navigation.open(addHistoryDestination({ intent: 'resume_export', provider: 'uber_eats' }));
       return;
     }
     if (action === 'enable_tracking') {
@@ -234,9 +251,12 @@ export default function DashboardScreen() {
           <DashboardSpendingHero
             summary={dashboardSummary}
             period={dashboardPeriod}
+            months={dashboardMonths}
+            selectedMonthKey={selectedMonthKey}
             loading={analyticsSummaryState.id === 'loading'}
             formatCurrency={formatCurrency}
             onChangePeriod={setDashboardPeriod}
+            onSelectMonth={(monthKey) => setSelectedMonthOverride(monthKey === currentMonthKey ? null : monthKey)}
           />
           {analyticsSummaryState.id === 'refreshing' ? (
             <AppText variant="metadata" style={styles.refreshingSummary} accessibilityLiveRegion="polite">
@@ -249,7 +269,7 @@ export default function DashboardScreen() {
               <SectionHeader title="In progress" />
               <ImportOperationCard
                 operation={activeImportOperation}
-                onPress={() => router.push({ pathname: '/import-progress', params: { operationId: activeImportOperation.id, returnTo: 'home' } })}
+                onPress={() => navigation.open(importProgressDestination(activeImportOperation.id, 'home'))}
               />
             </View>
           ) : trackingCardState.placement === 'priority' ? (
@@ -266,33 +286,38 @@ export default function DashboardScreen() {
 
           {/* Personalized insight carousel */}
           <View style={styles.activityContainer}>
-            <SectionHeader title={insightSectionState.title} subtitle={insightSectionState.subtitle} />
-            {__DEV__ ? (
+            <SectionHeader
+              title={isHistoricalMonth ? 'Month at a glance' : insightSectionState.title}
+              subtitle={isHistoricalMonth ? undefined : insightSectionState.subtitle}
+            />
+            {isHistoricalMonth ? (
+              <HistoricalMonthSummaryCard summary={dashboardSummary} formatCurrency={formatCurrency} />
+            ) : __DEV__ ? (
               <DashboardInsightsDevControls
                 dayOffset={insightsDayOffset}
                 isFetching={insightsQuery.isFetching}
                 onChangeDayOffset={setInsightsDayOffset}
               />
             ) : null}
-            {insightSectionState.id === 'success' || insightSectionState.id === 'stale-success' ? (
+            {!isHistoricalMonth && (insightSectionState.id === 'success' || insightSectionState.id === 'stale-success') ? (
               <WhatWeNoticedCarousel
                 insights={insightSectionState.edition.insights}
                 partialExportProvider={insightSectionState.edition.partialExportProvider}
-                onOpenExport={() => router.push('/add-history?intent=provider')}
-                onOpenProviderExport={(provider) => router.push(buildProviderHistoryDestination(provider, (provider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status))}
+                onOpenExport={() => navigation.open(addHistoryDestination({ intent: 'provider' }))}
+                onOpenProviderExport={(provider) => navigation.open(buildProviderHistoryDestination(provider, (provider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status))}
               />
-            ) : insightSectionState.id === 'loading' ? (
+            ) : !isHistoricalMonth && insightSectionState.id === 'loading' ? (
               <Card style={styles.emptyState} accessibilityLabel="Preparing today’s dashboard insights">
                 <ActivityIndicator size="small" color={theme.colors.primary} />
                 <AppText variant="surfaceBody" style={styles.emptyStateSubtitle}>Looking for patterns worth sharing…</AppText>
               </Card>
-            ) : insightSectionState.id === 'error' ? (
+            ) : !isHistoricalMonth && insightSectionState.id === 'error' ? (
               <ErrorMessage
                 error="Today’s observations couldn’t be loaded."
                 type="network"
                 onRetry={() => { void insightsQuery.refetch(); }}
               />
-            ) : (
+            ) : !isHistoricalMonth ? (
               <Card style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={48} color={theme.colors.gray400} />
                 <AppText variant="surfaceTitle" style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</AppText>
@@ -302,21 +327,8 @@ export default function DashboardScreen() {
                     : 'A few more tracked orders will unlock stronger, stranger patterns.'}
                 </AppText>
               </Card>
-            )}
+            ) : null}
           </View>
-
-          {analytics ? <View style={styles.compactStats}>
-            <Card style={styles.compactStatCard}>
-              <Ionicons name="receipt-outline" size={19} color={theme.colors.primary} />
-              <AppText variant="surfaceTitle" style={styles.compactStatValue}>{analytics.totalReceipts}</AppText>
-              <AppText variant="metadata" style={styles.compactStatLabel}>Orders tracked</AppText>
-            </Card>
-            <Card style={styles.compactStatCard}>
-              <Ionicons name="wallet-outline" size={19} color={theme.colors.primary} />
-              <AppText variant="surfaceTitle" style={styles.compactStatValue}>{formatCurrency(analytics.averageOrderValue)}</AppText>
-              <AppText variant="metadata" style={styles.compactStatLabel}>Average order</AppText>
-            </Card>
-          </View> : null}
 
           {adEligible && adRuntime.configuration ? (
             <NativeAdPlacement
@@ -393,10 +405,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   activityContainer: {
     marginTop: 24,
   },
-  compactStats: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  compactStatCard: { flex: 1, minHeight: 112, padding: 15 },
-  compactStatValue: { fontFamily: FontFamily.medium, marginTop: 13 },
-  compactStatLabel: { marginTop: 3 },
   emptyState: {
     padding: 40,
     alignItems: 'center',
