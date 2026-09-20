@@ -4,6 +4,8 @@ import { dashboardInsightsApi } from '@services/dashboardInsightsApi';
 import { analyticsKeys } from '@lib/queryKeys';
 import React from 'react';
 import { AppState } from 'react-native';
+import { useCurrency } from '@contexts/CurrencyContext';
+import { resolveRecapCurrency } from '@features/wrapped/recapCurrency';
 
 export const getDeviceLocalDate = (now = new Date()) => {
   const year = now.getFullYear();
@@ -20,13 +22,21 @@ export const useAnalyticsQuery = (userId?: string | null) =>
     staleTime: 2 * 60 * 1000,
   });
 
-export const useWrappedAnalyticsQuery = (userId?: string | null, enabled = true) =>
-  useQuery({
-    queryKey: analyticsKeys.wrapped(userId ?? 'anonymous'),
-    queryFn: () => analyticsApi.getUserSummary(userId as string, true),
-    enabled: Boolean(userId) && enabled,
+export const useWrappedAnalyticsQuery = (userId?: string | null, enabled = true) => {
+  const { currency, hasManualSelection } = useCurrency();
+  const summaryQuery = useAnalyticsQuery(userId);
+  const displayCurrency = resolveRecapCurrency({
+    receiptCurrency: summaryQuery.data?.currencyCode,
+    selectedCurrency: currency,
+    hasManualSelection,
+  });
+  return useQuery({
+    queryKey: analyticsKeys.wrapped(userId ?? 'anonymous', displayCurrency),
+    queryFn: () => analyticsApi.getUserSummary(userId as string, true, displayCurrency),
+    enabled: Boolean(userId) && enabled && !summaryQuery.isPending,
     staleTime: 10 * 60 * 1000,
   });
+};
 
 export const useDashboardInsightsQuery = (userId?: string | null, devDayOffset = 0) => {
   const [localDate, setLocalDate] = React.useState(() => getDeviceLocalDate());
@@ -62,9 +72,22 @@ export const useDashboardInsightsQuery = (userId?: string | null, devDayOffset =
 
 export const usePrefetchWrappedAnalytics = () => {
   const queryClient = useQueryClient();
-  return (userId: string) => queryClient.prefetchQuery({
-    queryKey: analyticsKeys.wrapped(userId),
-    queryFn: () => analyticsApi.getUserSummary(userId, true),
-    staleTime: 10 * 60 * 1000,
-  });
+  const { currency, hasManualSelection } = useCurrency();
+  return async (userId: string) => {
+    const summary = await queryClient.fetchQuery({
+      queryKey: analyticsKeys.summary(userId),
+      queryFn: () => analyticsApi.getUserSummary(userId, false),
+      staleTime: 2 * 60 * 1000,
+    });
+    const displayCurrency = resolveRecapCurrency({
+      receiptCurrency: summary.currencyCode,
+      selectedCurrency: currency,
+      hasManualSelection,
+    });
+    return queryClient.prefetchQuery({
+      queryKey: analyticsKeys.wrapped(userId, displayCurrency),
+      queryFn: () => analyticsApi.getUserSummary(userId, true, displayCurrency),
+      staleTime: 10 * 60 * 1000,
+    });
+  };
 };

@@ -1,3 +1,8 @@
+// Use the native library's supported mock; Node has no network-state bridge.
+jest.mock('@react-native-community/netinfo', () =>
+  jest.requireActual('@react-native-community/netinfo/jest/netinfo-mock.js'),
+);
+
 // Jest setup file
 
 // Set up test environment variables before any imports

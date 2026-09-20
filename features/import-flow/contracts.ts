@@ -46,7 +46,9 @@ export interface GmailImportResponse {
   eligibleReceipts: number;
   deduplicatedReceipts: number;
   totalReceiptsImported: number;
-  totalAmount: number;
+  totalAmount: number | null;
+  currencyCode?: string | null;
+  receiptOutcome?: import('./receiptImportOutcome').ReceiptImportOutcome;
   errors: string[];
   newOrders: number;
   updatedOrders: number;
@@ -72,7 +74,9 @@ export interface SetupGuidance {
 export interface ExportImportResult {
   readonly message: string;
   readonly importedCount: number;
-  readonly totalAmount: number;
+  readonly totalAmount: number | null;
+  readonly currencyCode?: string | null;
+  readonly receiptOutcome?: import('./receiptImportOutcome').ReceiptImportOutcome;
   readonly fileType: "csv" | "zip";
   readonly provider: ExportProvider;
 }
@@ -82,7 +86,11 @@ export type ImportOperationKind =
   | "outlook_historical"
   | "manual_tracking"
   | "scheduled_tracking"
-  | "export_file";
+  | "export_file"
+  | "gmail_push_tracking"
+  | "receipt_rebuild"
+  | "receipt_publish"
+  | "receipt_rollback";
 export type ImportJourneyContext = "onboarding" | "post_onboarding" | "routine" | "legacy";
 export type ImportOperationStatus =
   | "awaiting_upload"
@@ -117,7 +125,7 @@ export interface ImportOperation {
   readonly status: ImportOperationStatus;
   readonly phase: string;
   readonly progress: number;
-  readonly result: Readonly<Record<string, unknown>> | null;
+  readonly result: (Readonly<Record<string, unknown>> & { readonly receiptOutcome?: import('./receiptImportOutcome').ReceiptImportOutcome }) | null;
   readonly errorCode: string | null;
   readonly errorMessage: string | null;
   readonly attempts: number;
@@ -243,6 +251,7 @@ export interface ImportPreferencesResponse {
     };
   };
   coverage: {
+    /** Canonical records with each source; merged orders overlap, so these are not additive. */
     emailReceiptCount: number;
     exportReceiptCount: number;
     hasEmailData: boolean;
@@ -260,8 +269,10 @@ export interface ImportPreferencesResponse {
 }
 
 export interface ProviderSourceCoverage {
+  /** Includes unresolved records and adjustments, not a unique purchase total. */
   receiptCount: number;
   hasData: boolean;
+  /** Observed order range only; unlinked adjustment dates do not extend it. */
   earliestOrderDate: string | null;
   latestOrderDate: string | null;
 }

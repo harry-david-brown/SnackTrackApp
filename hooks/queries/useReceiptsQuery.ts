@@ -9,6 +9,7 @@ import {
 export interface ReceiptsQueryOptions {
   readonly pageSize?: number;
   readonly filters?: ReceiptListFilters;
+  readonly insight?: { readonly id: string; readonly localDate: string; readonly snapshotId?: string };
 }
 
 export const useReceiptsQuery = (
@@ -17,11 +18,19 @@ export const useReceiptsQuery = (
 ) => {
   const pageSize = options.pageSize ?? DEFAULT_RECEIPT_PAGE_SIZE;
   const filters = options.filters ?? {};
-  const requestKey = { pageSize, ...filters };
+  const requestKey = { pageSize, ...filters, ...(options.insight ? { insight: options.insight } : {}) };
   return useInfiniteQuery({
     queryKey: receiptKeys.list(userId ?? 'anonymous', requestKey),
-    queryFn: ({ pageParam }) =>
-      receiptApi.getReceipts({ page: pageParam, limit: pageSize, filters }),
+    queryFn: ({ pageParam }) => options.insight
+      ? receiptApi.getInsightReceipts({
+          userId: userId!,
+          insightId: options.insight.id,
+          localDate: options.insight.localDate,
+          snapshotId: options.insight.snapshotId,
+          page: pageParam,
+          limit: pageSize,
+        })
+      : receiptApi.getReceipts({ page: pageParam, limit: pageSize, filters }),
     initialPageParam: 1,
     enabled: Boolean(userId),
     getNextPageParam: lastPage => lastPage.pageInfo.nextPage ?? undefined,

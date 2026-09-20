@@ -2173,7 +2173,7 @@ export function getDeterministicMessageResult(
         replacementsObj.chain = value;
         // Add totalSpent if available from analytics
         const wrapped = analytics.wrappedAnalytics;
-        if (wrapped?.shame.chainDependency) {
+        if (wrapped?.shame.chainDependency && wrapped.shame.chainDependency.totalSpent !== null) {
           replacementsObj.X = wrapped.shame.chainDependency.totalSpent;
         }
       }
@@ -2256,7 +2256,7 @@ export function getDeterministicMessageResult(
     case 'weekendWarrior':
       // This needs weekend/weekday data from analytics
       const wrapped = analytics.wrappedAnalytics;
-      if (wrapped?.patterns.weekendWarrior) {
+      if (wrapped?.patterns.weekendWarrior && wrapped.patterns.weekendWarrior.ratio !== null) {
         const warriorCategory = getWeekendWarriorCategory(
           wrapped.patterns.weekendWarrior.ratio
         );

@@ -110,6 +110,9 @@ describe("parseImportRouteParams", () => {
         downloadedVersion: "ready-1",
       }),
     ).toEqual({
+      mailbox: null,
+      journeyContext: undefined,
+      returnTo: "home",
       sourcePicker: true,
       showExportTutorial: true,
       focus: null,
@@ -256,10 +259,9 @@ describe("resolveImportFlowState", () => {
     expect(result.exportComplete).toBe(true);
     expect(result.showOneTimeGmailImport).toBe(false);
     expect(result.setupRecommendation).toMatchObject({
-      kind: "provider",
-      provider: { provider: "uber_eats" },
+      kind: "enable_tracking",
     });
-    expect(result.initialOpenTask).toBe("uber_export");
+    expect(result.initialOpenTask).toBeNull();
   });
 
   it("keeps the export task actionable after only one provider is imported", () => {
@@ -312,8 +314,27 @@ describe("resolveImportFlowState", () => {
     expect(result.gmailImportPresentation.idleButtonLabel).not.toContain(
       "Check Gmail now",
     );
-    expect(result.setupRecommendation).toEqual({ kind: "enable_tracking" });
-    expect(result.initialOpenTask).toBeNull();
+    expect(result.setupRecommendation).toMatchObject({
+      kind: "provider",
+      provider: { provider: "uber_eats" },
+    });
+    expect(result.initialOpenTask).toBe("uber_export");
+  });
+
+  it.each([1, 5])("describes %i source-backed records without claiming extra purchases", (count) => {
+    const value = preferences("completed", "not_offered", {
+      hasEmailData: true,
+      hasImported: true,
+      hasUberEatsExportData: true,
+    });
+    value.coverage.emailReceiptCount = count;
+    value.coverage.exportReceiptCount = count;
+    const result = resolveImportFlowState({ ...baseInput, preferences: value });
+    expect(result.gmailImportPresentation.description).toBe(
+      `${count} history record${count === 1 ? " has" : "s have"} email details. Matching export details are combined in the same record.`,
+    );
+    expect(result.gmailImportPresentation.description).not.toContain("orders");
+    expect(result.gmailImportPresentation.description).not.toContain("included in your stats");
   });
 
   it("focuses the export task for either export route intent", () => {

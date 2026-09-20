@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useReceiptsQuery } from '@hooks/queries/useReceiptsQuery';
 import { receiptApi } from '@services/api/receiptApi';
 import { ReceiptType } from '@/types/api';
+import type { ReceiptOutcomeFilter } from '@/types/receiptOutcome';
 import { createQueryTestWrapper } from '@/__tests__/utils/queryTestUtils';
 
 jest.mock('@services/api/receiptApi', () => ({
@@ -31,7 +32,7 @@ describe('useReceiptsQuery', () => {
     const { Wrapper, queryClient } = createQueryTestWrapper();
     const options = {
       pageSize: 10,
-      filters: { receiptType: ReceiptType.UBER_EATS, minAmount: 5 },
+      filters: { receiptType: ReceiptType.UBER_EATS, minAmount: 5, outcome: 'canceled', currencyCode: 'CAD', startDate: '2023-12-10', endDate: '2023-12-10' },
     } as const;
     const { result } = renderHook(() => useReceiptsQuery('user-1', options), {
       wrapper: Wrapper,
@@ -61,5 +62,24 @@ describe('useReceiptsQuery', () => {
     const { result } = renderHook(() => useReceiptsQuery(null), { wrapper: Wrapper });
     expect(result.current.fetchStatus).toBe('idle');
     expect(receiptApi.getReceipts).not.toHaveBeenCalled();
+  });
+  it('starts at page one on outcome changes and does not reuse another outcome’s accumulated pages', async () => {
+    jest.mocked(receiptApi.getReceipts).mockImplementation(async request => page(request.page, request.page === 1 ? 2 : null));
+    const { Wrapper, queryClient } = createQueryTestWrapper();
+    const { result, rerender } = renderHook(({ outcome }: { outcome: ReceiptOutcomeFilter }) => {
+      const query = useReceiptsQuery('user-1', { pageSize: 10, filters: { outcome } });
+      // Subscribe to data during render, as History does (TanStack tracks accessed properties).
+      return { data: query.data, isSuccess: query.isSuccess, fetchNextPage: query.fetchNextPage };
+    },
+      { wrapper: Wrapper, initialProps: { outcome: 'canceled' as ReceiptOutcomeFilter } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await act(async () => { await result.current.fetchNextPage(); });
+    expect(jest.mocked(receiptApi.getReceipts).mock.calls.map(([request]) => request.page)).toEqual([1, 2]);
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(2));
+    rerender({ outcome: 'refunded' });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.pages).toHaveLength(1);
+    expect(receiptApi.getReceipts).toHaveBeenLastCalledWith({ page: 1, limit: 10, filters: { outcome: 'refunded' } });
+    expect(queryClient.getQueryCache().findAll({ queryKey: ['receipts', 'user-1'] })).toHaveLength(2);
   });
 });

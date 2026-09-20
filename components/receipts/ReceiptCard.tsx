@@ -1,10 +1,12 @@
+import { formatReceiptMoney } from '@utils/receiptMoney';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { FontFamily, Radius, type AppTheme } from '@constants/theme';
+import { FontFamily, Radius, Spacing, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
-import { DataSource, ReceiptType, type Receipt } from '@/types/api';
+import { DataSource, ReceiptType, type Receipt, type ReceiptItem } from '@/types/api';
 import { AppText } from '@components/ui/AppText';
+import { receiptHistoryDay, receiptOutcomePresentation } from '@features/receipts/receiptOutcomePresentation';
 
 const sourcePresentation = (receipt: Receipt, theme: AppTheme) => {
   if (receipt.receiptType === ReceiptType.UBER_EATS) return { label: 'Uber Eats', icon: 'car-outline' as const, accent: theme.colors.uberDark };
@@ -23,27 +25,56 @@ interface ReceiptCardProps {
   onToggle: (id: string) => void;
 }
 
+export const receiptItemPricePresentation = (
+  item: ReceiptItem,
+  displayMoney: (value: number) => string,
+): { primary: string; secondary?: string; accessibility: string } | null => {
+  if (item.recordedPrice !== undefined)
+    return { primary: displayMoney(item.recordedPrice), secondary: 'Recorded price', accessibility: `${displayMoney(item.recordedPrice)}, recorded price` };
+  if (item.price <= 0) return null;
+  if (item.quantity > 1)
+    return item.configuredLineTotal === undefined
+      ? { primary: `${displayMoney(item.price)} each`, accessibility: `${displayMoney(item.price)} each` }
+      : { primary: `${displayMoney(item.price)} each`, secondary: `Line total ${displayMoney(item.configuredLineTotal)}`, accessibility: `${displayMoney(item.price)} each, line total ${displayMoney(item.configuredLineTotal)}` };
+  return { primary: displayMoney(item.price), accessibility: displayMoney(item.price) };
+};
+
 export function ReceiptCard({ receipt, expanded, first = true, last = true, formatCurrency, onToggle }: ReceiptCardProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const source = sourcePresentation(receipt, theme);
+  const displayMoney = (value: number) => formatReceiptMoney(value, receipt.currencyCode, formatCurrency);
   const hasItems = receipt.items.length > 0;
+  const outcome = receiptOutcomePresentation(receipt, formatCurrency);
+  const hasDetails = hasItems || Boolean(receipt.orderOutcome);
   const restaurantName = receipt.restaurantName ?? 'Unknown restaurant';
-  const date = receipt.orderDate
-    ? new Date(receipt.orderDate).toLocaleDateString('en-US', {
+  const day = receiptHistoryDay(receipt);
+  const date = day
+    ? new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', {
+        timeZone: 'UTC',
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       })
     : 'Date unavailable';
+  const shortDate = day
+    ? new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })
+    : 'Date unavailable';
   return (
     <Pressable
-      accessibilityRole={hasItems ? 'button' : undefined}
-      accessibilityLabel={`${restaurantName}, ${formatCurrency(receipt.amountSpent)}, ${date}, ${source.label}`}
-      accessibilityState={hasItems ? { expanded } : undefined}
-      onPress={() => hasItems && onToggle(receipt.id)}
-      disabled={!hasItems}
-      style={({ pressed }) => [pressed && hasItems && styles.pressed]}
+      accessibilityRole={hasDetails ? 'button' : undefined}
+      accessibilityLabel={[restaurantName, outcome.amount, outcome.amountLabel, date, source.label, outcome.status, outcome.notice, outcome.sourceLabel,
+        expanded ? outcome.details.map(detail => `${detail.label}: ${detail.value}`).join(', ') : undefined,
+        expanded ? receipt.items.map(item => {
+          const price = receiptItemPricePresentation(item, displayMoney);
+          return `${item.quantity} × ${item.name}${item.customizations?.length ? `, ${item.customizations.join(', ')}` : ''}${price ? `, ${price.accessibility}` : ''}`;
+        }).join('; ') : undefined,
+      ].filter(Boolean).join(', ')}
+      accessibilityState={hasDetails ? { expanded } : undefined}
+      accessibilityHint={hasDetails ? expanded ? 'Hide order details' : 'Show order details' : 'Item details are not available for this order.'}
+      onPress={() => hasDetails && onToggle(receipt.id)}
+      disabled={!hasDetails}
+      style={({ pressed }) => [pressed && hasDetails && styles.pressed]}
     >
       <View style={[styles.card, first && styles.firstCard, last && styles.lastCard]}>
         <View style={styles.header}>
@@ -51,27 +82,39 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
             <Ionicons name={source.icon} size={20} color={source.accent} />
           </View>
           <View style={styles.info}>
-            <AppText variant="rowTitle" style={styles.restaurant} numberOfLines={2}>{restaurantName}</AppText>
-            <AppText variant="metadata" style={styles.meta}>{date} · {hasItems ? `${receipt.items.length} ${receipt.items.length === 1 ? 'item' : 'items'}` : source.label}</AppText>
+            <AppText variant="rowTitle" style={styles.restaurant}>{restaurantName}</AppText>
+            <AppText variant="metadata" tone="muted" style={styles.meta}>{shortDate} · {source.label}</AppText>
           </View>
           <View style={styles.amountColumn}>
-            <AppText variant="rowTitle" style={styles.amount} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>{formatCurrency(receipt.amountSpent)}</AppText>
-            <AppText variant="metadata" style={styles.source}>{source.label}</AppText>
+            <AppText variant="rowTitle" style={styles.amount}>{outcome.amount}</AppText>
+            {outcome.amountLabel ? <AppText variant="metadata" tone="muted" style={styles.source}>{outcome.amountLabel}</AppText> : null}
           </View>
+          {hasDetails ? <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={theme.colors.textSecondary} /> : null}
         </View>
-        {hasItems ? <View style={styles.expandHint}><AppText variant="metadata" style={styles.expandText}>{expanded ? 'Hide item details' : 'Show item details'}</AppText><Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.textSecondary} /></View> : (
-          <AppText variant="metadata" style={styles.unavailable}>{receipt.dataSource === DataSource.EMAIL ? 'Item details are not available from this email receipt.' : 'No item details available.'}</AppText>
-        )}
+        {outcome.status ? <AppText variant="metadata" style={styles.meta}>{outcome.status}</AppText> : null}
+        {!receipt.orderOutcome && receipt.evidenceSummary ? <AppText variant="metadata" style={styles.meta}>{receipt.evidenceSummary}</AppText> : null}
+        {expanded && outcome.sourceLabel ? <AppText variant="metadata" style={styles.meta}>{outcome.sourceLabel}</AppText> : null}
+        {outcome.notice ? <AppText variant="metadata" style={styles.meta}>{outcome.notice}</AppText> : null}
+        {expanded && receipt.orderOutcome ? <View style={styles.items}>
+          <AppText variant="surfaceBody">Payments & adjustments</AppText>
+          {outcome.details.map((detail, index) => <View key={`${detail.label}-${index}`} style={styles.itemRow}>
+            <AppText variant="metadata" style={styles.itemDetails}>{detail.label}</AppText>
+            <AppText variant="metadata">{detail.value}</AppText>
+          </View>)}
+        </View> : null}
         {hasItems && expanded ? (
           <View style={styles.items}>
-            {receipt.items.map((item, index) => (
-              <View key={`${receipt.id}-${index}`} style={styles.itemRow}>
-                <View style={styles.itemDetails}><AppText variant="surfaceBody" style={styles.itemName}>{item.name}</AppText><AppText variant="metadata" style={styles.quantity}>Qty: {item.quantity}</AppText></View>
-                {item.price > 0 ? <AppText variant="surfaceBody" style={styles.itemPrice}>{formatCurrency(item.price)}</AppText> : null}
-              </View>
-            ))}
+            <AppText variant="metadata" tone="muted">{receipt.items.length} {receipt.items.length === 1 ? 'item' : 'items'}</AppText>
+            {receipt.items.map((item, index) => {
+              const price = receiptItemPricePresentation(item, displayMoney);
+              return <View key={`${receipt.id}-${index}`} style={styles.itemRow}>
+                <View style={styles.itemDetails}><AppText variant="surfaceBody" style={styles.itemName}>{item.name}</AppText><AppText variant="metadata" style={styles.quantity}>Qty: {item.quantity}{item.inferred ? ' · Estimated' : ''}</AppText>{item.customizations?.length ? <AppText variant="metadata">{item.customizations.join(' · ')}</AppText> : null}</View>
+                {price ? <View style={styles.itemPriceColumn}><AppText variant="surfaceBody" style={styles.itemPrice}>{price.primary}</AppText>{price.secondary ? <AppText variant="metadata" style={styles.itemPriceNote}>{price.secondary}</AppText> : null}</View> : null}
+              </View>;
+            })}
           </View>
         ) : null}
+        {expanded && !hasItems ? <AppText variant="metadata" tone="muted" style={styles.meta}>{receipt.dataSource === DataSource.EMAIL ? 'Item details are not available from this email receipt.' : 'No item details available.'}</AppText> : null}
       </View>
     </Pressable>
   );
@@ -79,24 +122,23 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
   pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
-  card: { padding: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, borderBottomWidth: 0 },
+  card: { padding: Spacing.control, minHeight: 76, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, borderBottomWidth: 0 },
   firstCard: { borderTopLeftRadius: Radius.card, borderTopRightRadius: Radius.card },
   lastCard: { borderBottomLeftRadius: Radius.card, borderBottomRightRadius: Radius.card, borderBottomWidth: 1, marginBottom: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  providerIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  providerIcon: { width: 40, height: 40, borderRadius: Radius.input, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1, minWidth: 0 },
   restaurant: { fontFamily: FontFamily.medium },
-  meta: { marginTop: 4 },
+  meta: { marginTop: Spacing.xs },
   amountColumn: { maxWidth: '34%', alignItems: 'flex-end' },
-  amount: { fontFamily: FontFamily.medium },
-  source: { marginTop: 4 },
-  expandHint: { minHeight: 36, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: theme.colors.gray100, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  expandText: { fontFamily: FontFamily.medium },
-  unavailable: { marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: theme.colors.gray100 },
+  amount: { fontFamily: FontFamily.medium, textAlign: 'right' },
+  source: { marginTop: Spacing.xs, textAlign: 'right' },
   items: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.gray100 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.gray50 },
   itemDetails: { flex: 1, marginRight: 12 },
   itemName: { fontFamily: FontFamily.medium, marginBottom: 4 },
   quantity: {},
   itemPrice: { color: theme.colors.primary, fontFamily: FontFamily.medium },
+  itemPriceColumn: { alignItems: 'flex-end', maxWidth: '42%' },
+  itemPriceNote: { marginTop: 4, textAlign: 'right' },
 });

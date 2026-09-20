@@ -1,6 +1,51 @@
+import type { RecapStory } from '@/types/recap';
+
 export type AnalyticsScope =
   | { kind: 'lifetime' }
   | { kind: 'year'; year: number };
+
+export interface PersonalizedStorySelectionOptions {
+  minStories?: number;
+  maxStories?: number;
+}
+
+/** Scores rank stories; only factual eligibility (not a score cutoff) limits the core deck. */
+export function selectPersonalizedStories(
+  stories: readonly RecapStory[],
+  options: PersonalizedStorySelectionOptions = {}
+): RecapStory[] {
+  const minStories = Math.max(0, options.minStories ?? 6);
+  const maxStories = Math.max(minStories, options.maxStories ?? 8);
+  const selected: RecapStory[] = [];
+  const safe = stories.filter(s => s.id !== 'spending-timeline' && s.id !== 'cancellation-cost' &&
+    (s.id !== 'refunded-orders' || typeof s.value === 'number' && s.value >= 10));
+  const duplicates = (a: RecapStory, b: RecapStory) => a.overlaps.includes(b.id) || b.overlaps.includes(a.id) ||
+    a.id === b.id || Boolean(a.subject && a.subject === b.subject && a.family === b.family);
+  const canAdd = (s: RecapStory) => !selected.some(t => duplicates(s, t)) &&
+    !(s.id === 'history-total') && // Already represented by the reserved delivery picture.
+    !(s.id === 'history-top-restaurant' && selected.some(t => t.id === 'restaurant-loyalty' || t.id === 'top-spots')) &&
+    (!(s.format === 'money' || s.family === 'spending') || selected.filter(t => t.format === 'money' || t.family === 'spending').length < 2);
+  const adjusted = (s: RecapStory) => s.score - (selected.some(t => t.family === s.family) ? 15 : 0);
+  const rank = (a: RecapStory, b: RecapStory) => adjusted(b) - adjusted(a) || b.specificity - a.specificity || a.id.localeCompare(b.id);
+  const primary = safe.filter(s => s.fallbackOrder === undefined && !safe.some(t =>
+    t.fallbackOrder === undefined && t.specificity > s.specificity && duplicates(s, t)));
+  const day = primary.find(s => s.id === 'most-deliveries-day' && typeof s.value === 'number' && s.value >= 3);
+  if (day) selected.push(day);
+  const habit = primary.filter(s => s.category === 'habit' && canAdd(s)).sort(rank)[0];
+  if (habit) selected.push(habit);
+  while (selected.length < minStories) {
+    const next = primary.filter(canAdd).sort(rank)[0] ?? safe.filter(s => s.fallbackOrder !== undefined && canAdd(s)).sort((a, b) => a.fallbackOrder! - b.fallbackOrder! || a.id.localeCompare(b.id))[0];
+    if (!next) break;
+    selected.push(next);
+  }
+  while (selected.length < maxStories) {
+    const next = primary.filter(s => canAdd(s) && adjusted(s) >= 75).sort(rank)[0];
+    if (!next) break;
+    selected.push(next);
+  }
+  const order = ['perspective', 'trend', 'places', 'habit', 'pattern', 'extreme-moment'];
+  return selected.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category) || rank(a, b));
+}
 
 export type SlideCategory =
   | 'headline'
@@ -12,6 +57,33 @@ export type SlideCategory =
   | 'extreme-moment'
   | 'transition'
   | 'identity';
+
+export type RecapChapter = 'opening' | 'patterns' | 'extremes' | 'verdict';
+
+export interface ChapteredSlide {
+  id: string;
+  category: SlideCategory;
+}
+
+/** Chapters are presentation-owned; API categories remain factual/editorial metadata. */
+export function getRecapChapter(slide: ChapteredSlide): RecapChapter {
+  if (slide.category === 'extreme-moment') return 'extremes';
+  if (slide.category === 'trend' || slide.category === 'places' ||
+      slide.category === 'habit' || slide.category === 'pattern') return 'patterns';
+  if (slide.category === 'transition' || slide.category === 'identity') return 'verdict';
+  return 'opening';
+}
+
+export function groupSlidesByRecapChapter<T extends ChapteredSlide>(slides: readonly T[]): Record<RecapChapter, T[]> {
+  const chapters: Record<RecapChapter, T[]> = {
+    opening: [],
+    patterns: [],
+    extremes: [],
+    verdict: [],
+  };
+  slides.forEach(slide => chapters[getRecapChapter(slide)].push(slide));
+  return chapters;
+}
 
 export type SlideEntranceRole = 'rise' | 'zoom' | 'slide' | 'drop' | 'quiet' | 'reveal';
 

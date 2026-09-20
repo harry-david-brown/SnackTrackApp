@@ -47,6 +47,9 @@ export const styles = StyleSheet.create({
   muteIconButton: {
     right: 112,
   },
+  muteIconButtonSolo: {
+    right: 16,
+  },
   // Cream pill in the live journey chrome — never part of the captured share
   // image. The row uses the device inset instead of the export story-safe zone.
   shareCtaButton: {
@@ -138,6 +141,12 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     left: -SHARE_FRAME_W * 2,
     top: 0,
+    width: SHARE_FRAME_W,
+    height: SHARE_FRAME_H,
+    overflow: 'hidden',
+    backgroundColor: Colors.transparent,
+  },
+  shareShotFrame: {
     width: SHARE_FRAME_W,
     height: SHARE_FRAME_H,
     overflow: 'hidden',
@@ -235,6 +244,35 @@ export const styles = StyleSheet.create({
   },
   mascotHero: {
     marginBottom: 20,
+  },
+  hybridHero: {
+    width: 190,
+    minHeight: 118,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mascotHeroForeground: {
+    zIndex: 1,
+  },
+  heroAccentEmoji: {
+    position: 'absolute',
+    zIndex: 0,
+    fontSize: 27,
+  },
+  heroAccentTopLeft: {
+    top: 2,
+    left: 16,
+    transform: [{ rotate: '-12deg' }],
+  },
+  heroAccentTopRight: {
+    top: 8,
+    right: 12,
+    transform: [{ rotate: '10deg' }],
+  },
+  heroAccentBottomRight: {
+    right: 24,
+    bottom: 2,
+    transform: [{ rotate: '-6deg' }],
   },
   glowWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -402,6 +440,30 @@ export const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: Colors.alpha(Colors.white, 0.7),
+    textAlign: 'center',
+  },
+  chapterEyebrow: {
+    fontFamily: WRAPPED_FONTS.medium,
+    fontSize: 12,
+    color: Colors.alpha(Colors.white, 0.72),
+    textAlign: 'center',
+    letterSpacing: 2.2,
+    marginBottom: 18,
+  },
+  chapterTitle: {
+    fontFamily: WRAPPED_FONTS.display,
+    fontSize: Math.min(48, Math.max(38, Math.round(screenWidth * 0.115))),
+    lineHeight: Math.min(52, Math.max(42, Math.round(screenWidth * 0.125))),
+    color: Colors.white,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  chapterBody: {
+    marginTop: 18,
+    fontFamily: WRAPPED_FONTS.medium,
+    fontSize: 17,
+    lineHeight: 24,
+    color: Colors.alpha(Colors.white, 0.78),
     textAlign: 'center',
   },
   // The roast is the punchline — a tilted mascot-cream sticker so it reads as

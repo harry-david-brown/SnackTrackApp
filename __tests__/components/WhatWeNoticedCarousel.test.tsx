@@ -4,6 +4,9 @@ import { AccessibilityInfo, AppState, StyleSheet } from 'react-native';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import type { DashboardInsight } from '@/types/api';
 import { showAlert } from '@utils/platformAlert';
+import { normalizeDashboardInsightEdition } from '@services/dashboardInsightsApi';
+import orderEventFixture from '@/__tests__/fixtures/order-event-dashboard.json';
+import coreOrderEventFixture from '@/__tests__/fixtures/order-event-dashboard-core.json';
 
 jest.mock('@contexts/CurrencyContext', () => ({
   useCurrency: () => ({ formatCurrency: (amount: number) => `$${amount.toFixed(2)}` }),
@@ -21,6 +24,76 @@ const insights: DashboardInsight[] = [
 ];
 
 describe('WhatWeNoticedCarousel', () => {
+  it('offers a quiet link to the exact orders behind an applicable stat', async () => {
+    const onViewOrders = jest.fn();
+    const card: DashboardInsight = {
+      ...insights[0],
+      orderEvidence: { count: 3 },
+    };
+    const screen = render(<WhatWeNoticedCarousel insights={[card]} onOpenExport={jest.fn()} onViewOrders={onViewOrders} />);
+    await act(async () => Promise.resolve());
+    fireEvent.press(screen.getByRole('link', { name: 'View the 3 orders behind Weekly ritual' }));
+    expect(onViewOrders).toHaveBeenCalledWith(card);
+  });
+
+  it.each([true, false])('renders the big-orders mockup with structured or cached facts (%s)', async structured => {
+    const card: DashboardInsight = {
+      id: 'spending-concentration', presentation: 'hero', category: 'habits', icon: 'receipt',
+      eyebrow: 'Where your spending goes', title: 'Your largest orders', value: 22, valueFormat: 'percent',
+      detail: 'Old detail', methodology: { sampleSize: 944, assumption: 'Based on recorded costs, after refunds.' },
+      ...(structured ? { spendingConcentration: { orderCount: 95 } } : {}),
+    };
+    const screen = render(<WhatWeNoticedCarousel insights={[card]} onOpenExport={jest.fn()} partialExportProvider="uber_eats" />);
+    await act(async () => Promise.resolve());
+    expect(screen.getByText('THE BIG ORDERS')).toBeTruthy();
+    expect(screen.getByText('95 orders.')).toBeTruthy();
+    expect(screen.getByText('22%')).toBeTruthy();
+    expect(screen.getByText('of your spending')).toBeTruthy();
+    expect(screen.getByText('Your biggest orders make up this share.')).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByTestId('spending-concentration-fill', { includeHiddenElements: true }).props.style).width).toBe('22%');
+    expect(screen.queryByText(/refunds|Based on|Old detail/)).toBeNull();
+    const footer = screen.getByRole('button', { name: 'Data coverage: Uber Eats history only. More information' });
+    expect(StyleSheet.flatten(footer.props.style).backgroundColor).toBeUndefined();
+    fireEvent.press(footer);
+    expect(showAlert).toHaveBeenCalled();
+    screen.unmount();
+  });
+
+  it('uses the authoritative concentration count and omits the footer with full coverage', async () => {
+    const card: DashboardInsight = { id: 'spending-concentration', presentation: 'hero', category: 'habits', icon: 'receipt', eyebrow: 'The big orders', title: 'Your largest orders', value: 100, valueFormat: 'percent', spendingConcentration: { orderCount: 7 } };
+    const screen = render(<WhatWeNoticedCarousel insights={[card]} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.getByText('7 orders.')).toBeTruthy();
+    expect(screen.queryByText(/history only/)).toBeNull();
+    expect(StyleSheet.flatten(screen.getByTestId('spending-concentration-fill', { includeHiddenElements: true }).props.style).width).toBe('100%');
+    screen.unmount();
+  });
+
+  it.each(['multi-order-day', 'multi-order-day-rank-2', 'multi-order-day-rank-3'])('renders the compact approved busy-day card for %s', async id => {
+    const card: DashboardInsight = { id, presentation: 'hero', category: 'extremes', icon: 'delivery', eyebrow: 'A busy doorbell', title: '4 orders.', value: 4, valueFormat: 'number', headline: 'Nov 19, 2024', detail: 'Canceled attempts excluded', methodology: { sampleSize: 4 }, period: { startDate: '2024-11-19' }, busyDay: { date: '2024-11-19', spending: [{ currencyCode: 'CAD', amount: 124.8 }] } };
+    const screen = render(<WhatWeNoticedCarousel insights={[card]} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.getByText('A BUSY DOORBELL')).toBeTruthy();
+    expect(screen.getByText('4 orders.')).toBeTruthy();
+    expect(screen.getByText('One busy day.')).toBeTruthy();
+    expect(screen.getAllByText('Nov 19, 2024')).toHaveLength(1);
+    expect(screen.getByText('CA$124.80')).toBeTruthy();
+    expect(screen.getByText('spent')).toBeTruthy();
+    expect(screen.queryByText(/Canceled|Based on/)).toBeNull();
+    screen.unmount();
+  });
+
+  it.each([{ spending: [] }, { spending: [{ currencyCode: 'CAD' as const, amount: 0 }, { currencyCode: 'USD' as const, amount: 20 }] }])('preserves missing, zero and separate currency spending', async ({ spending }) => {
+    const card: DashboardInsight = { id: 'multi-order-day', presentation: 'hero', category: 'extremes', icon: 'delivery', eyebrow: 'A busy doorbell', title: '4 orders.', value: 4, valueFormat: 'number', busyDay: { date: '2024-11-19', spending } };
+    const screen = render(<WhatWeNoticedCarousel insights={[card]} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    if (spending.length) {
+      expect(screen.getByText('CA$0.00')).toBeTruthy();
+      expect(screen.getByText('$20.00')).toBeTruthy();
+    } else expect(screen.queryByText('spent')).toBeNull();
+    screen.unmount();
+  });
+
   beforeEach(() => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
   });
@@ -28,6 +101,29 @@ describe('WhatWeNoticedCarousel', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();
+  });
+
+  it('renders the canonical December delivery day, wallet-inclusive net cost and cancellation/refund facts', async () => {
+    const edition = normalizeDashboardInsightEdition(coreOrderEventFixture);
+    const screen = render(<WhatWeNoticedCarousel insights={edition.insights} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.getByText('Most deliveries in a day')).toBeTruthy();
+    expect(screen.getByText(/CAD 113\.76 net cost/)).toBeTruthy();
+    expect(screen.getByText('157.02')).toBeTruthy();
+    expect(screen.getByText('43.26 cancellation cost; 22.48 known confirmed refunds')).toBeTruthy();
+    expect(screen.getByText('Order attempts')).toBeTruthy();
+    expect(screen.getByText('Completed deliveries')).toBeTruthy();
+    expect(screen.queryByText(/198\.97/)).toBeNull();
+    expect(screen.queryByText(/8 orders/)).toBeNull();
+  });
+
+  it('renders precise export delivery windows from the generated daily edition', async () => {
+    const edition = normalizeDashboardInsightEdition(orderEventFixture);
+    const screen = render(<WhatWeNoticedCarousel insights={edition.insights} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.getByText('Your delivery-window lifetime')).toBeTruthy();
+    expect(screen.getByText('4 valid deliveries, averaging 34 minutes from order to arrival.')).toBeTruthy();
+    screen.unmount();
   });
 
   it('renders every typed presentation and routes the locked action', async () => {

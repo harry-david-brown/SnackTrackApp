@@ -73,6 +73,15 @@ describe('guided returning-user imports', () => {
     expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'email', selectedMailbox: 'gmail' })).kind).toBe('email_settings');
     expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'reconnect', selectedMailbox: 'gmail' })).kind).toBe('email_review');
   });
+  it('keeps a completed inbox in the reviewed flow when it was opened for ongoing tracking', () => {
+    const preferences = createImportPreferencesFixture();
+    preferences.gmailBaseline.hasCompleted = true;
+    expect(resolvePostOnboardingImportJourney(input(preferences, {
+      intent: 'email',
+      selectedMailbox: 'gmail',
+      gmailPurpose: 'ongoing_tracking',
+    }))).toMatchObject({ kind: 'email_review', provider: 'gmail' });
+  });
 });
 
 

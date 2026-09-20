@@ -72,8 +72,22 @@ describe('NavigationPolicyProvider', () => {
     expect(policy.dispatchExternalNavigation({ kind: 'import-result', source: 'notification', operationId: 'op-1' }))
       .toBe('navigated');
     expect(policy.dispatchExternalNavigation({ kind: 'import-result', source: 'notification', operationId: 'op-1' }))
-      .toBe('already-current');
+      .toBe('transition-pending');
     expect(router.navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases a suspended transition when an external callback route is observed', () => {
+    const view = renderPolicy();
+    expect(policy.open({ pathname: '/add-history', params: { intent: 'email' } })).toBe('navigated');
+
+    jest.mocked(usePathname).mockReturnValue('/oauth-callback');
+    jest.mocked(useGlobalSearchParams).mockReturnValue({ gmail: 'success' });
+    jest.mocked(useSegments).mockReturnValue(['oauth-callback'] as never);
+    view.rerender(<NavigationPolicyProvider><Probe /></NavigationPolicyProvider>);
+
+    expect(policy.replace({ pathname: '/add-history', params: { intent: 'email', gmail: 'success' } }))
+      .toBe('navigated');
+    expect(router.replace).toHaveBeenCalledTimes(1);
   });
 
   it('returns notification-opened results to the screen where the tap occurred', () => {

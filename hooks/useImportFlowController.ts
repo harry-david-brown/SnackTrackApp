@@ -16,6 +16,7 @@ import { useOutlookImport } from "./useOutlookImport";
 import { useExportUpsell } from "./useExportUpsell";
 import { useImportPreferences } from "./useImportPreferences";
 import { useImportOperation } from "./useImportOperation";
+import { useOngoingTrackingActivation } from "./useOngoingTrackingActivation";
 import type { ImportRouteParams } from "@features/import-flow/importRouteParams";
 import { resolveImportFlowState } from "@features/import-flow/importFlowResolver";
 import type { GmailConnectionPurpose } from "@features/import-flow/gmailConnectionPurpose";
@@ -134,6 +135,10 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     useState<ImportCompletionSummary | null>(null);
   const gmailFeatureEnabled = featureFlags.showGmailImport;
   const preferences = useImportPreferences(Boolean(userId));
+  const { enableOngoingTracking } = useOngoingTrackingActivation(
+    userId,
+    preferences.setOngoingTrackingConsent,
+  );
   const markExportRequested = preferences.markExportRequested;
   const { operation: activeImportOperation, isUnavailable: activeImportUnavailable, refresh: refreshActiveImport } = useImportOperation(Boolean(userId));
   const finishInitialImport = useCallback(async (
@@ -205,14 +210,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
                   {
                     text: "Allow Ongoing Updates",
                     onPress: () => {
-                      void preferences
-                        .setOngoingTrackingConsent("granted")
-                        .then(() =>
-                          showSimpleAlert(
-                            "Setting up ongoing updates",
-                            "SnackTrack is catching up from your existing history. Your downloaded history remains safe.",
-                          ),
-                        )
+                      void enableOngoingTracking()
                         .catch(() =>
                           showSimpleAlert(
                             "Could not enable updates",
@@ -263,7 +261,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
             `${presentation.message}\n\nWould you like SnackTrack to periodically check for future delivery receipts?`,
             [
               { text: "Not Now", style: "cancel", onPress: () => { void preferences.setOngoingTrackingConsent("declined"); } },
-              { text: "Allow Ongoing Updates", onPress: () => { void preferences.setOngoingTrackingConsent("granted"); } },
+              { text: "Allow Ongoing Updates", onPress: () => { void enableOngoingTracking().catch(() => showSimpleAlert("Could not enable updates", "Your email check completed, but the tracking choice could not be saved. Try again from Profile.")); } },
             ],
           ), 0);
           return;
@@ -384,7 +382,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
           `${orderCount > 0 ? `${orderCount} orders were added or updated. ` : ""}Would you like SnackTrack to periodically check for future delivery receipts?`,
           [
             { text: "Not Now", style: "cancel", onPress: () => { void preferences.setOngoingTrackingConsent("declined"); } },
-            { text: "Allow Ongoing Updates", onPress: () => { void preferences.setOngoingTrackingConsent("granted"); } },
+            { text: "Allow Ongoing Updates", onPress: () => { void enableOngoingTracking().catch(() => showSimpleAlert("Could not enable updates", "The tracking choice could not be saved. Try again from Profile.")); } },
           ],
         );
         return;
@@ -396,7 +394,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }
       void finishInitialImport(sourceName, orderCount, `${sourceName} import complete`, orderCount > 0 ? `${orderCount} orders were added or updated.` : "No new supported receipts were found.", nextPreferences);
     });
-  }, [activeImportOperation, finishInitialImport, isFocused, pendingTrackingSetup, preferences, screenMode]);
+  }, [activeImportOperation, enableOngoingTracking, finishInitialImport, isFocused, pendingTrackingSetup, preferences, screenMode]);
 
   const connectionBusy = gmail.primaryFlowState !== "idle"
     || gmail.isChecking
@@ -575,14 +573,12 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
               {
                 text: "Allow Updates",
                 onPress: () => {
-                  void preferences
-                    .setOngoingTrackingConsent("granted")
-                    .then(() =>
-                      showSimpleAlert(
-                        "Setting up ongoing updates",
-                        "SnackTrack is catching up from the end of your imported history.",
-                      ),
-                    );
+                  void enableOngoingTracking().catch(() =>
+                    showSimpleAlert(
+                      "Could not enable updates",
+                      "Your email is connected, but the tracking choice could not be saved. Try again from Profile.",
+                    ),
+                  );
                 },
               },
             ],
@@ -609,7 +605,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }, 2200);
       return true;
     },
-    [connectionBusy, gmail, preferences],
+    [connectionBusy, enableOngoingTracking, gmail, preferences],
   );
 
   const connectOutlook = useCallback(
@@ -620,18 +616,31 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         setActiveTaskId("connect_email");
         return false;
       }
-      await preferences.refresh();
+      const refreshedPreferences = await preferences.refresh();
       setActiveTaskId(purpose === "export_ready_alerts" ? "uber_export" : "gmail_import");
       if (purpose === "ongoing_tracking") {
-        showSimpleAlert(
-          "Outlook is ready",
-          "Check your email history once. SnackTrack will ask separately before enabling ongoing updates.",
-        );
-        setPendingTrackingSetup(true);
+        const recovery = resolveTrackingRecovery(refreshedPreferences);
+        if (recovery.kind === "eligible") {
+          setActiveTaskId(null);
+          showAlert(
+            "Allow ongoing order tracking?",
+            "SnackTrack will check your connected email for supported delivery receipts newer than your downloaded history and periodically check for future orders. You can turn this off at any time.",
+            [
+              { text: "Not Now", style: "cancel", onPress: () => { void preferences.setOngoingTrackingConsent("declined"); } },
+              { text: "Allow Updates", onPress: () => { void enableOngoingTracking().catch(() => showSimpleAlert("Could not enable updates", "Your email is connected, but the tracking choice could not be saved. Try again from Profile.")); } },
+            ],
+          );
+        } else {
+          showSimpleAlert(
+            "Outlook is ready",
+            "Check your email history once. SnackTrack will ask separately before enabling ongoing updates.",
+          );
+          setPendingTrackingSetup(true);
+        }
       }
       return true;
     },
-    [connectionBusy, outlook, preferences],
+    [connectionBusy, enableOngoingTracking, outlook, preferences],
   );
 
   const importEmail = useCallback(
@@ -762,14 +771,12 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         {
           text: "Allow Updates",
           onPress: () => {
-            void preferences
-              .setOngoingTrackingConsent("granted")
-              .then(() =>
-                showSimpleAlert(
-                  "Setting up ongoing updates",
-                  "SnackTrack is catching up from your existing history.",
-                ),
-              );
+            void enableOngoingTracking().catch(() =>
+              showSimpleAlert(
+                "Could not enable updates",
+                "The tracking choice could not be saved. Try again from Profile.",
+              ),
+            );
           },
         },
       ],
@@ -777,6 +784,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
   }, [
     connectEmail,
     connectOutlook,
+    enableOngoingTracking,
     flow.canImportFromGmail,
     flow.canImportFromOutlook,
     flow.gmailConnected,
@@ -1186,6 +1194,8 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     toggleTask,
     connectEmail: () => connectEmail(flow.gmailNeedsReconnect ? 'connection_recovery' : 'receipt_import'),
     connectOutlook: () => connectOutlook(flow.outlookNeedsReconnect ? 'connection_recovery' : 'receipt_import'),
+    connectEmailForOngoingTracking: () => connectEmail('ongoing_tracking'),
+    connectOutlookForOngoingTracking: () => connectOutlook('ongoing_tracking'),
     reconnectEmail: () => connectEmail('connection_recovery'),
     reconnectOutlook: () => connectOutlook('connection_recovery'),
     chooseSetupEmail,

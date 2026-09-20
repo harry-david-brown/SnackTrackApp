@@ -9,6 +9,7 @@ import { useCurrency } from '@contexts/CurrencyContext';
 import { useOnboarding } from '@contexts/OnboardingContext';
 import { useUser } from '@contexts/UserContext';
 import { resolveProfileSettingsState } from '@features/profile/profileSettingsState';
+import { profileReceiptSummary } from '@features/profile/profileReceiptSummary';
 import { resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { useAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useImportPreferences } from './useImportPreferences';
@@ -19,10 +20,12 @@ import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import {
   setExportDownloadHandoffState,
 } from '@utils/exportDownloadHandoff';
-import { requestImportNotifications } from '@components/import/ImportNotificationController';
+import { requestImportNotifications } from '@services/importNotifications';
 import { notificationDeviceApi } from '@services/notificationDeviceApi';
 import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 import { appDestinations, useAppNavigation } from '@features/navigation';
+import { useOngoingTrackingActivation } from './useOngoingTrackingActivation';
+import { resolveRecapCurrency } from '@features/wrapped/recapCurrency';
 
 type ProfileModal = 'tutorial' | 'help' | 'currency' | null;
 
@@ -30,7 +33,7 @@ export function useProfileController() {
   const navigation = useAppNavigation();
   const { state, logout, deleteAccount } = useUser();
   const { resetOnboarding } = useOnboarding();
-  const { currency, setCurrency, formatCurrency } = useCurrency();
+  const { currency, hasManualSelection, setCurrency, formatCurrency } = useCurrency();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClearingReceipts, setIsClearingReceipts] = useState(false);
@@ -46,7 +49,17 @@ export function useProfileController() {
     markExportRequested,
     confirmExportReady,
   } = useImportPreferences(Boolean(userId));
+  const { enableOngoingTracking } = useOngoingTrackingActivation(
+    userId,
+    setOngoingTrackingConsent,
+    setImportNotificationsEnabled,
+  );
   const { data: analytics } = useAnalyticsQuery(userId);
+  const effectiveCurrency = resolveRecapCurrency({
+    receiptCurrency: analytics?.currencyCode,
+    selectedCurrency: currency,
+    hasManualSelection,
+  });
 
   useFocusEffect(useCallback(() => {
     void refresh();
@@ -205,9 +218,9 @@ export function useProfileController() {
       ? 'SnackTrack will check connected email accounts for supported delivery receipts newer than your downloaded history and periodically check for future orders. You can turn this off at any time.'
       : 'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update spending and stats. You can turn this off at any time.', [
       { text: 'Not Now', style: 'cancel' },
-      { text: 'Turn on updates', onPress: () => { void setOngoingTrackingConsent('granted').catch(() => showSimpleAlert('Could not turn on updates', 'Your previous setting is unchanged. Please try again.')); } },
+      { text: 'Turn on updates', onPress: () => { void enableOngoingTracking().catch(() => showSimpleAlert('Could not turn on updates', 'Your previous setting is unchanged. Please try again.')); } },
     ]);
-  }, [navigation, preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
+  }, [enableOngoingTracking, navigation, preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
 
   const completeTutorial = useCallback(async (platform: DataPlatform): Promise<boolean> => {
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
@@ -286,9 +299,8 @@ export function useProfileController() {
 
   return {
     user: state.isAuthenticated ? state.user : null,
-    totalSpent: formatCurrency(analytics?.totalSpent ?? 0),
-    totalReceipts: analytics?.totalReceipts ?? 0,
-    currency,
+    ...profileReceiptSummary(analytics, formatCurrency),
+    currency: effectiveCurrency,
     settings,
     activeModal,
     isDeleting,

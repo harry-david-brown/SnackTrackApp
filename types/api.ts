@@ -1,3 +1,4 @@
+import type { HistoricalInvestmentResult } from './historicalInvestment';
 // API Types - matches the backend API exactly
 
 export interface User {
@@ -12,6 +13,9 @@ export interface ReceiptItem {
   quantity: number;
   price: number;
   customizations?: string[];
+  configuredLineTotal?: number;
+  recordedPrice?: number;
+  inferred?: boolean;
 }
 
 export enum DataSource {
@@ -30,6 +34,27 @@ export enum ReceiptType {
 }
 
 export interface Receipt {
+  orderDay?: string | null;
+  orderOutcome?: import('./receiptOutcome').ReceiptOrderOutcome;
+  reconciliation?: { status: 'merged' | 'standalone' | 'unresolved'; method: string; reason?: string };
+  sources?: DataSource[];
+  checkoutDifference?: {
+    status: 'available' | 'unavailable';
+    amount: number | null;
+    emailTotal: number;
+    exportSubtotal: number | null;
+    receiptSubtotal?: number;
+    subtotalDiscrepancy?: number;
+    currencyCode: string;
+    subtotalBasis: 'export_item_subtotal' | 'reconstructed' | 'receipt_reconciled' | 'unavailable';
+    emailSourceMessageId?: string;
+    emailRevisionAt?: string;
+    reason?: 'missing_export_subtotal' | 'unknown_currency' | 'currency_conflict';
+  };
+  currencyCode?: string;
+  amountBasis?: string;
+  evidenceSummary?: string;
+  resolutionVersion?: number;
   id: string;
   userId: string;
   restaurantName: string | null;
@@ -172,10 +197,23 @@ export interface LogoutResponse {
 
 // Wrapped Analytics Types (Spotify Wrapped-style)
 export interface PercentileStanding {
+  /** The eligible account count for this metric; policy 3 compares separate groups. */
+  sampleSize?: number;
   /** Share of ranked users strictly below this user, 0–100. */
   percentile: number;
   /** "Top X%" framing: 100 − percentile, clamped to [1, 100]. */
   topPercent: number;
+}
+
+export interface WrappedPercentiles {
+  policyVersion?: 3;
+  /** Largest returned comparison group; each standing has its own size in policy 3. */
+  sampleSize: number;
+  currencyCode?: string;
+  methodology?: string;
+  totalSpent?: PercentileStanding;
+  orderCount?: PercentileStanding;
+  nightOwl?: PercentileStanding;
 }
 
 export interface WrappedCoverage {
@@ -186,66 +224,70 @@ export interface WrappedCoverage {
   hasExportData: boolean;
 }
 
+export interface WrappedSpending {
+  totalSpent: number | null;
+  spending?: import('./orderMetrics').CurrencyOrderMetrics[];
+}
+
 export interface WrappedAnalytics {
+  recap?: import('./recap').RecapStoryCollection;
+  behaviorPolicyVersion?: 1;
+  orderMetrics?: import('./orderMetrics').OrderMetrics;
+  deliveryDayRanking?: import('./orderMetrics').DeliveryDayRanking;
+  currencyCode?: string;
+  totalsByCurrency?: Record<string, { total: number; count: number }>;
   /** Receipt coverage represented by this canonical analytics payload. */
   coverage: WrappedCoverage;
   /** Cross-user standings; omitted when the comparison pool is too small. */
-  percentiles?: {
-    sampleSize: number;
-    totalSpent?: PercentileStanding;
-    orderCount?: PercentileStanding;
-    nightOwl?: PercentileStanding;
-  };
+  percentiles?: WrappedPercentiles;
   shame: {
-    lateNightOrders?: {
+    lateNightOrders?: WrappedSpending & {
       count: number;
-      totalSpent: number;
       latestOrder: string;
-      worstOffender: {
+      worstOffender?: {
         restaurant: string;
         time: string;
         amount: number;
         items: string[];
       };
     };
-    laziestDay?: {
+    laziestDay?: WrappedSpending & {
       date: string;
       dayOfWeek: string;
       orderCount: number;
-      totalSpent: number;
       restaurants: string[];
       message: string;
     };
-    longestStreak?: {
+    longestStreak?: WrappedSpending & {
       days: number;
       startDate: string;
       endDate: string;
-      totalSpent: number;
       message: string;
     };
-    singleItemOrders?: {
+    singleItemOrders?: WrappedSpending & {
       count: number;
-      totalSpent: number;
       averageAmount: number;
       message: string;
       mostCommon: string;
     };
-    chainDependency?: {
+    chainDependency?: WrappedSpending & {
       worstOffender: string;
       orderCount: number;
-      totalSpent: number;
       percentage: number;
       message: string;
       allChains: {
         name: string;
         count: number;
-        spent: number;
+        spent: number | null;
+        spending?: import('./orderMetrics').CurrencyOrderMetrics[];
       }[];
     };
   };
   flex: {
     mostExpensiveOrder?: {
       amount: number;
+      currencyCode?: string;
+      includesEstimates?: boolean;
       restaurant: string;
       date: string;
       items: {
@@ -256,25 +298,24 @@ export interface WrappedAnalytics {
     };
     coffeeAddiction?: {
       orderCount: number;
-      totalSpent: number;
-      averagePrice: number;
+      totalSpent: number | null;
+      averagePrice: number | null;
       mostOrdered: string;
       message: string;
+      disclaimer?: string;
     };
-    nightOwl?: {
+    nightOwl?: WrappedSpending & {
       percentage: number;
       count: number;
-      totalSpent: number;
       latestOrder: string;
       message: string;
     };
   };
   comparative: {
-    spentThisYear?: {
-      totalSpent: number;
+    spentThisYear?: WrappedSpending & {
       year: number;
       orderCount: number;
-      averagePerOrder: number;
+      averagePerOrder: number | null;
       message: string;
     };
     couldHaveBought?: {
@@ -285,6 +326,7 @@ export interface WrappedAnalytics {
         message: string;
       }[];
     };
+    historicalInvestment?: HistoricalInvestmentResult;
     missedInvestment?: {
       amountSpent: number;
       firstOrderDate: string;
@@ -302,6 +344,7 @@ export interface WrappedAnalytics {
       message: string;
     };
     deliveryFeeTrend?: {
+      basis?: 'unadjusted_deliveries';
       currency: string;
       coveredOrderCount: number;
       coverageStart: string;
@@ -325,9 +368,12 @@ export interface WrappedAnalytics {
     weekendWarrior?: {
       weekendOrders: number;
       weekdayOrders: number;
-      weekendSpending: number;
-      weekdaySpending: number;
-      ratio: number;
+      weekendSpending: number | null;
+      weekdaySpending: number | null;
+      weekendCosts?: import('./orderMetrics').CurrencyOrderMetrics[];
+      weekdayCosts?: import('./orderMetrics').CurrencyOrderMetrics[];
+      ratio: number | null;
+      ratioBasis?: 'deliveries_per_day';
       message: string;
     };
     deliveryWaits?: {
@@ -337,7 +383,8 @@ export interface WrappedAnalytics {
       longestWait?: {
         minutes: number;
         restaurant: string;
-        amount: number;
+        amount: number | null;
+        currencyCode?: string;
         message: string;
       };
       fastestDelivery?: {
@@ -349,6 +396,13 @@ export interface WrappedAnalytics {
 }
 
 export interface UserSummary {
+  orderMetrics?: import('./orderMetrics').OrderMetrics;
+  orderMetricPeriods?: import('./orderMetrics').OrderMetricPeriods;
+  unresolvedReceiptCount?: number;
+  currencyCode?: string;
+  totalsByCurrency?: Record<string, { total: number; count: number }>;
+  dailyBreakdown?: Record<string, { total: number; count: number }>;
+  amountBasis?: string;
   userId: string;
   totalSpent: number;
   totalReceipts: number;
@@ -359,6 +413,7 @@ export interface UserSummary {
     totalSpent: number;
   }[];
   monthlyBreakdown: {
+    averageOrderValue?: number;
     month: string;
     totalSpent: number;
     receiptCount: number;
@@ -389,6 +444,9 @@ export interface DashboardInsightPeriod {
 }
 
 interface DashboardInsightBase {
+  historicalInvestment?: HistoricalInvestmentResult;
+  currencyCode?: string;
+  orderEvidence?: { count: number };
   id: string;
   category: DashboardInsightCategory;
   icon: DashboardInsightIcon;
@@ -404,6 +462,11 @@ export interface DashboardHeroInsight extends DashboardInsightBase {
   value: number;
   valueFormat: DashboardInsightValueFormat;
   headline?: string;
+  spendingConcentration?: { orderCount: number };
+  busyDay?: {
+    date: string;
+    spending: { currencyCode: 'CAD' | 'USD' | 'EUR' | 'GBP'; amount: number }[];
+  };
 }
 
 export interface DashboardComparisonInsight extends DashboardInsightBase {

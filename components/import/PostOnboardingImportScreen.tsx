@@ -18,6 +18,7 @@ import { UBER_EXPORT_EMAIL_SUBJECT } from '@utils/exportDownloadHandoff';
 import { DOWNLOAD_QUESTION_PRIMARY } from '@features/import-flow/postOnboardingImportJourney';
 import { resolveImportCoverage } from '@features/import-flow/importJourneyState';
 import { resolveExportReadyAlertPresentation } from '@features/import-flow/exportReadyAlertPresentation';
+import { isActiveImportOperation } from '@features/import-flow/contracts';
 import type { PostOnboardingImportRoute } from '@features/import-flow/postOnboardingImportRoute';
 import { usePostOnboardingImportController } from '@hooks/usePostOnboardingImportController';
 import { appDestinations, useAppNavigation } from '@features/navigation';
@@ -35,18 +36,20 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
     Boolean(c.importPreferences?.monitoring.capability.canMonitor),
   );
   if (s.kind === 'email_settings') return <Redirect href={{ pathname: "/settings/accounts-permissions", params: { mailbox: c.selection.mailbox ?? undefined, returnTo: c.returnTo } }} />;
-  if (c.fileSession.isPending || c.fileSession.operation) {
-    return <ImportProgressScreen operationId={c.fileSession.operation?.id} returnTo={c.returnTo} uploadActive={c.fileSession.isPending} uploadProgress={c.fileSession.progress} />;
-  }
+  if (c.fileSession.isPending) return <ImportProgressScreen returnTo={c.returnTo} uploadActive uploadProgress={c.fileSession.progress} />;
+  if (c.fileSession.operation) return <Redirect href={{
+    pathname: isActiveImportOperation(c.fileSession.operation) ? '/import-progress' : '/import-result',
+    params: { operationId: c.fileSession.operation.id, returnTo: c.returnTo },
+  }} />;
   if (s.kind === 'operation') return <Redirect href={{ pathname: ['awaiting_upload', 'pending_dispatch', 'queued', 'running', 'retrying'].includes(s.operation.status) ? '/import-progress' : '/import-result', params: { operationId: s.operation.id, returnTo: c.returnTo } }} />;
   if (c.showTutorial) return <UberDataTutorial mode={c.tutorialEntryJob === 'download' ? 'download' : 'request'} initialPlatform={c.tutorialPlatform} entryJob={c.tutorialEntryJob} skipRequestOverview returnToParentOnBack providerStatuses={{ uber: c.flow.exportProviderProgress.uberEats.status, doordash: c.flow.exportProviderProgress.doorDash.status }} onOpenRequest={c.openProviderRequestPage} onRequestNotSubmitted={c.requestNotSubmitted} onRequestConfirmed={c.completeTutorial} onStillWaiting={c.completeTutorial} onArchiveDownloaded={c.finishDownloadGuide} onReadyConfirmed={c.tutorialReadyConfirmed} onClose={c.closeTutorial} />;
   if (s.kind === 'confirm_request') return <ProviderRequestConfirmation platform={s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'} pending={c.requestSaving} onBack={c.goBack} onConfirm={() => { void c.completeTutorial(s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'); }} onShowSteps={c.abandonPendingRequest} showStepsLabel="Check the steps again" />;
   const coverageDates = (p: 'uber_eats' | 'doordash') => {
     const coverage = p === 'uber_eats' ? c.importPreferences?.coverage.exportProviders.uberEats : c.importPreferences?.coverage.exportProviders.doorDash;
-    const date = (value?: string | null) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString() : null;
-    const earliest = date(coverage?.earliestOrderDate);
-    const latest = date(coverage?.latestOrderDate);
-    return earliest && latest ? ` · Orders dated ${earliest} – ${latest}` : earliest ? ` · Orders from ${earliest}` : latest ? ` · Latest order ${latest}` : '';
+    const latest = coverage?.latestOrderDate;
+    if (!latest || Number.isNaN(Date.parse(latest))) return '';
+    const month = new Date(latest).toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return ` · Through ${month}`;
   };
   const title = (heading: string, body: string, eyebrow = 'ADD ORDERS') => <PageHeader eyebrow={eyebrow} title={heading} body={body} />;
   const btn = (label: string, onPress: () => void, secondary = false) => <AppButton label={label} variant={secondary ? 'secondary' : 'primary'} onPress={onPress} />;
@@ -61,7 +64,21 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
         {c.activeImportOperation ? <Surface><Choice icon="time-outline" title={c.activeImportUnavailable ? 'Last known import' : c.activeImportOperation.status === 'awaiting_upload' ? 'Finish your file upload' : c.importBlocked ? 'Your import is in progress' : 'Your latest import'} body="View its status without losing access to other sources." onPress={c.viewOperation} /></Surface> : null}
         {(['uber_eats', 'doordash'] as const).filter(p => c.pendingRequests[p]).map(p => <Surface key={`pending-${p}`}><Choice icon="open-outline" title={`Continue your ${p === 'uber_eats' ? 'Uber' : 'DoorDash'} request`} body="You opened the request page. Confirm whether your data request was submitted." onPress={() => c.resumeProviderJourney(p)} /></Surface>)}
         {[providers.uberEats, providers.doorDash].filter(p => !c.pendingRequests[p.provider] && ['requested', 'file_ready', 'failed', 'import_processing'].includes(p.status)).map(p => <Surface key={p.provider}><Choice icon="bookmark-outline" title={`Continue with ${p.name}`} body={p.status === 'requested' ? 'Request saved · Waiting for the ready message' : p.status === 'file_ready' ? 'Your download is ready' : p.status === 'failed' ? 'The last import needs another try' : 'History is being processed'} onPress={() => c.resumeProviderJourney(p.provider)} /></Surface>)}
-        <Surface>{s.providers.map(p => <Choice key={p.provider} icon={p.provider === 'uber_eats' ? 'car-outline' : 'bag-handle-outline'} title={p.name} body={p.imported ? `${p.receiptCount} imported orders${coverageDates(p.provider)} · You can add a newer file` : 'Full available history, including recent orders'} onPress={() => c.chooseProvider(p.provider)} />)}</Surface>
+        <Surface>
+          {s.providers.map((p, index) => (
+            <View key={p.provider}>
+              {index > 0 ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.divider, marginVertical: theme.spacing.sm }} /> : null}
+              <Choice
+                icon={p.provider === 'uber_eats' ? 'car-outline' : 'bag-handle-outline'}
+                title={p.name}
+                body={p.imported ? `${p.receiptCount.toLocaleString()} ${p.receiptCount === 1 ? 'order' : 'orders'}${coverageDates(p.provider)}` : 'Import order history'}
+                actionLabel={p.imported ? 'Add newer file' : undefined}
+                bodyTone={p.imported ? 'muted' : 'brand'}
+                onPress={() => c.chooseProvider(p.provider)}
+              />
+            </View>
+          ))}
+        </Surface>
         {!c.importPreferences?.gmailBaseline.hasCompleted && !c.importPreferences?.outlookBaseline.hasCompleted ? <AppButton label="Connect email for automatic updates" variant="secondary" onPress={c.chooseEmail} /> : null}
         <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={() => navigation.open({ pathname: '/settings/accounts-permissions', params: { returnTo: c.returnTo } })} />
       </>;
@@ -151,7 +168,24 @@ export function PostOnboardingImportScreen({ route }: { route: PostOnboardingImp
   })();
   return <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}><ScrollView contentContainerStyle={styles.content}><View style={styles.top}><AppButton label="Back" disabled={c.navigationBlocked} variant="tertiary" icon="arrow-back" onPress={c.goBack} /><AppButton label="Close" disabled={c.navigationBlocked} variant="tertiary" onPress={c.close} /></View>{content}</ScrollView></SafeAreaView>;
 }
-function Choice({ icon, title, body, onPress, disabled = false }: { disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress?: () => void }) { const theme = useAppTheme(); const content = <><Ionicons name={icon} size={24} color={disabled ? theme.colors.textSecondary : theme.colors.primary} /><View style={styles.copy}><AppText variant="rowTitle" tone={disabled ? 'muted' : 'primary'}>{title}</AppText><AppText variant="metadata" tone="muted">{body}</AppText></View>{onPress && !disabled ? <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} /> : null}</>; return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${body}`} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={styles.row}>{content}</Pressable> : <View style={styles.row}>{content}</View>; }
+function Choice({ icon, title, body, bodyTone = 'muted', actionLabel, onPress, disabled = false }: { disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; bodyTone?: 'muted' | 'brand'; actionLabel?: string; onPress?: () => void }) {
+  const theme = useAppTheme();
+  const content = <>
+    <Ionicons name={icon} size={24} color={disabled ? theme.colors.textSecondary : theme.colors.primary} />
+    <View style={styles.copy}>
+      <AppText variant="rowTitle" tone={disabled ? 'muted' : 'primary'}>{title}</AppText>
+      <AppText variant="metadata" tone={disabled ? 'muted' : bodyTone} style={bodyTone === 'brand' ? choiceStyles.actionText : undefined}>{body}</AppText>
+      {actionLabel && onPress ? (
+        <AppText variant="metadata" tone="muted" style={[choiceStyles.actionText, { marginTop: theme.spacing.sm }]}>{actionLabel}</AppText>
+      ) : null}
+    </View>
+    {onPress && !disabled ? <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} /> : null}
+  </>;
+  return onPress
+    ? <Pressable accessibilityRole="button" accessibilityLabel={[title, body, actionLabel].filter(Boolean).join('. ')} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>{content}</Pressable>
+    : <View style={styles.row}>{content}</View>;
+}
+const choiceStyles = StyleSheet.create({ actionText: { fontSize: 14, lineHeight: 18 } });
 function Note({ text }: { text: string }) { const theme = useAppTheme(); return <Surface style={{ backgroundColor: theme.colors.successSurface }}><AppText variant="metadata" tone="muted">{text}</AppText></Surface>; }
 function Phase({ current }: { current: number }) { return <View style={styles.top}>{['Request', 'Download', 'Upload'].map((label, i) => <AppText key={label} variant="metadata" tone={i === current ? 'brand' : 'muted'}>{i + 1}. {label}{i === current ? ' •' : ''}</AppText>)}</View>; }
 const styles = StyleSheet.create({ container: { flex: 1 }, content: { flexGrow: 1, padding: 18, paddingBottom: 44, gap: 14 }, top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }, copy: { flex: 1, gap: 4 }, waitingActions: { alignSelf: 'stretch', gap: 8 }, waitingActionCopy: { textAlign: 'center', paddingHorizontal: 12 }, laterActions: { marginTop: 18, alignSelf: 'stretch', gap: 10 }, downloadDecision: { gap: 8 } });

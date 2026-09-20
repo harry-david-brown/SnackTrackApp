@@ -3,6 +3,7 @@ import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import type { ExportProvider, ImportOperation, ImportPreferencesResponse, MailboxProvider } from './contracts';
 import { resolveImportCoverage, type ProviderJourneyState } from './importJourneyState';
 import type { PostOnboardingImportIntent } from './postOnboardingImportRoute';
+import type { GmailConnectionPurpose } from './gmailConnectionPurpose';
 
 export type GuidedImportStep = 'goal' | 'email_suitability' | 'email_choice' | 'request' | 'resume' | 'ready' | 'upload' | 'confirm_request' | 'file_help' | null;
 export interface GuidedImportSelection {
@@ -33,6 +34,7 @@ export interface ResolvePostOnboardingImportJourneyInput {
   readonly selectedMailbox?: MailboxProvider | null;
   readonly step?: GuidedImportStep;
   readonly downloadState: ExportDownloadHandoffState;
+  readonly gmailPurpose?: GmailConnectionPurpose | null;
 }
 export function resolvePostOnboardingImportJourney(input: ResolvePostOnboardingImportJourneyInput): PostOnboardingImportJourneyState {
   if (input.operationRequested) {
@@ -50,7 +52,9 @@ export function resolvePostOnboardingImportJourney(input: ResolvePostOnboardingI
   if (input.step === 'goal' || input.step === 'email_suitability') return selected ? { kind: 'request', provider: selected } : { kind: 'choose_method', providers };
   if (input.intent === 'email' || input.intent === 'reconnect' || input.step === 'email_choice') {
     if (!input.selectedMailbox) return { kind: 'email_choice' };
-    if (input.intent !== 'reconnect' && hasMailboxBaseline(input.preferences, input.selectedMailbox)) return { kind: 'email_settings' };
+    if (input.gmailPurpose !== 'ongoing_tracking'
+      && input.intent !== 'reconnect'
+      && hasMailboxBaseline(input.preferences, input.selectedMailbox)) return { kind: 'email_settings' };
     const connection = input.selectedMailbox === 'gmail' ? input.preferences.gmailConnection : input.preferences.outlookConnection;
     return { kind: 'email_review', provider: input.selectedMailbox, email: connection.email ?? null, connected: connection.connected, reconnect: input.intent === 'reconnect' || connection.connectionHealth === 'reconnect_required', temporarilyUnavailable: connection.connectionHealth === 'unavailable' || (connection.connected && connection.connectionHealth !== 'reconnect_required' && connection.canImport === false) };
   }

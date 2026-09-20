@@ -13,6 +13,7 @@ import type {
   ProviderRelevance,
   SetupGuidance,
 } from "@features/import-flow/contracts";
+import { normalizeReceiptImportOutcome } from './receiptImportOutcomeNormalizer';
 
 type UnknownRecord = Record<string, unknown>;
 const invalid = (field: string): never => {
@@ -654,7 +655,9 @@ export function normalizeGmailImportResponse(
       data.totalReceiptsImported,
       "import.totalReceiptsImported",
     ),
-    totalAmount: number(data.totalAmount, "import.totalAmount"),
+    totalAmount: data.totalAmount === null ? null : number(data.totalAmount, "import.totalAmount"),
+    ...(data.currencyCode === undefined ? {} : { currencyCode: nullableString(data.currencyCode, 'import.currencyCode') }),
+    ...(data.receiptOutcome === undefined ? {} : { receiptOutcome: normalizeReceiptImportOutcome(data.receiptOutcome) }),
     errors,
     newOrders: number(data.newOrders, "import.newOrders"),
     updatedOrders: number(data.updatedOrders, "import.updatedOrders"),

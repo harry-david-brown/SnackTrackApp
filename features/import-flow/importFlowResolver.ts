@@ -156,7 +156,7 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
       ? lastGmailCheckFailed
         ? 'Your imported email history is safe, but the latest manual check failed. Try again when you’re ready.'
         : emailReceiptCount > 0
-          ? `${emailReceiptCount} email order${emailReceiptCount === 1 ? '' : 's'} included in your stats.`
+          ? `${emailReceiptCount} history record${emailReceiptCount === 1 ? ' has' : 's have'} email details. Matching export details are combined in the same record.`
           : 'Your connected email history was checked. No supported delivery receipts were found.'
       : 'Pull delivery receipts from Gmail or Outlook.',
     idleButtonLabel: lastGmailCheckFailed ? 'Try checking again' : 'Import receipts',

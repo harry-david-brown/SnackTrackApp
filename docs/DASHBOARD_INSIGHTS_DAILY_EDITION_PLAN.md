@@ -1,4 +1,4 @@
-# Dashboard Insights Daily Edition — Implementation Tracker
+  # Dashboard Insights Daily Edition — Implementation Tracker
 
 Status: implemented and automatically verified  
 Last updated: 2026-08-13  

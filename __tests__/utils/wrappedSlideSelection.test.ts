@@ -1,5 +1,7 @@
 import {
+  getRecapChapter,
   getSlideEntranceRole,
+  groupSlidesByRecapChapter,
   selectEditorialCandidates,
   type EditorialCandidate,
 } from '@components/wrapped/wrappedSlideSelection';
@@ -14,6 +16,24 @@ const candidate = (
 ): Candidate => ({ id, category, intensity, confidence, value: id });
 
 describe('selectEditorialCandidates', () => {
+  it('derives recap chapters from editorial categories', () => {
+    expect(getRecapChapter({ id: 'damage', category: 'headline' })).toBe('opening');
+    expect(getRecapChapter({ id: 'waits', category: 'perspective' })).toBe('opening');
+    expect(getRecapChapter({ id: 'usual', category: 'places' })).toBe('patterns');
+    expect(getRecapChapter({ id: 'streak', category: 'habit' })).toBe('patterns');
+    expect(getRecapChapter({ id: 'busy-day', category: 'extreme-moment' })).toBe('extremes');
+    expect(getRecapChapter({ id: 'verdict', category: 'identity' })).toBe('verdict');
+
+    const grouped = groupSlidesByRecapChapter([
+      { id: 'waits', category: 'perspective' as const },
+      { id: 'streak', category: 'habit' as const },
+      { id: 'busy-day', category: 'extreme-moment' as const },
+    ]);
+    expect(grouped.opening.map(slide => slide.id)).toEqual(['waits']);
+    expect(grouped.patterns.map(slide => slide.id)).toEqual(['streak']);
+    expect(grouped.extremes.map(slide => slide.id)).toEqual(['busy-day']);
+  });
+
   it('assigns entrance motion by narrative role rather than position', () => {
     expect(getSlideEntranceRole('headline', 'lifetime-intro')).toBe('rise');
     expect(getSlideEntranceRole('headline', 'lifetime-damage')).toBe('zoom');

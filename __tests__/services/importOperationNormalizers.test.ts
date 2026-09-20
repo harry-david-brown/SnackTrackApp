@@ -11,7 +11,30 @@ const operation = {
   completedAt: null, updatedAt: '2026-09-02T12:00:00.000Z',
 };
 
+const receiptOutcome = {
+  policyVersion: 3, newOrders: 1, updatedOrders: 1, unchangedOrders: 0, ordersProcessed: 2,
+  unresolvedOrders: 1, unlinkedAdjustments: 1, adjustedOrders: 1, cancellationsRecovered: 1, sourceDocuments: 7,
+  currencies: [
+    { currencyCode: 'CAD', netAmount: 0, pricedOrders: 1, unpricedOrders: 0, possibleAdditionalAmount: 20, unpricedPossibleOrders: 0 },
+    { currencyCode: 'USD', netAmount: 43.26, pricedOrders: 1, unpricedOrders: 0, possibleAdditionalAmount: 0, unpricedPossibleOrders: 0 },
+  ],
+};
+
 describe('import operation normalizers', () => {
+  it('validates canonical import results, preserving zero, mixed currencies and non-order adjustments', () => {
+    const normalized = normalizeOperationEnvelope({ operation: { ...operation, status: 'succeeded', result: { totalAmount: null, receiptOutcome } } });
+    expect(normalized.result?.receiptOutcome).toEqual(receiptOutcome);
+    expect(normalized.result?.totalAmount).toBeNull();
+  });
+  it.each([
+    null, {}, { ...receiptOutcome, policyVersion: 2 }, { ...receiptOutcome, newOrders: '1' },
+    { ...receiptOutcome, ordersProcessed: 3 }, { ...receiptOutcome, adjustedOrders: 3 },
+    { ...receiptOutcome, cancellationsRecovered: 3 }, { ...receiptOutcome, sourceDocuments: -1 },
+    { ...receiptOutcome, currencies: [...receiptOutcome.currencies, receiptOutcome.currencies[0]] },
+    { ...receiptOutcome, currencies: [{ ...receiptOutcome.currencies[0], netAmount: 0.123 }] },
+  ])('rejects malformed canonical import outcomes', bad => {
+    expect(() => normalizeOperationEnvelope({ operation: { ...operation, result: { receiptOutcome: bad } } })).toThrow('Invalid import outcome response');
+  });
   it('accepts the public durable-operation contract', () => {
     expect(normalizeOperationEnvelope({ operation })).toMatchObject({ ...operation, journeyContext: 'legacy' });
     expect(normalizeOperationEnvelope({ operation: { ...operation, journeyContext: 'post_onboarding' } }).journeyContext).toBe('post_onboarding');

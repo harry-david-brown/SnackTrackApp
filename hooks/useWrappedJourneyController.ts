@@ -9,6 +9,7 @@ import { showSimpleAlert } from '@utils/platformAlert';
 import { resolveTrackingEligibility, resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { resolveExportOpportunity, resolveImportCoverage } from '@features/import-flow/importJourneyState';
 import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
+import { useOngoingTrackingActivation } from './useOngoingTrackingActivation';
 
 export function useWrappedJourneyController() {
   const navigation = useAppNavigation();
@@ -22,6 +23,7 @@ export function useWrappedJourneyController() {
     isUpdating: arePreferencesUpdating,
     setOngoingTrackingConsent,
   } = useImportPreferences(Boolean(userId));
+  const { enableOngoingTracking } = useOngoingTrackingActivation(userId, setOngoingTrackingConsent);
 
   const importCoverage = useMemo(() => resolveImportCoverage(preferences), [preferences]);
   const exportOpportunity = useMemo(() => resolveExportOpportunity(importCoverage), [importCoverage]);
@@ -56,7 +58,9 @@ export function useWrappedJourneyController() {
 
   const decideTracking = useCallback(async (decision: 'granted' | 'declined') => {
     try {
-      const next = await setOngoingTrackingConsent(decision);
+      const next = decision === 'granted'
+        ? await enableOngoingTracking()
+        : await setOngoingTrackingConsent(decision);
       if (decision === 'granted' && next.ongoingTracking.effectiveState === 'reconnect_required') {
         showSimpleAlert('Permission saved', 'Restore a Gmail or Outlook connection from Import before ongoing tracking can work.');
       }
@@ -64,7 +68,7 @@ export function useWrappedJourneyController() {
       showSimpleAlert('Could not save your choice', 'Please check your connection and try again.');
       throw new Error('monitoring_consent_update_failed');
     }
-  }, [setOngoingTrackingConsent]);
+  }, [enableOngoingTracking, setOngoingTrackingConsent]);
 
   const openTrackingSetup = useCallback(() => {
     if (trackingRecovery.kind === 'unavailable') {

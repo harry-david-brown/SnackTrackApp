@@ -7,12 +7,17 @@ import { useAppTheme } from '@contexts/AppearanceContext';
 import { AppText } from '@components/ui/AppText';
 import type { ImportOperation } from '@features/import-flow/contracts';
 import { isActiveImportOperation } from '@features/import-flow/contracts';
+import { resolveImportOperationResult, importResultCopy } from '@features/import-flow/importOperationResult';
 
 const sourceName = (operation: ImportOperation): string => {
   switch (operation.kind) {
     case 'gmail_historical': return 'Gmail scan';
     case 'outlook_historical': return 'Outlook scan';
     case 'manual_tracking': return 'New-order check';
+    case 'gmail_push_tracking': return 'Automatic update';
+    case 'receipt_rebuild': return 'History review';
+    case 'receipt_publish': return 'History update';
+    case 'receipt_rollback': return 'History restoration';
     case 'scheduled_tracking': return 'Automatic update';
     case 'export_file': return 'History-file import';
   }
@@ -32,10 +37,16 @@ export function ImportOperationCard({
   const succeeded = operation.status === 'succeeded';
   const cancelled = operation.status === 'cancelled';
   const title = active ? `${sourceName(operation)} in progress` : succeeded ? `${sourceName(operation)} complete` : cancelled ? `${sourceName(operation)} cancelled` : `${sourceName(operation)} needs attention`;
-  const resultCount = Number(operation.result?.newOrders ?? operation.result?.importedCount ?? 0);
-  const detail = active
-    ? operation.status === 'retrying' ? 'A temporary problem occurred. SnackTrack is retrying safely.' : operation.presentation?.mode === 'delayed' ? 'Your history is safe. Explore while SnackTrack finishes in the background.' : 'SnackTrack is securely building your order history.'
-    : succeeded ? resultCount > 0 ? `${resultCount} ${resultCount === 1 ? 'order was' : 'orders were'} added.` : 'Finished with no new supported orders.'
+  const summary = resolveImportOperationResult(operation);
+  const resultCount = summary.newOrders;
+  const enrichedCount = summary.updatedOrders ?? 0;
+  const reconciliationDetail = [
+    enrichedCount > 0 ? `${enrichedCount} existing orders updated.` : '',
+  ].filter(Boolean).join(' ');
+  const historyMaintenance = operation.kind.startsWith('receipt_');
+  const detail = historyMaintenance && succeeded ? `${Number(operation.result?.changed ?? 0)} orders reviewed or updated.` : active
+    ? operation.status === 'retrying' ? 'We hit a temporary issue. Your progress is saved, and we’ll retry automatically.' : operation.presentation?.mode === 'delayed' ? 'Your history is safe. Explore while SnackTrack finishes in the background.' : 'SnackTrack is securely building your order history.'
+    : succeeded ? resultCount !== null && resultCount > 0 ? `${resultCount} ${resultCount === 1 ? 'order was' : 'orders were'} added.` : importResultCopy(summary).body
     : cancelled ? 'The pending import was cancelled by an administrator. Your existing history is safe.'
     : operation.errorMessage ?? 'Your existing history is safe. Try the source again when ready.';
   const progress = Math.max(0, Math.min(100, Math.round(operation.progress)));
@@ -47,7 +58,7 @@ export function ImportOperationCard({
         </View>
         <View style={styles.copy}>
           <AppText variant="rowTitle">{title}</AppText>
-          <AppText variant="metadata" style={styles.detail}>{detail}</AppText>
+          <AppText variant="metadata" style={styles.detail}>{detail}{succeeded && reconciliationDetail ? ` ${reconciliationDetail}` : ''}</AppText>
         </View>
         {onPress ? <Ionicons name="chevron-forward" size={19} color={theme.colors.textSecondary} /> : null}
       </View>
@@ -64,11 +75,12 @@ export function ImportOperationCard({
       ) : null}
     </Card>
   );
-  if (!onPress) return <View accessibilityLabel={`${title}. ${detail}`}>{content}</View>;
+  const accessibleDetail = `${detail}${succeeded && reconciliationDetail ? ` ${reconciliationDetail}` : ''}`;
+  if (!onPress) return <View accessibilityLabel={`${title}. ${accessibleDetail}`}>{content}</View>;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${detail}. ${progress}% complete. View progress.`}
+      accessibilityLabel={`${title}. ${accessibleDetail}. ${progress}% complete. View progress.`}
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}
     >

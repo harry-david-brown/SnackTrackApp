@@ -20,7 +20,9 @@ export default function OAuthCallback() {
   const returnIntent = params.returnIntent === 'reconnect' ? 'reconnect' : 'email';
 
   useEffect(() => {
-    navigation.replace({
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const destination = {
       pathname: journeyContext === 'post_onboarding' ? '/add-history' : '/data-setup',
       params: {
         returnTo, mailbox,
@@ -28,10 +30,21 @@ export default function OAuthCallback() {
         ...(gmail ? { gmail } : {}),
         ...(outlook ? { outlook } : {}),
         ...(error ? { error } : {}),
-        ...(gmailPurpose ? { gmailPurpose } : {}),
-        ...(outlookPurpose ? { outlookPurpose } : {}),
+        ...(gmailPurpose || outlookPurpose ? { gmailPurpose: gmailPurpose ?? outlookPurpose } : {}),
       },
-    });
+    } as const;
+    const completeHandoff = () => {
+      if (cancelled) return;
+      const outcome = navigation.replace(destination);
+      if (outcome === 'transition-pending') {
+        retryTimer = setTimeout(completeHandoff, 100);
+      }
+    };
+    completeHandoff();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [error, gmail, gmailPurpose, journeyContext, navigation, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
 
   return (

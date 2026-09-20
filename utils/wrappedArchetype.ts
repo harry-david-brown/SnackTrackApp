@@ -55,6 +55,9 @@ export function getArchetype(
   const wrapped = analytics.wrappedAnalytics;
   const topSpot = analytics.topRestaurants?.[0]?.name;
 
+  const first = Date.parse(wrapped?.coverage?.earliestOrderDate ?? '');
+  const last = Date.parse(wrapped?.coverage?.latestOrderDate ?? '');
+  const coveredDays = Number.isFinite(first) && Number.isFinite(last) ? Math.max(30, (last-first)/86400000+1) : 30;
   const candidates: Candidate[] = [];
 
   // 🌙 The 3AM Gremlin — late-night / night-owl ordering
@@ -64,7 +67,7 @@ export function getArchetype(
     const intensity = clamp100(
       Math.max(
         nightOwl?.percentage ?? 0,
-        ((lateNight?.count ?? 0) / 20) * 100
+        ((lateNight?.count ?? 0) / Math.max(1, analytics.totalReceipts)) * 100
       )
     );
     candidates.push({
@@ -76,8 +79,8 @@ export function getArchetype(
         tagline: 'The kitchen is closed. Your cravings are not.',
         gradient: 'indigo',
         traits: compact([
-          lateNight && { emoji: '🌃', label: 'Midnight runs', value: `${lateNight.count}` },
-          nightOwl && { emoji: '🦉', label: 'Orders after 10pm', value: `${nightOwl.percentage}%` },
+          lateNight && { emoji: '🌃', label: 'Late-night orders', value: `${lateNight.count}` },
+          nightOwl && { emoji: '🦉', label: 'Orders 10pm–4am', value: `${nightOwl.percentage}%` },
           lateNight?.worstOffender && {
             emoji: '⏰',
             label: 'Latest hit',
@@ -112,18 +115,18 @@ export function getArchetype(
   const coffee = wrapped?.flex.coffeeAddiction;
   if (coffee) {
     candidates.push({
-      intensity: clamp100((coffee.orderCount / 50) * 100),
+      intensity: clamp100((coffee.orderCount / Math.max(1, analytics.totalReceipts)) * 100),
       build: () => ({
         key: 'caffeine-fiend',
         name: 'The Caffeine Fiend',
         emoji: '☕',
         tagline: 'Blood type: cold brew.',
         gradient: 'amber',
-        traits: [
+        traits: compact([
           { emoji: '☕', label: 'Coffee runs', value: `${coffee.orderCount}` },
-          { emoji: '💸', label: 'Spent on caffeine', value: formatCurrency(coffee.totalSpent) },
+          coffee.totalSpent !== null && { emoji: '💸', label: 'Spent on caffeine', value: formatCurrency(coffee.totalSpent) },
           { emoji: '⭐', label: 'Go-to order', value: coffee.mostOrdered },
-        ],
+        ]),
       }),
     });
   }
@@ -132,7 +135,7 @@ export function getArchetype(
   const expensive = wrapped?.flex.mostExpensiveOrder;
   if (expensive) {
     candidates.push({
-      intensity: clamp100((expensive.amount / 150) * 100),
+      intensity: clamp100((analytics.averageOrderValue / 75) * 100),
       build: () => ({
         key: 'high-roller',
         name: 'The High Roller',
@@ -150,9 +153,11 @@ export function getArchetype(
 
   // 🎉 The Weekend Warrior — weekend-skewed spending
   const weekend = wrapped?.patterns.weekendWarrior;
-  if (weekend) {
-    const total = weekend.weekendSpending + weekend.weekdaySpending;
-    const weekendShare = total > 0 ? weekend.weekendSpending / total : 0;
+  if (weekend && weekend.weekendSpending !== null && weekend.weekdaySpending !== null && !weekend.ratioBasis) {
+    const weekendSpent = weekend.weekendSpending;
+    const weekdaySpent = weekend.weekdaySpending;
+    const total = weekend.weekendSpending / 2 + weekend.weekdaySpending / 5;
+    const weekendShare = total > 0 ? (weekend.weekendSpending / 2) / total : 0;
     candidates.push({
       intensity: clamp100((weekendShare - 0.5) * 200),
       build: () => ({
@@ -163,8 +168,8 @@ export function getArchetype(
         gradient: 'berry',
         traits: [
           { emoji: '🥳', label: 'Weekend orders', value: `${weekend.weekendOrders}` },
-          { emoji: '💰', label: 'Weekend spend', value: formatCurrency(weekend.weekendSpending) },
-          { emoji: '💼', label: 'Weekday spend', value: formatCurrency(weekend.weekdaySpending) },
+          { emoji: '💰', label: 'Weekend spend', value: formatCurrency(weekendSpent) },
+          { emoji: '💼', label: 'Weekday spend', value: formatCurrency(weekdaySpent) },
         ],
       }),
     });
@@ -174,7 +179,7 @@ export function getArchetype(
   const streak = wrapped?.shame.longestStreak;
   if (streak) {
     candidates.push({
-      intensity: clamp100((streak.days / 14) * 100),
+      intensity: clamp100((streak.days / Math.min(30,coveredDays)) * 100),
       build: () => ({
         key: 'creature-of-habit',
         name: 'The Creature of Habit',
@@ -194,25 +199,25 @@ export function getArchetype(
   const solo = wrapped?.shame.singleItemOrders;
   if (solo) {
     candidates.push({
-      intensity: clamp100((solo.count / 30) * 100),
+      intensity: clamp100((solo.count / Math.max(1, analytics.totalReceipts)) * 100),
       build: () => ({
         key: 'solo-snacker',
         name: 'The Solo Snacker',
         emoji: '🤏',
         tagline: 'One item. Full delivery fee. No regrets.',
         gradient: 'forest',
-        traits: [
+        traits: compact([
           { emoji: '🥡', label: 'Single-item orders', value: `${solo.count}` },
           { emoji: '⭐', label: 'Usual suspect', value: solo.mostCommon },
-          { emoji: '💸', label: 'Spent solo', value: formatCurrency(solo.totalSpent) },
-        ],
+          solo.totalSpent !== null && { emoji: '💸', label: 'Spent solo', value: formatCurrency(solo.totalSpent) },
+        ]),
       }),
     });
   }
 
   // 🐋 The Whale — sheer total spend (always a contender)
   candidates.push({
-    intensity: clamp100((analytics.totalSpent / 10000) * 100),
+    intensity: clamp100((analytics.totalSpent / (coveredDays / 30) / 500) * 100),
     build: () => ({
       key: 'whale',
       name: 'The Whale',
@@ -230,7 +235,7 @@ export function getArchetype(
   // Pick the strongest signal; require a meaningful intensity to "win".
   const winner = candidates
     .filter((c) => c.intensity >= 25)
-    .sort((a, b) => b.intensity - a.intensity)[0];
+    .sort((a, b) => b.intensity - a.intensity || a.build().key.localeCompare(b.build().key))[0];
 
   if (winner) {
     return winner.build();

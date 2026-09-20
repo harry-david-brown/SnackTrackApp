@@ -29,12 +29,14 @@ export const AnimatedCount = ({
   style,
   numberOfLines,
   adjustsFontSizeToFit,
+  minimumFontScale,
 }: {
   value: number;
   format?: (n: number) => string;
   style?: any;
   numberOfLines?: number;
   adjustsFontSizeToFit?: boolean;
+  minimumFontScale?: number;
 }) => {
   const isStaticRender = useContext(WrappedStaticRenderContext);
   const fmt = useCallback(
@@ -76,7 +78,12 @@ export const AnimatedCount = ({
   }, [value, fmt, isStaticRender]);
 
   return (
-    <Text style={style} numberOfLines={numberOfLines} adjustsFontSizeToFit={adjustsFontSizeToFit}>
+    <Text
+      style={style}
+      numberOfLines={numberOfLines}
+      adjustsFontSizeToFit={adjustsFontSizeToFit}
+      minimumFontScale={minimumFontScale}
+    >
       {text}
     </Text>
   );
@@ -327,13 +334,20 @@ export const DelayedFadeIn = ({
       translateY.setValue(0);
       return;
     }
+    let animation: Animated.CompositeAnimation | undefined;
     const timer = setTimeout(() => {
-      Animated.parallel([
+      animation = Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
         Animated.timing(translateY, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      ]).start();
+      ]);
+      animation.start();
     }, delay);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      animation?.stop();
+      opacity.stopAnimation();
+      translateY.stopAnimation();
+    };
   }, [delay, isStaticRender, opacity, translateY]);
 
   if (isStaticRender) {
@@ -383,6 +397,7 @@ export const DelayedSlam = ({
       scale.setValue(1);
       return;
     }
+    let animation: Animated.CompositeAnimation | undefined;
     const timer = setTimeout(() => {
       if (hapticOnReveal) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -390,15 +405,22 @@ export const DelayedSlam = ({
       onRevealRef.current?.();
       if (reduceMotion) {
         scale.setValue(1);
-        Animated.timing(opacity, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+        animation = Animated.timing(opacity, { toValue: 1, duration: 240, useNativeDriver: true });
+        animation.start();
         return;
       }
-      Animated.parallel([
+      animation = Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 130, easing: Easing.out(Easing.quad), useNativeDriver: true }),
         Animated.spring(scale, { toValue: 1, friction: 7, tension: 165, useNativeDriver: true }),
-      ]).start();
+      ]);
+      animation.start();
     }, delay);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      animation?.stop();
+      opacity.stopAnimation();
+      scale.stopAnimation();
+    };
   }, [delay, hapticOnReveal, isStaticRender, reduceMotion, opacity, scale]);
 
   if (isStaticRender) {

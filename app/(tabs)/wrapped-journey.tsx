@@ -21,6 +21,7 @@ import { suppressAdsForSession } from '@features/ads/adSession';
 import { useUser } from '@contexts/UserContext';
 import { trackAdminEvent } from '@services/adminAnalytics';
 import { appDestinations, useAppNavigation } from '@features/navigation';
+import { formatReceiptMoney } from '@utils/receiptMoney';
 
 type WrappedSummary = UserSummary & { wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']> };
 const hasWrappedData = (summary: UserSummary | null): summary is WrappedSummary =>
@@ -107,6 +108,8 @@ export default function WrappedJourneyScreen() {
   }
 
   const topRestaurant = journey.analytics.topRestaurants[0];
+  const currencyCode = journey.analytics.currencyCode;
+  const displayMoney = (amount: number) => formatReceiptMoney(amount, currencyCode, formatCurrency);
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -115,8 +118,8 @@ export default function WrappedJourneyScreen() {
         <LinearGradient colors={[Colors.secondary, Colors.primary]} style={styles.hero}>
           <View style={styles.heroCopy}>
             <AppText variant="metadata" style={styles.heroLabel}>All-time delivery spend</AppText>
-            <AppText variant="heroValue" style={styles.heroValue} adjustsFontSizeToFit minimumFontScale={0.68} numberOfLines={1}>{formatCurrency(journey.analytics.totalSpent)}</AppText>
-            <AppText variant="metadata" style={styles.heroMeta}>{journey.analytics.totalReceipts} {journey.analytics.totalReceipts === 1 ? 'order' : 'orders'} in your history</AppText>
+            <AppText variant="heroValue" style={styles.heroValue} adjustsFontSizeToFit minimumFontScale={0.68} numberOfLines={1}>{displayMoney(journey.analytics.totalSpent)}</AppText>
+            <AppText variant="metadata" style={styles.heroMeta}>{journey.analytics.totalReceipts} orders in your history</AppText>
           </View>
           <Mascot pose="sunglasses" size={118} variant="outline" />
         </LinearGradient>
@@ -124,7 +127,7 @@ export default function WrappedJourneyScreen() {
         <View style={styles.stats}>
           <Card style={styles.statCard}>
             <Ionicons name="receipt-outline" size={20} color={theme.colors.primary} />
-            <AppText variant="surfaceTitle" style={styles.statValue}>{formatCurrency(journey.analytics.averageOrderValue)}</AppText>
+            <AppText variant="surfaceTitle" style={styles.statValue}>{displayMoney(journey.analytics.averageOrderValue)}</AppText>
             <AppText variant="metadata" style={styles.statLabel}>Average order</AppText>
           </Card>
           <Card style={styles.statCard}>
@@ -134,11 +137,12 @@ export default function WrappedJourneyScreen() {
           </Card>
         </View>
 
+
         {feeTrend ? <Card style={styles.feeCard}>
           <View style={styles.recapIcon}><Ionicons name="trending-up-outline" size={24} color={theme.colors.primary} /></View>
           <View style={styles.recapCopy}>
             <AppText variant="surfaceTitle" style={styles.recapTitle}>{feeTrend.trend === 'increased' ? 'Your food wasn’t the only thing getting pricier' : feeTrend.trend === 'decreased' ? 'The delivery companies actually eased up' : 'Delivery-company fees held steady'}</AppText>
-            <AppText variant="surfaceBody" style={styles.recapBody}>Average delivery and service fees {feeTrend.trend === 'flat' ? 'were broadly flat' : `${feeTrend.trend} by ${Math.abs(feeTrend.companyFeeChangePercent).toFixed(0)}%`} from {feeTrend.earliestPeriod.quarter} to {feeTrend.latestPeriod.quarter}, based on {feeTrend.coveredOrderCount} receipts with explicit fee detail.</AppText>
+            <AppText variant="surfaceBody" style={styles.recapBody}>Average delivery and service fees {feeTrend.trend === 'flat' ? 'were broadly flat' : `${feeTrend.trend} by ${Math.abs(feeTrend.companyFeeChangePercent).toFixed(0)}%`} from {feeTrend.earliestPeriod.quarter} to {feeTrend.latestPeriod.quarter}, based on {feeTrend.coveredOrderCount} {feeTrend.currency} receipts with explicit fee detail.</AppText>
           </View>
         </Card> : null}
 

@@ -1,3 +1,4 @@
+import { formatReceiptMoney } from '@utils/receiptMoney';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
@@ -35,11 +36,12 @@ export function DashboardSpendingHero({
 }: DashboardSpendingHeroProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayMoney = (value: number) => formatReceiptMoney(value, summary.currencyCode, formatCurrency);
   const comparison = summary.comparison;
   const comparisonText = comparison
     ? comparison.direction === 'same'
       ? `About the same as ${comparison.previousLabel}`
-      : `${formatCurrency(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
+      : `${displayMoney(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
     : period === 'all_time'
       ? 'Across all imported orders'
       : summary.receiptCount > 0
@@ -76,11 +78,11 @@ export function DashboardSpendingHero({
         style={styles.hero}
         accessibilityRole="summary"
         accessibilityLiveRegion="polite"
-        accessibilityLabel={`${summary.label}. ${loading ? 'Loading' : formatCurrency(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${formatCurrency(summary.averageOrderValue)}.`}
+        accessibilityLabel={`${summary.label}. ${loading ? 'Loading' : displayMoney(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${displayMoney(summary.averageOrderValue)}.`}
       >
         <AppText variant="metadata" style={styles.label}>{summary.label}</AppText>
         <AppText variant="heroValue" style={styles.value} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
-          {loading ? '—' : formatCurrency(summary.totalSpent)}
+          {loading ? '—' : displayMoney(summary.totalSpent)}
         </AppText>
         <View style={styles.comparison}>
           <Ionicons
@@ -92,7 +94,7 @@ export function DashboardSpendingHero({
         </View>
         <View style={styles.metrics}>
           <Metric value={loading ? '—' : String(summary.receiptCount)} label="orders" />
-          <Metric value={loading ? '—' : formatCurrency(summary.averageOrderValue)} label="average order" />
+          <Metric value={loading ? '—' : displayMoney(summary.averageOrderValue)} label="average order" />
         </View>
       </LinearGradient>
     </View>

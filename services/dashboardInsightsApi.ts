@@ -1,3 +1,4 @@
+import { normalizeHistoricalInvestment } from './historicalInvestment';
 import api from './api';
 import type {
   DashboardInsight,
@@ -8,6 +9,7 @@ import type {
   DashboardInsightMethodology,
   DashboardInsightPeriod,
   DashboardInsightValueFormat,
+  DashboardHeroInsight,
 } from '@/types/api';
 import { validateAndAuthorizeUserId } from '@utils/securityValidation';
 
@@ -54,7 +56,33 @@ const normalizePeriod = (value: unknown, field: string): DashboardInsightPeriod 
   return { startDate, endDate };
 };
 
+const normalizeBusyDay = (value: unknown, field: string): NonNullable<DashboardHeroInsight['busyDay']> => {
+  const source = record(value, field);
+  const date = localDate(source.date, `${field}.date`);
+  const parsedDate = new Date(`${date}T12:00:00Z`);
+  if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) invalid(`${field}.date`);
+  if (!Array.isArray(source.spending)) return invalid(`${field}.spending`);
+  const spending = source.spending.map((entry: unknown, index: number) => {
+    const rowField = `${field}.spending.${index}`;
+    const row = record(entry, rowField);
+    const amount = number(row.amount, `${rowField}.amount`);
+    if (amount < 0) invalid(`${rowField}.amount`);
+    return { currencyCode: member(row.currencyCode, ['CAD', 'USD', 'EUR', 'GBP'] as const, `${rowField}.currencyCode`), amount };
+  });
+  if (new Set(spending.map(row => row.currencyCode)).size !== spending.length) invalid(`${field}.spending`);
+  return { date, spending };
+};
+
+const normalizeOrderEvidence = (value: unknown, field: string) => {
+  const count = number(record(value, field).count, `${field}.count`);
+  if (!Number.isSafeInteger(count) || count < 1) invalid(`${field}.count`);
+  return { count };
+};
+
 const normalizeBase = (source: UnknownRecord, field: string) => ({
+  historicalInvestment: optional(source.historicalInvestment, `${field}.historicalInvestment`, normalizeHistoricalInvestment),
+  currencyCode: optional(source.currencyCode, `${field}.currencyCode`, string),
+  orderEvidence: optional(source.orderEvidence, `${field}.orderEvidence`, normalizeOrderEvidence),
   id: string(source.id, `${field}.id`),
   category: member(source.category, categories, `${field}.category`),
   icon: member(source.icon, icons, `${field}.icon`),
@@ -70,13 +98,26 @@ export const normalizeDashboardInsight = (value: unknown, index = 0): DashboardI
   const source = record(value, field);
   const base = normalizeBase(source, field);
   const presentation = member(source.presentation, ['hero', 'comparison', 'ranking', 'order', 'timeline', 'yearly-champions', 'locked'] as const, `${field}.presentation`);
-  if (presentation === 'hero') return {
-    ...base,
-    presentation,
-    value: number(source.value, `${field}.value`),
-    valueFormat: member(source.valueFormat, valueFormats, `${field}.valueFormat`),
-    headline: optional(source.headline, `${field}.headline`, string),
-  };
+  if (presentation === 'hero') {
+    const value = number(source.value, `${field}.value`);
+    const valueFormat = member(source.valueFormat, valueFormats, `${field}.valueFormat`);
+    const busyDay = optional(source.busyDay, `${field}.busyDay`, normalizeBusyDay);
+    const spendingConcentration = optional(source.spendingConcentration, `${field}.spendingConcentration`, (candidate, candidateField) => {
+      const orderCount = number(record(candidate, candidateField).orderCount, `${candidateField}.orderCount`);
+      if (!Number.isSafeInteger(orderCount) || orderCount < 1 || valueFormat !== 'percent' || value < 0 || value > 100) invalid(candidateField);
+      return { orderCount };
+    });
+    if (busyDay && (valueFormat !== 'number' || !Number.isInteger(value) || value < 1)) invalid(`${field}.value`);
+    return {
+      ...base,
+      presentation,
+      value,
+      valueFormat,
+      headline: optional(source.headline, `${field}.headline`, string),
+      ...(busyDay ? { busyDay } : {}),
+      ...(spendingConcentration ? { spendingConcentration } : {}),
+    };
+  }
   if (presentation === 'comparison') {
     const comparisonField = `${field}.comparison`;
     const comparison = record(source.comparison, comparisonField);

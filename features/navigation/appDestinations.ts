@@ -2,6 +2,7 @@ import type { Href } from 'expo-router';
 import type { ExportProvider } from '@features/import-flow/contracts';
 import type { ImportReturnTo } from '@features/import-flow/importNavigation';
 import type { PostOnboardingImportIntent } from '@features/import-flow/postOnboardingImportRoute';
+import type { GmailConnectionPurpose } from '@features/import-flow/gmailConnectionPurpose';
 
 export type AppDestination = Href;
 
@@ -29,6 +30,7 @@ export interface AddHistoryDestinationOptions {
   readonly downloadedVersion?: string | null;
   readonly confirmRequest?: boolean;
   readonly showDownloadSteps?: boolean;
+  readonly gmailPurpose?: GmailConnectionPurpose | null;
 }
 
 export const addHistoryDestination = ({
@@ -41,6 +43,7 @@ export const addHistoryDestination = ({
   downloadedVersion,
   confirmRequest,
   showDownloadSteps,
+  gmailPurpose,
 }: AddHistoryDestinationOptions = {}): AppDestination => ({
   pathname: '/add-history',
   params: {
@@ -53,6 +56,7 @@ export const addHistoryDestination = ({
     ...(downloadedVersion ? { downloadedVersion } : {}),
     ...(confirmRequest ? { confirmRequest: 'true' } : {}),
     ...(showDownloadSteps ? { showDownloadSteps: 'true' } : {}),
+    ...(gmailPurpose ? { gmailPurpose } : {}),
   },
 });
 
@@ -77,3 +81,12 @@ export const accountsPermissionsDestination = (
   },
 });
 
+export const insightHistoryDestination = (
+  insightId: string,
+  localDate: string,
+  label: string,
+  snapshotId?: string,
+): AppDestination => ({
+  pathname: '/(tabs)/history',
+  params: { insightId, insightDate: localDate, insightLabel: label, ...(snapshotId ? { insightSnapshot: snapshotId } : {}) },
+});

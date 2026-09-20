@@ -1,5 +1,7 @@
 import api from '@services/api';
 import { dashboardInsightsApi, normalizeDashboardInsightEdition } from '@services/dashboardInsightsApi';
+import orderEventFixture from '@/__tests__/fixtures/order-event-dashboard.json';
+import coreOrderEventFixture from '@/__tests__/fixtures/order-event-dashboard-core.json';
 
 jest.mock('@services/api');
 jest.mock('@utils/securityValidation', () => ({
@@ -26,7 +28,65 @@ const cards = [
 ];
 
 describe('dashboard insights API boundary', () => {
+  it('preserves a positive exact-order evidence count without exposing identities', () => {
+    const edition = normalizeDashboardInsightEdition({
+      ...base,
+      insights: [{ ...cards[0], orderEvidence: { count: 3 } }],
+    });
+    expect(edition.insights[0].orderEvidence).toEqual({ count: 3 });
+  });
+
+  it.each([0, -1, 1.5, '3'])('rejects invalid order evidence counts: %s', count => {
+    expect(() => normalizeDashboardInsightEdition({
+      ...base,
+      insights: [{ ...cards[0], orderEvidence: { count } }],
+    })).toThrow('insights.0.orderEvidence.count');
+  });
+
+  it('preserves the server-calculated big-order count', () => {
+    const edition = normalizeDashboardInsightEdition({ ...base, insights: [{ ...cards[0], value: 22, valueFormat: 'percent', spendingConcentration: { orderCount: 95 } }] });
+    expect(edition.insights[0]).toMatchObject({ spendingConcentration: { orderCount: 95 } });
+  });
+
+  it.each([0, -1, 1.5, '95', Infinity])('rejects invalid big-order counts: %s', orderCount => {
+    expect(() => normalizeDashboardInsightEdition({ ...base, insights: [{ ...cards[0], valueFormat: 'percent', spendingConcentration: { orderCount } }] })).toThrow();
+  });
+
+  it('preserves structured busy-day facts', () => {
+    const busyDay = { date: '2024-11-19', spending: [{ currencyCode: 'CAD', amount: 124.8 }] };
+    const edition = normalizeDashboardInsightEdition({ ...base, insights: [{ ...cards[0], busyDay }] });
+    expect(edition.insights[0]).toMatchObject({ busyDay });
+  });
+
+  it.each([
+    { date: '2024-02-30', spending: [] },
+    { date: '2024-99-01', spending: [] },
+    { date: '2024-11-19', spending: [{ currencyCode: 'UNKNOWN', amount: 1 }] },
+    { date: '2024-11-19', spending: [{ currencyCode: 'CAD', amount: -1 }] },
+    { date: '2024-11-19', spending: [{ currencyCode: 'CAD', amount: Infinity }] },
+    { date: '2024-11-19', spending: [{ currencyCode: 'CAD', amount: 1 }, { currencyCode: 'CAD', amount: 2 }] },
+  ])('rejects malformed busy-day facts %j', busyDay => {
+    expect(() => normalizeDashboardInsightEdition({ ...base, insights: [{ ...cards[0], busyDay }] })).toThrow();
+  });
+
   beforeEach(() => jest.clearAllMocks());
+
+  it('decodes the actual policy-3 December API edition without re-counting receipt documents', () => {
+    const edition = normalizeDashboardInsightEdition(orderEventFixture);
+    expect(edition.metricVersion).toBe('daily-v17');
+    expect(edition.insights.find(i => i.id === 'accumulated-delivery-time')).toMatchObject({
+      value: 2.3, detail: '4 valid deliveries, averaging 34 minutes from order to arrival.',
+    });
+    const core = normalizeDashboardInsightEdition(coreOrderEventFixture);
+    expect(core.insights.find(i => i.id === 'multi-order-day')).toMatchObject({
+      presentation: 'hero', title: 'Most deliveries in a day', value: 4,
+      detail: expect.stringContaining('CAD 113.76 net cost'),
+    });
+    expect(core.insights.find(i => i.id === 'net-order-costs')).toMatchObject({
+      presentation: 'timeline', events: expect.arrayContaining([expect.objectContaining({ label: 'CAD', value: '157.02' })]),
+    });
+    expect(JSON.stringify(edition)).not.toContain('198.97');
+  });
 
   it('strictly normalizes every presentation and fetches the dedicated resource', async () => {
     const payload = { ...base, partialExportProvider: 'uber_eats', insights: cards };

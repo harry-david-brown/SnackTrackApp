@@ -1,5 +1,6 @@
-import type { ExportProvider, ImportPreferencesResponse } from "@features/import-flow/contracts";
+import { isActiveImportOperation, type ExportProvider, type ImportOperation, type ImportPreferencesResponse } from "@features/import-flow/contracts";
 import type { GmailConnectionPurpose } from "@features/import-flow/gmailConnectionPurpose";
+import { resolveTrackingRecovery } from "@features/import-flow/trackingEligibility";
 
 export type DashboardTrackingAction = "open_import" | "connect_gmail" | "import_gmail" | "request_export" | "continue_export" | "open_gmail" | "enable_tracking" | "retry_tracking" | "retry_preferences";
 export type DashboardTrackingTone = "brand" | "progress" | "success" | "warning" | "error";
@@ -22,6 +23,20 @@ export interface DashboardTrackingCardState {
   passive?: boolean; busy?: boolean; showActivity?: boolean; canMarkUberNotUsed?: boolean;
   progress?: DashboardProgressState;
 }
+
+export type HomePrioritySurface =
+  | { kind: "active_import"; operation: ImportOperation }
+  | { kind: "guidance"; guidance: DashboardTrackingCardState }
+  | { kind: "none" };
+
+export const resolveHomePrioritySurface = (
+  operation: ImportOperation | null,
+  guidance: DashboardTrackingCardState,
+): HomePrioritySurface => {
+  if (operation && isActiveImportOperation(operation)) return { kind: "active_import", operation };
+  if (guidance.placement === "priority") return { kind: "guidance", guidance };
+  return { kind: "none" };
+};
 
 const card = (value: Omit<DashboardTrackingCardState, "placement"> & { placement?: HomeGuidancePlacement }): DashboardTrackingCardState => ({ placement: "priority", ...value });
 const providerName = (provider: ExportProvider) => provider === "uber_eats" ? "Uber Eats" : "DoorDash";
@@ -115,6 +130,26 @@ export function resolveHomeDataGuidance(
       body: reminderDate ? `You chose to come back later. We’ll remind you again after ${reminderDate}.` : "Use the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.",
       icon: "receipt-outline", tone: "brand", primaryAction: "open_import", primaryLabel: reminderDate ? "Continue setup" : "Get started",
       display: reminderDate ? "compact" : "expanded",
+    });
+  }
+
+  if (tracking.effectiveState === "setting_up") return card({
+    id: "tracking_setting_up", sectionLabel: "In progress", eyebrow: "AUTOMATIC UPDATES",
+    title: "Setting up ongoing updates", body: "SnackTrack is catching up from your saved history and preparing to watch for new orders.",
+    icon: "sync-outline", tone: "progress", passive: true, busy: true, display: "compact",
+  });
+
+  if (tracking.effectiveState === "not_offered") {
+    const trackingRecovery = resolveTrackingRecovery(preferences);
+    if (trackingRecovery.kind === "eligible") return card({
+      id: "tracking_recommended", sectionLabel: "Next step", eyebrow: "KEEP YOUR STATS CURRENT",
+      title: "Never miss a new order", body: "Turn on automatic updates and get notified when SnackTrack finds one.",
+      icon: "notifications-outline", tone: "brand", primaryAction: "enable_tracking", primaryLabel: "Turn on automatic updates", display: "compact",
+    });
+    if (trackingRecovery.kind === "reconnect") return card({
+      id: "tracking_connect_email", sectionLabel: "Next step", eyebrow: "KEEP YOUR STATS CURRENT",
+      title: "Keep SnackTrack up to date", body: "Connect your order email for automatic updates and notifications.",
+      icon: "mail-outline", tone: "brand", primaryAction: "open_import", primaryLabel: "Connect email", gmailPurpose: "ongoing_tracking", display: "compact",
     });
   }
 

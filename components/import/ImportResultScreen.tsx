@@ -8,7 +8,7 @@ import { Mascot } from '@components/mascot/Mascot';
 import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
 import { resolveImportOperationRecovery } from '@features/import-flow/importOperationRecovery';
-import { resolveImportOperationResult } from '@features/import-flow/importOperationResult';
+import { resolveImportOperationResult, importResultCopy } from '@features/import-flow/importOperationResult';
 import { resolvePostImportDestination } from '@features/import-flow/postImportNavigation';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useImportOperation } from '@hooks/useImportOperation';
@@ -57,20 +57,28 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
     </ResultLayout>;
   }
 
-  const nothingChanged = summary.changedOrders === 0;
-  const duplicatesOnly = nothingChanged && (summary.unchangedOrders ?? 0) > 0;
-  const empty = nothingChanged && summary.unchangedOrders === 0;
-  const resultTitle = duplicatesOnly ? 'These orders are already saved' : empty ? 'No supported orders found' : nothingChanged ? 'No orders added or updated' : summary.changedOrders === null ? 'Your history was imported' : `${summary.changedOrders} orders added or updated`;
-  const body = duplicatesOnly ? `All ${summary.unchangedOrders} supported orders found were already in your history. They were not added twice.` : empty ? `We didn’t find supported delivery orders in this ${summary.sourceName} import. Try another inbox or an original provider download.` : nothingChanged ? 'Your existing order history is unchanged.' : summary.importedOrders !== null && summary.changedOrders === null ? `${summary.sourceName} imported ${summary.importedOrders} supported orders. View your history to explore them.` : `${summary.sourceName} has finished updating your history.`;
+  const { nothingChanged, empty, title: resultTitle, body } = importResultCopy(summary);
   return <ResultLayout pose={nothingChanged ? 'thinking' : 'celebrate'} eyebrow="IMPORT COMPLETE" title={resultTitle} body={body}>
     <View style={styles.counts}>
       {summary.newOrders !== null ? <Count value={summary.newOrders} label="New" /> : null}
       {summary.updatedOrders !== null ? <Count value={summary.updatedOrders} label="Updated" /> : null}
       {summary.unchangedOrders !== null ? <Count value={summary.unchangedOrders} label="Already saved" /> : null}
     </View>
-    {recapReady ? <AppButton label="Start my recap" icon="play" onPress={() => navigation.replace({ pathname: '/(tabs)/wrapped-journey', params: { entryPoint: 'automatic_first_import' } })} /> : <AppButton label="View order history" onPress={() => navigation.replace(appDestinations.history)} />}
-    <AppButton label={recapReady ? 'View order history' : empty ? 'Choose another source' : 'Add orders'} variant="secondary" onPress={() => recapReady ? navigation.replace(appDestinations.history) : navigation.replace({ pathname: '/add-history', params: { returnTo } })} />
-    {summaryEligible && !recapReady ? <AppButton label="View Summary" variant="tertiary" onPress={() => navigation.replace(appDestinations.summary)} /> : null}
+    {recapReady
+      ? <AppButton label="Start my recap" icon="play" onPress={() => navigation.replace({ pathname: '/(tabs)/wrapped-journey', params: { entryPoint: 'automatic_first_import' } })} />
+      : summaryEligible
+        ? <AppButton label="View Summary" onPress={() => navigation.replace(appDestinations.summary)} />
+        : <AppButton label="View order history" onPress={() => navigation.replace(appDestinations.history)} />}
+    <AppButton
+      label={recapReady || summaryEligible ? 'View order history' : empty ? 'Choose another source' : 'Add orders'}
+      variant="secondary"
+      onPress={() => recapReady || summaryEligible
+        ? navigation.replace(appDestinations.history)
+        : navigation.replace({ pathname: '/add-history', params: { returnTo } })}
+    />
+    {summaryEligible && !recapReady
+      ? <AppButton label={empty ? 'Choose another source' : 'Add orders'} variant="tertiary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} />
+      : null}
     <AppButton label="Close" variant="tertiary" onPress={() => navigation.replace(importReturnDestination(returnTo))} />
   </ResultLayout>;
 }

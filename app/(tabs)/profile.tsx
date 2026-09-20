@@ -38,6 +38,7 @@ export default function ProfileScreen() {
           createdAt={profile.user.createdAt}
           totalSpent={profile.totalSpent}
           totalReceipts={profile.totalReceipts}
+          orderCountLabel={profile.orderCountLabel}
         />
         <ProfileSettingsCard
           currency={profile.currency}

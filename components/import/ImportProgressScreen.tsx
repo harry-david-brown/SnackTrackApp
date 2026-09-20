@@ -187,7 +187,6 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
   const { operation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(state.user?.id), false, operationId);
   const handled = useRef<string | null>(null);
   const announced = useRef<string | null>(null);
-  const [completionShownFor, setCompletionShownFor] = useState<string | null>(null);
   const stableTimeEstimate = useStableImportTimeEstimate(operation?.id, operation?.presentation?.timeEstimate);
   const timeEstimateText = importTimeEstimateText(stableTimeEstimate);
   const progress = resolveOverallImportProgress(operation, uploadActive ? uploadProgress ?? 0 : undefined);
@@ -196,10 +195,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
   const {
     visibleProgress,
   } = useImportProgressPacing(operation?.id, targetProgressPosition, progress);
-  const operationIdForCompletion = operation?.id;
-  const markCompletionShown = useCallback(() => {
-    if (operationIdForCompletion) setCompletionShownFor(operationIdForCompletion);
-  }, [operationIdForCompletion]);
+  const succeededOperationId = operation?.status === 'succeeded' ? operation.id : null;
 
   useEffect(() => {
     if (!operation?.presentation?.stage || announced.current === operation.presentation.stage) return;
@@ -210,18 +206,26 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
   }, [operation]);
 
   useEffect(() => {
-    if (isUnavailable || !operation || handled.current === `${operation.id}:${operation.status}`) return;
-    if (!['succeeded', 'failed', 'cancelled', 'expired', 'superseded'].includes(operation.status)) return;
-    if (operation.status === 'succeeded' && completionShownFor !== operation.id) return;
-    handled.current = `${operation.id}:${operation.status}`;
-    if (operation.status !== 'succeeded') return;
-    void (async () => {
-      const userId = state.user?.id;
-      if (!userId) return;
-      await invalidateReceiptDerivedData(queryClient, userId);
-      navigation.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } });
-    })().catch(() => { navigation.replace({ pathname: '/import-result', params: { operationId: operation.id, returnTo } }); });
-  }, [completionShownFor, operation, queryClient, state.user?.id, isUnavailable, navigation, returnTo]);
+    if (!succeededOperationId || handled.current === `${succeededOperationId}:succeeded`) return;
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const completionKey = `${succeededOperationId}:succeeded`;
+    const showResult = () => {
+      if (cancelled) return;
+      const outcome = navigation.replace({ pathname: '/import-result', params: { operationId: succeededOperationId, returnTo } });
+      if (outcome === 'transition-pending') {
+        retryTimer = setTimeout(showResult, 100);
+        return;
+      }
+      if (outcome === 'navigated' || outcome === 'already-current') handled.current = completionKey;
+    };
+    if (state.user?.id) void invalidateReceiptDerivedData(queryClient, state.user.id).catch(() => undefined);
+    showResult();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [navigation, queryClient, returnTo, state.user?.id, succeededOperationId]);
 
   if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
 
@@ -255,7 +259,6 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
       estimateText={timeEstimateText}
       footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : undefined}
       onContinue={!uploadActive && operation ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
-      onCompletionShown={operation?.status === 'succeeded' ? markCompletionShown : undefined}
     />
   );
 }

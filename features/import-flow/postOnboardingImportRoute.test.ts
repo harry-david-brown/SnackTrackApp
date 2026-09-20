@@ -1,4 +1,5 @@
 import { buildAddHistoryDestination, parsePostOnboardingImportRoute } from './postOnboardingImportRoute';
+import { addHistoryDestination } from '@features/navigation/appDestinations';
 
 describe('post-onboarding import routes', () => {
   it('builds typed provider entry points', () => expect(buildAddHistoryDestination('provider', 'doordash')).toEqual({ pathname: '/add-history', params: { intent: 'provider', provider: 'doordash', returnTo: 'home' } }));
@@ -9,6 +10,21 @@ describe('post-onboarding import routes', () => {
     [{ focus: 'export', provider: 'doordash' }, 'provider'],
   ] as const)('translates legacy route %o', (raw, intent) => expect(parsePostOnboardingImportRoute(raw)).toMatchObject({ intent }));
   it('preserves operation and download handoffs', () => expect(parsePostOnboardingImportRoute({ operationId: 'op-1', downloadedVersion: 'v1', intent: 'resume_export', provider: 'uber_eats' })).toMatchObject({ operationId: 'op-1', downloadedVersion: 'v1', intent: 'resume_export', provider: 'uber_eats' }));
+  it('preserves the ongoing-tracking purpose through the typed destination', () => {
+    const destination = addHistoryDestination({ intent: 'email', gmailPurpose: 'ongoing_tracking' });
+    expect(destination).toMatchObject({ pathname: '/add-history', params: { intent: 'email', gmailPurpose: 'ongoing_tracking' } });
+    if (typeof destination === 'string') throw new Error('Expected a typed Add History destination');
+    expect(parsePostOnboardingImportRoute(destination.params as Record<string, string>)).toMatchObject({ intent: 'email', gmailPurpose: 'ongoing_tracking' });
+  });
+  it('discards unsupported email-connection purposes', () => {
+    expect(parsePostOnboardingImportRoute({ gmailPurpose: 'unknown' }).gmailPurpose).toBeNull();
+  });
+  it('normalizes the Outlook callback purpose into the shared connection purpose', () => {
+    expect(parsePostOnboardingImportRoute({ outlook: 'success', outlookPurpose: 'ongoing_tracking' })).toMatchObject({
+      mailbox: 'outlook',
+      gmailPurpose: 'ongoing_tracking',
+    });
+  });
 });
 
 test('OAuth return identifies the correct inbox without searching it automatically', () => {

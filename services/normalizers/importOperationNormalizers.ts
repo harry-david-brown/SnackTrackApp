@@ -1,6 +1,7 @@
 import type { ImportJourneyContext, ImportOperation, ImportOperationKind, ImportOperationStatus, ImportTimeEstimate } from '@features/import-flow/contracts';
+import { normalizeReceiptImportOutcome } from './receiptImportOutcomeNormalizer';
 
-const kinds: readonly ImportOperationKind[] = ['gmail_historical','outlook_historical','manual_tracking','scheduled_tracking','export_file'];
+const kinds: readonly ImportOperationKind[] = ['gmail_historical','outlook_historical','manual_tracking','scheduled_tracking','export_file','gmail_push_tracking','receipt_rebuild','receipt_publish','receipt_rollback'];
 const statuses: readonly ImportOperationStatus[] = ['awaiting_upload','pending_dispatch','queued','running','retrying','succeeded','failed','expired','superseded','cancelled'];
 const journeyContexts: readonly ImportJourneyContext[] = ['onboarding','post_onboarding','routine','legacy'];
 const object = (value: unknown): Record<string, unknown> => {
@@ -46,6 +47,8 @@ export const normalizeImportOperation = (value: unknown): ImportOperation => {
   if (provider !== null && provider !== 'uber_eats' && provider !== 'doordash') throw new Error('Invalid import operation response');
   if (!Number.isInteger(progress) || progress < 0 || progress > 100 || !Number.isInteger(attempts) || attempts < 0) throw new Error('Invalid import operation response');
   if (data.result !== null && data.result !== undefined && (typeof data.result !== 'object' || Array.isArray(data.result))) throw new Error('Invalid import operation response');
+  const result = data.result ? object(data.result) : null;
+  const receiptOutcome = result?.receiptOutcome === undefined ? undefined : normalizeReceiptImportOutcome(result.receiptOutcome);
   const presentationSource = data.presentation === null || data.presentation === undefined ? null : object(data.presentation);
   const discoveredOrderCount = presentationSource?.discoveredOrderCount === null || presentationSource?.discoveredOrderCount === undefined
     ? null
@@ -69,7 +72,7 @@ export const normalizeImportOperation = (value: unknown): ImportOperation => {
     id: string(data.id), kind: kind as ImportOperationKind, trigger, journeyContext: journeyContext as ImportJourneyContext, status: status as ImportOperationStatus,
     phase: string(data.phase), progress, attempts,
     provider,
-    result: data.result ? data.result as Readonly<Record<string,unknown>> : null,
+    result: result ? { ...result, ...(receiptOutcome ? { receiptOutcome } : {}) } : null,
     errorCode: nullableString(data.errorCode), errorMessage: nullableString(data.errorMessage),
     createdAt: string(data.createdAt), queuedAt: nullableString(data.queuedAt), startedAt: nullableString(data.startedAt),
     completedAt: nullableString(data.completedAt), updatedAt: string(data.updatedAt),

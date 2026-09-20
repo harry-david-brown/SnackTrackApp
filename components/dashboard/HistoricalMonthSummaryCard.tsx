@@ -1,3 +1,4 @@
+import { formatReceiptMoney } from '@utils/receiptMoney';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -18,16 +19,17 @@ export function HistoricalMonthSummaryCard({
 }: HistoricalMonthSummaryCardProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayMoney = (value: number) => formatReceiptMoney(value, summary.currencyCode, formatCurrency);
   const comparison = summary.comparison;
   const title = comparison
     ? comparison.direction === 'same'
       ? `About the same as ${comparison.previousLabel}`
-      : `${formatCurrency(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
+      : `${displayMoney(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
     : summary.receiptCount > 0
       ? 'Your first tracked month'
       : 'No tracked orders found';
   const body = summary.receiptCount > 0
-    ? `${summary.receiptCount} ${summary.receiptCount === 1 ? 'order' : 'orders'} averaged ${formatCurrency(summary.averageOrderValue)} each.`
+    ? `${summary.receiptCount} ${summary.receiptCount === 1 ? 'order' : 'orders'} averaged ${displayMoney(summary.averageOrderValue)} each.`
     : `SnackTrack did not find any orders for ${summary.monthLabel ?? 'this month'}.`;
 
   return (

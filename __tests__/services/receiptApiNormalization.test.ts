@@ -1,5 +1,5 @@
 import { api } from '@services/api/client';
-import { normalizeReceiptPage, receiptApi } from '@services/api/receiptApi';
+import { normalizeReceipt, normalizeReceiptPage, receiptApi } from '@services/api/receiptApi';
 import { DataSource, ReceiptType } from '@/types/api';
 import { receiptPageFixture } from '@/__tests__/fixtures/contracts';
 
@@ -17,6 +17,26 @@ const receipt = {
 };
 
 describe('canonical receipt transport boundary', () => {
+  it('preserves local order days for legacy rows and rejects malformed calendar days', () => {
+    expect(normalizeReceipt({ ...receipt, orderDay: '2024-02-01' }).orderDay).toBe('2024-02-01');
+    expect(normalizeReceipt({ ...receipt, orderDay: null }).orderDay).toBeNull();
+    expect(normalizeReceipt(receipt).orderDay).toBeUndefined();
+    expect(() => normalizeReceipt({ ...receipt, orderDay: '2024-02-30' })).toThrow('Invalid receipt response');
+  });
+  it('keeps optional reconciliation status and rejects unknown status values', () => {
+    const reconciliation={status:'unresolved',method:'standalone',reason:'ambiguous'};
+    expect(normalizeReceipt({...receipt,reconciliation}).reconciliation).toEqual(reconciliation);
+    expect(normalizeReceipt(receipt).reconciliation).toBeUndefined();
+    expect(()=>normalizeReceipt({...receipt,reconciliation:{...reconciliation,status:'hidden'}})).toThrow();
+  });
+  it('preserves both sources and signed checkout differences without turning unavailable into zero', () => {
+    const difference = { status: 'available', amount: -6.24, emailTotal: 24.72, exportSubtotal: 30.96, currencyCode: 'CAD', subtotalBasis: 'reconstructed' };
+    const normalized = normalizeReceipt({ ...receipt, sources: ['csv','email'], checkoutDifference: difference });
+    expect(normalized.sources).toEqual([DataSource.CSV,DataSource.EMAIL]);
+    expect(normalized.checkoutDifference).toEqual(difference);
+    expect(normalizeReceipt({ ...receipt, checkoutDifference: { ...difference, status: 'unavailable', amount: null, reason: 'unknown_currency' } }).checkoutDifference?.amount).toBeNull();
+    expect(() => normalizeReceipt({ ...receipt, checkoutDifference: { ...difference, amount: 6.24 } })).toThrow('Invalid receipt response');
+  });
   it('normalizes the canonical items/pageInfo response', () => {
     const result = normalizeReceiptPage(receiptPageFixture);
 
@@ -60,11 +80,11 @@ describe('canonical receipt transport boundary', () => {
     await receiptApi.getReceipts({
       page: 2,
       limit: 10,
-      filters: { receiptType: ReceiptType.UBER_EATS, minAmount: 5 },
+      filters: { receiptType: ReceiptType.UBER_EATS, minAmount: 5, outcome: 'canceled', currencyCode: 'CAD', startDate: '2023-12-10', endDate: '2023-12-10' },
     });
 
     expect(api.get).toHaveBeenCalledWith('/receipts', {
-      params: { page: 2, limit: 10, receiptType: 'uber_eats', minAmount: 5 },
+      params: { page: 2, limit: 10, receiptType: 'uber_eats', minAmount: 5, outcome: 'canceled', currencyCode: 'CAD', startDate: '2023-12-10', endDate: '2023-12-10' },
     });
   });
 });

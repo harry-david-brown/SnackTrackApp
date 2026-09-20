@@ -1,4 +1,5 @@
 import type { UserSummary } from '@/types/api';
+import type { OrderMetrics } from '@/types/orderMetrics';
 
 export type DashboardPeriod = 'monthly' | 'all_time';
 
@@ -12,6 +13,9 @@ export interface DashboardMonthOption {
 }
 
 export interface DashboardPeriodSummary {
+  orderMetrics?: OrderMetrics;
+  currencyCode?: string;
+  evidenceLabel?: string;
   period: DashboardPeriod;
   monthKey: string | null;
   monthLabel: string | null;
@@ -101,6 +105,9 @@ export function resolveDashboardPeriodSummary(
     const totalSpent = summary?.totalSpent ?? 0;
     const receiptCount = summary?.totalReceipts ?? 0;
     return {
+      orderMetrics: summary?.orderMetrics,
+      currencyCode: summary?.currencyCode,
+      evidenceLabel: summary?.amountBasis === 'best_available' ? 'Based on receipts and exported totals' : undefined,
       period,
       monthKey: null,
       monthLabel: null,
@@ -108,7 +115,7 @@ export function resolveDashboardPeriodSummary(
       label: 'All-time delivery spending',
       totalSpent,
       receiptCount,
-      averageOrderValue: receiptCount > 0 ? totalSpent / receiptCount : 0,
+      averageOrderValue: summary?.averageOrderValue ?? (receiptCount > 0 ? totalSpent / receiptCount : 0),
       comparison: null,
     };
   }
@@ -120,11 +127,21 @@ export function resolveDashboardPeriodSummary(
   const previousKey = getDashboardMonthKey(previousDate);
   const current = summary?.monthlyBreakdown.find((month) => month.month === normalizedSelectedKey);
   const previous = summary?.monthlyBreakdown.find((month) => month.month === previousKey);
+  const orderMetrics = summary?.orderMetricPeriods?.months[normalizedSelectedKey];
+  const previousMetrics = summary?.orderMetricPeriods?.months[previousKey];
+  const incomplete = (metrics: OrderMetrics | undefined) => Boolean(metrics?.possibleAdditionalOrders || metrics?.currencies.some((c) => c.unknownPriceOrders));
+  const comparisonReliable = !summary?.orderMetrics || (!incomplete(orderMetrics) && !incomplete(previousMetrics) && summary.orderMetricPeriods?.undatedRecords === 0);
   const totalSpent = current?.totalSpent ?? 0;
   const receiptCount = current?.receiptCount ?? 0;
-  const difference = totalSpent - (previous?.totalSpent ?? 0);
+  const isCurrentMonth = normalizedSelectedKey === currentKey;
+  const comparableDays = Math.min(now.getDate(), new Date(previousDate.getFullYear(), previousDate.getMonth() + 1, 0).getDate());
+  const sumDays = (month: string) => Object.entries(summary?.dailyBreakdown ?? {}).filter(([date]) => date.startsWith(month) && Number(date.slice(8,10)) <= comparableDays).reduce((sum,[,day]) => sum + day.total, 0);
+  const difference = isCurrentMonth && summary?.dailyBreakdown ? sumDays(normalizedSelectedKey) - sumDays(previousKey) : totalSpent - (previous?.totalSpent ?? 0);
 
   return {
+    orderMetrics,
+    currencyCode: summary?.currencyCode,
+    evidenceLabel: summary?.amountBasis === 'best_available' ? 'Based on receipts and exported totals' : undefined,
     period,
     monthKey: normalizedSelectedKey,
     monthLabel: monthAndYearLabel(selectedDate),
@@ -132,12 +149,12 @@ export function resolveDashboardPeriodSummary(
     label: `${monthLabel(selectedDate)} delivery spending`,
     totalSpent,
     receiptCount,
-    averageOrderValue: receiptCount > 0 ? totalSpent / receiptCount : 0,
-    comparison: previous
+    averageOrderValue: current?.averageOrderValue ?? (receiptCount > 0 ? totalSpent / receiptCount : 0),
+    comparison: comparisonReliable && previous && (!isCurrentMonth || summary?.dailyBreakdown)
       ? {
           difference,
           direction: difference > 0 ? 'up' : difference < 0 ? 'down' : 'same',
-          previousLabel: monthLabel(previousDate),
+          previousLabel: isCurrentMonth ? `the first ${comparableDays} days of ${monthLabel(previousDate)}` : monthLabel(previousDate),
         }
       : null,
   };

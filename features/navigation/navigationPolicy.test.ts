@@ -4,6 +4,7 @@ import {
   isActualHomeTab,
   isDestinationCurrent,
   navigationDestinationKey,
+  navigationStateKey,
   normalizeNavigationPath,
 } from './navigationPolicy';
 
@@ -41,6 +42,11 @@ describe('navigation policy', () => {
   it('creates a stable key regardless of parameter order', () => {
     expect(navigationDestinationKey({ pathname: '/import-result', params: { returnTo: 'home', operationId: 'op-1' } }))
       .toBe(navigationDestinationKey({ pathname: '/import-result', params: { operationId: 'op-1', returnTo: 'home' } }));
+  });
+
+  it('creates the same key for an observed grouped route and its public pathname', () => {
+    expect(navigationStateKey('/(tabs)/history', { filter: 'recent' }))
+      .toBe(navigationDestinationKey({ pathname: '/history', params: { filter: 'recent' } }));
   });
 
   it('parses string query destinations for compatibility', () => {

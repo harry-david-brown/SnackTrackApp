@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Mascot } from '@components/mascot/Mascot';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { DashboardTrackingCard } from '@components/dashboard/DashboardTrackingCard';
-import { resolveDashboardTrackingState, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
+import { resolveDashboardTrackingState, resolveHomePrioritySurface, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
@@ -38,8 +38,8 @@ import { ImportOperationCard } from '@components/import/ImportOperationCard';
 import { AppText } from '@components/ui/AppText';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
-import { isActiveImportOperation } from '@features/import-flow/contracts';
-import { addHistoryDestination, importProgressDestination, useAppNavigation } from '@features/navigation';
+import { addHistoryDestination, importProgressDestination, insightHistoryDestination, useAppNavigation } from '@features/navigation';
+import { useOngoingTrackingActivation } from '@hooks/useOngoingTrackingActivation';
 
 export default function DashboardScreen() {
   const navigation = useAppNavigation();
@@ -74,12 +74,16 @@ export default function DashboardScreen() {
     checkOngoingTracking,
     error: importPreferencesError,
   } = useImportPreferences(Boolean(state.user?.id));
+  const { enableOngoingTracking } = useOngoingTrackingActivation(
+    state.user?.id,
+    setOngoingTrackingConsent,
+  );
   const trackingCardState = resolveDashboardTrackingState(
     importPreferences,
     areImportPreferencesLoading,
     Boolean(importPreferencesError && !importPreferences),
   );
-  const activeImportOperation = isActiveImportOperation(importOperation) ? importOperation : null;
+  const prioritySurface = resolveHomePrioritySurface(importOperation, trackingCardState);
   const dashboardNow = React.useMemo(
     () => new Date(`${insightsQuery.localDate}T12:00:00`),
     [insightsQuery.localDate],
@@ -156,7 +160,10 @@ export default function DashboardScreen() {
       return;
     }
     if (action === 'open_import') {
-      navigation.open(addHistoryDestination({ intent: trackingCardState.gmailPurpose === 'connection_recovery' ? 'reconnect' : 'choose' }));
+      navigation.open(addHistoryDestination({
+        intent: trackingCardState.gmailPurpose === 'connection_recovery' ? 'reconnect' : trackingCardState.gmailPurpose === 'ongoing_tracking' ? 'email' : 'choose',
+        gmailPurpose: trackingCardState.gmailPurpose,
+      }));
       return;
     }
     if (action === 'connect_gmail' || action === 'import_gmail'
@@ -188,7 +195,7 @@ export default function DashboardScreen() {
           {
             text: 'Allow tracking',
             onPress: () => {
-              void setOngoingTrackingConsent('granted').catch(() => {
+              void enableOngoingTracking().catch(() => {
                 showSimpleAlert('Couldn’t enable tracking', 'Restore a Gmail or Outlook connection and try again.');
               });
             },
@@ -264,19 +271,19 @@ export default function DashboardScreen() {
             </AppText>
           ) : null}
 
-          {activeImportOperation ? (
+          {prioritySurface.kind === 'active_import' ? (
             <View style={styles.priorityGuidance}>
               <SectionHeader title="In progress" />
               <ImportOperationCard
-                operation={activeImportOperation}
-                onPress={() => navigation.open(importProgressDestination(activeImportOperation.id, 'home'))}
+                operation={prioritySurface.operation}
+                onPress={() => navigation.open(importProgressDestination(prioritySurface.operation.id, 'home'))}
               />
             </View>
-          ) : trackingCardState.placement === 'priority' ? (
+          ) : prioritySurface.kind === 'guidance' ? (
             <View style={styles.priorityGuidance}>
-              <SectionHeader title={trackingCardState.sectionLabel} />
+              <SectionHeader title={prioritySurface.guidance.sectionLabel} />
               <DashboardTrackingCard
-                state={trackingCardState}
+                state={prioritySurface.guidance}
                 preferences={importPreferences}
                 busy={isImportStateUpdating}
                 onAction={handleTrackingAction}
@@ -303,6 +310,12 @@ export default function DashboardScreen() {
               <WhatWeNoticedCarousel
                 insights={insightSectionState.edition.insights}
                 partialExportProvider={insightSectionState.edition.partialExportProvider}
+                onViewOrders={(insight) => navigation.open(insightHistoryDestination(
+                  insight.id,
+                  insightSectionState.edition.localDate,
+                  insight.eyebrow,
+                  insight.historicalInvestment?.snapshotId,
+                ))}
                 onOpenExport={() => navigation.open(addHistoryDestination({ intent: 'provider' }))}
                 onOpenProviderExport={(provider) => navigation.open(buildProviderHistoryDestination(provider, (provider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status))}
               />
@@ -338,7 +351,7 @@ export default function DashboardScreen() {
             />
           ) : null}
 
-          {!activeImportOperation && trackingCardState.placement === 'footer' ? (
+          {prioritySurface.kind !== 'active_import' && trackingCardState.placement === 'footer' ? (
             <View style={styles.actionsContainer}>
               <SectionHeader title={trackingCardState.sectionLabel} />
               <DashboardTrackingCard

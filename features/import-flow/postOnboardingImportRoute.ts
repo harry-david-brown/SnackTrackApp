@@ -1,5 +1,6 @@
 import { parseImportReturnTo, type ImportReturnTo } from './importNavigation';
 import type { ExportProvider } from './contracts';
+import { parseGmailConnectionPurpose, type GmailConnectionPurpose } from './gmailConnectionPurpose';
 
 export type PostOnboardingImportIntent = 'choose' | 'email' | 'provider' | 'reconnect' | 'resume_export';
 
@@ -15,6 +16,7 @@ export interface PostOnboardingImportRoute {
   readonly connectionSucceeded?: boolean;
   readonly connectionFailed?: boolean;
   readonly showDownloadSteps?: boolean;
+  readonly gmailPurpose?: GmailConnectionPurpose | null;
 }
 
 type RawValue = string | string[] | undefined;
@@ -46,6 +48,7 @@ export function parsePostOnboardingImportRoute(raw: Record<string, RawValue>): P
     connectionFailed: Boolean(first(raw.error)) || first(raw.gmail) === 'error' || first(raw.outlook) === 'error',
     mailbox: first(raw.mailbox) === 'gmail' || first(raw.gmail) || legacyAction === 'connect_gmail' || legacyAction === 'import_gmail' ? 'gmail' : first(raw.mailbox) === 'outlook' || first(raw.outlook) ? 'outlook' : null,
     downloadedVersion: first(raw.downloadedVersion) ?? null,
+    gmailPurpose: parseGmailConnectionPurpose(first(raw.gmailPurpose) ?? first(raw.outlookPurpose)),
   };
 }
 

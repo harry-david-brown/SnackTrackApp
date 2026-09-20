@@ -9,17 +9,27 @@ import { Surface } from '@components/ui/Surface';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useCurrency } from '@contexts/CurrencyContext';
 import { SUPPORTED_CURRENCIES } from '@utils/currency';
+import { useUser } from '@contexts/UserContext';
+import { useAnalyticsQuery } from '@hooks/queries/useAnalyticsQueries';
+import { resolveRecapCurrency } from '@features/wrapped/recapCurrency';
 
 export default function CurrencyScreen() {
   const navigation = useAppNavigation();
   const theme = useAppTheme();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, hasManualSelection, setCurrency } = useCurrency();
+  const { state } = useUser();
+  const { data: analytics } = useAnalyticsQuery(state.user?.id);
+  const effectiveCurrency = resolveRecapCurrency({
+    receiptCurrency: analytics?.currencyCode,
+    selectedCurrency: currency,
+    hasManualSelection,
+  });
   const styles = useMemo(() => createStyles(theme.colors.divider), [theme.colors.divider]);
   return <AppScreen scroll>
     <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.backOr(appDestinations.profile)} style={styles.back}><Ionicons name="arrow-back" size={21} color={theme.colors.primary} /></Pressable>
-    <PageHeader eyebrow="CURRENCY" title="How should totals appear?" body="Choose the currency used to format your SnackTrack statistics." />
+    <PageHeader eyebrow="CURRENCY" title="How should totals appear?" body="SnackTrack defaults to the currency found in most of your receipts. Choose another currency to override it." />
     <Surface style={styles.surface}>{Object.values(SUPPORTED_CURRENCIES).map((item, index) => {
-      const selected = currency === item.code;
+      const selected = effectiveCurrency === item.code;
       return <Pressable key={item.code} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => void setCurrency(item.code)} style={[styles.row, index > 0 && styles.border]}>
         <AppText variant="surfaceTitle" style={styles.symbol}>{item.symbol}</AppText>
         <View style={styles.copy}><AppText variant="rowTitle">{item.code}</AppText><AppText variant="metadata" style={styles.body}>{item.name}</AppText></View>

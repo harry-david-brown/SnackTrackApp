@@ -1,0 +1,343 @@
+[
+  {
+    "orderOutcome": {
+      "version": 3,
+      "counting": "established_order",
+      "orderDay": "2023-12-10",
+      "fulfillment": "completed",
+      "fulfillmentConfidence": "confirmed",
+      "refundStatus": "full",
+      "refundConfidence": "confirmed",
+      "originalCharge": 22.48,
+      "netAmount": 0,
+      "confirmedRefundAmount": 22.48,
+      "estimatedRefundAmount": null,
+      "cancellationCharge": null,
+      "financialConfidence": "confirmed",
+      "events": [
+        {
+          "kind": "charge",
+          "amount": 22.48,
+          "tender": "card",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        },
+        {
+          "kind": "refund",
+          "amount": 22.48,
+          "tender": "provider_wallet",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "merged",
+      "method": "lifecycle_amount"
+    },
+    "sources": [
+      "csv",
+      "email"
+    ],
+    "checkoutDifference": {
+      "status": "available",
+      "amount": -14.09,
+      "emailTotal": 0,
+      "exportSubtotal": 14.09,
+      "currencyCode": "CAD",
+      "subtotalBasis": "reconstructed",
+      "emailSourceMessageId": "gmail:pizza-refund"
+    },
+    "currencyCode": "CAD",
+    "amountBasis": "receipt_total",
+    "resolutionVersion": 1,
+    "evidenceSummary": "Based on receipt total",
+    "id": "canonical-0",
+    "userId": "fixture-user",
+    "items": [
+      {
+        "configuredLineTotal": 14.09,
+        "inferred": false,
+        "name": "Medium",
+        "quantity": 1,
+        "price": 14.09,
+        "customizations": [
+          "New York Style Pepperoni"
+        ]
+      }
+    ],
+    "amountSpent": 0,
+    "receiptType": "uber_eats",
+    "restaurantName": "Pizza Pizza (1717 Bank St.)",
+    "orderDate": "2023-12-10T05:38:23.000Z",
+    "dataSource": "csv"
+  },
+  {
+    "orderOutcome": {
+      "version": 3,
+      "counting": "established_order",
+      "orderDay": "2023-12-10",
+      "fulfillment": "canceled",
+      "fulfillmentConfidence": "confirmed",
+      "refundStatus": "none_established",
+      "refundConfidence": "unknown",
+      "originalCharge": 43.26,
+      "netAmount": 43.26,
+      "confirmedRefundAmount": null,
+      "estimatedRefundAmount": null,
+      "cancellationCharge": 43.26,
+      "financialConfidence": "confirmed",
+      "events": [
+        {
+          "kind": "charge",
+          "amount": 43.26,
+          "tender": "card",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "merged",
+      "method": "lifecycle_amount"
+    },
+    "sources": [
+      "csv",
+      "email"
+    ],
+    "checkoutDifference": {
+      "status": "available",
+      "amount": 29.92,
+      "emailTotal": 43.26,
+      "exportSubtotal": 13.34,
+      "currencyCode": "CAD",
+      "subtotalBasis": "reconstructed",
+      "emailSourceMessageId": "gmail:pizza-canceled"
+    },
+    "currencyCode": "CAD",
+    "amountBasis": "receipt_total",
+    "resolutionVersion": 1,
+    "evidenceSummary": "Based on receipt total",
+    "id": "canonical-1",
+    "userId": "fixture-user",
+    "items": [
+      {
+        "configuredLineTotal": 13.34,
+        "inferred": false,
+        "name": "Medium",
+        "quantity": 1,
+        "price": 13.34,
+        "customizations": [
+          "Dairy-Free Cheeze",
+          "SIX CHEESE BASE"
+        ]
+      }
+    ],
+    "amountSpent": 43.26,
+    "receiptType": "uber_eats",
+    "restaurantName": "Pizza Pizza (1717 Bank St.)",
+    "orderDate": "2023-12-10T06:20:36.000Z",
+    "dataSource": "csv"
+  },
+  {
+    "orderOutcome": {
+      "version": 3,
+      "counting": "established_order",
+      "orderDay": "2023-12-10",
+      "fulfillment": "completed",
+      "fulfillmentConfidence": "confirmed",
+      "refundStatus": "none_established",
+      "refundConfidence": "unknown",
+      "originalCharge": 19.47,
+      "netAmount": 19.47,
+      "confirmedRefundAmount": null,
+      "estimatedRefundAmount": null,
+      "cancellationCharge": null,
+      "financialConfidence": "confirmed",
+      "events": [
+        {
+          "kind": "charge",
+          "amount": 19.47,
+          "tender": "provider_wallet",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "merged",
+      "method": "final_amount"
+    },
+    "sources": [
+      "csv",
+      "email"
+    ],
+    "checkoutDifference": {
+      "status": "available",
+      "amount": 10.08,
+      "emailTotal": 19.47,
+      "exportSubtotal": 9.39,
+      "currencyCode": "CAD",
+      "subtotalBasis": "reconstructed",
+      "emailSourceMessageId": "gmail:pizza-small"
+    },
+    "currencyCode": "CAD",
+    "amountBasis": "receipt_total",
+    "resolutionVersion": 1,
+    "evidenceSummary": "Based on receipt total",
+    "id": "canonical-2",
+    "userId": "fixture-user",
+    "items": [
+      {
+        "configuredLineTotal": 9.39,
+        "inferred": false,
+        "name": "Small",
+        "quantity": 1,
+        "price": 9.39,
+        "customizations": [
+          "WELL DONE"
+        ]
+      }
+    ],
+    "amountSpent": 19.47,
+    "receiptType": "uber_eats",
+    "restaurantName": "Pizza Pizza (1717 Bank St.)",
+    "orderDate": "2023-12-10T06:47:32.000Z",
+    "dataSource": "csv"
+  },
+  {
+    "orderOutcome": {
+      "version": 3,
+      "counting": "established_order",
+      "orderDay": "2023-12-10",
+      "fulfillment": "completed",
+      "fulfillmentConfidence": "confirmed",
+      "refundStatus": "none_established",
+      "refundConfidence": "unknown",
+      "originalCharge": 48.46,
+      "netAmount": 48.46,
+      "confirmedRefundAmount": null,
+      "estimatedRefundAmount": null,
+      "cancellationCharge": null,
+      "financialConfidence": "confirmed",
+      "events": [
+        {
+          "kind": "charge",
+          "amount": 48.46,
+          "tender": "card",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "merged",
+      "method": "unique_day"
+    },
+    "sources": [
+      "csv",
+      "email"
+    ],
+    "checkoutDifference": {
+      "status": "available",
+      "amount": 41.97,
+      "emailTotal": 48.46,
+      "exportSubtotal": 6.49,
+      "currencyCode": "CAD",
+      "subtotalBasis": "reconstructed",
+      "emailSourceMessageId": "gmail:metro"
+    },
+    "currencyCode": "CAD",
+    "amountBasis": "receipt_total",
+    "resolutionVersion": 1,
+    "evidenceSummary": "Based on receipt total",
+    "id": "canonical-3",
+    "userId": "fixture-user",
+    "items": [
+      {
+        "configuredLineTotal": 6.49,
+        "inferred": false,
+        "name": "Milk",
+        "quantity": 3,
+        "price": 2.1633333333333336,
+        "customizations": []
+      }
+    ],
+    "amountSpent": 48.46,
+    "receiptType": "uber_eats",
+    "restaurantName": "Metro (2515 Bank Street Ottawa )",
+    "orderDate": "2023-12-10T18:06:27.000Z",
+    "dataSource": "csv"
+  },
+  {
+    "orderOutcome": {
+      "version": 3,
+      "counting": "established_order",
+      "orderDay": "2023-12-10",
+      "fulfillment": "completed",
+      "fulfillmentConfidence": "confirmed",
+      "refundStatus": "none_established",
+      "refundConfidence": "unknown",
+      "originalCharge": 45.83,
+      "netAmount": 45.83,
+      "confirmedRefundAmount": null,
+      "estimatedRefundAmount": null,
+      "cancellationCharge": null,
+      "financialConfidence": "confirmed",
+      "events": [
+        {
+          "kind": "charge",
+          "amount": 39.61,
+          "tender": "card",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        },
+        {
+          "kind": "charge",
+          "amount": 6.22,
+          "tender": "provider_wallet",
+          "confidence": "confirmed",
+          "currencyCode": "CAD"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "merged",
+      "method": "unique_day"
+    },
+    "sources": [
+      "csv",
+      "email"
+    ],
+    "checkoutDifference": {
+      "status": "available",
+      "amount": 37.04,
+      "emailTotal": 45.83,
+      "exportSubtotal": 8.79,
+      "currencyCode": "CAD",
+      "subtotalBasis": "reconstructed",
+      "emailSourceMessageId": "gmail:mcdonalds"
+    },
+    "currencyCode": "CAD",
+    "amountBasis": "receipt_total",
+    "resolutionVersion": 1,
+    "evidenceSummary": "Based on receipt total",
+    "id": "canonical-4",
+    "userId": "fixture-user",
+    "items": [
+      {
+        "configuredLineTotal": 8.79,
+        "inferred": false,
+        "name": "Wrap",
+        "quantity": 1,
+        "price": 8.79,
+        "customizations": []
+      }
+    ],
+    "amountSpent": 45.83,
+    "receiptType": "uber_eats",
+    "restaurantName": "McDonald’s (Cahill & Dazé)",
+    "orderDate": "2023-12-10T18:39:24.000Z",
+    "dataSource": "csv"
+  }
+]

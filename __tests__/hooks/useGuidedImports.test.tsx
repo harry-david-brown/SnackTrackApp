@@ -5,6 +5,7 @@ import { createImportPreferencesFixture } from '@/__tests__/fixtures/importPrefe
 let mockPreferences = createImportPreferencesFixture();
 const mockConnect = jest.fn();
 const mockImport = jest.fn();
+const mockSetupOngoingUpdates = jest.fn();
 const mockReport = jest.fn();
 const mockOpenTutorial = jest.fn();
 const mockCloseTutorial = jest.fn();
@@ -17,7 +18,7 @@ let mockOperation: object | null = null;
 const selectedFile = { name: 'saved.zip' };
 const mockFileSession: { file: typeof selectedFile | null; isPending: boolean; choose: jest.Mock; submit: jest.Mock } = { file: selectedFile, isPending: false, choose: mockChooseFile, submit: mockSubmitFile };
 jest.mock('@hooks/useImportFileSession', () => ({ useImportFileSession: () => mockFileSession }));
-jest.mock('@hooks/useImportFlowController', () => ({ useImportFlowController: () => ({ importPreferences: mockPreferences, importPreferencesLoading: false, importPreferencesError: null, activeImportOperation: mockOperation, busy: mockBusy, connectionBusy: false, requestSaving: mockRequestSaving, emailUpdates: { automaticUpdates: true }, connectEmail: mockConnect, connectOutlook: mockConnect, reconnectEmail: mockConnect, importEmail: mockImport, importOutlook: mockImport, reportDownloaded: mockReport, completeTutorial: mockComplete, openProviderTutorial: mockOpenTutorial, closeTutorial: mockCloseTutorial }) }));
+jest.mock('@hooks/useImportFlowController', () => ({ useImportFlowController: () => ({ importPreferences: mockPreferences, importPreferencesLoading: false, importPreferencesError: null, activeImportOperation: mockOperation, activeImportUnavailable: false, busy: mockBusy, connectionBusy: false, requestSaving: mockRequestSaving, emailUpdates: { automaticUpdates: true }, connectEmail: mockConnect, connectOutlook: mockConnect, connectEmailForOngoingTracking: mockConnect, connectOutlookForOngoingTracking: mockConnect, reconnectEmail: mockConnect, reconnectOutlook: mockConnect, setupOngoingUpdates: mockSetupOngoingUpdates, importEmail: mockImport, importOutlook: mockImport, reportDownloaded: mockReport, completeTutorial: mockComplete, openProviderTutorial: mockOpenTutorial, closeTutorial: mockCloseTutorial }) }));
 jest.mock('@hooks/useImportOperation', () => ({ useImportOperation: () => ({ operation: null, isLoading: false, isUnavailable: false }) }));
 const route = { intent: 'choose' as const, provider: null, operationId: null, downloadedVersion: null };
 beforeEach(() => { jest.clearAllMocks(); mockPreferences = createImportPreferencesFixture(); mockBusy = false; mockRequestSaving = false; mockOperation = null; mockFileSession.file = selectedFile; mockChooseFile.mockResolvedValue(selectedFile); mockSubmitFile.mockResolvedValue(undefined); mockConnect.mockResolvedValue(true); mockComplete.mockResolvedValue(true); });
@@ -125,4 +126,12 @@ it.each(['gmail', 'outlook'] as const)('starts the first %s import only from the
   expect(mockImport).not.toHaveBeenCalled();
   await act(async () => { await result.current.startEmail(); });
   expect(mockImport).toHaveBeenCalledWith('initial', true);
+});
+it('continues a connected mailbox into tracking consent without reimporting history', async () => {
+  Object.assign(mockPreferences.gmailConnection, { connected: true, connectionHealth: 'valid', canImport: true });
+  mockPreferences.gmailBaseline.hasCompleted = true;
+  const { result } = renderHook(() => usePostOnboardingImportController({ ...route, intent: 'email', mailbox: 'gmail', gmailPurpose: 'ongoing_tracking' }));
+  await act(async () => { await result.current.startEmail(); });
+  expect(mockSetupOngoingUpdates).toHaveBeenCalledTimes(1);
+  expect(mockImport).not.toHaveBeenCalled();
 });

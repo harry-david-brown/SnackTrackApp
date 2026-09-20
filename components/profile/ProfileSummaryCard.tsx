@@ -11,6 +11,7 @@ interface ProfileSummaryCardProps {
   createdAt: string;
   totalSpent: string;
   totalReceipts: number;
+  orderCountLabel?: string;
 }
 
 const formatMemberSince = (dateString: string) => new Date(dateString).toLocaleDateString('en-US', {
@@ -19,7 +20,7 @@ const formatMemberSince = (dateString: string) => new Date(dateString).toLocaleD
   day: 'numeric',
 });
 
-export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts }: ProfileSummaryCardProps) {
+export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts, orderCountLabel = 'Orders' }: ProfileSummaryCardProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
@@ -33,12 +34,12 @@ export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts
       </View>
       <View style={styles.stats}>
         <View style={styles.stat}>
-          <AppText variant="surfaceTitle" style={styles.statValue} numberOfLines={2}>{totalSpent}</AppText>
+          <AppText variant="surfaceTitle" style={styles.statValue}>{totalSpent}</AppText>
           <AppText variant="metadata" style={styles.statLabel}>Tracked spend</AppText>
         </View>
         <View style={styles.stat}>
           <AppText variant="surfaceTitle" style={styles.statValue} numberOfLines={2}>{totalReceipts}</AppText>
-          <AppText variant="metadata" style={styles.statLabel}>Orders</AppText>
+          <AppText variant="metadata" style={styles.statLabel}>{orderCountLabel}</AppText>
         </View>
       </View>
     </Card>

@@ -24,7 +24,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const history = useRef<GuidedImportSelection[]>([]);
   const handledDirectPicker = useRef<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Partial<Record<ExportProvider, PendingExportRequest>>>({});
-  const legacyRoute = useMemo<ImportRouteParams>(() => ({ returnTo, journeyContext: route.journeyContext, sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: selection.provider, gmailPurpose: null }), [returnTo, route.journeyContext, selection.provider]);
+  const legacyRoute = useMemo<ImportRouteParams>(() => ({ returnTo, journeyContext: route.journeyContext, sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: selection.provider, gmailPurpose: route.gmailPurpose ?? null }), [returnTo, route.gmailPurpose, route.journeyContext, selection.provider]);
   const base = useImportFlowController(legacyRoute, 'manage');
   const openProviderTutorial = base.openProviderTutorial;
   const selectedOperation = useImportOperation(Boolean(route.operationId), false, route.operationId ?? undefined);
@@ -69,7 +69,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     openProviderTutorial(platform(route.provider), 'download');
   }, [route.showDownloadSteps, route.provider, route.downloadedVersion, openProviderTutorial]);
   const operation = route.operationId ? selectedOperation.operation : base.activeImportOperation;
-  const state = resolvePostOnboardingImportJourney({ preferences: base.importPreferences, preferencesLoading: base.importPreferencesLoading, preferencesUnavailable: Boolean(base.importPreferencesError), operation, operationRequested: Boolean(route.operationId), operationLoading: selectedOperation.isLoading, operationUnavailable: selectedOperation.isUnavailable, intent: selection.intent, selectedProvider: selection.provider, selectedMailbox: selection.mailbox, step: selection.step, downloadState: selection.step === 'upload' ? 'downloaded' : 'not_downloaded' });
+  const state = resolvePostOnboardingImportJourney({ preferences: base.importPreferences, preferencesLoading: base.importPreferencesLoading, preferencesUnavailable: Boolean(base.importPreferencesError), operation, operationRequested: Boolean(route.operationId), operationLoading: selectedOperation.isLoading, operationUnavailable: selectedOperation.isUnavailable, intent: selection.intent, selectedProvider: selection.provider, selectedMailbox: selection.mailbox, step: selection.step, downloadState: selection.step === 'upload' ? 'downloaded' : 'not_downloaded', gmailPurpose: route.gmailPurpose });
   const chooseProvider = (provider: ExportProvider) => navigate({ provider, intent: 'provider', mailbox: null, step: selection.step === 'request' ? 'request' : null });
   const selectedFile = fileSession.file;
   const chooseFile = fileSession.choose;
@@ -98,11 +98,14 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     const connection = selection.mailbox === 'gmail' ? base.importPreferences.gmailConnection : base.importPreferences.outlookConnection;
     if (connection.connectionHealth === 'unavailable') { void base.refreshImportPreferences(); return; }
     if (selection.intent === 'reconnect' || !connection.connected || connection.connectionHealth === 'reconnect_required') {
-      const connect = selection.mailbox === 'gmail' ? (selection.intent === 'reconnect' ? base.reconnectEmail : base.connectEmail) : (selection.intent === 'reconnect' ? base.reconnectOutlook : base.connectOutlook);
+      const connect = route.gmailPurpose === 'ongoing_tracking'
+        ? selection.mailbox === 'gmail' ? base.connectEmailForOngoingTracking : base.connectOutlookForOngoingTracking
+        : selection.mailbox === 'gmail' ? (selection.intent === 'reconnect' ? base.reconnectEmail : base.connectEmail) : (selection.intent === 'reconnect' ? base.reconnectOutlook : base.connectOutlook);
       const connected = await connect();
       if (connected) setSelection(current => ({ ...current, intent: 'email' }));
       return;
     }
+    if (route.gmailPurpose === 'ongoing_tracking') { base.setupOngoingUpdates(); return; }
     if (hasMailboxBaseline(base.importPreferences, selection.mailbox)) { navigation.replace({ pathname: '/settings/accounts-permissions', params: { mailbox: selection.mailbox, returnTo } }); return; }
     if (!connection.canImport || importBlocked || base.activeImportUnavailable) return;
     if (selection.mailbox === 'gmail') base.importEmail('initial', base.emailUpdates.automaticUpdates);

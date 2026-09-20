@@ -1,50 +1,80 @@
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState } from 'react-native';
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useUser } from '@contexts/UserContext';
-import type { ImportOperation } from '@features/import-flow/contracts';
-import { isActiveImportOperation } from '@features/import-flow/contracts';
-import { importOperationKeys } from '@lib/queryKeys';
-import { invalidateImportState, invalidateReceiptDerivedData } from '@lib/queryInvalidation';
-import { parseApiError } from '@utils/errorUtils';
-import { importOperationsApi } from '@services/importOperationsApi';
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, AppState } from "react-native";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { useUser } from "@contexts/UserContext";
+import type { ImportOperation } from "@features/import-flow/contracts";
+import { isActiveImportOperation } from "@features/import-flow/contracts";
+import { importOperationKeys } from "@lib/queryKeys";
+import { invalidateReceiptDerivedData } from "@lib/queryInvalidation";
+import { parseApiError } from "@utils/errorUtils";
+import { importOperationsApi } from "@services/importOperationsApi";
 
-export const cacheImportOperation = (queryClient: QueryClient, userId: string, operation: ImportOperation): void => {
+export const cacheImportOperation = (
+  queryClient: QueryClient,
+  userId: string,
+  operation: ImportOperation,
+): void => {
   queryClient.setQueryData(importOperationKeys.active(userId), operation);
 };
 
-export function useImportOperation(enabled = true, announce = false, watchedOperationId?: string) {
+export function useImportOperation(
+  enabled = true,
+  announce = false,
+  watchedOperationId?: string,
+) {
   const { state } = useUser();
   const userId = state.user?.id;
   const queryClient = useQueryClient();
-  const [foreground, setForeground] = useState(AppState.currentState === 'active');
-  const announced = useRef<string|null>(null);
+  const [foreground, setForeground] = useState(
+    AppState.currentState === "active",
+  );
+  const refreshed = useRef<string | null>(null);
+  const announced = useRef<string | null>(null);
   const canQuery = enabled && Boolean(userId);
-  const queryKey = watchedOperationId && userId
-    ? importOperationKeys.detail(userId, watchedOperationId)
-    : importOperationKeys.active(userId ?? 'anonymous');
+  const queryKey =
+    watchedOperationId && userId
+      ? importOperationKeys.detail(userId, watchedOperationId)
+      : importOperationKeys.active(userId ?? "anonymous");
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (next) => setForeground(next === 'active'));
+    const subscription = AppState.addEventListener("change", (next) =>
+      setForeground(next === "active"),
+    );
     return () => subscription.remove();
   }, []);
 
   const query = useQuery({
     queryKey,
     enabled: canQuery,
-    placeholderData: watchedOperationId && userId
-      ? () => {
-          const active = queryClient.getQueryData<ImportOperation | null>(importOperationKeys.active(userId));
-          return active?.id === watchedOperationId ? active : undefined;
-        }
-      : undefined,
+    placeholderData:
+      watchedOperationId && userId
+        ? () => {
+            const active = queryClient.getQueryData<ImportOperation | null>(
+              importOperationKeys.active(userId),
+            );
+            return active?.id === watchedOperationId ? active : undefined;
+          }
+        : undefined,
     queryFn: async () => {
-      if (!userId) throw new Error('Import operations require an authenticated user.');
-      const current = queryClient.getQueryData<ImportOperation|null>(importOperationKeys.active(userId!));
-      if (watchedOperationId) return importOperationsApi.get(watchedOperationId);
-      return current && isActiveImportOperation(current) ? importOperationsApi.get(current.id) : importOperationsApi.getActive();
+      if (!userId)
+        throw new Error("Import operations require an authenticated user.");
+      const current = queryClient.getQueryData<ImportOperation | null>(
+        importOperationKeys.active(userId!),
+      );
+      if (watchedOperationId)
+        return importOperationsApi.get(watchedOperationId);
+      return current && isActiveImportOperation(current)
+        ? importOperationsApi.get(current.id)
+        : importOperationsApi.getActive();
     },
-    refetchInterval: (state) => canQuery && foreground && isActiveImportOperation(state.state.data) ? 2_000 : false,
+    refetchInterval: (state) =>
+      canQuery && foreground && isActiveImportOperation(state.state.data)
+        ? 2_000
+        : false,
     staleTime: 1_000,
   });
   const { data: operation, isPending, refetch } = query;
@@ -58,18 +88,55 @@ export function useImportOperation(enabled = true, announce = false, watchedOper
   }, [canQuery, foreground, refetch]);
 
   useEffect(() => {
-    if (!announce || !userId || !operation || isActiveImportOperation(operation) || announced.current === `${operation.id}:${operation.status}`) return;
-    announced.current = `${operation.id}:${operation.status}`;
-    if (operation.status === 'succeeded') {
-      void Promise.all([invalidateReceiptDerivedData(queryClient, userId), invalidateImportState(queryClient, userId)]);
-      AccessibilityInfo.announceForAccessibility('Import complete. SnackTrack has refreshed your order history.');
-    } else if (operation.status === 'failed' || operation.status === 'cancelled') {
-      void invalidateImportState(queryClient, userId);
-      AccessibilityInfo.announceForAccessibility(operation.status === 'cancelled'
-        ? 'Import cancelled by an administrator.'
-        : 'Import needs attention. Open Add and manage data to review it.');
-    }
-  }, [announce, operation, queryClient, userId]);
+    if (
+      !canQuery ||
+      !userId ||
+      !operation ||
+      isActiveImportOperation(operation)
+    )
+      return;
+    const terminalKey = `${userId}:${operation.id}:${operation.status}:${operation.completedAt ?? operation.updatedAt}`;
+    if (refreshed.current === terminalKey) return;
+    refreshed.current = terminalKey;
+    // Pages may have committed before a failure or cancellation. Every terminal
+    // result refreshes canonical reads, independently of spoken announcements.
+    void invalidateReceiptDerivedData(queryClient, userId);
+  }, [canQuery, operation, queryClient, userId]);
 
-  return { operation: operation ?? null, isLoading: isPending, isUnavailable: query.isError && ![404, 410].includes(parseApiError(query.error).statusCode ?? 0), refresh: refetch };
+  useEffect(() => {
+    if (
+      !canQuery ||
+      !announce ||
+      !userId ||
+      !operation ||
+      isActiveImportOperation(operation)
+    )
+      return;
+    const terminalKey = `${userId}:${operation.id}:${operation.status}:${operation.completedAt ?? operation.updatedAt}`;
+    if (announced.current === terminalKey) return;
+    announced.current = terminalKey;
+    if (operation.status === "succeeded") {
+      AccessibilityInfo.announceForAccessibility(
+        "Import complete. Your order history has been updated.",
+      );
+    } else if (
+      operation.status === "failed" ||
+      operation.status === "cancelled"
+    ) {
+      AccessibilityInfo.announceForAccessibility(
+        operation.status === "cancelled"
+          ? "Import cancelled by an administrator."
+          : "Import needs attention. Open Add and manage data to review it.",
+      );
+    }
+  }, [announce, canQuery, operation, userId]);
+
+  return {
+    operation: operation ?? null,
+    isLoading: isPending,
+    isUnavailable:
+      query.isError &&
+      ![404, 410].includes(parseApiError(query.error).statusCode ?? 0),
+    refresh: refetch,
+  };
 }

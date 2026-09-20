@@ -6,7 +6,7 @@ import type ViewShot from 'react-native-view-shot';
 import { showAlert } from '@utils/platformAlert';
 import { trackAdminEvent } from '@services/adminAnalytics';
 
-export function useWrappedSharing(targetIndex: number, cacheVersion: unknown) {
+export function useWrappedSharing(targetIndex: number, cacheVersion: unknown, enabled = true) {
   const captureRef = useRef<ViewShot | null>(null);
   const imageCache = useRef<Map<number, string>>(new Map());
 
@@ -15,20 +15,22 @@ export function useWrappedSharing(targetIndex: number, cacheVersion: unknown) {
   }, [cacheVersion]);
 
   const captureImage = useCallback(async (): Promise<string | null> => {
+    if (!enabled) return null;
     const cached = imageCache.current.get(targetIndex);
     if (cached) return cached;
     const uri = await captureRef.current?.capture?.();
     if (uri) imageCache.current.set(targetIndex, uri);
     return uri ?? null;
-  }, [targetIndex]);
+  }, [enabled, targetIndex]);
 
   useEffect(() => {
+    if (!enabled) return;
     if (imageCache.current.has(targetIndex)) return;
     const timer = setTimeout(() => {
       void captureImage().catch(() => undefined);
     }, 400);
     return () => clearTimeout(timer);
-  }, [captureImage, targetIndex]);
+  }, [captureImage, enabled, targetIndex]);
 
   const share = useCallback(async function retryableShare(): Promise<void> {
     void trackAdminEvent('wrapped_share_tapped').catch(() => undefined);

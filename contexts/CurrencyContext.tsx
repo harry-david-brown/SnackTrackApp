@@ -5,6 +5,7 @@ import { CurrencyCode, DEFAULT_CURRENCY, detectCurrency, detectCurrencyFromLocal
 
 interface CurrencyContextType {
   currency: CurrencyCode;
+  hasManualSelection: boolean;
   setCurrency: (currency: CurrencyCode) => Promise<void>;
   formatCurrency: (amount: number) => string;
 }
@@ -12,9 +13,11 @@ interface CurrencyContextType {
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
 const CURRENCY_STORAGE_KEY = '@snacktrack_currency';
+const CURRENCY_SELECTION_KEY = '@snacktrack_currency_selection';
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<CurrencyCode>(DEFAULT_CURRENCY);
+  const [hasManualSelection, setHasManualSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,12 +26,15 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const loadCurrency = async () => {
     try {
-      const stored = await AsyncStorage.getItem(CURRENCY_STORAGE_KEY);
+      const [stored, selection] = await Promise.all([
+        AsyncStorage.getItem(CURRENCY_STORAGE_KEY),
+        AsyncStorage.getItem(CURRENCY_SELECTION_KEY),
+      ]);
       
-      if (stored) {
-        // User has manually set a currency preference (or previously auto-detected)
+      if (stored && selection === 'manual') {
         const detected = detectCurrency(stored);
         setCurrencyState(detected);
+        setHasManualSelection(true);
       } else {
         // No stored preference - auto-detect from device locale
         // Method 1: Try to use currencyCode directly from locale (most accurate)
@@ -75,8 +81,6 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         }
         
         setCurrencyState(autoDetected);
-        // Store the auto-detected currency so it persists
-        await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, autoDetected);
       }
     } catch {
       // Default to USD on error
@@ -88,8 +92,12 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const setCurrency = async (newCurrency: CurrencyCode) => {
     try {
-      await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency);
+      await Promise.all([
+        AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency),
+        AsyncStorage.setItem(CURRENCY_SELECTION_KEY, 'manual'),
+      ]);
       setCurrencyState(newCurrency);
+      setHasManualSelection(true);
     } catch {
       // Silently fail - user can try again
     }
@@ -105,6 +113,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       <CurrencyContext.Provider
         value={{
           currency: DEFAULT_CURRENCY,
+          hasManualSelection: false,
           setCurrency,
           formatCurrency: (amount: number) => {
             return formatCurrencyUtil(amount, DEFAULT_CURRENCY);
@@ -117,7 +126,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, formatCurrency }}>
+    <CurrencyContext.Provider value={{ currency, hasManualSelection, setCurrency, formatCurrency }}>
       {children}
     </CurrencyContext.Provider>
   );
@@ -130,4 +139,3 @@ export function useCurrency() {
   }
   return context;
 }
-

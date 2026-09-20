@@ -87,13 +87,19 @@ function canonicalFlowParams(pathname: string, params: SearchParams): Comparable
 
 export function navigationDestinationKey(destination: Href): string {
   const { pathname, params } = destinationParts(destination);
+  return navigationStateKey(pathname, params);
+}
+
+/** Stable identity for the route Expo Router has actually reported. */
+export function navigationStateKey(pathname: string, params: SearchParams): string {
   const query = Object.entries(params)
     .map(([key, value]) => [key, first(value)] as const)
     .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
-  return query ? `${pathname}?${query}` : pathname;
+  const normalizedPathname = normalizeNavigationPath(pathname);
+  return query ? `${normalizedPathname}?${query}` : normalizedPathname;
 }
 
 export function isActualHomeTab(segments: readonly string[]): boolean {

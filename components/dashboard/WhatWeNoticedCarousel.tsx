@@ -1,3 +1,4 @@
+import { formatReceiptMoney } from '@utils/receiptMoney';
 import type {
   DashboardExportProvider,
   DashboardInsight,
@@ -30,6 +31,7 @@ import {
 interface Props {
   insights: DashboardInsight[];
   onOpenExport: () => void;
+  onViewOrders?: (insight: DashboardInsight) => void;
   partialExportProvider?: DashboardExportProvider;
   onOpenProviderExport?: (provider: DashboardExportProvider) => void;
 }
@@ -87,7 +89,23 @@ function formatPeriod(insight: DashboardInsight) {
   return `${start} – ${formatLocalDate(insight.period.endDate)}`;
 }
 
+function concentrationOrderCount(insight: DashboardInsight) {
+  if (insight.presentation !== 'hero' || insight.id !== 'spending-concentration' || insight.valueFormat !== 'percent') return undefined;
+  if (insight.spendingConcentration) return insight.spendingConcentration.orderCount;
+  // Cached editions before the structured count use the same top-decile population.
+  const sampleSize = insight.methodology?.sampleSize;
+  return sampleSize && sampleSize >= 10 ? Math.ceil(sampleSize * 0.1) : undefined;
+}
+
 function accessibilityCopy(insight: DashboardInsight, formatCurrency: (amount: number) => string) {
+  const concentrationCount = concentrationOrderCount(insight);
+  if (concentrationCount && insight.presentation === 'hero') {
+    return `The big orders. Your largest ${concentrationCount} orders make up ${Math.round(insight.value)}% of your spending.`;
+  }
+  if (insight.presentation === 'hero' && insight.busyDay) {
+    return [insight.eyebrow, `${insight.value} orders`, 'One busy day', formatLocalDate(insight.busyDay.date),
+      ...insight.busyDay.spending.map(row => `${formatBusyDayMoney(row.amount, row.currencyCode)} spent`)].join('. ');
+  }
   const pieces = [insight.eyebrow, insight.title, formatPeriod(insight), insight.detail];
   if (insight.presentation === 'hero') pieces.push(insight.headline, formatValue(insight.value, insight.valueFormat, formatCurrency));
   if (insight.presentation === 'comparison') {
@@ -125,15 +143,17 @@ const EXPORT_PROVIDER_COPY: Record<DashboardExportProvider, {
 function ExportCoverageBadge({
   provider,
   onOpenCoverage,
+  footer = false,
 }: {
   provider: DashboardExportProvider;
   onOpenCoverage: () => void;
+  footer?: boolean;
 }) {
   const { styles, theme } = useInsightVisuals();
   const { includedName } = EXPORT_PROVIDER_COPY[provider];
   const label = `${includedName} history only`;
   return <TouchableOpacity
-    style={styles.coverageBadge}
+    style={footer ? styles.coverageFooter : styles.coverageBadge}
     onPress={onOpenCoverage}
     accessibilityRole="button"
     accessibilityLabel={`Data coverage: ${label}. More information`}
@@ -210,7 +230,8 @@ function YearlyChampions({
 
 function InsightBody({ insight, onOpenExport, onInteract }: { insight: DashboardInsight; onOpenExport: () => void; onInteract: () => void }) {
   const { styles, accents, theme } = useInsightVisuals();
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency: legacyCurrency } = useCurrency();
+  const formatCurrency = (amount: number) => formatReceiptMoney(amount, insight.currencyCode, legacyCurrency);
   if (insight.presentation === 'hero') return <>
     {insight.headline ? <Text style={styles.headline}>{insight.headline}</Text> : null}
     <Text style={styles.bigValue} adjustsFontSizeToFit numberOfLines={1}>{formatValue(insight.value, insight.valueFormat, formatCurrency)}</Text>
@@ -294,22 +315,51 @@ function InsightBody({ insight, onOpenExport, onInteract }: { insight: Dashboard
   </TouchableOpacity>;
 }
 
-function InsightCard({ insight, index, total, paused, partialExportProvider, onTogglePaused, onInteract, onOpenExport, onOpenCoverage }: {
-  insight: DashboardInsight; index: number; total: number; paused: boolean; partialExportProvider?: DashboardExportProvider; onTogglePaused: () => void; onInteract: () => void; onOpenExport: () => void; onOpenCoverage: () => void;
+function formatBusyDayMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+}
+
+function InsightCard({ insight, index, total, paused, partialExportProvider, onTogglePaused, onInteract, onOpenExport, onOpenCoverage, onViewOrders }: {
+  insight: DashboardInsight; index: number; total: number; paused: boolean; partialExportProvider?: DashboardExportProvider; onTogglePaused: () => void; onInteract: () => void; onOpenExport: () => void; onOpenCoverage: () => void; onViewOrders?: (insight: DashboardInsight) => void;
 }) {
   const { styles, accents, theme } = useInsightVisuals();
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency: legacyCurrency } = useCurrency();
+  const formatCurrency = (amount: number) => formatReceiptMoney(amount, insight.currencyCode, legacyCurrency);
   const tone = accents[insight.category];
   const period = formatPeriod(insight);
-  return <Card style={styles.card}>
+  const busyDay = insight.presentation === 'hero' ? insight.busyDay : undefined;
+  const concentrationCount = concentrationOrderCount(insight);
+  return <Card style={[styles.card, busyDay || concentrationCount ? styles.busyDayCard : undefined]}>
     <View style={styles.cardHeader}>
       <View style={[styles.iconBadge, { backgroundColor: tone.surface }]}><Ionicons name={ICONS[insight.icon]} size={22} color={tone.accent} /></View>
-      <Text style={[styles.eyebrow, { color: tone.accent }]}>{insight.eyebrow.toLocaleUpperCase()}</Text>
+      <Text style={[styles.eyebrow, { color: tone.accent }]}>{concentrationCount ? 'THE BIG ORDERS' : insight.eyebrow.toLocaleUpperCase()}</Text>
       {total > 1 ? <TouchableOpacity style={styles.pauseButton} onPress={onTogglePaused} accessibilityRole="button" accessibilityLabel={paused ? 'Resume automatic insight rotation' : 'Pause automatic insight rotation'} accessibilityState={{ selected: paused }} hitSlop={8}>
         <Ionicons name={paused ? 'play' : 'pause'} size={17} color={theme.colors.textSecondary} />
       </TouchableOpacity> : null}
     </View>
     <View accessible accessibilityLabel={`Insight ${index + 1} of ${total}. ${accessibilityCopy(insight, formatCurrency)}`}>
+      {concentrationCount && insight.presentation === 'hero' ? <>
+        <Text style={styles.concentrationCount}>{concentrationCount.toLocaleString()} orders.</Text>
+        <Text style={[styles.concentrationValue, { color: tone.accent }]}>{Math.round(insight.value)}%</Text>
+        <Text style={styles.concentrationLabel}>of your spending</Text>
+        <View style={[styles.concentrationTrack, { backgroundColor: tone.surface }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View testID="spending-concentration-fill" style={{ height: '100%', width: `${Math.max(0, Math.min(100, insight.value))}%`, backgroundColor: tone.accent, borderRadius: Radius.pill }} />
+        </View>
+        <Text style={styles.concentrationDetail}>Your biggest orders make up this share.</Text>
+      </> : busyDay && insight.presentation === 'hero' ? <>
+        <Text style={styles.busyDayCount}>{insight.value.toLocaleString()} orders.</Text>
+        <Text style={styles.busyDaySubtitle}>One busy day.</Text>
+        <View style={styles.busyDayFooter}>
+          <View style={styles.busyDayDate}>
+            <Ionicons name="calendar-outline" size={17} color={tone.accent} accessibilityElementsHidden />
+            <Text style={styles.busyDayDateText}>{formatLocalDate(busyDay.date)}</Text>
+          </View>
+          {busyDay.spending.length > 0 ? <View style={styles.busyDaySpending}>
+            {busyDay.spending.map(row => <Text key={row.currencyCode} style={styles.busyDayAmount}>{formatBusyDayMoney(row.amount, row.currencyCode)}</Text>)}
+            <Text style={styles.busyDaySpent}>spent</Text>
+          </View> : null}
+        </View>
+      </> : <>
       <Text style={styles.cardTitle}>{insight.title}</Text>
       {period ? <View style={[styles.periodBadge, { backgroundColor: tone.surface }]}>
         <Ionicons name="calendar-outline" size={14} color={tone.accent} accessibilityElementsHidden />
@@ -318,8 +368,18 @@ function InsightCard({ insight, index, total, paused, partialExportProvider, onT
       {insight.presentation !== 'locked' ? <InsightBody insight={insight} onOpenExport={onOpenExport} onInteract={onInteract} /> : null}
       {insight.detail ? <Text style={styles.detail}>{insight.detail}</Text> : null}
       <Methodology insight={insight} />
+      </>}
     </View>
-    {partialExportProvider ? <ExportCoverageBadge provider={partialExportProvider} onOpenCoverage={onOpenCoverage} /> : null}
+    {insight.orderEvidence && onViewOrders ? <TouchableOpacity
+      style={styles.ordersLink}
+      onPress={() => { onInteract(); onViewOrders(insight); }}
+      accessibilityRole="link"
+      accessibilityLabel={`View the ${insight.orderEvidence.count} ${insight.orderEvidence.count === 1 ? 'order' : 'orders'} behind ${insight.eyebrow}`}
+    >
+      <Text style={[styles.ordersLinkText, { color: tone.accent }]}>View {insight.orderEvidence.count} {insight.orderEvidence.count === 1 ? 'order' : 'orders'}</Text>
+      <Ionicons name="arrow-forward" size={15} color={tone.accent} accessibilityElementsHidden />
+    </TouchableOpacity> : null}
+    {partialExportProvider ? <ExportCoverageBadge provider={partialExportProvider} onOpenCoverage={onOpenCoverage} footer={!!concentrationCount} /> : null}
     {insight.presentation === 'locked' ? <InsightBody insight={insight} onOpenExport={onOpenExport} onInteract={onInteract} /> : null}
   </Card>;
 }
@@ -345,7 +405,7 @@ function OutroCard({ paused, onTogglePaused }: { paused: boolean; onTogglePaused
   </Card>;
 }
 
-export function WhatWeNoticedCarousel({ insights, onOpenExport, partialExportProvider, onOpenProviderExport }: Props) {
+export function WhatWeNoticedCarousel({ insights, onOpenExport, onViewOrders, partialExportProvider, onOpenProviderExport }: Props) {
   const theme = useAppTheme();
   const visual = React.useMemo<InsightVisuals>(() => ({ theme, styles: createStyles(theme), accents: createAccents(theme) }), [theme]);
   const { styles } = visual;
@@ -420,7 +480,7 @@ export function WhatWeNoticedCarousel({ insights, onOpenExport, partialExportPro
       keyExtractor={slide => slide.id}
       renderItem={({ item, index }) => <View testID={`insight-card-frame-${index}`} style={[styles.cardFrame, { width: cardWidth }]}>
         {item.kind === 'insight'
-          ? <InsightCard insight={item.insight} index={index} total={insights.length} paused={paused} partialExportProvider={partialExportProvider} onTogglePaused={() => setPaused(value => !value)} onInteract={() => setPaused(true)} onOpenExport={() => { setPaused(true); onOpenExport(); }} onOpenCoverage={openCoverageExplanation} />
+          ? <InsightCard insight={item.insight} index={index} total={insights.length} paused={paused} partialExportProvider={partialExportProvider} onTogglePaused={() => setPaused(value => !value)} onInteract={() => setPaused(true)} onOpenExport={() => { setPaused(true); onOpenExport(); }} onOpenCoverage={openCoverageExplanation} onViewOrders={onViewOrders} />
           : <OutroCard paused={paused} onTogglePaused={() => setPaused(value => !value)} />}
       </View>}
       getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
@@ -446,6 +506,23 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   stage: { marginHorizontal: -2 },
   cardFrame: { paddingBottom: Spacing.xl },
   card: { marginHorizontal: 2, padding: Spacing.lg, minHeight: 330 },
+  busyDayCard: { minHeight: 0 },
+  concentrationCount: { color: theme.colors.textPrimary, fontSize: 28, lineHeight: 36, fontWeight: '600' },
+  concentrationValue: { fontSize: 68, lineHeight: 78, fontWeight: '600', marginTop: Spacing.sm },
+  concentrationLabel: { color: theme.colors.textPrimary, fontSize: 20, lineHeight: 27 },
+  concentrationTrack: { height: 8, borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
+  concentrationDetail: { color: theme.colors.textSecondary, fontSize: 14, lineHeight: 21, marginTop: Spacing.md },
+  coverageFooter: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider },
+  ordersLink: { alignSelf: 'flex-start', minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing.sm },
+  ordersLinkText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  busyDayCount: { color: theme.colors.textPrimary, fontSize: 44, lineHeight: 53, fontWeight: '600' },
+  busyDaySubtitle: { color: theme.colors.textSecondary, fontSize: 21, lineHeight: 28, marginTop: 2 },
+  busyDayFooter: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider, marginTop: Spacing.lg, paddingTop: Spacing.md },
+  busyDayDate: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexShrink: 1 },
+  busyDayDateText: { color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20, flexShrink: 1 },
+  busyDaySpending: { marginLeft: 'auto', alignItems: 'flex-end', flexShrink: 1 },
+  busyDayAmount: { color: theme.colors.textPrimary, fontSize: 20, lineHeight: 27, fontWeight: '600' },
+  busyDaySpent: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 17 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
   iconBadge: { width: 42, height: 42, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 1.1 },
