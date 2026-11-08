@@ -43,6 +43,7 @@ export default function ProfileScreen() {
         <ProfileSettingsCard
           currency={profile.currency}
           mailboxConnectionsLabel={profile.settings.mailboxConnectionsLabel}
+          notificationsSupported={profile.deviceNotifications.supported}
           importNotificationsLabel={profile.importNotificationsLabel}
           destructiveActionBusy={profile.isClearingReceipts || profile.isDeleting}
           showDevelopmentReset={profile.showDevelopmentReset}

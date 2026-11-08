@@ -1,15 +1,19 @@
-import type { OrderMetrics } from '@/types/orderMetrics';
-import { orderMetricKnownCostLabel } from '@features/receipts/orderMetricPresentation';
+import type { UserSummary } from '@/types/api';
+import type { CurrencyCode } from '@utils/currency';
 
-/** Profile uses the same currency-separated canonical totals as History and Summary. */
+/** The server converts canonical net costs into the selected profile currency. */
 export function profileReceiptSummary(
-  analytics: { totalSpent: number; totalReceipts: number; orderMetrics?: OrderMetrics } | undefined,
+  analytics: Pick<UserSummary, 'totalReceipts' | 'orderMetrics' | 'normalizedSpend'> | undefined,
   formatCurrency: (value: number) => string,
+  currency: CurrencyCode,
 ) {
-  const metrics = analytics?.orderMetrics;
+  const normalized = analytics?.normalizedSpend;
+  const totalSpent = !analytics ? '—'
+    : !normalized || normalized.currencyCode !== currency || normalized.amount === null ? 'Spending unavailable'
+      : `${normalized.approximate ? '≈ ' : ''}${formatCurrency(normalized.amount)}`;
   return {
-    totalSpent: metrics ? orderMetricKnownCostLabel(metrics, formatCurrency) : analytics ? formatCurrency(analytics.totalSpent) : '—',
-    totalReceipts: metrics?.attempts ?? analytics?.totalReceipts ?? 0,
+    totalSpent,
+    totalReceipts: analytics?.orderMetrics?.attempts ?? analytics?.totalReceipts ?? 0,
     orderCountLabel: 'Orders',
   };
 }

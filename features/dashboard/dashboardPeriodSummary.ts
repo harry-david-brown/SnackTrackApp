@@ -20,6 +20,7 @@ export interface DashboardPeriodSummary {
   monthKey: string | null;
   monthLabel: string | null;
   isCurrentMonth: boolean;
+  isFirstTrackedMonth: boolean;
   label: string;
   totalSpent: number;
   receiptCount: number;
@@ -112,6 +113,7 @@ export function resolveDashboardPeriodSummary(
       monthKey: null,
       monthLabel: null,
       isCurrentMonth: false,
+      isFirstTrackedMonth: false,
       label: 'All-time delivery spending',
       totalSpent,
       receiptCount,
@@ -133,6 +135,9 @@ export function resolveDashboardPeriodSummary(
   const comparisonReliable = !summary?.orderMetrics || (!incomplete(orderMetrics) && !incomplete(previousMetrics) && summary.orderMetricPeriods?.undatedRecords === 0);
   const totalSpent = current?.totalSpent ?? 0;
   const receiptCount = current?.receiptCount ?? 0;
+  const isFirstTrackedMonth = receiptCount > 0 && !(summary?.monthlyBreakdown ?? []).some(
+    (month) => month.receiptCount > 0 && parseMonthKey(month.month) !== null && month.month < normalizedSelectedKey,
+  );
   const isCurrentMonth = normalizedSelectedKey === currentKey;
   const comparableDays = Math.min(now.getDate(), new Date(previousDate.getFullYear(), previousDate.getMonth() + 1, 0).getDate());
   const sumDays = (month: string) => Object.entries(summary?.dailyBreakdown ?? {}).filter(([date]) => date.startsWith(month) && Number(date.slice(8,10)) <= comparableDays).reduce((sum,[,day]) => sum + day.total, 0);
@@ -146,6 +151,7 @@ export function resolveDashboardPeriodSummary(
     monthKey: normalizedSelectedKey,
     monthLabel: monthAndYearLabel(selectedDate),
     isCurrentMonth: normalizedSelectedKey === currentKey,
+    isFirstTrackedMonth,
     label: `${monthLabel(selectedDate)} delivery spending`,
     totalSpent,
     receiptCount,

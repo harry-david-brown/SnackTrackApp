@@ -69,6 +69,10 @@ Do not independently calculate title, badge, completion, button action, and icon
 - Avoid callbacks named only `onPress` when the semantic event is more informative at the feature boundary.
 - Make interactive components expose accessibility role, label, state, disabled state, and adequate hit area.
 
+## Interaction presentation
+
+Use the owners and patterns in [visual-and-accessibility.md](visual-and-accessibility.md#motion-and-feedback) for selections, disclosures, presses, and page transitions. Animation state is local presentation state: it must not delay a query, become a second source of selection truth, or control navigation outcomes through completion callbacks.
+
 ## Navigation
 
 - Follow the canonical policy in [architecture-patterns.md](architecture-patterns.md#navigation-policy). Use typed destination builders and `useAppNavigation()`; never introduce a second imperative router owner in a screen, component, or hook.

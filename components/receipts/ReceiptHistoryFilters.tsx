@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { FontFamily, Radius, Spacing, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
+import { AnimatedChoiceGroup } from '@components/ui/AnimatedChoiceGroup';
 import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
 import {
@@ -80,14 +81,14 @@ export function ReceiptHistoryFilters({
         <AppButton label="Reset" variant="tertiary" onPress={onClear} disabled={!hasFilters} />
       </View>
       <FilterGroup label="Service">
-        {receiptProviderFilters.map(filter => <FilterChip key={filter.value} label={filter.label} selected={selection.provider === filter.value} onPress={() => onSelectionChange({ ...selection, provider: filter.value })} />)}
+        <AnimatedChoiceGroup options={receiptProviderFilters} value={selection.provider} onChange={value => onSelectionChange({ ...selection, provider: value })} />
       </FilterGroup>
       <FilterGroup label="Date">
-        {receiptDateRangeFilters.map(filter => <FilterChip key={filter.value} label={filter.label} selected={selection.dateRange === filter.value} onPress={() => onSelectionChange({ ...selection, dateRange: filter.value })} />)}
+        <AnimatedChoiceGroup options={receiptDateRangeFilters} value={selection.dateRange} onChange={value => onSelectionChange({ ...selection, dateRange: value })} />
       </FilterGroup>
       {hasOutcomeEvidence ? <>
         <FilterGroup label="Activity">
-          {receiptOutcomeFilters.map(filter => <FilterChip key={filter.value} label={filter.label} selected={selection.outcome === filter.value} onPress={() => onSelectionChange({ ...selection, outcome: filter.value })} />)}
+          <AnimatedChoiceGroup options={receiptOutcomeFilters} value={selection.outcome} onChange={value => onSelectionChange({ ...selection, outcome: value })} />
         </FilterGroup>
         <View>
           <Pressable
@@ -148,23 +149,8 @@ function FilterGroup({ label, children }: { label: string; children: ReactNode }
   const styles = useMemo(() => createStyles(theme), [theme]);
   return <View style={styles.group}>
     <AppText variant="metadata" tone="muted">{label}</AppText>
-    <View style={styles.chips}>{children}</View>
+    {children}
   </View>;
-}
-
-function FilterChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return <Pressable
-    accessibilityRole="button"
-    accessibilityLabel={`Filter: ${label}`}
-    accessibilityState={{ selected }}
-    onPress={onPress}
-    style={({ pressed }) => [styles.chip, selected && styles.selectedChip, pressed && styles.pressed]}
-  >
-    {selected ? <Ionicons name="checkmark" size={16} color={theme.colors.chipActiveText} /> : null}
-    <AppText variant="metadata" style={[styles.flexibleText, styles.chipText, selected && styles.selectedText]}>{label}</AppText>
-  </Pressable>;
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
@@ -181,7 +167,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { minHeight: 44, maxWidth: '100%', paddingHorizontal: Spacing.compact, paddingVertical: Spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radius.pill, borderWidth: 1, borderColor: theme.colors.divider, backgroundColor: theme.colors.surface },
   selectedChip: { borderColor: theme.colors.chipActiveBg, backgroundColor: theme.colors.chipActiveBg },
-  chipText: { color: theme.colors.textSecondary },
   selectedText: { color: theme.colors.chipActiveText, fontFamily: FontFamily.medium },
   flexibleText: { flexShrink: 1 },
   refundInfo: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

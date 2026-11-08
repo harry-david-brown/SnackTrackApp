@@ -276,7 +276,7 @@ describe("resolveImportFlowState", () => {
 
     expect(result.exportImport).toEqual({
       complete: false,
-      label: "1 of 2 imported",
+      label: "History saved · another source is optional",
       tone: "optional",
     });
     expect(result.showOneTimeGmailImport).toBe(false);

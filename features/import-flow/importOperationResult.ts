@@ -33,9 +33,40 @@ export function resolveImportOperationResult(operation: ImportOperation): Import
 export function importResultCopy(summary: ImportOperationResultSummary) {
   const nothingChanged = summary.changedOrders === 0;
   const needsMatching = (summary.unresolvedOrders ?? 0) > 0 || (summary.receiptOutcome?.unlinkedAdjustments ?? 0) > 0;
-  const duplicatesOnly = nothingChanged && (summary.unchangedOrders ?? 0) > 0 && !needsMatching;
+  const alreadySaved = nothingChanged && (summary.unchangedOrders ?? 0) > 0;
   const empty = nothingChanged && summary.unchangedOrders === 0 && !needsMatching;
-  const title = nothingChanged && needsMatching ? 'Import complete' : duplicatesOnly ? 'These orders are already saved' : empty ? 'No supported orders found' : nothingChanged ? 'No orders added or updated' : summary.changedOrders === null ? 'Your history was imported' : `${summary.changedOrders} orders added or updated`;
-  const body = nothingChanged && needsMatching ? 'Your receipts have been saved. Your order history is ready to view.' : duplicatesOnly ? `All ${summary.unchangedOrders} supported orders found were already in your history. They were not added twice.` : empty ? `We didn’t find supported delivery orders in this ${summary.sourceName} import. Try another inbox or an original provider download.` : nothingChanged ? 'Your existing order history is unchanged.' : summary.importedOrders !== null && summary.changedOrders === null ? `${summary.sourceName} imported ${summary.importedOrders} supported orders. View your history to explore them.` : `${summary.sourceName} has finished updating your history.`;
+  const orderLabel = (value: number) => `${value} ${value === 1 ? 'order' : 'orders'}`;
+  const title = alreadySaved
+    ? `${orderLabel(summary.unchangedOrders!)} already saved`
+    : empty ? 'No supported orders found'
+      : summary.changedOrders !== null && summary.changedOrders > 0
+        ? `${orderLabel(summary.changedOrders)} added or updated`
+        : 'Import finished';
+  const resultBody = alreadySaved
+    ? 'No new orders were added.'
+    : empty
+      ? `We didn’t find supported delivery orders in this ${summary.sourceName} import. Try another inbox or an original provider download.`
+      : nothingChanged ? 'No orders were added or updated.'
+        : summary.changedOrders === null
+          ? summary.importedOrders !== null
+            ? `${summary.sourceName} imported ${orderLabel(summary.importedOrders)}. View your history to explore them.`
+            : 'View your order history to see what is saved.'
+          : `${summary.sourceName} has finished updating your history.`;
+  const body = needsMatching
+    ? `${resultBody} Some receipts still need matching before they appear in your totals.`
+    : resultBody;
   return { title, body, nothingChanged, empty, needsMatching };
+}
+
+export interface MailboxOutcome {
+  mailbox: 'gmail' | 'outlook'; email: string | null; success: boolean; errorCode: string | null;
+}
+export function resolveMailboxOutcomes(operation: ImportOperation): MailboxOutcome[] {
+  const outcomes = operation.result?.mailboxOutcomes;
+  if (!Array.isArray(outcomes)) return [];
+  return outcomes.flatMap(value => {
+    if (!value || typeof value !== 'object' || !['gmail', 'outlook'].includes(value.mailbox) || typeof value.success !== 'boolean') return [];
+    return [{ mailbox: value.mailbox, email: typeof value.email === 'string' ? value.email : null,
+      success: value.success, errorCode: typeof value.errorCode === 'string' ? value.errorCode : null }];
+  });
 }

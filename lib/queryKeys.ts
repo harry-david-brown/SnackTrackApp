@@ -1,7 +1,7 @@
 export const analyticsKeys = {
   all: ["analytics"] as const,
-  summary: (userId: string) =>
-    [...analyticsKeys.all, userId, "summary"] as const,
+  summary: (userId: string, currency?: string) =>
+    [...analyticsKeys.all, userId, "summary", ...(currency ? [currency] : [])] as const,
   wrapped: (userId: string, currency?: string) =>
     [...analyticsKeys.all, userId, "wrapped", "historical-v1", ...(currency ? [currency] : [])] as const,
   dashboardInsights: (userId: string, localDate: string, devDayOffset = 0) =>

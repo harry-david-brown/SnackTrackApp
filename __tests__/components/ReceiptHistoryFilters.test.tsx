@@ -6,6 +6,7 @@ import { normalizeReceipt } from "@services/api/receiptApi";
 import { normalizeOrderMetrics } from "@services/normalizers/orderMetricNormalizers";
 import historyFixture from "@/__tests__/fixtures/order-event-history.json";
 import metricsFixture from "@/__tests__/fixtures/order-event-metrics.json";
+import { ApiClientError } from '@services/api/apiError';
 
 jest.mock("@services/api/client");
 jest.mock("@hooks/queries/useReceiptsQuery");
@@ -99,6 +100,43 @@ afterEach(async () => {
   });
   jest.useRealTimers();
   jest.restoreAllMocks();
+});
+
+it.each([false, true])('keeps loaded orders after request failure (next page: %s) and retries that request', async (nextPage) => {
+  const refetch = jest.fn();
+  const fetchNextPage = jest.fn();
+  jest.mocked(useReceiptsQuery).mockReturnValue({
+    data: { pages: [{ items: records, pageInfo: { total: 50 } }] },
+    isPending: false, isError: true, isRefetching: false, isFetching: false,
+    isFetchingNextPage: false, isFetchNextPageError: nextPage, hasNextPage: true,
+    error: new ApiClientError({ code: 'NETWORK_ERROR', kind: 'network', message: 'Offline', retryable: true }),
+    refetch, fetchNextPage,
+  } as unknown as ReturnType<typeof useReceiptsQuery>);
+  const screen = render(<ReceiptHistoryScreen />);
+  await waitFor(() => expect(screen.getAllByText(records[0].restaurantName!).length).toBeGreaterThan(0));
+  fireEvent.press(screen.getByText('Try again'));
+  expect(nextPage ? fetchNextPage : refetch).toHaveBeenCalledTimes(1);
+  expect(nextPage ? refetch : fetchNextPage).not.toHaveBeenCalled();
+  screen.unmount();
+});
+
+it('preserves the insight filter and offers retry when its orders cannot be loaded', async () => {
+  const refetch = jest.fn();
+  jest.mocked(useReceiptsQuery).mockReturnValue({
+    isPending: false, isError: true, isRefetching: false, isFetching: false,
+    isFetchingNextPage: false, isFetchNextPageError: false, hasNextPage: false,
+    error: new ApiClientError({ code: 'NETWORK_ERROR', kind: 'network', message: 'Offline', retryable: true }),
+    refetch, fetchNextPage: jest.fn(),
+  } as unknown as ReturnType<typeof useReceiptsQuery>);
+  const insightFilter = { id: 'restaurant', localDate: '2026-09-21', label: 'Your favourite restaurant' };
+  const screen = render(<ReceiptHistoryScreen insightFilter={insightFilter} />);
+  await waitFor(() => expect(screen.getByText('Connection Problem')).toBeTruthy());
+  expect(screen.getByText(insightFilter.label)).toBeTruthy();
+  expect(screen.queryByText('This stat has refreshed')).toBeNull();
+  fireEvent.press(screen.getByText('Try again'));
+  expect(refetch).toHaveBeenCalledTimes(1);
+  expect(jest.mocked(useReceiptsQuery).mock.calls.at(-1)?.[1]?.insight).toMatchObject({ id: insightFilter.id, localDate: insightFilter.localDate });
+  screen.unmount();
 });
 
 it("composes outcome and provider filters, keeps the selected outcome visible for empty results and clears all filters", async () => {

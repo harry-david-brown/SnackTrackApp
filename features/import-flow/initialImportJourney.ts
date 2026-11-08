@@ -1,6 +1,6 @@
 import type { ImportFlowState } from './importFlowResolver';
 
-export type ImportSetupPath = 'email' | 'gmail' | 'outlook' | 'alternative' | null;
+export type ImportSetupPath = 'choose_method' | 'email' | 'gmail' | 'outlook' | 'alternative' | null;
 export type MailboxOAuthReturnState = {
   readonly provider: 'gmail' | 'outlook';
   readonly status: 'confirming' | 'failed';
@@ -57,6 +57,8 @@ export function resolveInitialImportJourney(
       providerName: oauthReturn.provider === 'gmail' ? 'Gmail' : 'Outlook',
     };
   }
+  // An explicit return to the choices must not resume the connected inbox.
+  if (selectedPath === 'choose_method') return { kind: 'choose_method' };
   if (selectedPath === 'alternative') return { kind: 'choose_provider' };
   if (flow.hasImportedEmailData || flow.hasAnyExportData) return { kind: 'complete' };
   if (providerJourneyStarted(flow)) return { kind: 'provider_resume' };

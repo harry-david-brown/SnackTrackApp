@@ -108,6 +108,7 @@ export function isActualHomeTab(segments: readonly string[]): boolean {
 
 export function inferImportReturnTo(pathname: string): ImportReturnTo {
   switch (normalizeNavigationPath(pathname)) {
+    case '/ongoing-updates': return 'ongoing_updates';
     case '/history': return 'history';
     case '/wrapped-journey': return 'summary';
     case '/profile':

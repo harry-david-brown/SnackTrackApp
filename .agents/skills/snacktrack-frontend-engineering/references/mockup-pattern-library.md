@@ -170,9 +170,11 @@ Value comes before management. Only critical import or reconnect failure may mov
 Composition:
 
 1. `YOUR ORDERS` eyebrow, “History” title, concise explanation.
-2. Compact pill filters with provider chips visible by default.
+2. The original reference shows compact pill filters with provider chips visible by default. The current implementation instead uses search plus an expandable filter panel and collapsed active-filter chips. This placement difference is unresolved; a motion-only task must preserve the current placement rather than silently restore the reference or declare the newer layout approved. Resolve it explicitly when History layout is in scope.
 3. Orders grouped in one white 24pt surface with dividers, 44pt logo/avatar column, muted metadata, and right-aligned totals.
 4. Compact coverage/status link to Data & tracking.
+
+Use the shared animated choice group for provider/date/activity selections and measured disclosures for inline order details. The interaction prototype demonstrated motion; it did not require replacing inline details with a separate order-detail route. See [visual-and-accessibility.md](visual-and-accessibility.md#motion-and-feedback) for shared ownership and transition rules.
 
 Insert a compact ad only after the fifth visible order in the unfiltered default list and never between a group heading and its first order.
 

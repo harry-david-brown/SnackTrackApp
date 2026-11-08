@@ -20,7 +20,7 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 3. Identify the authoritative owner for every value before editing.
 4. Define the complete user-state matrix, including loading, empty, success, failure, reconnect, and retry states.
 5. For destructive account-data mutations, load `snacktrack-account-data-lifecycle` and inventory every query/device cache while preserving authentication storage.
-6. For visual work, compare the affected screen with the canonical mockup before implementation. Record the hierarchy, page archetype, component treatments, mascot role, and primary/secondary action order that must survive the translation to React Native.
+6. For visual work, compare the affected screen with the canonical mockup and the later interaction decisions documented in the visual reference. Record the hierarchy, page archetype, component treatments, mascot role, action order, and motion behavior that must survive the translation to React Native. Follow the verification ownership in the testing reference; device or emulator inspection is not an automatic prerequisite.
 7. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
 8. Add regression coverage at the pure decision point and integration boundary.
 9. For any route, deep-link, back action, notification, or background-completion change, inspect the navigation ownership rules in [references/architecture-patterns.md](references/architecture-patterns.md) and the navigation checks in [references/testing-and-definition-of-done.md](references/testing-and-definition-of-done.md).
@@ -34,8 +34,9 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 - Derive complicated UI states with typed pure resolvers. Do not spread the same precedence rules across JSX branches and effects.
 - Validate or explicitly normalize transport data before exposing typed domain objects to components.
 - Use configured path aliases for cross-directory imports and consume public module barrels where available; follow [references/architecture-patterns.md](references/architecture-patterns.md) for the import-boundary convention.
-- Treat the approved root-level `snacktrack-ux-revision.html` as the product visual source of truth. Its SnackTrack mobile screens and `.st-*` rules govern hierarchy and visual character; the visualization viewer chrome around them does not.
+- Treat the approved root-level `snacktrack-ux-revision.html` as the visual foundation. Its SnackTrack mobile screens and `.st-*` rules govern hierarchy and visual character; the visualization viewer chrome around them does not. Later explicit user decisions take precedence for their stated scope; see the authority and motion sections of the visual reference. Experimental prototypes do not silently replace page recipes or navigation.
 - Treat current theme tokens and shared primitives as implementation, not immutable design authority. Reuse them when they match the approved visual language; revise or replace them deliberately when they preserve the older UI instead.
+- Reuse `constants/motion.ts`, `contexts/MotionContext.tsx`, and the shared interaction primitives for motion work. Follow the motion and feedback section in [references/visual-and-accessibility.md](references/visual-and-accessibility.md#motion-and-feedback), including the shadow-compositing rule.
 - Centralize approved values in theme tokens and stable primitives as they are implemented. Do not scatter raw colors or recreate card, button, badge, row, or full-screen journey styling across screens.
 - Do not accept palette-only fidelity. A screen must also match the mockup's typography, weight, density, whitespace, radii, surface grouping, mascot scale, action hierarchy, and overall composition.
 - Preserve explicit consent boundaries and machine-readable recovery states.

@@ -30,7 +30,7 @@ describe('guided returning-user imports', () => {
   it('does not let a waiting Uber request override DoorDash or email', () => {
     const preferences = createImportPreferencesFixture();
     preferences.export.providers.uberEats.status = 'requested';
-    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'provider', selectedProvider: 'doordash' }))).toMatchObject({ kind: 'provider_intro', provider: { provider: 'doordash' } });
+    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'provider', selectedProvider: 'doordash' }))).toMatchObject({ kind: 'request', provider: { provider: 'doordash' } });
     expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'email' })).kind).toBe('email_choice');
   });
   it('reconnects only the chosen mailbox', () => {
@@ -47,7 +47,7 @@ describe('guided returning-user imports', () => {
     const state = resolvePostOnboardingImportJourney(input(preferences));
     expect(state.kind).toBe('choose_method');
     if (state.kind === 'choose_method') expect(state.providers).toHaveLength(2);
-    expect(resolvePostOnboardingImportJourney(input(preferences, { selectedProvider: 'doordash', intent: 'provider' })).kind).toBe('provider_intro');
+    expect(resolvePostOnboardingImportJourney(input(preferences, { selectedProvider: 'doordash', intent: 'provider' })).kind).toBe('request');
   });
   it.each([['requested', 'provider_waiting'], ['file_ready', 'download_ready'], ['failed', 'provider_failed']] as const)('resumes a specifically requested %s source', (status, kind) => {
     const preferences = createImportPreferencesFixture();
@@ -67,10 +67,10 @@ describe('guided returning-user imports', () => {
     expect(resolvePostOnboardingImportJourney(input(createImportPreferencesFixture(), { step, selectedProvider: 'uber_eats' })).kind).toBe('request');
     expect(resolvePostOnboardingImportJourney(input(createImportPreferencesFixture(), { step })).kind).toBe('choose_method');
   });
-  it('routes existing email importers to automatic import settings instead of a manual resync', () => {
+  it('keeps repeat imports explicit without changing automatic-update consent', () => {
     const preferences = createImportPreferencesFixture();
     preferences.gmailBaseline.hasCompleted = true;
-    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'email', selectedMailbox: 'gmail' })).kind).toBe('email_settings');
+    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'email', selectedMailbox: 'gmail' })).kind).toBe('email_review');
     expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'reconnect', selectedMailbox: 'gmail' })).kind).toBe('email_review');
   });
   it('keeps a completed inbox in the reviewed flow when it was opened for ongoing tracking', () => {
@@ -105,4 +105,20 @@ it('surfaces stale status even with a cached active operation', () => {
 it('keeps file-location help distinct from a fresh download request', () => {
   const preferences = createImportPreferencesFixture();
   expect(resolvePostOnboardingImportJourney(input(preferences, { selectedProvider: 'uber_eats', step: 'file_help' })).kind).toBe('file_help');
+});
+
+
+describe('shared export journey lifecycle boundaries', () => {
+  it.each(['uber_eats', 'doordash'] as const)('opens %s at saved progress and keeps guide viewing separate', selectedProvider => {
+    const preferences = createImportPreferencesFixture();
+    const provider = selectedProvider === 'uber_eats' ? preferences.export.providers.uberEats : preferences.export.providers.doorDash;
+    provider.status = 'requested';
+    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'provider', selectedProvider })).kind).toBe('provider_waiting');
+    expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'provider', selectedProvider, step: 'request' })).kind).toBe('request');
+    expect(provider.status).toBe('requested');
+  });
+  it('never presents background ready checks as an import result', () => {
+    const background = { ...operation('succeeded'), kind: 'export_ready_check' as const };
+    expect(resolvePostOnboardingImportJourney(input(createImportPreferencesFixture(), { operation: background, operationRequested: true })).kind).toBe('missing_operation');
+  });
 });

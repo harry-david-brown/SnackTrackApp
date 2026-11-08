@@ -6,6 +6,8 @@ import { Platform } from 'react-native';
 import { notificationDeviceApi } from '@services/notificationDeviceApi';
 import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 
+export const supportsImportNotifications = () => Device.isDevice && (Platform.OS === 'ios' || Platform.OS === 'android');
+
 export const registerImportNotificationDevice = async (): Promise<void> => {
   if (!Device.isDevice || (Platform.OS !== 'ios' && Platform.OS !== 'android')) return;
   if (Platform.OS === 'android') {

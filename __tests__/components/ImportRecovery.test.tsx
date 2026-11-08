@@ -9,6 +9,7 @@ import { IMPORT_PROGRESS_COMPLETE_HOLD_MS } from '@features/import-flow/importPr
 import { experienceApi } from '@services/experienceApi';
 import { useAppNavigation } from '@features/navigation';
 import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
+jest.mock('@hooks/useImportPreferences', () => ({ useImportPreferences: () => ({ preferences: null, isLoading: false }) }));
 let mockFocused = true;
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }));
 let mockUnavailable = false;
@@ -38,13 +39,13 @@ it('does not let an unfocused result screen redirect over the active import jour
   expect(experienceApi.getState).not.toHaveBeenCalled();
   expect(router.replace).not.toHaveBeenCalled();
 });
-it('distinguishes duplicate-only completion and preserves explicit zero counts', async () => {
+it('shows the already-saved total without redundant zero counts', async () => {
   mockOperation = { ...mockOperation, result: { newOrders: 0, updatedOrders: 0, unchangedOrders: 8 } };
   const screen = render(<ImportResultScreen operationId="operation" />);
   await act(async () => {});
-  expect(screen.getByText('These orders are already saved')).toBeTruthy();
-  expect(screen.getAllByText('0')).toHaveLength(2);
-  expect(screen.getByText('8')).toBeTruthy();
+  expect(screen.getByText('8 orders already saved')).toBeTruthy();
+  expect(screen.queryByText('0')).toBeNull();
+  expect(screen.queryByText('Already saved')).toBeNull();
   expect(screen.queryByText('View added orders')).toBeNull();
 });
 it('shows ordinary import results without listing refund, cancellation or reconciliation diagnostics', async () => {
@@ -58,7 +59,7 @@ it('shows ordinary import results without listing refund, cancellation or reconc
   expect(screen.getByText('273 orders added or updated')).toBeTruthy();
   expect(screen.getByText('New')).toBeTruthy();
   expect(screen.getByText('Updated')).toBeTruthy();
-  expect(screen.queryByText(/refund|cancel|not linked|unknown|matching|extra orders/i)).toBeNull();
+  expect(screen.queryByText(/refund|cancel|not linked|unknown|extra orders/i)).toBeNull();
 });
 it('distinguishes an empty result from unavailable counts', async () => {
   mockOperation = { ...mockOperation, result: { newOrders: 0, updatedOrders: 0, unchangedOrders: 0 } };
@@ -67,10 +68,10 @@ it('distinguishes an empty result from unavailable counts', async () => {
   mockOperation = { ...mockOperation, result: {} };
   screen.rerender(<ImportResultScreen operationId="operation" />);
   await act(async () => {});
-  expect(screen.getByText('Your history was imported')).toBeTruthy();
+  expect(screen.getByText('Import finished')).toBeTruthy();
   expect(screen.queryByText('New')).toBeNull();
 });
-it('makes Summary the primary action when an existing recap is available', async () => {
+it('makes replaying the recap the primary action when a recap was already seen', async () => {
   jest.mocked(experienceApi.getState).mockResolvedValueOnce({
     setup: { state: 'complete', completedAt: '', completionMethod: 'email_receipts', activeOperationId: null },
     firstRecap: { state: 'seen', minimumOrderCount: 3, version: 'lifetime-v1', seenAt: '' },
@@ -80,16 +81,65 @@ it('makes Summary the primary action when an existing recap is available', async
   const screen = render(<ImportResultScreen operationId="operation" />);
   await act(async () => {});
 
-  const actions = screen.getAllByRole('button');
+  expect(screen.getByRole('button', { name: 'Close import result' })).toBeTruthy();
+  const actions = screen.getAllByRole('button').filter(action => action.props.accessibilityLabel !== 'Close import result');
   expect(actions.map(action => action.props.accessibilityLabel)).toEqual([
-    'View Summary',
+    'Play my recap',
     'View order history',
-    'Add orders',
-    'Close',
+    'Add more history',
   ]);
   expect(StyleSheet.flatten(actions[0].props.style)).toEqual(expect.objectContaining({
     backgroundColor: LightTheme.colors.primary,
   }));
+  fireEvent.press(actions[0]);
+  expect(router.replace).toHaveBeenCalledWith({
+    pathname: '/(tabs)/wrapped-journey',
+    params: { restart: expect.any(String), entryPoint: 'summary' },
+  });
+});
+it.each([
+  { kind: 'export_file', provider: 'uber_eats' },
+  { kind: 'export_file', provider: 'doordash' },
+  { kind: 'gmail_historical', provider: null },
+  { kind: 'outlook_historical', provider: null },
+] as const)('prioritizes the ready recap after $kind / $provider', async source => {
+  mockOperation = { ...mockOperation, ...source, result: { newOrders: 903, updatedOrders: 0, unchangedOrders: 0 } };
+  jest.mocked(experienceApi.getState).mockResolvedValueOnce({
+    setup: { state: 'complete', completedAt: '', completionMethod: 'provider_archive', activeOperationId: null },
+    firstRecap: { state: 'ready', minimumOrderCount: 3, version: 'lifetime-v1', seenAt: null },
+    receiptCount: 903,
+  });
+  const screen = render(<ImportResultScreen operationId="operation" returnTo="history" />);
+  await act(async () => {});
+
+  expect(screen.getByRole('button', { name: 'Close import result' })).toBeTruthy();
+  const actions = screen.getAllByRole('button').filter(action => action.props.accessibilityLabel !== 'Close import result');
+  expect(actions.map(action => action.props.accessibilityLabel)).toEqual([
+    'Play my recap', 'View order history', 'Add more history',
+  ]);
+  expect(StyleSheet.flatten(actions[0].props.style)).toEqual(expect.objectContaining({ backgroundColor: LightTheme.colors.primary }));
+  expect(router.replace).not.toHaveBeenCalled();
+  fireEvent.press(actions[0]);
+  expect(router.replace).toHaveBeenCalledWith({
+    pathname: '/(tabs)/wrapped-journey',
+    params: { restart: expect.any(String), entryPoint: 'automatic_first_import' },
+  });
+  fireEvent.press(actions[1]);
+  expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/history');
+  fireEvent.press(actions[2]);
+  expect(router.replace).toHaveBeenLastCalledWith({ pathname: '/add-history', params: { returnTo: 'history' } });
+});
+it('keeps order history primary when there are too few orders for a recap', async () => {
+  jest.mocked(experienceApi.getState).mockResolvedValueOnce({
+    setup: { state: 'complete', completedAt: '', completionMethod: 'provider_archive', activeOperationId: null },
+    firstRecap: { state: 'ineligible', minimumOrderCount: 3, version: 'lifetime-v1', seenAt: null },
+    receiptCount: 2,
+  });
+  const screen = render(<ImportResultScreen operationId="operation" />);
+  await act(async () => {});
+  expect(screen.getAllByRole('button').map(action => action.props.accessibilityLabel)).toEqual([
+    'Close import result', 'View order history', 'Add more history',
+  ]);
 });
 it.each(['onboarding', 'post_onboarding'] as const)('gives source-specific terminal recovery for %s', journeyContext => {
   mockOperation = { ...mockOperation, status: 'failed', provider: 'doordash', journeyContext };
@@ -114,11 +164,29 @@ it('offers a new file selection for an unfinished upload without claiming proces
   fireEvent.press(screen.getByText('Choose the file again'));
   expect(router.replace).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ provider: 'uber_eats', downloadedVersion: 'resume' }) }));
 });
-it('allows leaving after accepted background processing', () => {
-  mockOperation = { ...mockOperation, status: 'queued' };
+it('allows leaving after accepted Gmail background processing', () => {
+  mockOperation = { ...mockOperation, kind: 'gmail_historical', provider: null, status: 'queued' };
   const screen = render(<ImportProgressScreen operationId="operation" returnTo="summary" />);
   fireEvent.press(screen.getByText('Continue using SnackTrack'));
   expect(router.replace).toHaveBeenCalledWith('/(tabs)/wrapped-journey');
+});
+it.each(['pending_dispatch', 'queued', 'running', 'retrying'] as const)('keeps export processing focused on results while %s', status => {
+  mockOperation = { ...mockOperation, status };
+  const screen = render(<ImportProgressScreen operationId="operation" />);
+  expect(screen.queryByText('Continue using SnackTrack')).toBeNull();
+  expect(screen.queryByText('Your import is accepted. You can leave and return from Add orders.')).toBeNull();
+  expect(screen.getByText('We’ll show your results when your history is ready.')).toBeTruthy();
+});
+it('does not offer background continuation during file upload', () => {
+  mockOperation = { ...mockOperation, status: 'awaiting_upload' };
+  const screen = render(<ImportProgressScreen operationId="operation" uploadActive uploadProgress={30} />);
+  expect(screen.queryByText('Continue using SnackTrack')).toBeNull();
+  expect(screen.getByText('Keep SnackTrack open until your file is accepted.')).toBeTruthy();
+});
+it('offers the same continuation action for Outlook imports', () => {
+  mockOperation = { ...mockOperation, kind: 'outlook_historical', provider: null, status: 'running' };
+  const screen = render(<ImportProgressScreen operationId="operation" />);
+  expect(screen.getByText('Continue using SnackTrack')).toBeTruthy();
 });
 it('keeps delayed imports on the standard progress screen and shows the time estimate', () => {
   mockOperation = {
@@ -194,4 +262,12 @@ it('retries the automatic result handoff when another transition is still settli
   act(() => { jest.advanceTimersByTime(100); });
   expect(replace).toHaveBeenCalledTimes(2);
   jest.useRealTimers();
+});
+
+it.each(['succeeded', 'failed'] as const)('does not show a cached %s result over a new upload', async status => {
+  mockOperation = { ...mockOperation, status };
+  const screen = render(<ImportProgressScreen uploadActive uploadProgress={0.25} />);
+  await act(async () => {});
+  expect(screen.getByText('Keep SnackTrack open until your file is accepted.')).toBeTruthy();
+  expect(router.replace).not.toHaveBeenCalled();
 });

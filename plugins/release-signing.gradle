@@ -1,0 +1,42 @@
+// SnackTrack release signing policy
+// EAS injects its release credentials later. Local/other CI builds use secrets.
+def releaseSecret = { name -> providers.environmentVariable(name).orNull ?: findProperty(name) }
+android {
+    signingConfigs {
+        release {
+            def releaseStore = releaseSecret('SNACKTRACK_RELEASE_STORE_FILE')
+            if (releaseStore) storeFile file(releaseStore)
+            storePassword releaseSecret('SNACKTRACK_RELEASE_STORE_PASSWORD')
+            keyAlias releaseSecret('SNACKTRACK_RELEASE_KEY_ALIAS')
+            keyPassword releaseSecret('SNACKTRACK_RELEASE_KEY_PASSWORD')
+        }
+    }
+    buildTypes.release.signingConfig = signingConfigs.release
+}
+
+// Inspect the final configuration, including any EAS override, before execution.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') }) {
+        def signing = android.buildTypes.release.signingConfig
+        if (!signing || signing.name == 'debug' || !signing.storeFile?.isFile() ||
+            !signing.storePassword || !signing.keyPassword || !signing.keyAlias ||
+            signing.keyAlias.equalsIgnoreCase('androiddebugkey')) {
+            throw new GradleException('Release signing requires a dedicated EAS or CI release key.')
+        }
+        def store = java.security.KeyStore.getInstance(signing.storeType ?: 'JKS')
+        signing.storeFile.withInputStream { store.load(it, signing.storePassword.toCharArray()) }
+        def certificate = store.getCertificate(signing.keyAlias)
+        if (!certificate || certificate.subjectX500Principal.name.toLowerCase().contains('cn=android debug')) {
+            throw new GradleException('Android debug certificates cannot sign SnackTrack releases.')
+        }
+        def debug = android.signingConfigs.debug
+        if (debug.storeFile?.isFile()) {
+            def debugStore = java.security.KeyStore.getInstance(debug.storeType ?: 'JKS')
+            debug.storeFile.withInputStream { debugStore.load(it, debug.storePassword.toCharArray()) }
+            def debugCertificate = debugStore.getCertificate(debug.keyAlias)
+            if (debugCertificate && java.util.Arrays.equals(certificate.encoded, debugCertificate.encoded)) {
+                throw new GradleException('The release certificate matches the development certificate.')
+            }
+        }
+    }
+}

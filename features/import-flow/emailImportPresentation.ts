@@ -5,16 +5,11 @@ export function hasMailboxBaseline(preferences: ImportPreferencesResponse, mailb
 }
 
 export function emailUpdatesPresentation(preferences: ImportPreferencesResponse | null) {
-  const consent = preferences?.ongoingTracking.consentState;
-  const optedOut = consent === 'declined' || consent === 'revoked';
-  const automaticUpdates = consent === 'not_offered';
   return {
-    automaticUpdates,
-    label: automaticUpdates ? 'Import & enable automatic updates' : 'Import my receipts',
-    description: optedOut
-      ? 'Automatic updates are off. Your choice stays saved; you can turn them on anytime in Settings.'
-      : automaticUpdates
-        ? 'Import your delivery receipts and automatically add new ones. You can turn this off anytime in Settings.'
-        : 'Automatic updates are enabled. SnackTrack will keep checking for new receipts when your connection is healthy.',
+    automaticUpdates: false,
+    label: 'Import my receipts',
+    description: preferences?.ongoingTracking.consentState === 'granted'
+      ? 'Import receipts from this inbox. Your existing automatic-update setting stays saved.'
+      : 'Import receipts from this inbox once. You can choose automatic updates after importing.',
   };
 }

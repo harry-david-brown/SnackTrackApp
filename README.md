@@ -75,6 +75,16 @@ A native iOS and Android React Native/Expo app that shows you how much you waste
 - Check that `EXPO_PUBLIC_API_URL` is set in `.env`
 - Run `npm run verify` to check all requirements
 
+**Metro crashes with `TypeError: eventsQueue is not iterable`?**
+- Keep Metro versions managed by Expo's `@expo/metro` package. SDK 54 currently pins Metro 0.83.3; forcing Metro 0.83.8 through npm overrides changes the file-watcher event format expected by Expo CLI.
+- Remove incompatible `metro` / `metro-*` overrides, run `npm install`, then restart with `npm start` (which clears Metro's cache). Commit both `package.json` and `package-lock.json` when changing dependencies.
+- A Watchman recrawl warning is separate. If it persists, stop Metro and run `watchman watch-del "$PWD"` followed by `watchman watch-project "$PWD"` from the `SnackTrackApp` directory, then restart Metro.
+
+**Android shows `Unable to activate keep awake` after returning to the app?**
+- Expo SDK 54's development wrapper activates an optional keep-awake module. Its activation promise can reject when Android has no current activity during a lifecycle transition.
+- SnackTrack does not use this module, so `expo.autolinking.android.exclude` in `package.json` excludes `expo-keep-awake`, following [Expo's optional-module guidance](https://docs.expo.dev/bare/installing-expo-modules/#excluding-specific-modules-from-autolinking). Android uses its normal screen timeout during development.
+- Stop Metro, then run `npm run android` to rebuild and install the development app. A JavaScript reload or Metro restart alone cannot remove a module from an already-installed native build. After rebuilding, check Home → reopen the app.
+
 **Can't connect to API?**
 - Ensure the complete backend is running (`npm run backend:start`)
 - For mobile testing, use your computer's IP address instead of `localhost`

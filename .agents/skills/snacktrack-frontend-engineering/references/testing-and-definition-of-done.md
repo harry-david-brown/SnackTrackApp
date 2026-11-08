@@ -59,6 +59,10 @@ When navigation behavior changes, cover the narrowest relevant policy and contro
 - Home-only background completion and the same-operation result no-op;
 - critical upload/save blockers, including the rule that blocked external actions are discarded and do not mutate handoff state.
 
+### Motion regression coverage
+
+When changing motion lifecycle or selection behavior, cover interruption by a newer selection, live reduced-motion changes, stale initial preference reads, background/foreground handling, and subscription/animation cleanup as relevant. Assert that the latest state stays usable and collapsed content stays inaccessible. Do not add tests merely to freeze timing numbers or duplicate style implementation.
+
 ## Test hygiene
 
 - Wrap asynchronous state updates in the test framework’s required `act` flow.
@@ -79,7 +83,11 @@ For ordinary code changes, run only:
 npm run type-check
 ```
 
-Do not run focused tests, the full test suite, lint, theme validation, or `npm run ci` unless the user explicitly requests those checks. Adding regression coverage does not imply running it.
+Do not run focused tests, the full test suite, lint, theme validation, or `npm run ci` unless the user explicitly requests those checks. Adding regression coverage does not imply running it. Documentation-only skill edits do not require an app TypeScript check.
+
+Device and emulator verification belongs to the user by default, as specified in `SnackTrackApp/AGENTS.md`. Do not launch or control iOS Simulator or Android Emulator unless explicitly requested. Their absence is not incomplete code verification. State what was checked and provide a short, change-specific device handoff without claiming unobserved visual results.
+
+For motion changes, the relevant device checks are rapid provider changes (including empty/error results), tab switches in both directions with shadowed cards, opening and closing details, interrupted transitions, reduced motion, and background/foreground restoration. Include larger text or rotation when measuring control geometry. Browser mockups and static screenshots cannot confirm native compositing quality.
 
 ## Definition of done
 
@@ -98,7 +106,8 @@ Do not run focused tests, the full test suite, lint, theme validation, or `npm r
 - [ ] Back actions have explicit deep-link-safe fallbacks, and asynchronous navigation sources define auth, route, deduplication, blocker, discard/defer, and return behavior.
 - [ ] Focused regression tests cover the decision point.
 - [ ] Relevant journey integration coverage was considered.
-- [ ] The app TypeScript check passes.
+- [ ] The app TypeScript check passes for code changes.
+- [ ] For motion changes, the device handoff covers relevant transitions and shadow compositing; observed results are distinguished from code checks.
 - [ ] Tests, lint, theme validation, or CI were run only when the user explicitly requested them.
 - [ ] Obsolete state, styles, imports, flags, and compatibility code were removed when safe.
 - [ ] Destructive reset tests prove authentication is preserved while imported data and all affected caches are removed.

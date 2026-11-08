@@ -1,3 +1,4 @@
+import { clearMailboxAuthorization } from './mailboxAuthorizationStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { logger } from './logger';
@@ -280,6 +281,7 @@ export const clearAuthTokens = async (): Promise<void> => {
     try {
       // Clear sensitive tokens
       await Promise.all([
+        clearMailboxAuthorization().catch(() => {}),
         deleteSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN).catch(() => {}),
         deleteSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
       ]);
@@ -308,6 +310,7 @@ export const clearAuthTokensIfRefreshTokenMatches = async (
     return false;
   }
   await Promise.all([
+    clearMailboxAuthorization().catch(() => {}),
     deleteSecureItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN).catch(() => {}),
     deleteSecureItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
     AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_ID),

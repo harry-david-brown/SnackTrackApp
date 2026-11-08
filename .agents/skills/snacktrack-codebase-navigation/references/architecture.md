@@ -37,6 +37,9 @@ Use this map to choose a starting point. Confirm names with `rg --files` because
 - `services/authApi.ts`, `services/analyticsApi.ts`, `services/gmailApi.ts`, `services/outlookApi.ts`, and `services/importOperationsApi.ts`: domain requests and response normalization.
 - `types/api.ts`: manually maintained transport types.
 - `constants/theme.ts`: canonical colors, spacing, typography, and shared tokens.
+- `constants/motion.ts`, `contexts/MotionContext.tsx`: motion tokens and shared reduced-motion/inactivity policy.
+- `components/ui/AppButton.tsx`, `AnimatedChoiceGroup.tsx`, `AnimatedDisclosure.tsx`: press feedback, measured choice highlights, and expanding details.
+- `app/(tabs)/_layout.tsx`, `app/_layout.tsx`: tab and stack transition presentation.
 - `docs/design-system.md`: design intent; verify implementation against `constants/theme.ts`.
 - `components/ui/AppAlertProvider.tsx`, `utils/appAlert.ts`, `utils/platformAlert.ts`: standard app modal/alert path.
 

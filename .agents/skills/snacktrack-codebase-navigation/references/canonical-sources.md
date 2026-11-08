@@ -15,6 +15,8 @@
 - UI state precedence: the closest pure resolver in `SnackTrackApp/components/` or `hooks/`.
 - App navigation: `SnackTrackApp/features/navigation/` owns imperative navigation, typed destinations, route normalization, external intents, and critical-flow blockers; `SnackTrackApp/app/_layout.tsx` owns the root protected route tree and authenticated global-controller lifetime.
 - Theme: `SnackTrackApp/constants/theme.ts`.
+- Motion: `SnackTrackApp/constants/motion.ts` owns shared motion tokens; `contexts/MotionContext.tsx` owns runtime motion preference and inactivity handling. `components/ui/AppButton.tsx`, `AnimatedChoiceGroup.tsx`, and `AnimatedDisclosure.tsx` own their reusable interactions. Paths after the first are relative to `SnackTrackApp/`.
+- Transition presentation: `SnackTrackApp/app/(tabs)/_layout.tsx` and `app/_layout.tsx`; route decisions remain in `features/navigation`. See the frontend skill’s motion reference before selecting presets or fading elevated surfaces.
 - Admin transport and rendering: `SnackTrackAdmin/src/api.ts`, `src/contracts.ts`, and the matching file in `src/pages/`; API role enforcement remains canonical.
 - Expected regressions: focused tests nearest the behavior.
 

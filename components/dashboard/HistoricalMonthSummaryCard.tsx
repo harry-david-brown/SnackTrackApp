@@ -26,7 +26,7 @@ export function HistoricalMonthSummaryCard({
       ? `About the same as ${comparison.previousLabel}`
       : `${displayMoney(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
     : summary.receiptCount > 0
-      ? 'Your first tracked month'
+      ? summary.isFirstTrackedMonth ? 'Your first tracked month' : 'Month comparison unavailable'
       : 'No tracked orders found';
   const body = summary.receiptCount > 0
     ? `${summary.receiptCount} ${summary.receiptCount === 1 ? 'order' : 'orders'} averaged ${displayMoney(summary.averageOrderValue)} each.`

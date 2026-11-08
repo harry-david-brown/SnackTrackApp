@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mascot } from '@components/mascot/Mascot';
 import WrappedShareJourney from '@components/wrapped/WrappedShareJourney';
@@ -39,6 +40,7 @@ export default function WrappedJourneyScreen() {
   const rawEntryPoint = Array.isArray(route.entryPoint) ? route.entryPoint[0] : route.entryPoint;
   const entryPoint = rawEntryPoint === 'notification' ? 'notification' as const : rawEntryPoint === 'automatic_first_import' ? 'automatic_first_import' as const : 'summary' as const;
   const [showJourney, setShowJourney] = useState(Boolean(restartToken) || entryPoint !== 'summary');
+  const exitedRecap = useRef<{ restartToken: string | undefined } | null>(null);
   const [recapSeenRecorded, setRecapSeenRecorded] = useState(false);
   const visibleJourneyRecorded = useRef(false);
   const feeTrend = journey.analytics?.wrappedAnalytics?.comparative.deliveryFeeTrend;
@@ -51,6 +53,32 @@ export default function WrappedJourneyScreen() {
   useEffect(() => {
     if (feeTrend) void trackAdminEvent('fee_trend_displayed', { properties: { trend: feeTrend.trend, coveredOrderCount: feeTrend.coveredOrderCount } }).catch(() => undefined);
   }, [feeTrend]);
+
+  // Keep the recap mounted during the navigator’s shared page transition.
+  // Reset it when Summary is next focused, avoiding a flash of Summary on exit.
+  useFocusEffect(useCallback(() => {
+    if (!exitedRecap.current) return;
+    if (exitedRecap.current.restartToken === restartToken) setShowJourney(false);
+    exitedRecap.current = null;
+  }, [restartToken]));
+
+  const closeRecap = useCallback(() => {
+    const outcome = navigation.replace(
+      entryPoint === 'automatic_first_import' && journey.shouldOfferUpdates
+        ? { pathname: '/ongoing-updates', params: { automatic: 'true' } }
+        : appDestinations.home,
+    );
+    if (outcome === 'navigated') exitedRecap.current = { restartToken };
+  }, [entryPoint, journey.shouldOfferUpdates, navigation, restartToken]);
+
+  useFocusEffect(useCallback(() => {
+    if (!showJourney) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeRecap();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [closeRecap, showJourney]));
 
   const recordFirstSlide = useCallback(() => {
     if (recapSeenRecorded) return;
@@ -100,8 +128,8 @@ export default function WrappedJourneyScreen() {
         onExportUpsellSeen={journey.markExportOfferSeen}
         onExportUpgrade={journey.openExportUpgrade}
         onExportTutorial={journey.openExportTutorial}
-        onFinishPostWrapped={() => setShowJourney(false)}
-        onClose={() => setShowJourney(false)}
+        onFinishPostWrapped={closeRecap}
+        onClose={closeRecap}
         entryPoint={entryPoint}
       />
     );

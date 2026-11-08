@@ -161,11 +161,13 @@ describe("gmailApi Gmail connection purpose", () => {
     await gmailApi.getAuthUrl(
       "snacktrack://oauth-callback",
       "ongoing_tracking",
+      "a".repeat(64),
     );
 
     expect(api.post).toHaveBeenCalledWith("/gmail/auth-url", {
       redirectUri: "snacktrack://oauth-callback",
       purpose: "ongoing_tracking",
+      handoffChallenge: "a".repeat(64),
     });
   });
 });

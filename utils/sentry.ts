@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { getEnvConfig } from '@config/env';
 import { logger } from './logger';
+import { scrubAuthTelemetry } from './authTelemetry';
 
 /**
  * Initialize Sentry for error tracking and performance monitoring
@@ -45,8 +46,10 @@ export function initSentry(): void {
           }
           // Don't filter out actual errors - we want to see them even in dev
         }
-        return event;
+        return scrubAuthTelemetry(event);
       },
+      beforeBreadcrumb: (breadcrumb) => scrubAuthTelemetry(breadcrumb),
+      beforeSendTransaction: (event) => scrubAuthTelemetry(event),
       
       // Native crash reporting - automatically enabled
       enableNativeCrashHandling: true,
@@ -192,4 +195,3 @@ export function trackScreenLoad(screenName: string): void {
     // Screen load is tracked automatically when the callback completes
   });
 }
-

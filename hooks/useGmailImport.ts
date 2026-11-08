@@ -1,3 +1,5 @@
+import { resumeOrSubmitMailboxImport, ImportStatusUnavailableError } from '@services/mailboxImportSubmission';
+import { beginMailboxAuthorization, finishMailboxAuthorization } from '@services/mailboxAuthorization';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import * as AuthSession from "expo-auth-session";
@@ -95,7 +97,8 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
           return false;
         }
 
-        const result = await gmailApi.importReceipts(journeyContext, automaticUpdates);
+        if (!userId) return false;
+        const result = await resumeOrSubmitMailboxImport(userId, 'gmail', key => gmailApi.importReceipts(journeyContext, automaticUpdates, key));
 
         if (userId) {
           cacheImportOperation(queryClient, userId, result);
@@ -103,6 +106,10 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         }
         return result;
       } catch (error: unknown) {
+        if (error instanceof ImportStatusUnavailableError) {
+          showSimpleAlert('Import status unavailable', 'Check your connection and reload the saved import before starting another.');
+          return false;
+        }
         const domainError = toDomainError(error);
         if (domainError.code === "IMPORT_IN_PROGRESS") {
           showSimpleAlert(
@@ -119,8 +126,8 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
           );
         } else if (domainError.kind === "network") {
           showSimpleAlert(
-            "Import Timeout",
-            "The import is taking longer than expected. This might mean you have many emails to process. Please try again or check your connection.",
+            "Import status unconfirmed",
+            "We couldn’t confirm whether the import started. Check your connection and try again; we’ll resume any saved work.",
           );
         } else {
           showSimpleAlert("Import Failed", domainError.message);
@@ -163,7 +170,9 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         redirect.searchParams.set('returnIntent', purpose === 'connection_recovery' ? 'reconnect' : 'email');
         const redirectUri = redirect.toString();
 
-        const { authUrl } = await gmailApi.getAuthUrl(redirectUri, purpose);
+        if (!userId) throw new Error('Sign in before connecting your email.');
+        const handoffChallenge = await beginMailboxAuthorization('gmail', userId);
+        const { authUrl } = await gmailApi.getAuthUrl(redirectUri, purpose, handoffChallenge);
         const authResult = await WebBrowser.openAuthSessionAsync(
           authUrl,
           redirectUri,
@@ -190,7 +199,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
             resultUrl.searchParams.get("gmailPurpose"),
           ) ?? purpose;
 
-        if (gmailResult !== "success") {
+        if (gmailResult !== "pending") {
           showSimpleAlert(
             "Error",
             errorMessage || "Failed to connect Gmail. Please try again.",
@@ -198,6 +207,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
           return null;
         }
 
+        await finishMailboxAuthorization('gmail', userId, resultUrl.searchParams.get('completionToken'));
         const readyStatus = await waitForImportReady();
 
         if (!readyStatus?.connected) {
@@ -225,7 +235,7 @@ export function useGmailImport(options: UseGmailImportOptions = {}) {
         setIsLoading(false);
       }
     },
-    [returnTo, journeyContext, waitForImportReady],
+    [returnTo, journeyContext, waitForImportReady, userId],
   );
 
   const runPrimaryFlow = useCallback(

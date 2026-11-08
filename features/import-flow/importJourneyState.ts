@@ -11,6 +11,7 @@ export interface ProviderJourneyState {
   provider: ExportProvider;
   name: 'Uber Eats' | 'DoorDash';
   imported: boolean;
+  optionalSourceUnused?: boolean;
   receiptCount: number;
   status: ProviderExportLifecycleStatus;
 }
@@ -73,6 +74,8 @@ export function resolveImportCoverage(
     preferences?.export.providers.doorDash.status,
     preferences?.coverage.exportProviders.doorDash,
   );
+  uberEats.optionalSourceUnused = preferences?.export.providers.uberEats.relevance === 'not_used';
+  doorDash.optionalSourceUnused = preferences?.export.providers.doorDash.relevance === 'not_used';
   const importedProviderCount = (
     Number(uberEats.imported) + Number(doorDash.imported)
   ) as 0 | 1 | 2;
@@ -112,7 +115,7 @@ export function resolveExportOpportunity(
   coverage: ImportCoverageState,
 ): ProviderJourneyState | null {
   const incomplete = [coverage.providers.uberEats, coverage.providers.doorDash]
-    .filter((provider) => !provider.imported);
+    .filter((provider) => (!provider.imported && !provider.optionalSourceUnused) || ['requested', 'file_ready', 'import_processing', 'failed'].includes(provider.status));
 
   for (const status of ACTIONABLE_STATUS_PRIORITY) {
     const match = incomplete.find((provider) => provider.status === status);
@@ -135,17 +138,14 @@ export function resolveImportSetupRecommendation({
 }): ImportSetupRecommendation {
   const coverage = resolveImportCoverage(preferences);
   const requestableProvider = [coverage.providers.uberEats, coverage.providers.doorDash]
-    .find((provider) => !provider.imported && provider.status === 'not_started');
+    .find((provider) => !provider.imported && !provider.optionalSourceUnused && provider.status === 'not_started');
   const actionableProvider = resolveExportOpportunity(coverage);
-  const gmailHasRun = resolveGmailBaselineState(preferences).hasCompleted;
+  const gmailHasRun = resolveGmailBaselineState(preferences).hasCompleted || Boolean(preferences?.outlookBaseline.hasCompleted);
   const trackingState = preferences?.ongoingTracking.effectiveState ?? 'not_offered';
   const shouldRecommendTracking = resolveTrackingEligibility(preferences).eligible
-    && trackingState === 'not_offered';
+    && trackingState === 'not_offered' && preferences?.ongoingTracking.consentState === 'not_offered';
   const emailFeatureInUse = preferences?.monitoring.consentState === 'granted'
     || preferences?.ongoingTracking.consentState === 'granted';
-  const uberMilestoneMissing = !coverage.uberEatsImported
-    && preferences?.export.providers.uberEats.relevance !== 'not_used';
-
   if (actionableProvider?.status === 'file_ready') {
     return { kind: 'provider', provider: actionableProvider, action: 'continue' };
   }
@@ -155,13 +155,8 @@ export function resolveImportSetupRecommendation({
   if (actionableProvider?.status === 'import_processing') {
     return { kind: 'provider', provider: actionableProvider, action: 'processing' };
   }
-  if (uberMilestoneMissing && (gmailHasRun || coverage.hasAnyExportData)) {
-    const uber = coverage.providers.uberEats;
-    return {
-      kind: 'provider',
-      provider: uber,
-      action: uber.status === 'requested' ? 'continue' : 'request',
-    };
+  if (actionableProvider?.status === 'requested') {
+    return { kind: 'provider', provider: actionableProvider, action: 'continue' };
   }
   if (!gmailFeatureEnabled) {
     return requestableProvider ? { kind: 'provider', provider: requestableProvider, action: 'request' } : { kind: 'none' };
@@ -179,8 +174,7 @@ export function resolveImportSetupRecommendation({
     if (gmailNeedsReconnect || !gmailConnected) {
       return { kind: 'connect_email', purpose: 'ongoing_tracking' };
     }
-    if (resolveTrackingEligibility(preferences).eligible
-      && !['active', 'setting_up'].includes(preferences?.ongoingTracking.effectiveState ?? 'not_offered')) {
+    if (shouldRecommendTracking) {
       return { kind: 'enable_tracking' };
     }
     return { kind: 'email_optional', connected: true };

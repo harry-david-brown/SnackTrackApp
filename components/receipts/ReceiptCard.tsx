@@ -3,8 +3,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { FontFamily, Radius, Spacing, type AppTheme } from '@constants/theme';
+import { Motion } from '@constants/motion';
+import { useAppReducedMotion } from '@contexts/MotionContext';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { DataSource, ReceiptType, type Receipt, type ReceiptItem } from '@/types/api';
+import { AnimatedDisclosure } from '@components/ui/AnimatedDisclosure';
 import { AppText } from '@components/ui/AppText';
 import { receiptHistoryDay, receiptOutcomePresentation } from '@features/receipts/receiptOutcomePresentation';
 
@@ -41,6 +44,7 @@ export const receiptItemPricePresentation = (
 
 export function ReceiptCard({ receipt, expanded, first = true, last = true, formatCurrency, onToggle }: ReceiptCardProps) {
   const theme = useAppTheme();
+  const reduceMotion = useAppReducedMotion();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const source = sourcePresentation(receipt, theme);
   const displayMoney = (value: number) => formatReceiptMoney(value, receipt.currencyCode, formatCurrency);
@@ -74,7 +78,7 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
       accessibilityHint={hasDetails ? expanded ? 'Hide order details' : 'Show order details' : 'Item details are not available for this order.'}
       onPress={() => hasDetails && onToggle(receipt.id)}
       disabled={!hasDetails}
-      style={({ pressed }) => [pressed && hasDetails && styles.pressed]}
+      style={({ pressed }) => [pressed && hasDetails && styles.pressed, pressed && hasDetails && !reduceMotion && styles.pressedScale]}
     >
       <View style={[styles.card, first && styles.firstCard, last && styles.lastCard]}>
         <View style={styles.header}>
@@ -93,35 +97,38 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
         </View>
         {outcome.status ? <AppText variant="metadata" style={styles.meta}>{outcome.status}</AppText> : null}
         {!receipt.orderOutcome && receipt.evidenceSummary ? <AppText variant="metadata" style={styles.meta}>{receipt.evidenceSummary}</AppText> : null}
-        {expanded && outcome.sourceLabel ? <AppText variant="metadata" style={styles.meta}>{outcome.sourceLabel}</AppText> : null}
         {outcome.notice ? <AppText variant="metadata" style={styles.meta}>{outcome.notice}</AppText> : null}
-        {expanded && receipt.orderOutcome ? <View style={styles.items}>
-          <AppText variant="surfaceBody">Payments & adjustments</AppText>
-          {outcome.details.map((detail, index) => <View key={`${detail.label}-${index}`} style={styles.itemRow}>
-            <AppText variant="metadata" style={styles.itemDetails}>{detail.label}</AppText>
-            <AppText variant="metadata">{detail.value}</AppText>
-          </View>)}
-        </View> : null}
-        {hasItems && expanded ? (
-          <View style={styles.items}>
-            <AppText variant="metadata" tone="muted">{receipt.items.length} {receipt.items.length === 1 ? 'item' : 'items'}</AppText>
-            {receipt.items.map((item, index) => {
-              const price = receiptItemPricePresentation(item, displayMoney);
-              return <View key={`${receipt.id}-${index}`} style={styles.itemRow}>
-                <View style={styles.itemDetails}><AppText variant="surfaceBody" style={styles.itemName}>{item.name}</AppText><AppText variant="metadata" style={styles.quantity}>Qty: {item.quantity}{item.inferred ? ' · Estimated' : ''}</AppText>{item.customizations?.length ? <AppText variant="metadata">{item.customizations.join(' · ')}</AppText> : null}</View>
-                {price ? <View style={styles.itemPriceColumn}><AppText variant="surfaceBody" style={styles.itemPrice}>{price.primary}</AppText>{price.secondary ? <AppText variant="metadata" style={styles.itemPriceNote}>{price.secondary}</AppText> : null}</View> : null}
-              </View>;
-            })}
-          </View>
-        ) : null}
-        {expanded && !hasItems ? <AppText variant="metadata" tone="muted" style={styles.meta}>{receipt.dataSource === DataSource.EMAIL ? 'Item details are not available from this email receipt.' : 'No item details available.'}</AppText> : null}
+        <AnimatedDisclosure expanded={expanded}>
+          {outcome.sourceLabel ? <AppText variant="metadata" style={styles.meta}>{outcome.sourceLabel}</AppText> : null}
+          {receipt.orderOutcome ? <View style={styles.items}>
+            <AppText variant="surfaceBody">Payments & adjustments</AppText>
+            {outcome.details.map((detail, index) => <View key={`${detail.label}-${index}`} style={styles.itemRow}>
+              <AppText variant="metadata" style={styles.itemDetails}>{detail.label}</AppText>
+              <AppText variant="metadata">{detail.value}</AppText>
+            </View>)}
+          </View> : null}
+          {hasItems ? (
+            <View style={styles.items}>
+              <AppText variant="metadata" tone="muted">{receipt.items.length} {receipt.items.length === 1 ? 'item' : 'items'}</AppText>
+              {receipt.items.map((item, index) => {
+                const price = receiptItemPricePresentation(item, displayMoney);
+                return <View key={`${receipt.id}-${index}`} style={styles.itemRow}>
+                  <View style={styles.itemDetails}><AppText variant="surfaceBody" style={styles.itemName}>{item.name}</AppText><AppText variant="metadata" style={styles.quantity}>Qty: {item.quantity}{item.inferred ? ' · Estimated' : ''}</AppText>{item.customizations?.length ? <AppText variant="metadata">{item.customizations.join(' · ')}</AppText> : null}</View>
+                  {price ? <View style={styles.itemPriceColumn}><AppText variant="surfaceBody" style={styles.itemPrice}>{price.primary}</AppText>{price.secondary ? <AppText variant="metadata" style={styles.itemPriceNote}>{price.secondary}</AppText> : null}</View> : null}
+                </View>;
+              })}
+            </View>
+          ) : null}
+          {!hasItems ? <AppText variant="metadata" tone="muted" style={styles.meta}>{receipt.dataSource === DataSource.EMAIL ? 'Item details are not available from this email receipt.' : 'No item details available.'}</AppText> : null}
+        </AnimatedDisclosure>
       </View>
     </Pressable>
   );
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
-  pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+  pressed: { opacity: 0.72 },
+  pressedScale: { transform: [{ scale: Motion.pressedScale }] },
   card: { padding: Spacing.control, minHeight: 76, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.divider, borderBottomWidth: 0 },
   firstCard: { borderTopLeftRadius: Radius.card, borderTopRightRadius: Radius.card },
   lastCard: { borderBottomLeftRadius: Radius.card, borderBottomRightRadius: Radius.card, borderBottomWidth: 1, marginBottom: 12 },

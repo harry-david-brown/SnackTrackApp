@@ -274,6 +274,12 @@ export const normalizeUserSummary = (value: unknown, includeWrapped = false): Us
     ...(statistics.amountBasis === undefined ? {} : { amountBasis: asString(statistics.amountBasis, 'amountBasis') }),
     ...(statistics.totalsByCurrency === undefined ? {} : { totalsByCurrency: moneyRecords(statistics.totalsByCurrency, 'totalsByCurrency') }),
     ...(statistics.dailyBreakdown === undefined ? {} : { dailyBreakdown: moneyRecords(statistics.dailyBreakdown, 'dailyBreakdown') }),
+    ...(statistics.normalizedSpend === undefined ? {} : { normalizedSpend: (() => {
+      const spend = asRecord(statistics.normalizedSpend, 'normalizedSpend');
+      return { amount: spend.amount === null ? null : asNumber(spend.amount, 'normalizedSpend.amount'),
+        currencyCode: asString(spend.currencyCode, 'normalizedSpend.currencyCode'),
+        approximate: asBoolean(spend.approximate, 'normalizedSpend.approximate') };
+    })() }),
     userId: asString(user.id, 'user.id'),
     totalSpent: asNumber(statistics.totalSpent, 'statistics.totalSpent'),
     totalReceipts: asNumber(statistics.totalReceipts, 'statistics.totalReceipts'),
@@ -321,9 +327,10 @@ export const analyticsApi = {
    * @returns Promise resolving to UserSummary with analytics data
    * @throws {Error} If API request fails
    */
-  getUserSummary: async (userId: string, includeWrapped: boolean = false, displayCurrency?: string): Promise<UserSummary> => {
+  getUserSummary: async (userId: string, includeWrapped: boolean = false, displayCurrency?: string, spendCurrency?: string): Promise<UserSummary> => {
     const validatedUserId = await validateAndAuthorizeUserId(userId);
-    const params = includeWrapped ? `?includeWrapped=true${displayCurrency ? `&displayCurrency=${encodeURIComponent(displayCurrency)}` : ''}` : '';
+    const baseParams = includeWrapped ? `?includeWrapped=true${displayCurrency ? `&displayCurrency=${encodeURIComponent(displayCurrency)}` : ''}` : '';
+    const params = `${baseParams}${spendCurrency ? `${baseParams ? '&' : '?'}spendCurrency=${encodeURIComponent(spendCurrency)}` : ''}`;
     const response = await api.get(`/users/${validatedUserId}/summary${params}`);
     return normalizeUserSummary(response.data, includeWrapped);
   },

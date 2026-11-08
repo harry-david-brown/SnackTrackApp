@@ -1,8 +1,7 @@
+import { useDeviceNotifications } from './useDeviceNotifications';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { useCallback, useMemo, useState } from 'react';
-import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DataPlatform } from '@components/upload/UberDataTutorial';
 import { featureFlags } from '@config/featureFlags';
 import { useCurrency } from '@contexts/CurrencyContext';
@@ -10,7 +9,6 @@ import { useOnboarding } from '@contexts/OnboardingContext';
 import { useUser } from '@contexts/UserContext';
 import { resolveProfileSettingsState } from '@features/profile/profileSettingsState';
 import { profileReceiptSummary } from '@features/profile/profileReceiptSummary';
-import { resolveTrackingRecovery } from '@features/import-flow/trackingEligibility';
 import { useAnalyticsQuery } from './queries/useAnalyticsQueries';
 import { useImportPreferences } from './useImportPreferences';
 import type { CurrencyCode } from '@utils/currency';
@@ -20,12 +18,7 @@ import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import {
   setExportDownloadHandoffState,
 } from '@utils/exportDownloadHandoff';
-import { requestImportNotifications } from '@services/importNotifications';
-import { notificationDeviceApi } from '@services/notificationDeviceApi';
-import { getNotificationInstallationId, notificationEnabledKey } from '@utils/notificationInstallation';
 import { appDestinations, useAppNavigation } from '@features/navigation';
-import { useOngoingTrackingActivation } from './useOngoingTrackingActivation';
-import { resolveRecapCurrency } from '@features/wrapped/recapCurrency';
 
 type ProfileModal = 'tutorial' | 'help' | 'currency' | null;
 
@@ -33,12 +26,13 @@ export function useProfileController() {
   const navigation = useAppNavigation();
   const { state, logout, deleteAccount } = useUser();
   const { resetOnboarding } = useOnboarding();
-  const { currency, hasManualSelection, setCurrency, formatCurrency } = useCurrency();
+  const { currency, setCurrency, formatCurrency } = useCurrency();
   const [activeModal, setActiveModal] = useState<ProfileModal>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClearingReceipts, setIsClearingReceipts] = useState(false);
-  const [importNotificationsEnabled, setImportNotificationsEnabled] = useState(false);
   const userId = state.user?.id;
+  const deviceNotifications = useDeviceNotifications(userId);
+  const importNotificationsEnabled = deviceNotifications.enabled;
   const {
     preferences,
     isLoading: arePreferencesLoading,
@@ -49,55 +43,29 @@ export function useProfileController() {
     markExportRequested,
     confirmExportReady,
   } = useImportPreferences(Boolean(userId));
-  const { enableOngoingTracking } = useOngoingTrackingActivation(
-    userId,
-    setOngoingTrackingConsent,
-    setImportNotificationsEnabled,
-  );
-  const { data: analytics } = useAnalyticsQuery(userId);
-  const effectiveCurrency = resolveRecapCurrency({
-    receiptCurrency: analytics?.currencyCode,
-    selectedCurrency: currency,
-    hasManualSelection,
-  });
+  const { data: analytics } = useAnalyticsQuery(userId, currency);
 
   useFocusEffect(useCallback(() => {
     void refresh();
-    if (userId) void Promise.all([
-      Notifications.getPermissionsAsync(),
-      AsyncStorage.getItem(notificationEnabledKey(userId)),
-    ]).then(([permission, enabled]) => setImportNotificationsEnabled(permission.granted && enabled === 'true')).catch(() => setImportNotificationsEnabled(false));
-  }, [refresh, userId]));
+  }, [refresh]));
 
-  const toggleImportNotifications = useCallback(() => {
+  const toggleImportNotifications = () => {
     if (importNotificationsEnabled) {
-      showAlert('Turn off import notifications?', 'This device will stop receiving completion updates. Imports will still continue in the background.', [
+      showAlert('Turn off notifications?', 'You can turn them on again anytime.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Turn Off', style: 'destructive', onPress: () => { void (async () => {
-          if (userId) await AsyncStorage.setItem(notificationEnabledKey(userId), 'false');
-          setImportNotificationsEnabled(false);
-          await notificationDeviceApi.unregister(await getNotificationInstallationId()).catch(() => undefined);
-        })(); } },
+        { text: 'Turn off', style: 'destructive', onPress: () => {
+          void deviceNotifications.disable().catch(() => showSimpleAlert('Couldn’t save this change', 'Try again.'));
+        } },
       ]);
       return;
     }
-    if (!userId) return;
-    void requestImportNotifications(userId).then(enabled => {
-      setImportNotificationsEnabled(enabled);
-      if (!enabled) showSimpleAlert('Notifications aren’t enabled', 'Allow SnackTrack notifications in your device Settings. Your import continues; you can check it in Add orders.');
-    }).catch(() => {
-      setImportNotificationsEnabled(false);
-      showSimpleAlert('Could not enable notifications', 'Reconnect to the internet and try again. Your import continues in the background.');
-    });
-  }, [importNotificationsEnabled, userId]);
+    if (deviceNotifications.issue === 'denied') deviceNotifications.openSettings();
+    else void deviceNotifications.enable().catch(() => undefined);
+  };
 
   const settings = useMemo(
     () => resolveProfileSettingsState(preferences, arePreferencesLoading),
     [arePreferencesLoading, preferences],
-  );
-  const trackingRecovery = useMemo(
-    () => resolveTrackingRecovery(preferences),
-    [preferences],
   );
 
   const performReset = useCallback(async (successTitle: string, failureTitle: string) => {
@@ -193,34 +161,8 @@ export function useProfileController() {
       ]);
       return;
     }
-    if (trackingRecovery.kind === 'baseline') {
-      showAlert('Check email before enabling updates', 'Run one current email check to find orders newer than your downloaded history and establish where future checks should begin.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Import', onPress: () => navigation.open({
-          pathname: '/add-history',
-          params: { intent: 'email', returnTo: 'settings' },
-        }) },
-      ]);
-      return;
-    }
-    if (trackingRecovery.kind === 'unavailable') {
-      showSimpleAlert('Email is temporarily unavailable', 'Your connections and imported history are safe. Try enabling ongoing updates again shortly.');
-      return;
-    }
-    if (trackingRecovery.kind === 'reconnect') {
-      showAlert('Reconnect email first', 'Ongoing tracking needs a durable Gmail or Outlook connection. Manage email connections from the Import screen, then return here.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Manage connections', onPress: () => navigation.open(appDestinations.accountsPermissions) },
-      ]);
-      return;
-    }
-    showAlert('Turn on automatic email updates?', preferences?.ongoingTracking.baseline.source === 'exports'
-      ? 'SnackTrack will check connected email accounts for supported delivery receipts newer than your downloaded history and periodically check for future orders. You can turn this off at any time.'
-      : 'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update spending and stats. You can turn this off at any time.', [
-      { text: 'Not Now', style: 'cancel' },
-      { text: 'Turn on updates', onPress: () => { void enableOngoingTracking().catch(() => showSimpleAlert('Could not turn on updates', 'Your previous setting is unchanged. Please try again.')); } },
-    ]);
-  }, [enableOngoingTracking, navigation, preferences?.ongoingTracking.baseline.source, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent, trackingRecovery.kind]);
+    navigation.open({ pathname: '/ongoing-updates', params: { manage: 'true' } });
+  }, [navigation, preferences?.ongoingTracking.consentState, preferences?.ongoingTracking.effectiveState, setOngoingTrackingConsent]);
 
   const completeTutorial = useCallback(async (platform: DataPlatform): Promise<boolean> => {
     const provider: ExportProvider = platform === 'uber' ? 'uber_eats' : 'doordash';
@@ -299,8 +241,8 @@ export function useProfileController() {
 
   return {
     user: state.isAuthenticated ? state.user : null,
-    ...profileReceiptSummary(analytics, formatCurrency),
-    currency: effectiveCurrency,
+    ...profileReceiptSummary(analytics, formatCurrency, currency),
+    currency,
     settings,
     activeModal,
     isDeleting,
@@ -317,7 +259,8 @@ export function useProfileController() {
     toggleExportAlerts,
     toggleOngoingTracking,
     toggleImportNotifications,
-    importNotificationsLabel: importNotificationsEnabled ? 'On' : 'Off',
+    deviceNotifications,
+    importNotificationsLabel: deviceNotifications.issue === 'denied' ? 'Open device settings' : deviceNotifications.issue === 'registration' ? 'Retry' : importNotificationsEnabled ? 'On' : 'Off',
     completeTutorial,
     tutorialReadyConfirmed,
     tutorialStillWaiting,

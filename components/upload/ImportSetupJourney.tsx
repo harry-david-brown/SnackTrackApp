@@ -1,4 +1,5 @@
-import { EmailImportReview } from '@components/import/EmailImportReview';
+import { ReceiptInboxChoice } from '@components/import/ReceiptInboxChoice';
+import { EmailJourneyHeading } from '@components/import/EmailJourneyHeading';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import type { ImportFlowState } from '@features/import-flow/importFlowResolver';
@@ -16,9 +17,7 @@ interface ImportSetupJourneyProps {
   oauthReturn?: MailboxOAuthReturnState | null;
   busy: boolean;
   connectionBusy?: boolean;
-  automaticImportsDisabled?: boolean;
-  automaticUpdatesLabel?: string;
-  automaticUpdatesDescription?: string;
+  onBack?: () => void;
   onChooseEmailPath: () => void;
   onChooseEmail: (provider: 'gmail' | 'outlook') => void;
   onChooseAlternative: () => void;
@@ -43,8 +42,8 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
     <Progress step={2} />
     <JourneyHeading eyebrow="CONNECTION NEEDS ATTENTION" title={`We couldn’t finish connecting ${journey.providerName}`} body="Your existing SnackTrack data is safe. Try the connection again or choose another method." />
     <View style={styles.actions}>
-      <AppButton label={`Try ${journey.providerName} again`} onPress={props.onRetryOAuthConnection} />
-      <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} />
+      <AppButton size="journey" label={`Try ${journey.providerName} again`} onPress={props.onRetryOAuthConnection} />
+      <AppButton label="Use another method" variant="tertiary" onPress={props.onChangeMethod} />
     </View>
   </View>;
 
@@ -62,8 +61,7 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
         props.onChooseProvider('doordash');
       }} />
     </View>
-    <AppText variant="surfaceBody" tone="muted" style={styles.note}>We’ll explain the provider-specific steps only after you choose.</AppText>
-    <View style={styles.actions}><AppButton label="Try connecting email instead" variant="secondary" onPress={props.onChangeMethod} /></View>
+    <View style={styles.actions}><AppButton label="Try connecting email instead" variant="tertiary" onPress={props.onChangeMethod} /></View>
   </View>;
 
   if (journey.kind === 'review_email_scan') {
@@ -71,40 +69,21 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
     const primaryAction = journey.needsReconnect ? () => props.onChooseEmail(journey.provider) : journey.provider === 'gmail' ? props.onImportGmail : props.onImportOutlook;
     return <View style={styles.journey}>
       <Progress step={2} />
-      <JourneyHeading eyebrow={`${journey.providerName.toUpperCase()} CONNECTED`} title="Ready to find your orders?" body={journey.email ? `Connected as ${journey.email}. Review what SnackTrack will look for.` : 'Review what SnackTrack will look for.'} />
-      <EmailImportReview automaticUpdatesDescription={props.automaticUpdatesDescription ?? (props.automaticImportsDisabled ? 'Automatic updates are off. You can turn them on anytime in Settings.' : 'Import your delivery receipts and automatically add new ones. You can turn this off anytime in Settings.')} />
+      <EmailJourneyHeading providerName={journey.providerName} connected reconnect={journey.needsReconnect} unavailable={journey.temporarilyUnavailable} email={journey.email} />
       {journey.needsReconnect || journey.temporarilyUnavailable ? <View style={[styles.warning, { backgroundColor: theme.colors.warningSurface }]}><AppText variant="surfaceBody" style={{ color: theme.colors.warningDeep }}>{journey.needsReconnect ? 'Reconnect this inbox before starting the scan. Your existing history is safe.' : 'This email service is temporarily unavailable. Your connection is still saved.'}</AppText></View> : null}
       <View style={styles.actions}>
-        <AppButton label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : props.automaticUpdatesLabel ?? (props.automaticImportsDisabled ? 'Import my receipts' : 'Import & enable automatic updates')} pending={journey.needsReconnect ? props.connectionBusy : props.busy} disabled={blocked} onPress={primaryAction} />
-        <AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} disabled={props.busy} />
+        <AppButton size="journey" label={journey.needsReconnect ? `Reconnect ${journey.providerName}` : 'Find my orders'} pending={journey.needsReconnect ? props.connectionBusy : props.busy} disabled={blocked} onPress={primaryAction} />
+        <AppButton label="Use another method" variant="tertiary" onPress={props.onChangeMethod} disabled={props.busy || props.connectionBusy} />
       </View>
     </View>;
   }
 
-  if (journey.kind === 'choose_email_provider') return <View style={styles.journey}>
-    <Progress step={2} />
-    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
-    <JourneyHeading eyebrow="QUICK SETUP" title="Where do your receipts land?" body="Choose the inbox linked to your delivery accounts. You’ll review its address and automatic-update setting before importing." />
-    <View style={styles.choiceStack}>
-      <ChoiceRow icon="logo-google" title="Gmail" subtitle={props.flow.gmailConnected ? 'Connected · review the scan' : 'Continue with Google'} onPress={() => props.onChooseEmail('gmail')} />
-      <ChoiceRow icon="mail-outline" title="Outlook" subtitle={props.flow.outlookConnected ? 'Connected · review the scan' : 'Continue with Microsoft'} onPress={() => props.onChooseEmail('outlook')} />
-    </View>
-    <View style={styles.actions}><AppButton label="Choose another method" variant="secondary" onPress={props.onChangeMethod} /></View>
-  </View>;
-
-  return <View style={styles.journey}>
-    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
-    <JourneyHeading eyebrow="QUICK SETUP" title="Let’s build your first SnackTrack" body="Start with the place most likely to have your delivery history." />
-    <Progress step={1} />
-    <Pressable accessibilityRole="button" accessibilityLabel="Find orders in my email. Recommended, usually takes 2 to 3 minutes." onPress={props.onChooseEmailPath} style={({ pressed }) => [styles.recommended, { backgroundColor: theme.colors.chipActiveBg, borderColor: theme.colors.primary }, pressed && styles.pressed]}>
-      <View style={[styles.choiceIcon, { backgroundColor: theme.colors.surface }]}><Ionicons name="mail-open-outline" size={21} color={theme.colors.primary} /></View>
-      <View style={styles.choiceCopy}><AppText variant="rowTitle">Find orders in my email</AppText><AppText variant="metadata" tone="brand" style={styles.rowMeta}>Recommended · usually takes 2–3 minutes</AppText></View>
-      <Ionicons name="arrow-forward" size={19} color={theme.colors.primary} />
-    </Pressable>
-    <AppText variant="sectionLabel" tone="muted" style={styles.another}>Another option</AppText>
-    <ChoiceRow icon="download-outline" title="Use a history download" subtitle="Best for phone, Apple, or another sign-in" onPress={props.onChooseAlternative} />
-    <AppText variant="surfaceBody" tone="muted" style={styles.footerNote}>You’ll review what SnackTrack can access before anything is imported.</AppText>
-  </View>;
+  return <ReceiptInboxChoice
+    disabled={props.busy || Boolean(props.connectionBusy)}
+    onBack={journey.kind === 'choose_email_provider' ? props.onChangeMethod : props.onBack}
+    onChooseEmail={props.onChooseEmail}
+    onChooseAlternative={props.onChooseAlternative}
+  />;
 }
 
 function JourneyHeading({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
@@ -128,7 +107,7 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6, marginTop: 3, marginBottom: 21 }, progressSegment: { flex: 1, height: 5, borderRadius: 999 },
   choiceStack: { gap: 10 }, choice: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, recommended: { minHeight: 78, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 11 }, pressed: { opacity: 0.76 },
   choiceIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, choiceCopy: { flex: 1 }, rowMeta: { marginTop: 3 },
-  another: { marginTop: 19, marginBottom: 8 }, note: { marginTop: 10, textAlign: 'center' }, footerNote: { marginTop: 20, textAlign: 'center', paddingHorizontal: 12 }, actions: { marginTop: 'auto', paddingTop: 18, gap: 10 },
+  another: { marginTop: 19, marginBottom: 8 }, note: { marginTop: 10, textAlign: 'center' }, actions: { marginTop: 'auto', paddingTop: 18, gap: 10 },
   reviewList: { marginTop: 4 }, reviewRow: { paddingVertical: 11, flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, reviewIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, warning: { marginTop: 12, padding: 14, borderRadius: 18 },
 });
 export default ImportSetupJourney;

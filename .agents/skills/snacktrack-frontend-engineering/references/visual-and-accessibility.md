@@ -4,6 +4,8 @@
 
 The canonical product reference is the root-level `snacktrack-ux-revision.html`. Review the relevant mobile screens and their scoped `.st-*` CSS before designing or changing UI. Ignore the surrounding Codex visualization viewer chrome.
 
+The original mockup remains the visual foundation. Later explicit user decisions override it only within their stated scope. Record durable interaction decisions here so future work does not depend on a chat-only prototype. A prototype approval about motion does not approve its sample data, simplified screens, tab order, or other layout differences. Do not treat the latest implementation as proof that a design change was approved.
+
 This reference defines the intended product language. `SnackTrackApp/constants/theme.ts`, `SnackTrackApp/docs/design-system.md`, and existing primitives may lag behind it. When they conflict:
 
 1. preserve accessibility and platform correctness;
@@ -190,11 +192,34 @@ Detailed component and screen recipes live in [mockup-pattern-library.md](mockup
 
 ## Motion and feedback
 
-- Motion explains progress, focus, or transition. It is not ambient decoration.
+The current direction is calm, tactile, and lightly playful. Everyday selections and navigation should feel continuous rather than abruptly snapping. Motion explains the change; it must not delay actions or become ambient decoration.
+
+### Shared ownership
+
+Use these existing app owners rather than introducing screen-local timing constants, duplicate system subscriptions, or alternate navigation animation layers:
+
+| Owner | Responsibility |
+|---|---|
+| `constants/motion.ts` | Shared durations, easing, travel distance, and press scale. Current defaults are 110ms press, 260ms selection, 240ms content, 300ms tab transition, and 0.98 press scale; consume the tokens rather than copying these numbers. Native stack timing follows platform behavior. |
+| `contexts/MotionContext.tsx` | `MotionProvider` and `useAppReducedMotion()`: start still until the system preference is known, respect live changes, and suppress motion while inactive. A late initial preference read must not overwrite a newer event. |
+| `components/ui/AppButton.tsx` | Shared press/release feedback, including disabled and pending behavior. |
+| `components/ui/AnimatedChoiceGroup.tsx` | Measured selection highlight, stable choice geometry, and selected accessibility state. |
+| `components/ui/AnimatedDisclosure.tsx` | Content-measured opening and closing; collapsed content is not interactive or exposed to screen readers. |
+| `app/(tabs)/_layout.tsx` and `app/_layout.tsx` | Tab and native-stack transition presentation. Imperative navigation remains owned by `features/navigation`. |
+
+These primitives are implementation starting points, not evidence that every older screen has migrated. Reuse or improve them within the touched scope.
+
+### Interaction decisions
+
+- Filter selections move a highlight between measured choices. Reserve indicator space so selection does not change widths; accommodate wrapping, font scaling, and rotation. Update the selection and data request immediately, independently of animation completion.
+- Result changes may use a short content reveal. Preserve list identity, selection, and scroll where appropriate; do not remount an entire screen just to replay animation. Keep loading, empty, error, and retry states truthful. Do not present old filter results as belonging to a newly selected provider.
+- Expand and collapse details using measured content height, including the closing transition. Avoid fixed heights that clip larger text. Keep the expanded accessibility state aligned with the user's action.
+- Keep press feedback small and immediate. Do not block another tap while a decorative animation finishes. Haptics remain a separate product choice; they are not required by this motion direction.
+- For page transitions containing shadowed cards, use opaque translation rather than a whole-page crossfade. The tab implementation slides full-width opaque scenes with clipping at the page boundary; native stack pages use directional slides. Account for screen width and RTL direction.
+- Never fade the entire shadowed card or an ancestor scene containing elevated surfaces: it blends outgoing and incoming shadows into halos or ghosting. Opacity is appropriate for internal content without those shadows. Read a navigator preset's actual interpolation before adopting it; a preset called “shift” can also fade.
+- Avoid competing page and card entrance animations. Retarget or stop interrupted animations on quick selections, unmount, reduced-motion changes, and app inactivity. Restore final content instead of leaving it partially transparent or clipped.
+- Reduced motion removes decorative movement without hiding content or changing data correctness timers. Keep touch and accessibility feedback available.
 - Import progress may use the reference 2-second pulse from `1` to `1.025`; reduced motion removes the pulse without hiding state.
-- Animate internal content rather than fading an entire shadowed card, which creates dark halos.
-- Prefer subtle opacity and short translation. Avoid simultaneous competing animations.
-- Clean up loops, timers, and callbacks on unmount or app inactivity.
 - Announce meaningful async stage changes, completion, and failure to screen readers.
 - Do not auto-advance the recap-ready opening. Automatically changing story content must provide appropriate control.
 
@@ -206,18 +231,15 @@ Detailed component and screen recipes live in [mockup-pattern-library.md](mockup
 - Avoid fixed heights for copy-bearing controls; use minimum heights and content-driven growth.
 - Preserve contrast for text, icons, dividers, tinted cards, gradients, and disabled states.
 - Never communicate status by color or checkmark alone; pair it with text and accessibility state.
-- Test iOS shadow and Android elevation separately.
+- Include iOS shadow and Android elevation in the device handoff; inspect each directly only when that verification is requested.
 - Keep keyboard focus and traversal order aligned with the visible hierarchy.
 
 ## Visual review gate
 
-Before declaring a UI change complete:
+For a UI change, review the matching canonical mockup and the recorded interaction decisions. Compare page padding, title wrapping, type weight, surface grouping, radii, mascot pose/scale, button order, bottom spacing, and transition treatment against the implementation. Correct shared tokens or primitives when a mismatch repeats and document intentional deviations.
 
-1. Open the matching canonical mockup screen.
-2. Capture the implementation at the same approximate phone width in light mode; capture dark mode when supported.
-3. Compare page padding, first baseline, title wrapping, type weight, surface grouping, radii, mascot pose/scale, button order, and bottom spacing.
-4. Verify narrow phone, large text, screen reader, reduced motion, and both platforms for substantial screens.
-5. Correct shared tokens or primitives when the same mismatch appears more than once.
-6. Document intentional deviations and their product, content, or accessibility rationale.
+Follow [testing-and-definition-of-done.md](testing-and-definition-of-done.md#verification) for verification ownership. Device and emulator checks belong to the user unless explicitly requested; do not launch them or block an ordinary implementation on screenshots. When screenshots or requested device inspection are available, compare at approximately 390pt width in light and dark modes. Include narrow phones, large text, screen readers, and reduced motion in the relevant manual handoff.
+
+A type-check or browser prototype does not establish native animation quality. Report code verification separately from observed device behavior; shadow ghosting must be assessed during movement, not only in still screenshots.
 
 Reject the implementation when it merely contains the same words and colors but retains legacy heavy type, dense card stacks, small mascot art, modal-first flows, inconsistent rounding, or weak action hierarchy.

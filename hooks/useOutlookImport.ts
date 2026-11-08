@@ -1,3 +1,5 @@
+import { resumeOrSubmitMailboxImport, ImportStatusUnavailableError } from '@services/mailboxImportSubmission';
+import { beginMailboxAuthorization, finishMailboxAuthorization } from '@services/mailboxAuthorization';
 import { importPreferenceKeys } from '@lib/queryKeys';
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -86,14 +88,16 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
         redirect.searchParams.set('returnTo', returnTo);
         redirect.searchParams.set('returnIntent', purpose === 'connection_recovery' ? 'reconnect' : 'email');
         const redirectUri = redirect.toString();
-        const { authUrl } = await outlookApi.getAuthUrl(redirectUri, purpose);
+        if (!userId) throw new Error('Sign in before connecting your email.');
+        const handoffChallenge = await beginMailboxAuthorization('outlook', userId);
+        const { authUrl } = await outlookApi.getAuthUrl(redirectUri, purpose, handoffChallenge);
         const authResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
         if (authResult.type !== 'success' || !authResult.url) {
           if (journeyContext === 'post_onboarding') showSimpleAlert(authResult.type === 'cancel' || authResult.type === 'dismiss' ? 'Connection cancelled' : 'Could not connect Outlook', 'No inbox was connected. You can try again or choose another email service.');
           return null;
         }
         const resultUrl = new URL(authResult.url);
-        if (resultUrl.searchParams.get('outlook') !== 'success') {
+        if (resultUrl.searchParams.get('outlook') !== 'pending') {
           const errorCode = resultUrl.searchParams.get('error');
           showSimpleAlert(
             'Could not connect Outlook',
@@ -103,6 +107,7 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
           );
           return null;
         }
+        await finishMailboxAuthorization('outlook', userId, resultUrl.searchParams.get('completionToken'));
         const status = await waitForReady();
         if (!status?.connected || !status.canImport) {
           showSimpleAlert('Could not connect Outlook', status?.statusMessage ?? 'Please try again.');
@@ -130,16 +135,21 @@ export function useOutlookImport(options: UseOutlookImportOptions = {}) {
     const action = (async () => {
       setIsImporting(true);
       try {
-        const result = await outlookApi.importReceipts(journeyContext, automaticUpdates);
+        if (!userId) return false;
+        const result = await resumeOrSubmitMailboxImport(userId, 'outlook', key => outlookApi.importReceipts(journeyContext, automaticUpdates, key));
         if (userId) {
           cacheImportOperation(queryClient, userId, result);
           if (automaticUpdates) void queryClient.invalidateQueries({ queryKey: importPreferenceKeys.current(userId) });
         }
         return result;
       } catch (error) {
+        if (error instanceof ImportStatusUnavailableError) {
+          showSimpleAlert('Import status unavailable', 'Check your connection and reload the saved import before starting another.');
+          return false;
+        }
         const domainError = toDomainError(error);
         const reconnect = domainError.code === 'OUTLOOK_RECONNECT_REQUIRED';
-        showSimpleAlert(reconnect ? 'Reconnect Outlook' : 'Import failed', reconnect ? 'Reconnect Outlook to continue.' : domainError.message);
+        showSimpleAlert(reconnect ? 'Reconnect Outlook' : domainError.kind === 'network' ? 'Import status unconfirmed' : 'Couldn’t start this import', reconnect ? 'Reconnect Outlook to continue.' : domainError.kind === 'network' ? 'Check your connection and try again; we’ll resume any saved work.' : domainError.message);
         return false;
       } finally {
         setIsImporting(false);

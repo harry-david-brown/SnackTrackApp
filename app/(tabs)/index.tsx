@@ -1,3 +1,4 @@
+import { useDashboardExportOfferImpression } from '@hooks/useDashboardExportOfferImpression';
 import { FontFamily, type AppTheme } from '@constants/theme';
 import React from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
@@ -11,7 +12,7 @@ import { Mascot } from '@components/mascot/Mascot';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { DashboardTrackingCard } from '@components/dashboard/DashboardTrackingCard';
 import { resolveDashboardTrackingState, resolveHomePrioritySurface, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
-import { showAlert, showSimpleAlert } from '@utils/platformAlert';
+import { showSimpleAlert } from '@utils/platformAlert';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { DashboardSpendingHero } from '@components/dashboard/DashboardSpendingHero';
@@ -38,8 +39,7 @@ import { ImportOperationCard } from '@components/import/ImportOperationCard';
 import { AppText } from '@components/ui/AppText';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
-import { addHistoryDestination, importProgressDestination, insightHistoryDestination, useAppNavigation } from '@features/navigation';
-import { useOngoingTrackingActivation } from '@hooks/useOngoingTrackingActivation';
+import { appDestinations, addHistoryDestination, importProgressDestination, insightHistoryDestination, useAppNavigation } from '@features/navigation';
 
 export default function DashboardScreen() {
   const navigation = useAppNavigation();
@@ -70,14 +70,9 @@ export default function DashboardScreen() {
     isUpdating: isImportStateUpdating,
     refresh: refreshImportPreferences,
     refreshIfStale: refreshImportPreferencesIfStale,
-    setOngoingTrackingConsent,
     checkOngoingTracking,
     error: importPreferencesError,
   } = useImportPreferences(Boolean(state.user?.id));
-  const { enableOngoingTracking } = useOngoingTrackingActivation(
-    state.user?.id,
-    setOngoingTrackingConsent,
-  );
   const trackingCardState = resolveDashboardTrackingState(
     importPreferences,
     areImportPreferencesLoading,
@@ -144,6 +139,9 @@ export default function DashboardScreen() {
 
 
 
+  useDashboardExportOfferImpression(state.user?.id, prioritySurface.kind === 'guidance'
+    ? prioritySurface.guidance.exportRecommendation : undefined);
+
   // Root protected-route ownership removes the tabs after local auth clears.
   const handleLogout = async () => {
     try {
@@ -155,6 +153,9 @@ export default function DashboardScreen() {
   };
 
   const handleTrackingAction = (action: DashboardTrackingAction) => {
+    if (action === 'request_export' && trackingCardState.exportRecommendation) {
+      void trackAdminEvent('export_offer_clicked', { properties: { surface: 'dashboard', variant: trackingCardState.exportRecommendation } }).catch(() => undefined);
+    }
     if (action === 'retry_preferences') {
       void refreshImportPreferences();
       return;
@@ -169,7 +170,7 @@ export default function DashboardScreen() {
     if (action === 'connect_gmail' || action === 'import_gmail'
       || action === 'request_export' || action === 'continue_export') {
       if (action === 'request_export' && !trackingCardState.primaryProvider) {
-        navigation.open(addHistoryDestination({ intent: 'provider' }));
+        navigation.open(addHistoryDestination({ intent: 'provider', returnTo: 'home' }));
         return;
       }
       if (action === 'request_export' && trackingCardState.primaryProvider) {
@@ -186,24 +187,11 @@ export default function DashboardScreen() {
       navigation.open(addHistoryDestination({ intent: 'resume_export', provider: 'uber_eats' }));
       return;
     }
-    if (action === 'enable_tracking') {
-      showAlert(
-        'Allow ongoing order tracking?',
-        'SnackTrack will periodically read supported delivery receipt emails from your connected accounts to update your spending and stats. You can turn this off at any time.',
-        [
-          { text: 'Not now', style: 'cancel', onPress: () => { void setOngoingTrackingConsent('declined'); } },
-          {
-            text: 'Allow tracking',
-            onPress: () => {
-              void enableOngoingTracking().catch(() => {
-                showSimpleAlert('Couldn’t enable tracking', 'Restore a Gmail or Outlook connection and try again.');
-              });
-            },
-          },
-        ]
-      );
+    if (action === 'enable_tracking' || action === 'retry_tracking') {
+      navigation.open(appDestinations.ongoingUpdates);
       return;
     }
+
     void checkOngoingTracking()
       .then(() => {
         showSimpleAlert('Order check queued', 'SnackTrack will check in the background and refresh your dashboard when it finishes.');
@@ -261,6 +249,7 @@ export default function DashboardScreen() {
             months={dashboardMonths}
             selectedMonthKey={selectedMonthKey}
             loading={analyticsSummaryState.id === 'loading'}
+            unavailable={analyticsSummaryState.id === 'error'}
             formatCurrency={formatCurrency}
             onChangePeriod={setDashboardPeriod}
             onSelectMonth={(monthKey) => setSelectedMonthOverride(monthKey === currentMonthKey ? null : monthKey)}
@@ -316,7 +305,7 @@ export default function DashboardScreen() {
                   insight.eyebrow,
                   insight.historicalInvestment?.snapshotId,
                 ))}
-                onOpenExport={() => navigation.open(addHistoryDestination({ intent: 'provider' }))}
+                onOpenExport={() => navigation.open(addHistoryDestination({ intent: 'provider', returnTo: 'home' }))}
                 onOpenProviderExport={(provider) => navigation.open(buildProviderHistoryDestination(provider, (provider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status))}
               />
             ) : !isHistoricalMonth && insightSectionState.id === 'loading' ? (

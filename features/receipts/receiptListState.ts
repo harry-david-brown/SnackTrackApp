@@ -5,7 +5,7 @@ export type ReceiptListState =
   | { readonly id: 'error' }
   | { readonly id: 'empty' }
   | {
-      readonly id: 'success' | 'refreshing';
+      readonly id: 'success' | 'refreshing' | 'stale-success';
       readonly receipts: readonly Receipt[];
       readonly total: number;
     };
@@ -21,10 +21,10 @@ export interface ReceiptListStateInput {
 
 export const resolveReceiptListState = (input: ReceiptListStateInput): ReceiptListState => {
   if (!input.hasUser || input.isPending) return { id: 'loading' };
-  if (input.isError) return { id: 'error' };
+  if (input.isError && input.receipts.length === 0) return { id: 'error' };
   if (input.receipts.length === 0) return { id: 'empty' };
   return {
-    id: input.isRefetching ? 'refreshing' : 'success',
+    id: input.isRefetching ? 'refreshing' : input.isError ? 'stale-success' : 'success',
     receipts: input.receipts,
     total: input.total,
   };

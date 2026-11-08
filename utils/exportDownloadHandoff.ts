@@ -1,3 +1,4 @@
+import { clearImportJourneyStorage } from '@utils/importJourneyStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
 import type { ExportProvider } from '@features/import-flow/contracts';
@@ -103,6 +104,7 @@ export async function setExportDownloadHandoffState(
 }
 
 export async function resetExportDownloadStateForUser(userId: string): Promise<void> {
+  await clearImportJourneyStorage(userId);
   await Promise.all([
     AsyncStorage.removeItem(storageKey(userId, 'uber_eats')),
     AsyncStorage.removeItem(storageKey(userId, 'doordash')),

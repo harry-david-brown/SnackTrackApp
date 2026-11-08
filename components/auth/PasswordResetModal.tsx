@@ -338,7 +338,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
           <>
             <Text style={styles.title}>Password Updated 🎉</Text>
             <Text style={styles.subtitle}>
-              You can now sign in with your new password. Keep it somewhere safe.
+              Sign in with your new password. Your other sessions and previous Google, Apple, or Microsoft sign-in links have been removed.
             </Text>
             <TouchableOpacity style={styles.primaryButton} onPress={handleClose}>
               <Text style={styles.primaryButtonText}>Return to Sign In</Text>

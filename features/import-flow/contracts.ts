@@ -82,6 +82,7 @@ export interface ExportImportResult {
 }
 
 export type ImportOperationKind =
+  | "export_ready_check"
   | "gmail_historical"
   | "outlook_historical"
   | "manual_tracking"
@@ -139,7 +140,7 @@ export interface ImportOperation {
 }
 
 export const isActiveImportOperation = (operation: ImportOperation | null | undefined): boolean =>
-  Boolean(operation && ["awaiting_upload", "pending_dispatch", "queued", "running", "retrying"].includes(operation.status));
+  Boolean(operation && operation.kind !== "export_ready_check" && ["awaiting_upload", "pending_dispatch", "queued", "running", "retrying"].includes(operation.status));
 export type ProviderExportLifecycleStatus =
   | "not_started"
   | "requested"
@@ -148,7 +149,20 @@ export type ProviderExportLifecycleStatus =
   | "completed"
   | "failed";
 
+export interface ProviderReadyAlert {
+  lastCheckedAt?: string | null;
+  errorCode?: string | null;
+  effectiveState?: 'off' | 'active' | 'reconnect_required' | 'unavailable' | 'error';
+  consentState: MonitoringConsentState;
+  consentVersion: string | null;
+  consentedAt: string | null;
+  revokedAt: string | null;
+  backgroundAvailable: boolean;
+  canMonitor: boolean;
+}
 export interface ProviderExportState {
+  requestId?: string | null;
+  readyAlert?: ProviderReadyAlert;
   provider: ExportProvider;
   status: ProviderExportLifecycleStatus;
   requestedAt: string | null;
@@ -170,6 +184,7 @@ export type OngoingTrackingEffectiveState =
   | "error";
 
 export interface ImportPreferencesResponse {
+  automaticUpdatesOfferSeenAt?: string | null;
   gmailConnection: GmailConnectionStatus;
   outlookConnection: OutlookConnectionStatus;
   monitoring: {

@@ -28,7 +28,7 @@ it('preserves initial setup when recovering mailbox access', () => {
 });
 it('does not classify a temporary validation outage as revoked authorization', () => {
   expect(resolveImportOperationRecovery(failed({ errorCode: 'GMAIL_VALIDATION_UNAVAILABLE' }), 'home'))
-    .toMatchObject({ label: 'Try this source again', destination: { params: { intent: 'email' } } });
+    .toMatchObject({ label: 'Try again', destination: { params: { intent: 'email' } } });
 });
 it('preserves provider upload recovery', () => {
   expect(resolveImportOperationRecovery(failed({ kind: 'export_file', provider: 'doordash', errorCode: 'INVALID_CSV_FORMAT' }), 'summary'))
@@ -39,5 +39,5 @@ it('opens settings for other tracking failures without starting a manual resync'
     .toEqual({ label: 'Open email settings', destination: { pathname: '/settings/accounts-permissions', params: { returnTo: 'settings' } } });
 });
 it('does not reconnect for a superseded operation with an old authorization error', () => {
-  expect(resolveImportOperationRecovery(failed({ status: 'superseded' }), 'home').label).toBe('Try this source again');
+  expect(resolveImportOperationRecovery(failed({ status: 'superseded' }), 'home').label).toBe('Try again');
 });

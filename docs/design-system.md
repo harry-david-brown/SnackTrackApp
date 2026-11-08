@@ -4,6 +4,25 @@ The mascot (buff dumpling) is the centerpiece of the brand; the UI supports it
 rather than competes with it. Tokens live in `constants/theme.ts` — import from
 there instead of hardcoding hex values in new code.
 
+## Approved Home guidance placement (September 2026)
+
+This decision overrides the original mockup's bottom-only data-guidance recipe.
+Home shows greeting, spending hero, the single priority next-step surface,
+insights/stats, then ads. Export invitations retain the original subtle tappable row: a neutral
+download icon, title, wrapping explanation, and trailing arrow. The entire row
+is the action; do not add a separate filled CTA. Never duplicate
+an invitation at the bottom or add a dismissal control.
+
+The dashboard resolver recommends Uber Eats or DoorDash from email source
+coverage; zero to five email receipts or inconclusive counts use a neutral export
+invitation. A successful empty scan is different from setup that never ran.
+Receipt-backed export coverage and explicitly unused services are excluded. After
+an export, another service needs receipt evidence before being promoted.
+
+Operational progress and recovery replace invitations. Applicable invitations
+precede optional automatic-updates offers; otherwise existing updates and healthy
+status placement remains. Recap and consent flows retain their existing behavior.
+
 ## Testing a palette
 
 All application color values live in the `Palette` object in

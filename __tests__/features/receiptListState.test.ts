@@ -4,6 +4,12 @@ import type { Receipt } from '@/types/api';
 const receipt = { id: 'receipt-1' } as Receipt;
 
 describe('receipt list presentation state', () => {
+  it('retains loaded receipts when a later request fails', () => {
+    expect(resolveReceiptListState({
+      hasUser: true, receipts: [receipt], total: 50,
+      isPending: false, isError: true, isRefetching: false,
+    })).toEqual({ id: 'stale-success', receipts: [receipt], total: 50 });
+  });
   it('distinguishes initial loading, failure, and empty success', () => {
     const base = { hasUser: true, receipts: [], total: 0, isPending: false, isError: false, isRefetching: false };
     expect(resolveReceiptListState({ ...base, isPending: true }).id).toBe('loading');

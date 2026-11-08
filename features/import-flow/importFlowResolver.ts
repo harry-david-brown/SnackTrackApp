@@ -100,9 +100,7 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
   const gmailBaseline = resolveGmailBaselineState(preferences);
   const coverage = resolveImportCoverage(preferences);
   const outlookBaseline = preferences?.outlookBaseline;
-  const hasImportedEmailData = gmailBaseline.hasCompleted
-    || Boolean(outlookBaseline?.hasCompleted)
-    || coverage.hasEmailCoverage;
+  const hasImportedEmailData = coverage.hasEmailCoverage;
   const lastGmailCheckFailed = gmailBaseline.latestAttempt.status === 'failed'
     || outlookBaseline?.latestAttempt.status === 'failed';
   const exportComplete = coverage.allProvidersImported;
@@ -176,11 +174,11 @@ export function resolveImportFlowState(input: ResolveImportFlowInput): ImportFlo
       : [uberExportStatus, doorDashExportStatus].includes('failed')
         ? { complete: false, label: 'Needs attention', tone: 'warning' }
         : [uberExportStatus, doorDashExportStatus].includes('requested')
-          ? { complete: false, label: `${importedProviderCount} of 2 imported · update requested`, tone: 'optional' }
+          ? { complete: false, label: 'History saved · update requested', tone: 'optional' }
     : importedProviderCount === 2 && !providerLifecycleNeedsAttention
-      ? { complete: true, label: '2 of 2 imported', tone: 'complete' }
+      ? { complete: true, label: 'History saved', tone: 'complete' }
     : importedProviderCount === 1
-      ? { complete: false, label: '1 of 2 imported', tone: 'optional' }
+      ? { complete: false, label: 'History saved · another source is optional', tone: 'optional' }
       : exportRequested
         ? { complete: false, label: 'Requested', tone: 'optional' }
         : { complete: false, label: hasImportedEmailData ? 'Optional next step' : 'Optional', tone: 'optional' };

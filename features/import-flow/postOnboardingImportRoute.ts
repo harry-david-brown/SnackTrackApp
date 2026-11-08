@@ -16,6 +16,7 @@ export interface PostOnboardingImportRoute {
   readonly connectionSucceeded?: boolean;
   readonly connectionFailed?: boolean;
   readonly showDownloadSteps?: boolean;
+  readonly requestNew?: boolean;
   readonly gmailPurpose?: GmailConnectionPurpose | null;
 }
 
@@ -41,6 +42,7 @@ export function parsePostOnboardingImportRoute(raw: Record<string, RawValue>): P
     journeyContext: first(raw.journeyContext) === 'onboarding' ? 'onboarding' : 'post_onboarding',
     confirmRequest: first(raw.confirmRequest) === 'true',
     returnTo: parseImportReturnTo(raw.returnTo),
+    requestNew: first(raw.requestNew) === 'true',
     showDownloadSteps: first(raw.showDownloadSteps) === 'true',
     provider: providerValue === 'uber_eats' || providerValue === 'doordash' ? providerValue : null,
     operationId: first(raw.operationId) ?? null,

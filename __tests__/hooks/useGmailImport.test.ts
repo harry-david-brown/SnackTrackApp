@@ -7,8 +7,14 @@ import { createQueryTestWrapper } from "@/__tests__/utils/queryTestUtils";
 import type { GmailConnectionStatus } from "@features/import-flow/contracts";
 import { createImportPreferencesFixture } from "@/__tests__/fixtures/importPreferences";
 import { importOperationKeys, importPreferenceKeys } from "@lib/queryKeys";
+jest.mock('@services/mailboxImportSubmission', () => ({ ImportStatusUnavailableError: class extends Error {}, resumeOrSubmitMailboxImport: (_user: string, _mailbox: string, submit: (key: string) => Promise<unknown>) => submit('test-request') }));
 
 const mockInvalidateReceiptDerivedData = jest.fn();
+
+jest.mock('@services/mailboxAuthorization', () => ({
+  beginMailboxAuthorization: jest.fn(async () => 'a'.repeat(64)),
+  finishMailboxAuthorization: jest.fn(async () => {}),
+}));
 
 jest.mock("expo-auth-session", () => ({
   makeRedirectUri: jest.fn(() => "snacktrack://oauth-callback"),
@@ -128,7 +134,7 @@ describe("useGmailImport", () => {
     });
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
       type: "success",
-      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import",
+      url: "snacktrack://oauth-callback?gmail=pending&completionToken=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc&gmailPurpose=receipt_import",
     });
     (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
       preferencesWithConnection({ connected: true, canImport: true }),
@@ -142,8 +148,9 @@ describe("useGmailImport", () => {
     });
 
     expect(gmailApi.getAuthUrl).toHaveBeenCalledWith(
-      "snacktrack://oauth-callback",
+      expect.stringContaining("snacktrack://oauth-callback?"),
       "receipt_import",
+      "a".repeat(64),
     );
     expect(gmailApi.importReceipts).not.toHaveBeenCalled();
   });
@@ -154,7 +161,7 @@ describe("useGmailImport", () => {
     });
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
       type: "success",
-      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=receipt_import",
+      url: "snacktrack://oauth-callback?gmail=pending&completionToken=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc&gmailPurpose=receipt_import",
     });
     (gmailApi.getImportPreferences as jest.Mock)
       .mockResolvedValueOnce(
@@ -188,7 +195,7 @@ describe("useGmailImport", () => {
     });
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
       type: "success",
-      url: "snacktrack://oauth-callback?gmail=success&gmailPurpose=export_ready_alerts",
+      url: "snacktrack://oauth-callback?gmail=pending&completionToken=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc&gmailPurpose=export_ready_alerts",
     });
     (gmailApi.getImportPreferences as jest.Mock).mockResolvedValue(
       preferencesWithConnection({ connected: true, canImport: true }),
@@ -206,8 +213,9 @@ describe("useGmailImport", () => {
 
     expect(connectionResult).toMatchObject({ purpose: "export_ready_alerts" });
     expect(gmailApi.getAuthUrl).toHaveBeenCalledWith(
-      "snacktrack://oauth-callback",
+      expect.stringContaining("snacktrack://oauth-callback?"),
       "export_ready_alerts",
+      "a".repeat(64),
     );
   });
 

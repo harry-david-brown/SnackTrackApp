@@ -25,15 +25,18 @@ import { AppearanceProvider, useAppearance } from '@contexts/AppearanceContext';
 import { NavigationPolicyProvider, resolveSessionNavigationState } from '@features/navigation';
 import type { AppTheme } from '@constants/theme';
 import { useEffect } from 'react';
+import { prepareImportFileCache } from '@services/importFileCache';
+import { MotionProvider, useAppReducedMotion } from '@contexts/MotionContext';
 
 // Initialize Sentry as early as possible
 initSentry();
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
+  useEffect(() => { void prepareImportFileCache(); }, []);
   return (
     <AppearanceProvider>
-      <ThemedRootLayout />
+      <MotionProvider><ThemedRootLayout /></MotionProvider>
     </AppearanceProvider>
   );
 }
@@ -92,6 +95,7 @@ function ThemedRootLayout() {
 }
 
 function SessionNavigation({ theme }: { theme: AppTheme }) {
+  const reduceMotion = useAppReducedMotion();
   const { state } = useUser();
   const sessionNavigation = resolveSessionNavigationState({
     isLoading: state.isLoading,
@@ -110,6 +114,7 @@ function SessionNavigation({ theme }: { theme: AppTheme }) {
       ) : null}
       <Stack
         screenOptions={{
+          animation: reduceMotion ? 'none' : 'slide_from_right',
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
@@ -118,7 +123,7 @@ function SessionNavigation({ theme }: { theme: AppTheme }) {
           options={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.colors.background },
-            animation: 'fade',
+            animation: reduceMotion ? 'none' : 'fade',
           }}
         />
         <Stack.Screen
@@ -126,7 +131,7 @@ function SessionNavigation({ theme }: { theme: AppTheme }) {
           options={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.colors.background },
-            animation: 'fade',
+            animation: reduceMotion ? 'none' : 'fade',
           }}
         />
         <Stack.Protected guard={sessionNavigation.protectedRoutesAvailable}>
@@ -142,7 +147,7 @@ function SessionNavigation({ theme }: { theme: AppTheme }) {
             options={{
               headerShown: false,
               contentStyle: { backgroundColor: theme.colors.background },
-              animation: 'fade',
+              animation: reduceMotion ? 'none' : 'fade',
             }}
           />
           <Stack.Screen
@@ -156,6 +161,7 @@ function SessionNavigation({ theme }: { theme: AppTheme }) {
           <Stack.Screen name="data-setup" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="add-history" options={{ headerShown: false, presentation: 'card' }} />
           <Stack.Screen name="import-progress" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="ongoing-updates" options={{ headerShown: false }} />
           <Stack.Screen name="import-result" options={{ headerShown: false }} />
           <Stack.Screen name="data-tracking" options={{ headerShown: false, presentation: 'card' }} />
           <Stack.Screen name="data-tracking/email" options={{ headerShown: false }} />

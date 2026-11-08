@@ -13,6 +13,10 @@ import { useAppTheme } from '@contexts/AppearanceContext';
 import type { ImportRouteParams } from '@features/import-flow/importRouteParams';
 import { useImportFlowController } from '@hooks/useImportFlowController';
 import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
+import { useUser } from '@contexts/UserContext';
+import { useProviderReadyAlerts } from '@hooks/useProviderReadyAlerts';
+import { useImportPreferences } from '@hooks/useImportPreferences';
+import type { ExportProvider } from '@features/import-flow/contracts';
 import { useProfileController } from '@hooks/useProfileController';
 
 const neutralRoute: ImportRouteParams = { sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: null, gmailPurpose: null };
@@ -47,16 +51,47 @@ export default function AccountsPermissionsScreen() {
       <Surface style={styles.group}>
         <PermissionRow icon="pulse-outline" title="Automatic email updates" detail="Add new delivery receipts automatically. Turn this off or on anytime; your saved orders stay here." value={imports.importPreferences?.ongoingTracking.effectiveState === 'active' ? 'On' : imports.importPreferences?.ongoingTracking.effectiveState === 'setting_up' ? 'Starting' : imports.importPreferences?.ongoingTracking.effectiveState === 'reconnect_required' ? 'Reconnect' : imports.importPreferences?.ongoingTracking.effectiveState === 'error' ? 'Needs attention' : profile.settings.ongoingTrackingLabel} onPress={profile.toggleOngoingTracking} disabled={profile.arePreferencesBusy} />
         <View style={styles.divider} />
-        <PermissionRow icon="notifications-outline" title="Uber ready-email checks" detail="Check for Uber’s ready email while SnackTrack is open. You still download the file yourself." value={profile.settings.exportAlertsLabel} onPress={profile.toggleExportAlerts} disabled={profile.arePreferencesBusy} />
+        {imports.importPreferences?.export.providers.uberEats.readyAlert?.backgroundAvailable ? <>
+          <ReadyAlertPermission provider="uber_eats" imports={imports} />
+          <View style={styles.divider} />
+          <ReadyAlertPermission provider="doordash" imports={imports} />
+        </> : <PermissionRow icon="notifications-outline" title="Uber ready-email checks" detail="Check for Uber’s ready email while SnackTrack is open. You still download the file yourself." value={profile.settings.exportAlertsLabel} onPress={profile.toggleExportAlerts} disabled={profile.arePreferencesBusy} />}
       </Surface>
 
       {imports.importPreferences?.ongoingTracking.effectiveState === 'error' ? <AppButton label="Retry automatic updates" variant="secondary" disabled={imports.connectionBusy} onPress={imports.setupOngoingUpdates} /> : null}
       {lastCheck && !Number.isNaN(Date.parse(lastCheck)) ? <AppText variant="metadata" tone="muted">Last successful email check: {new Date(lastCheck).toLocaleString()}</AppText> : null}
-      <Surface><PermissionRow icon="notifications-outline" title="Import completion notifications" detail="Get a device notification when SnackTrack finishes adding your orders. This does not check for Uber’s email." value={profile.importNotificationsLabel} onPress={profile.toggleImportNotifications} disabled={profile.arePreferencesBusy} /></Surface>
+      {profile.deviceNotifications.supported ? <Surface><PermissionRow icon="notifications-outline" title="Notifications" detail="" value={profile.importNotificationsLabel} onPress={profile.toggleImportNotifications} disabled={profile.arePreferencesBusy} />
+        {profile.deviceNotifications.issue ? <><AppText variant="metadata" tone="muted">{profile.deviceNotifications.issue === 'denied' ? 'Notifications are off in device settings.' : 'Couldn’t register this device. Try again.'}</AppText><AppButton label={profile.deviceNotifications.issue === 'denied' ? 'Open device settings' : 'Try again'} variant="secondary" onPress={profile.toggleImportNotifications} /></> : null}
+      </Surface> : null}
       <Surface style={styles.privacy}><Ionicons name="shield-checkmark-outline" size={25} color={theme.colors.primary} /><View style={styles.flex}><AppText variant="rowTitle">Your imported history stays yours</AppText><AppText variant="metadata" tone="muted">Disconnecting an inbox stops future access. Orders already imported remain until you reset imported data.</AppText></View></Surface>
       <AppButton label="Add orders" variant="secondary" onPress={() => navigation.open(addHistoryDestination({ returnTo: 'settings' }))} />
     </ScrollView>
   </SafeAreaView>;
+}
+
+
+function ReadyAlertPermission({ provider, imports }: { provider: ExportProvider; imports: ReturnType<typeof useImportFlowController> }) {
+  const { state } = useUser();
+  const preferences = useImportPreferences();
+  const alerts = useProviderReadyAlerts({
+    userId: state.user?.id, provider, goHome: () => undefined,
+    connectGmail: imports.connectGmailForReadyAlerts, connectOutlook: imports.connectOutlookForReadyAlerts,
+  });
+  const selected = provider === 'uber_eats' ? preferences.preferences?.export.providers.uberEats : preferences.preferences?.export.providers.doorDash;
+  const granted = selected?.readyAlert?.consentState === 'granted';
+  const title = provider === 'uber_eats' ? 'Uber Eats ready alerts' : 'DoorDash ready alerts';
+  return <View>
+    <AppText variant="rowTitle">{title}</AppText>
+    {alerts.inboxLabel ? <AppText variant="metadata" tone="muted">Connected: {alerts.inboxLabel}</AppText> : null}
+    <AppText variant="metadata" tone="muted">Check connected email for this provider’s ready message while SnackTrack is closed. This does not import receipts or download the archive.</AppText>
+    <AppText variant="metadata" tone="muted" accessibilityLiveRegion="polite">{alerts.description}</AppText>
+    {alerts.chooseInbox ? <>
+      <AppText variant="metadata" tone="muted">Choose the inbox used by your delivery-app account.</AppText>
+      <AppButton label="Gmail" variant="secondary" pending={alerts.busy} onPress={() => alerts.connect('gmail')} />
+      <AppButton label="Outlook" variant="secondary" pending={alerts.busy} onPress={() => alerts.connect('outlook')} />
+    </> : !alerts.enabled && alerts.notificationsSupported ? <AppButton label={alerts.actionLabel} variant="secondary" pending={alerts.busy} onPress={() => alerts.issue === 'denied' ? alerts.openSettings() : alerts.enroll()} /> : null}
+    {granted ? <AppButton label="Turn off ready-email monitoring" variant="tertiary" pending={alerts.busy} onPress={() => { void alerts.disable(); }} /> : null}
+  </View>;
 }
 
 function AccountRow({ icon, title, detail, warning, action, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; warning?: boolean; action: string; onPress: () => void }) { const theme = useAppTheme(); return <View style={stylesStatic.row}><Ionicons name={warning ? 'warning-outline' : icon} size={24} color={warning ? theme.colors.warningDeep : theme.colors.primary} /><View style={stylesStatic.copy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" >{warning ? `${detail} · Reconnect required` : detail}</AppText></View><AppButton label={action} variant="tertiary" onPress={onPress} /></View>; }

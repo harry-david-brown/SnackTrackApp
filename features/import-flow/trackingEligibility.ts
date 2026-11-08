@@ -150,8 +150,8 @@ export function resolveOngoingUpdatesPresentation(
       visible: true,
       statusLabel: 'Reconnect',
       tone: 'warning',
-      title: 'Reconnect email for future updates',
-      body: 'Your imported history is safe. Restore a Gmail or Outlook connection before enabling automatic updates.',
+      title: preferences.gmailConnection.email || preferences.outlookConnection.email ? 'Reconnect email for future updates' : 'Connect email for future updates',
+      body: 'Your imported history is safe. Connect a Gmail or Outlook inbox before enabling automatic updates.',
       actionLabel: 'Manage email connections',
       actionVariant: 'secondary',
     };

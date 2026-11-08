@@ -1,4 +1,4 @@
-import { resolveHomeDataGuidance, resolveHomePrioritySurface } from "@components/dashboard/dashboardTrackingState";
+import { resolveDashboardExportRecommendation, resolveHomeDataGuidance, resolveHomePrioritySurface } from "@components/dashboard/dashboardTrackingState";
 import type { ImportOperation } from "@features/import-flow/contracts";
 import { createImportPreferencesFixture } from "@/__tests__/fixtures/importPreferences";
 
@@ -8,7 +8,7 @@ describe("resolveHomeDataGuidance", () => {
     preferences.ongoingTracking.effectiveState = "declined";
   };
 
-  it("hides the Uber exception when Gmail or Outlook has found one Uber receipt", () => {
+  it("promotes a neutral invitation for a small email history", () => {
     const preferences = createImportPreferencesFixture();
     declineTracking(preferences);
     preferences.coverage.emailReceiptCount = 1;
@@ -20,8 +20,9 @@ describe("resolveHomeDataGuidance", () => {
       latestOrderDate: "2020-01-01T00:00:00.000Z",
     };
     const result = resolveHomeDataGuidance(preferences, false);
-    expect(result.id).toBe("missing_uber_history");
-    expect(result.canMarkUberNotUsed).toBe(false);
+    expect(result.id).toBe("export_invitation_neutral");
+    expect(result.placement).toBe("priority");
+    expect(result.primaryProvider).toBeUndefined();
   });
 
   it("does not treat a stale completed lifecycle as Uber file coverage", () => {
@@ -31,7 +32,7 @@ describe("resolveHomeDataGuidance", () => {
     preferences.coverage.hasEmailData = true;
     preferences.coverage.emailProviders.doorDash.hasData = true;
     preferences.export.providers.uberEats.status = "completed";
-    expect(resolveHomeDataGuidance(preferences, false).id).toBe("uber_no_usable_orders");
+    expect(resolveHomeDataGuidance(preferences, false).id).toBe("export_invitation_neutral");
   });
 
   it("puts receipt-backed Uber completion near the bottom", () => {
@@ -51,7 +52,7 @@ describe("resolveHomeDataGuidance", () => {
     expect(resolveHomeDataGuidance(preferences, false).id).toBe("file_ready_doordash");
   });
 
-  it("promotes ongoing updates above optional history expansion when tracking has not been offered", () => {
+  it("promotes history expansion before an unseen optional updates offer", () => {
     const preferences = createImportPreferencesFixture();
     preferences.coverage.emailReceiptCount = 1;
     preferences.coverage.hasEmailData = true;
@@ -66,11 +67,11 @@ describe("resolveHomeDataGuidance", () => {
     };
 
     expect(resolveHomeDataGuidance(preferences, false)).toMatchObject({
-      id: "tracking_recommended",
+      id: "export_invitation_neutral",
       placement: "priority",
       display: "compact",
-      primaryAction: "enable_tracking",
-      primaryLabel: "Turn on automatic updates",
+      primaryAction: "request_export",
+      primaryLabel: "Explore history exports",
     });
   });
 
@@ -156,5 +157,107 @@ describe("resolveHomeDataGuidance", () => {
       kind: "active_import",
       operation: { id: "operation-1" },
     });
+  });
+});
+
+const emailHistory = (uber: number, doorDash: number) => {
+  const preferences = createImportPreferencesFixture();
+  preferences.gmailBaseline.hasCompleted = true;
+  preferences.coverage.emailReceiptCount = uber + doorDash;
+  preferences.coverage.hasEmailData = uber + doorDash > 0;
+  preferences.coverage.emailProviders.uberEats.receiptCount = uber;
+  preferences.coverage.emailProviders.uberEats.hasData = uber > 0;
+  preferences.coverage.emailProviders.doorDash.receiptCount = doorDash;
+  preferences.coverage.emailProviders.doorDash.hasData = doorDash > 0;
+  return preferences;
+};
+
+describe('adaptive export invitation', () => {
+  it.each([
+    [0, 0, 'neutral'], [5, 0, 'neutral'], [0, 5, 'neutral'],
+    [6, 0, 'uber_eats'], [0, 6, 'doordash'], [8, 2, 'uber_eats'],
+    [2, 8, 'doordash'], [4, 4, 'neutral'],
+  ] as const)('selects %s Uber / %s DoorDash as %s', (uber, doorDash, expected) => {
+    const preferences = emailHistory(uber, doorDash);
+    expect(resolveDashboardExportRecommendation(preferences)).toBe(expected);
+    const guidance = resolveHomeDataGuidance(preferences, false);
+    expect(guidance).toMatchObject({ placement: 'priority', display: 'compact', exportRecommendation: expected });
+    expect(resolveHomePrioritySurface(null, guidance)).toEqual({ kind: 'guidance', guidance });
+  });
+
+  it('uses a neutral invitation when provider counts are inconclusive', () => {
+    const preferences = emailHistory(0, 0);
+    preferences.coverage.emailReceiptCount = 10;
+    expect(resolveDashboardExportRecommendation(preferences)).toBe('neutral');
+  });
+
+  it.each(['gmailBaseline', 'outlookBaseline'] as const)('recognizes a successful empty %s scan', baseline => {
+    const preferences = createImportPreferencesFixture();
+    preferences[baseline].latestAttempt.status = 'completed';
+    expect(resolveHomeDataGuidance(preferences, false).exportRecommendation).toBe('neutral');
+    preferences[baseline].latestAttempt.status = 'failed';
+    expect(resolveHomeDataGuidance(preferences, false).id).toBe('email_import_failed');
+    preferences[baseline].latestAttempt.status = 'never_started';
+    expect(resolveHomeDataGuidance(preferences, false).id).toBe('no_history');
+  });
+
+  it('excludes unused services and never guesses an unobserved second service after an export', () => {
+    const preferences = emailHistory(20, 0);
+    preferences.coverage.exportProviders.uberEats.hasData = true;
+    expect(resolveDashboardExportRecommendation(preferences)).toBeNull();
+    preferences.coverage.emailProviders.doorDash.receiptCount = 2;
+    expect(resolveDashboardExportRecommendation(preferences)).toBe('doordash');
+    preferences.export.providers.doorDash.relevance = 'not_used';
+    expect(resolveDashboardExportRecommendation(preferences)).toBeNull();
+  });
+
+  it('selects an eligible minority service instead of a service marked unused', () => {
+    const preferences = emailHistory(20, 2);
+    preferences.export.providers.uberEats.relevance = 'not_used';
+    expect(resolveDashboardExportRecommendation(preferences)).toBe('doordash');
+    preferences.export.providers.doorDash.relevance = 'not_used';
+    expect(resolveDashboardExportRecommendation(preferences)).toBeNull();
+  });
+
+  it('uses receipt-backed completion instead of stale lifecycle completion', () => {
+    const preferences = emailHistory(8, 2);
+    preferences.export.providers.uberEats.status = 'completed';
+    expect(resolveDashboardExportRecommendation(preferences)).toBe('uber_eats');
+    preferences.coverage.exportProviders.uberEats.hasData = true;
+    expect(resolveDashboardExportRecommendation(preferences)).toBe('doordash');
+    preferences.coverage.exportProviders.doorDash.hasData = true;
+    expect(resolveDashboardExportRecommendation(preferences)).toBeNull();
+  });
+
+  it.each(['not_offered', 'declined', 'active'] as const)('prioritizes exports with updates %s, whether seen or unseen', status => {
+    for (const seen of [null, '2026-09-26T00:00:00Z']) {
+      const preferences = emailHistory(8, 2);
+      preferences.automaticUpdatesOfferSeenAt = seen;
+      preferences.ongoingTracking.effectiveState = status;
+      expect(resolveHomeDataGuidance(preferences, false).exportRecommendation).toBe('uber_eats');
+    }
+  });
+
+  it.each([
+    ['requested', 'request_waiting_doordash'], ['file_ready', 'file_ready_doordash'],
+    ['failed', 'import_failed_doordash'], ['import_processing', 'processing_doordash'],
+  ] as const)('keeps %s work ahead of invitations even after relevance changes', (status, id) => {
+    const preferences = emailHistory(10, 0);
+    preferences.export.providers.doorDash.status = status;
+    preferences.export.providers.doorDash.relevance = 'not_used';
+    expect(resolveHomeDataGuidance(preferences, false)).toMatchObject({ id, placement: 'priority' });
+    expect(resolveHomeDataGuidance(preferences, false).exportRecommendation).toBeUndefined();
+  });
+
+  it.each(['setting_up', 'reconnect_required', 'error'] as const)('keeps operational tracking state %s ahead of invitations', status => {
+    const preferences = emailHistory(10, 0);
+    preferences.ongoingTracking.effectiveState = status;
+    expect(resolveHomeDataGuidance(preferences, false).exportRecommendation).toBeUndefined();
+  });
+
+  it('replaces a promoted invitation with an active operation', () => {
+    const guidance = resolveHomeDataGuidance(emailHistory(10, 0), false);
+    const operation = { id: 'active', status: 'queued' } as ImportOperation;
+    expect(resolveHomePrioritySurface(operation, guidance)).toEqual({ kind: 'active_import', operation });
   });
 });

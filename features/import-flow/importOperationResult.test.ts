@@ -25,7 +25,7 @@ test('final canonical counts override temporary flat fields and keep adjustment 
   const summary = resolveImportOperationResult(operation('gmail_historical', { newOrders: 8, updatedOrders: 3, receiptOutcome }));
   expect(summary.changedOrders).toBe(2);
   expect(summary.importedOrders).toBe(2);
-  expect(importResultCopy(summary).body).toBe('Gmail has finished updating your history.');
+  expect(importResultCopy(summary).body).toBe('Gmail has finished updating your history. Some receipts still need matching before they appear in your totals.');
   expect(JSON.stringify(importResultCopy(summary))).not.toMatch(/refund|cancel|not linked|source document/i);
 });
 
@@ -33,13 +33,13 @@ test.each(['unresolvedOrders', 'unlinkedAdjustments'])('an import with only %s i
   const receiptOutcome = { policyVersion: 3, newOrders: 0, updatedOrders: 0, unchangedOrders: 0, ordersProcessed: 0,
     unresolvedOrders: 0, unlinkedAdjustments: 0, adjustedOrders: 0, cancellationsRecovered: 0, sourceDocuments: 1, currencies: [], [field]: 1 };
   const summary = resolveImportOperationResult(operation('gmail_historical', { receiptOutcome }));
-  expect(importResultCopy(summary)).toMatchObject({ title: 'Import complete', empty: false, needsMatching: true });
+  expect(importResultCopy(summary)).toMatchObject({ title: 'Import finished', empty: false, needsMatching: true });
 });
 
 test('empty, unchanged and legacy unresolved imports retain distinct truthful states', () => {
   const result = { newOrders: 0, updatedOrders: 0, unchangedOrders: 0 };
   expect(importResultCopy(resolveImportOperationResult(operation('gmail_historical', result))).empty).toBe(true);
-  expect(importResultCopy(resolveImportOperationResult(operation('gmail_historical', { ...result, unchangedOrders: 3 }))).title).toBe('These orders are already saved');
+  expect(importResultCopy(resolveImportOperationResult(operation('gmail_historical', { ...result, unchangedOrders: 3 }))).title).toBe('3 orders already saved');
   const legacy = resolveImportOperationResult(operation('gmail_historical', { ...result, unresolvedOrders: 1 }));
   expect(importResultCopy(legacy).empty).toBe(false);
 });

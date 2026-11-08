@@ -13,6 +13,19 @@ const userId = contractIds.user;
 const response = userSummaryFixture;
 
 describe('analytics query ownership', () => {
+  it('requests and decodes converted spending in a currency-specific cache scope', async () => {
+    const normalizedSpend = { amount: 115, currencyCode: 'CAD', approximate: true };
+    (api.get as jest.Mock).mockResolvedValue({ data: {
+      ...response, statistics: { ...response.statistics, normalizedSpend },
+    } });
+    expect((await analyticsApi.getUserSummary(userId, false, undefined, 'CAD')).normalizedSpend).toEqual(normalizedSpend);
+    expect(api.get).toHaveBeenCalledWith(`/users/${userId}/summary?spendCurrency=CAD`);
+    expect(analyticsKeys.summary(userId, 'CAD')).not.toEqual(analyticsKeys.summary(userId, 'USD'));
+    expect(() => normalizeUserSummary({ ...response, statistics: {
+      ...response.statistics, normalizedSpend: { ...normalizedSpend, amount: '115' },
+    } })).toThrow('Invalid analytics response: normalizedSpend.amount');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     (api.get as jest.Mock).mockResolvedValue({ data: response });

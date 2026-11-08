@@ -180,6 +180,21 @@ export function normalizeOutlookConnectionStatus(
   };
 }
 
+function normalizeReadyAlert(value:unknown): import('@features/import-flow/contracts').ProviderReadyAlert | undefined {
+  if(value==null)return undefined;
+  const data=record(value,'readyAlert');
+  return {
+    lastCheckedAt: nullableString(data.lastCheckedAt ?? null,'readyAlert.lastCheckedAt'),
+    errorCode: nullableString(data.errorCode ?? null,'readyAlert.errorCode'),
+    effectiveState: data.effectiveState === undefined ? undefined : member(data.effectiveState, ['off','active','reconnect_required','unavailable','error'] as const,'readyAlert.effectiveState'),
+    consentState:member(data.consentState,consentStates,'readyAlert.consentState'),
+    consentVersion:nullableString(data.consentVersion,'readyAlert.consentVersion'),
+    consentedAt:nullableString(data.consentedAt,'readyAlert.consentedAt'),
+    revokedAt:nullableString(data.revokedAt,'readyAlert.revokedAt'),
+    backgroundAvailable:boolean(data.backgroundAvailable,'readyAlert.backgroundAvailable'),
+    canMonitor:boolean(data.canMonitor,'readyAlert.canMonitor')};
+}
+
 export function normalizeImportPreferences(
   value: unknown,
 ): ImportPreferencesResponse {
@@ -254,6 +269,7 @@ export function normalizeImportPreferences(
   );
 
   return {
+    automaticUpdatesOfferSeenAt: typeof data.automaticUpdatesOfferSeenAt === "string" ? data.automaticUpdatesOfferSeenAt : null,
     gmailConnection,
     outlookConnection,
     monitoring: {
@@ -314,6 +330,8 @@ export function normalizeImportPreferences(
     export: {
       providers: {
         uberEats: {
+          requestId: uberEatsProvider.requestId == null ? null : string(uberEatsProvider.requestId, "requestId"),
+          readyAlert: normalizeReadyAlert(uberEatsProvider.readyAlert),
           provider: member(
             uberEatsProvider.provider,
             exportProviderNames,
@@ -351,6 +369,8 @@ export function normalizeImportPreferences(
           ),
         },
         doorDash: {
+          requestId: doorDashProvider.requestId == null ? null : string(doorDashProvider.requestId, "requestId"),
+          readyAlert: normalizeReadyAlert(doorDashProvider.readyAlert),
           provider: member(
             doorDashProvider.provider,
             exportProviderNames,

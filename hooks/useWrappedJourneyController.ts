@@ -1,3 +1,4 @@
+import { shouldOfferAutomaticUpdates } from '@features/import-flow/ongoingUpdatesState';
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
 import { useCallback, useMemo } from 'react';
 import { resolvePostWrappedExperience } from '@components/wrapped/postWrappedState';
@@ -88,6 +89,7 @@ export function useWrappedJourneyController() {
   }, [navigation, trackingRecovery.kind]);
 
   return {
+    shouldOfferUpdates: shouldOfferAutomaticUpdates(preferences),
     analytics: wrappedQuery.data ?? null,
     isLoading: wrappedQuery.isPending,
     dataUpdatedAt: wrappedQuery.dataUpdatedAt,

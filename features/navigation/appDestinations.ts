@@ -13,6 +13,7 @@ export const appDestinations = {
   history: '/(tabs)/history' as const,
   summary: '/(tabs)/wrapped-journey' as const,
   profile: '/(tabs)/profile' as const,
+  ongoingUpdates: '/ongoing-updates' as const,
   dataSetup: '/data-setup' as const,
   accountsPermissions: '/settings/accounts-permissions' as const,
   appearance: '/settings/appearance' as const,

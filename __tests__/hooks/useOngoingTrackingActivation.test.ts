@@ -4,50 +4,27 @@ import { requestImportNotifications } from '@services/importNotifications';
 import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { createImportPreferencesFixture } from '@/__tests__/fixtures/importPreferences';
 
-const mockOpen = jest.fn();
-jest.mock('@features/navigation', () => ({
-  appDestinations: { accountsPermissions: '/settings/accounts-permissions' },
-  useAppNavigation: () => ({ open: mockOpen }),
-}));
 jest.mock('@services/importNotifications', () => ({ requestImportNotifications: jest.fn() }));
 jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn(), showSimpleAlert: jest.fn() }));
-
 beforeEach(() => jest.clearAllMocks());
-
-it('requests device notifications only after tracking consent succeeds', async () => {
-  const setConsent = jest.fn().mockResolvedValue(createImportPreferencesFixture());
-  jest.mocked(requestImportNotifications).mockResolvedValue(true);
-  const { result } = renderHook(() => useOngoingTrackingActivation('user-1', setConsent));
-
-  await act(async () => { await result.current.enableOngoingTracking(); });
-
+it.each(['setting_up', 'active', 'reconnect_required', 'error'] as const)('returns %s without prompting for notifications or claiming success', async effectiveState => {
+  const preferences = createImportPreferencesFixture();
+  preferences.ongoingTracking.effectiveState = effectiveState;
+  const setConsent = jest.fn().mockResolvedValue(preferences);
+  const onNotificationChange = jest.fn();
+  const { result } = renderHook(() => useOngoingTrackingActivation('user-1', setConsent, onNotificationChange));
+  let response;
+  await act(async () => { response = await result.current.enableOngoingTracking(); });
+  expect(response).toBe(preferences);
   expect(setConsent).toHaveBeenCalledWith('granted');
-  expect(setConsent.mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(requestImportNotifications).mock.invocationCallOrder[0]);
-  expect(showSimpleAlert).toHaveBeenCalledWith('Ongoing updates are on', expect.stringContaining('notify you'));
+  expect(requestImportNotifications).not.toHaveBeenCalled();
+  expect(onNotificationChange).not.toHaveBeenCalled();
+  expect(showAlert).not.toHaveBeenCalled();
+  expect(showSimpleAlert).not.toHaveBeenCalled();
 });
-
-it('keeps tracking enabled and offers notification settings when permission is denied', async () => {
-  const setConsent = jest.fn().mockResolvedValue(createImportPreferencesFixture());
-  jest.mocked(requestImportNotifications).mockResolvedValue(false);
-  const { result } = renderHook(() => useOngoingTrackingActivation('user-1', setConsent));
-
-  await act(async () => { await result.current.enableOngoingTracking(); });
-
-  expect(setConsent).toHaveBeenCalledWith('granted');
-  expect(showAlert).toHaveBeenCalledWith(
-    'Ongoing updates are on',
-    expect.stringContaining('Device notifications are off'),
-    expect.any(Array),
-  );
-  const buttons = jest.mocked(showAlert).mock.calls[0][2];
-  act(() => buttons?.[1].onPress?.());
-  expect(mockOpen).toHaveBeenCalledWith('/settings/accounts-permissions');
-});
-
-it('does not request notification permission when consent cannot be saved', async () => {
+it('propagates an unconfirmed save to the caller', async () => {
   const setConsent = jest.fn().mockRejectedValue(new Error('save failed'));
   const { result } = renderHook(() => useOngoingTrackingActivation('user-1', setConsent));
-
-  await expect(act(async () => result.current.enableOngoingTracking())).rejects.toThrow('save failed');
+  await expect(result.current.enableOngoingTracking()).rejects.toThrow('save failed');
   expect(requestImportNotifications).not.toHaveBeenCalled();
 });

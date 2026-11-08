@@ -26,10 +26,12 @@ export default function ExportReadyNotifier() {
   const { dispatchExternalNavigation } = useAppNavigation();
   const pathname = usePathname();
   // Import screens already show saved progress; never interrupt a local decision with a global dialog.
-  const handlingUber = pathname === '/add-history' || pathname === '/data-setup' || pathname === '/upload';
+  const handlingImport = pathname === '/add-history' || pathname === '/data-setup' || pathname === '/upload';
   const userId = state.user?.id;
   const { preferences, checkExportReady } = useImportPreferences(Boolean(userId));
   const uberExport = preferences?.export.providers.uberEats;
+  // Expanded alerts update the shared status and use typed notifications; legacy dialogs remain Uber-only.
+  const handlingUber = handlingImport || uberExport?.readyAlert?.consentState === 'granted';
   const cachedReadyVersion = uberExport?.status === 'file_ready'
     ? uberExport.updatedAt ?? 'ready'
     : null;

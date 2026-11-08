@@ -19,6 +19,7 @@ interface DashboardSpendingHeroProps {
   months: DashboardMonthOption[];
   selectedMonthKey: string;
   loading: boolean;
+  unavailable?: boolean;
   formatCurrency: (value: number) => string;
   onChangePeriod: (period: DashboardPeriod) => void;
   onSelectMonth: (monthKey: string) => void;
@@ -30,6 +31,7 @@ export function DashboardSpendingHero({
   months,
   selectedMonthKey,
   loading,
+  unavailable = false,
   formatCurrency,
   onChangePeriod,
   onSelectMonth,
@@ -38,14 +40,15 @@ export function DashboardSpendingHero({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const displayMoney = (value: number) => formatReceiptMoney(value, summary.currencyCode, formatCurrency);
   const comparison = summary.comparison;
-  const comparisonText = comparison
+  const missingSummary = loading || unavailable;
+  const comparisonText = unavailable ? 'Spending summary unavailable' : loading ? 'Loading your spending summary…' : comparison
     ? comparison.direction === 'same'
       ? `About the same as ${comparison.previousLabel}`
       : `${displayMoney(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
     : period === 'all_time'
       ? 'Across all imported orders'
       : summary.receiptCount > 0
-        ? 'Your first tracked month'
+        ? summary.isFirstTrackedMonth ? 'Your first tracked month' : 'Month comparison unavailable'
         : summary.isCurrentMonth
           ? 'No tracked orders this month yet'
           : `No tracked orders found in ${summary.monthLabel ?? 'this month'}`;
@@ -78,11 +81,11 @@ export function DashboardSpendingHero({
         style={styles.hero}
         accessibilityRole="summary"
         accessibilityLiveRegion="polite"
-        accessibilityLabel={`${summary.label}. ${loading ? 'Loading' : displayMoney(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${displayMoney(summary.averageOrderValue)}.`}
+        accessibilityLabel={missingSummary ? `${summary.label}. ${comparisonText}` : `${summary.label}. ${displayMoney(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${displayMoney(summary.averageOrderValue)}.`}
       >
         <AppText variant="metadata" style={styles.label}>{summary.label}</AppText>
         <AppText variant="heroValue" style={styles.value} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
-          {loading ? '—' : displayMoney(summary.totalSpent)}
+          {missingSummary ? '—' : displayMoney(summary.totalSpent)}
         </AppText>
         <View style={styles.comparison}>
           <Ionicons
@@ -93,8 +96,8 @@ export function DashboardSpendingHero({
           <AppText variant="metadata" style={styles.comparisonText}>{comparisonText}</AppText>
         </View>
         <View style={styles.metrics}>
-          <Metric value={loading ? '—' : String(summary.receiptCount)} label="orders" />
-          <Metric value={loading ? '—' : displayMoney(summary.averageOrderValue)} label="average order" />
+          <Metric value={missingSummary ? '—' : String(summary.receiptCount)} label="orders" />
+          <Metric value={missingSummary ? '—' : displayMoney(summary.averageOrderValue)} label="average order" />
         </View>
       </LinearGradient>
     </View>

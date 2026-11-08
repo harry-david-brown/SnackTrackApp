@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  AccessibilityInfo,
   Animated,
   Keyboard,
   Pressable,
@@ -13,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontFamily, Radius, Spacing, type AppTheme } from '@constants/theme';
+import { Motion } from '@constants/motion';
+import { useAppReducedMotion } from '@contexts/MotionContext';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { useCurrency } from '@contexts/CurrencyContext';
 import { useUser } from '@contexts/UserContext';
@@ -44,6 +45,7 @@ import { claimAdOpportunity, getDailyAdImpressions, getSessionAdImpressions, isA
 import { AppText } from '@components/ui/AppText';
 import { orderMetricActivityLabel, orderMetricKnownCostLabel } from '@features/receipts/orderMetricPresentation';
 import { formatReceiptMoney } from '@utils/receiptMoney';
+import { ApiClientError } from '@services/api/apiError';
 
 export interface InsightHistoryFilter {
   readonly snapshotId?: string;
@@ -67,7 +69,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
   const [sessionAdImpressions, setSessionAdImpressions] = useState(0);
   const [dailyAdImpressions, setDailyAdImpressions] = useState<number | null>(null);
   const [adClaimed, setAdClaimed] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useAppReducedMotion();
   const hasTrackedInitialFilters = useRef(false);
   const deferredSearch = useDeferredValue(search.trim());
   const filters = useMemo(() => ({
@@ -113,7 +115,20 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
     isError: receiptsQuery.isError,
     isRefetching: receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage,
   });
-  const resultsReady = listState.id === 'success' || listState.id === 'refreshing' || listState.id === 'empty';
+  const resultsReady = listState.id === 'success' || listState.id === 'refreshing' || listState.id === 'stale-success' || listState.id === 'empty';
+  const errorType = receiptsQuery.error instanceof ApiClientError ? receiptsQuery.error.kind : 'unknown';
+  const retryError = <ErrorMessage
+    error={errorType === 'network'
+      ? 'Check your internet connection and try again. Your current view will be kept.'
+      : receiptsQuery.isFetchNextPageError
+        ? 'We couldn’t load more orders. Your loaded orders are still available.'
+        : 'We couldn’t load your order history. Please try again.'}
+    type={errorType}
+    onRetry={receiptsQuery.isFetching ? undefined : () => {
+      if (receiptsQuery.isFetchNextPageError) void receiptsQuery.fetchNextPage();
+      else void receiptsQuery.refetch();
+    }}
+  />;
   const searchPending = search.trim() !== deferredSearch;
   const allResultsLoaded = resultsReady && !receiptsQuery.hasNextPage && receipts.length === total;
   const resultNoun = hasOutcomeEvidence ? 'record' : 'order';
@@ -142,12 +157,6 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
   }, []);
 
   useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
     if (!state.user?.id) return;
     setSessionAdImpressions(getSessionAdImpressions(state.user.id));
     void getDailyAdImpressions(state.user.id).then(setDailyAdImpressions);
@@ -166,6 +175,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
   useEffect(() => {
     if (baseAdEligible && adAnchorId && state.user?.id) setAdClaimed(claimAdOpportunity(state.user.id, 'history_after_fifth_order'));
   }, [adAnchorId, baseAdEligible, state.user?.id]);
+  const insightFilterId = insightFilter?.id;
   const recordAdImpression = () => {
     if (!state.user?.id) return;
     setSessionAdImpressions(recordSessionAdImpression(state.user.id));
@@ -178,16 +188,16 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
       return;
     }
     void trackAdminEvent('history_filter_changed', {
-      properties: { filter: insightFilter ? 'dashboard-stat' : `${provider}:${dateRange}:${outcomeFilter}:${deferredSearch ? 'search' : 'none'}` },
+      properties: { filter: insightFilterId !== undefined ? 'dashboard-stat' : `${provider}:${dateRange}:${outcomeFilter}:${deferredSearch ? 'search' : 'none'}` },
     }).catch(() => undefined);
-  }, [dateRange, deferredSearch, insightFilter?.id, provider, outcomeFilter]);
+  }, [dateRange, deferredSearch, insightFilterId, provider, outcomeFilter]);
 
   const refresh = async () => {
     setExpandedId(null);
     await Promise.all([receiptsQuery.refetch(), analyticsQuery.refetch()]);
   };
   const loadMore = () => {
-    if (resultsReady && !receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage && receiptsQuery.hasNextPage) {
+    if (resultsReady && !receiptsQuery.isError && !receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage && receiptsQuery.hasNextPage) {
       void receiptsQuery.fetchNextPage();
     }
   };
@@ -207,6 +217,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
   };
 
   const listHeader = <View style={styles.listHeader}>
+    {resultsReady && receiptsQuery.isError && !receiptsQuery.isFetchNextPageError ? retryError : null}
     {showBack || insightFilter ? <View style={styles.backAction}><AppButton label="Back" variant="icon" icon="arrow-back" onPress={() => navigation.backOr(appDestinations.home)} /></View> : null}
     <View style={styles.header}>
       <AppText variant="eyebrow" tone="brand">YOUR ORDERS</AppText>
@@ -266,8 +277,9 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
         sections={resultsReady ? sections : []}
         ListHeaderComponent={listHeader}
         renderItem={({ item, index, section }) => (
-          <InsightReceiptReveal
-            enabled={Boolean(insightFilter)}
+          <ReceiptReveal
+            enabled={Boolean(insightFilter) || hasFilters}
+            transitionKey={`${insightFilter?.id ?? 'history'}:${provider}:${dateRange}:${outcomeFilter}:${deferredSearch}`}
             index={receiptIndexes.get(item.id) ?? index}
             reduceMotion={reduceMotion}
             theme={theme}
@@ -283,7 +295,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
             {item.id === adAnchorId && baseAdEligible && adClaimed && adRuntime.configuration ? (
               <NativeAdPlacement placement="history_after_fifth_order" configurationVersion={adRuntime.configuration.configurationVersion} onImpression={recordAdImpression} />
             ) : null}
-          </InsightReceiptReveal>
+          </ReceiptReveal>
         )}
         renderSectionHeader={({ section }) => {
           const summary = section.summary ?? (allResultsLoaded
@@ -297,13 +309,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
         keyExtractor={(item) => `${insightFilter?.id ?? 'history'}:${item.id}`}
         contentContainerStyle={styles.list}
         ListEmptyComponent={listState.id === 'loading' ? <View style={styles.message}><LoadingSpinner text="Loading order history…" /></View> : listState.id === 'error' ? (
-          <View style={styles.message}>{insightFilter ? <EmptyState
-            icon="sparkles-outline"
-            title="This stat has refreshed"
-            message="Its supporting orders may have changed. Clear the filter or return to the dashboard for the latest observation."
-            actionText="Clear filter"
-            onAction={clearFilters}
-          /> : <ErrorMessage error="We couldn’t load your order history." type="network" onRetry={() => { void receiptsQuery.refetch(); }} />}</View>
+          <View style={styles.message}>{retryError}</View>
         ) : <EmptyState
           icon="receipt-outline"
           title={insightFilter ? 'These orders moved' : hasFilters ? hasOutcomeEvidence ? 'No matching records' : 'No matching orders' : 'No orders yet'}
@@ -312,6 +318,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
           onAction={hasFilters ? clearFilters : () => navigation.open(addHistoryDestination({ returnTo: 'history' }))}
         />}
         ListFooterComponent={receiptsQuery.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
+          : resultsReady && receiptsQuery.isFetchNextPageError ? retryError
           : hasFilters && allResultsLoaded && !searchPending && total > 0 ? <AppText variant="metadata" tone="muted" style={styles.footer}>All matching {resultNoun}s shown</AppText> : null}
         refreshControl={<RefreshControl refreshing={receiptsQuery.isRefetching && !receiptsQuery.isFetchingNextPage} onRefresh={refresh} tintColor={theme.colors.primary} />}
         onEndReached={loadMore}
@@ -324,7 +331,8 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
   );
 }
 
-function InsightReceiptReveal({ enabled, index, reduceMotion, theme, children }: {
+function ReceiptReveal({ enabled, transitionKey, index, reduceMotion, theme, children }: {
+  transitionKey: string;
   enabled: boolean;
   index: number;
   reduceMotion: boolean;
@@ -332,32 +340,35 @@ function InsightReceiptReveal({ enabled, index, reduceMotion, theme, children }:
   children: ReactNode;
 }) {
   const progress = useRef(new Animated.Value(enabled && !reduceMotion ? 0 : 1)).current;
+  const previousKey = useRef(transitionKey);
   useEffect(() => {
-    if (!enabled || reduceMotion) {
+    const changed = previousKey.current !== transitionKey;
+    previousKey.current = transitionKey;
+    if ((!enabled && !changed) || reduceMotion) {
       progress.setValue(1);
       return;
     }
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 620,
-      delay: Math.min(index, 8) * 75,
-      easing: value => 1 - Math.pow(1 - value, 3),
+      duration: Motion.content,
+      delay: index < 4 ? index * 25 : 0,
+      easing: Motion.easing,
       useNativeDriver: false,
     });
     animation.start();
     return () => animation.stop();
-  }, [enabled, index, progress, reduceMotion]);
+  }, [enabled, index, progress, reduceMotion, transitionKey]);
 
-  return <Animated.View style={enabled ? {
+  return <Animated.View style={{
     borderRadius: Radius.md,
     opacity: progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
-    transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+    transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [Motion.distance, 0] }) }],
     backgroundColor: progress.interpolate({
       inputRange: [0, 0.58, 1],
       outputRange: [theme.colors.alpha(theme.colors.primary, 0.15), theme.colors.alpha(theme.colors.primary, 0.09), theme.colors.alpha(theme.colors.primary, 0)],
     }),
-  } : undefined}>{children}</Animated.View>;
+  }}>{children}</Animated.View>;
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({

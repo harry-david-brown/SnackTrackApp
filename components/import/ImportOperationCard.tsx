@@ -19,6 +19,7 @@ const sourceName = (operation: ImportOperation): string => {
     case 'receipt_publish': return 'History update';
     case 'receipt_rollback': return 'History restoration';
     case 'scheduled_tracking': return 'Automatic update';
+    case 'export_ready_check': return 'Ready-email check';
     case 'export_file': return 'History-file import';
   }
 };
@@ -32,7 +33,7 @@ export function ImportOperationCard({
 }) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  if (!operation) return null;
+  if (!operation || operation.kind === 'export_ready_check') return null;
   const active = isActiveImportOperation(operation);
   const succeeded = operation.status === 'succeeded';
   const cancelled = operation.status === 'cancelled';

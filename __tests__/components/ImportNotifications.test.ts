@@ -26,3 +26,11 @@ it('saves enabled only after the device is registered', async () => {
   expect(await requestImportNotifications('user')).toBe(true);
   expect(AsyncStorage.setItem).toHaveBeenCalledWith('enabled:user', 'true');
 });
+
+it('repairs registration with existing permission without prompting the OS again', async () => {
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: true } as never);
+  jest.mocked(notificationDeviceApi.register).mockResolvedValue(undefined as never);
+  expect(await requestImportNotifications('user')).toBe(true);
+  expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  expect(notificationDeviceApi.register).toHaveBeenCalledTimes(1);
+});

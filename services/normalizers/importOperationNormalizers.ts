@@ -1,7 +1,7 @@
 import type { ImportJourneyContext, ImportOperation, ImportOperationKind, ImportOperationStatus, ImportTimeEstimate } from '@features/import-flow/contracts';
 import { normalizeReceiptImportOutcome } from './receiptImportOutcomeNormalizer';
 
-const kinds: readonly ImportOperationKind[] = ['gmail_historical','outlook_historical','manual_tracking','scheduled_tracking','export_file','gmail_push_tracking','receipt_rebuild','receipt_publish','receipt_rollback'];
+const kinds: readonly ImportOperationKind[] = ['export_ready_check', 'gmail_historical','outlook_historical','manual_tracking','scheduled_tracking','export_file','gmail_push_tracking','receipt_rebuild','receipt_publish','receipt_rollback'];
 const statuses: readonly ImportOperationStatus[] = ['awaiting_upload','pending_dispatch','queued','running','retrying','succeeded','failed','expired','superseded','cancelled'];
 const journeyContexts: readonly ImportJourneyContext[] = ['onboarding','post_onboarding','routine','legacy'];
 const object = (value: unknown): Record<string, unknown> => {

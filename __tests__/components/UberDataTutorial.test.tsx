@@ -1,7 +1,10 @@
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { AppState, Dimensions, Linking } from 'react-native';
+import { showAlert } from '@utils/platformAlert';
 import UberDataTutorial, { ProviderRequestConfirmation } from '@components/upload/UberDataTutorial';
+
+jest.mock('@utils/platformAlert', () => ({ showAlert: jest.fn(), showSimpleAlert: jest.fn() }));
 
 describe('UberDataTutorial', () => {
   it('shows the Uber website link only on the final instruction and keeps manual confirmation available', () => {
@@ -204,12 +207,12 @@ describe('shared provider request confirmation', () => {
     const onConfirm = jest.fn();
     const onShowSteps = jest.fn();
     const screen = render(<ProviderRequestConfirmation platform="uber" onBack={jest.fn()} onConfirm={onConfirm} onShowSteps={onShowSteps} />);
-    expect(screen.getByText('Want to double-check?')).toBeTruthy();
+    expect(screen.getByText('What success looks like')).toBeTruthy();
     expect(screen.getByText('If Uber showed a confirmation that your request was submitted, you can continue.')).toBeTruthy();
-    expect(screen.getByText('EMAIL SUBJECT')).toBeTruthy();
+    expect(screen.getByText('EXAMPLE EMAIL SUBJECT')).toBeTruthy();
     expect(screen.getByText('Uber data request received')).toBeTruthy();
     expect(onConfirm).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByText('Check the last step again'));
+    fireEvent.press(screen.getByText('Check the steps again'));
     expect(onShowSteps).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
     fireEvent.press(screen.getByText('Yes, my request was submitted'));
@@ -219,6 +222,8 @@ describe('shared provider request confirmation', () => {
   it('keeps Uber email instructions out of DoorDash confirmation', () => {
     const screen = render(<ProviderRequestConfirmation platform="doordash" onBack={jest.fn()} onConfirm={jest.fn()} onShowSteps={jest.fn()} />);
     expect(screen.queryByText(/Uber data request received/)).toBeNull();
+    expect(screen.getByText('What success looks like')).toBeTruthy();
+    expect(screen.getByText('We got your data archive request')).toBeTruthy();
     expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
   });
 });
@@ -244,4 +249,33 @@ it('keeps confirmation visible after failed persistence and ignores duplicate ta
   expect(screen.getByText('Was your data request submitted?')).toBeTruthy();
   expect(screen.getByText('Yes, my request was submitted')).toBeTruthy();
   expect(screen.queryByText('Want us to tell you when it’s ready?')).toBeNull();
+});
+
+
+it.each([
+  ['uber', 'Uber', 3],
+  ['doordash', 'DoorDash', 2],
+] as const)('points each %s request hint to the correctly located website button', (platform, name, steps) => {
+  const screen = render(<UberDataTutorial initialPlatform={platform} mode="request" skipRequestOverview onRequestConfirmed={jest.fn()} onClose={jest.fn()} />);
+  for (let step = 0; step < steps; step += 1) {
+    fireEvent.press(screen.getByText('I can’t find this'));
+    expect(showAlert).toHaveBeenLastCalledWith(
+      'Can’t find this step?',
+      expect.stringContaining(step === steps - 1
+        ? `Use the “Open ${name}’s data page” button in this guide`
+        : `At the end of this guide, use “Open ${name}’s data page”`),
+      [{ text: 'Got it' }],
+    );
+    if (step < steps - 1) fireEvent.press(screen.getByText('Next'));
+  }
+  expect(screen.getByText(`Open ${name}’s data page`)).toBeTruthy();
+});
+
+it.each(['uber', 'doordash'] as const)('keeps %s download hints specific to email, website and saved file', platform => {
+  const screen = render(<UberDataTutorial initialPlatform={platform} mode="download" entryJob="download" skipRequestOverview onRequestConfirmed={jest.fn()} onClose={jest.fn()} />);
+  for (const hint of ['inbox linked', 'website in your browser', 'Downloads folder']) {
+    fireEvent.press(screen.getByText('I can’t find this'));
+    expect(showAlert).toHaveBeenLastCalledWith('Can’t find this step?', expect.stringContaining(hint), [{ text: 'Got it' }]);
+    if (hint !== 'Downloads folder') fireEvent.press(screen.getByText('Next'));
+  }
 });

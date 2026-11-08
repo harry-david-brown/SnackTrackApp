@@ -42,6 +42,7 @@ export default {
       "**/*"
     ],
     plugins: [
+      './plugins/withReleaseSigning',
       "expo-router",
       [
         "@react-native-google-signin/google-signin",

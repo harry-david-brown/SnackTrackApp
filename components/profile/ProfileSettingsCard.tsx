@@ -67,6 +67,7 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 interface ProfileSettingsCardProps {
   currency: CurrencyCode;
   mailboxConnectionsLabel: string;
+  notificationsSupported?: boolean;
   importNotificationsLabel: string;
   destructiveActionBusy: boolean;
   showDevelopmentReset: boolean;
@@ -95,7 +96,7 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
 
       <SettingsGroup title="Support & preferences">
         <SettingsRow icon="help-circle-outline" label="Help & privacy" description="Answers, privacy details, and support." onActivate={props.onOpenHelp} />
-        <SettingsRow icon="notifications-circle-outline" label="Import completion notifications" description="Get a device notification when a background import finishes." value={props.importNotificationsLabel} onActivate={props.onToggleImportNotifications} last />
+        {props.notificationsSupported !== false ? <SettingsRow icon="notifications-circle-outline" label="Notifications" value={props.importNotificationsLabel} onActivate={props.onToggleImportNotifications} last /> : null}
       </SettingsGroup>
 
       <SettingsGroup title="Account">

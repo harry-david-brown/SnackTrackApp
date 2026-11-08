@@ -1,3 +1,4 @@
+import { useMailboxAuthorizationCallback } from '@hooks/useMailboxAuthorizationCallback';
 import { parseImportReturnTo } from '@features/import-flow/importNavigation';
 import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
@@ -17,19 +18,26 @@ export default function OAuthCallback() {
   const journeyContext = typeof params.journeyContext === 'string' ? params.journeyContext : undefined;
   const returnTo = parseImportReturnTo(params.returnTo);
   const mailbox = gmail ? 'gmail' : outlook ? 'outlook' : undefined;
+  const completionToken = typeof params.completionToken === 'string' ? params.completionToken : null;
+  const completion = useMailboxAuthorizationCallback(mailbox, gmail ?? outlook, completionToken);
+  const completionStatus = completion.status;
+  const completing = completion.completing;
+  const exportAlerts=(gmailPurpose ?? outlookPurpose)==='export_ready_alerts';
   const returnIntent = params.returnIntent === 'reconnect' ? 'reconnect' : 'email';
 
   useEffect(() => {
+    if (completing) return;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
     const destination = {
-      pathname: journeyContext === 'post_onboarding' ? '/add-history' : '/data-setup',
+      pathname: exportAlerts || journeyContext === 'post_onboarding' ? '/add-history' : '/data-setup',
       params: {
-        returnTo, mailbox,
-        ...(journeyContext === 'post_onboarding' ? { intent: returnIntent } : {}),
-        ...(gmail ? { gmail } : {}),
-        ...(outlook ? { outlook } : {}),
-        ...(error ? { error } : {}),
+        returnTo, mailbox, journeyContext,
+        ...(exportAlerts ? { intent: 'resume_export' as const } : {}),
+        ...(!exportAlerts && journeyContext === 'post_onboarding' ? { intent: returnIntent } : {}),
+        ...(gmail ? { gmail: completionStatus } : {}),
+        ...(outlook ? { outlook: completionStatus } : {}),
+        ...(completionStatus === 'error' ? { error: error ?? 'Email connection could not be completed. Please start it again.' } : {}),
         ...(gmailPurpose || outlookPurpose ? { gmailPurpose: gmailPurpose ?? outlookPurpose } : {}),
       },
     } as const;
@@ -45,7 +53,7 @@ export default function OAuthCallback() {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [error, gmail, gmailPurpose, journeyContext, navigation, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
+  }, [completing, completionStatus, exportAlerts, error, gmail, gmailPurpose, journeyContext, navigation, outlook, outlookPurpose, returnIntent, returnTo, mailbox]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

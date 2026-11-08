@@ -14,10 +14,10 @@ export const getDeviceLocalDate = (now = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-export const useAnalyticsQuery = (userId?: string | null) =>
+export const useAnalyticsQuery = (userId?: string | null, spendCurrency?: string) =>
   useQuery({
-    queryKey: analyticsKeys.summary(userId ?? 'anonymous'),
-    queryFn: () => analyticsApi.getUserSummary(userId as string, false),
+    queryKey: analyticsKeys.summary(userId ?? 'anonymous', spendCurrency),
+    queryFn: () => analyticsApi.getUserSummary(userId as string, false, undefined, spendCurrency),
     enabled: Boolean(userId),
     staleTime: 2 * 60 * 1000,
   });

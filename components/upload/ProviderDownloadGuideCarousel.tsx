@@ -1,6 +1,8 @@
+import { useTutorialPosition } from '@hooks/useTutorialPosition';
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Image,
   Modal,
   NativeScrollEvent,
@@ -30,16 +32,23 @@ export function ProviderDownloadGuideCarousel({ provider, onOpenEmail }: Provide
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { width: windowWidth } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [zoomedStep, setZoomedStep] = useState<ProviderDownloadStep | null>(null);
   const platform = provider === 'uber_eats' ? 'uber' : 'doordash';
   const steps = PROVIDER_DOWNLOAD_STEPS[platform];
+  const [currentIndex,setCurrentIndex]=useTutorialPosition(provider,'download',steps.length);
+  const [reduceMotion,setReduceMotion]=useState(false);
+  useEffect(()=>{
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const subscription=AccessibilityInfo.addEventListener('reduceMotionChanged',setReduceMotion);
+    return()=>subscription.remove();
+  },[]);
+  const [zoomedStep, setZoomedStep] = useState<ProviderDownloadStep | null>(null);
   const slideWidth = Math.max(windowWidth - 36, 280);
 
+  useEffect(()=>{scrollRef.current?.scrollTo({x:currentIndex*slideWidth,animated:false});},[currentIndex,slideWidth]);
   const goToStep = (index: number) => {
     const nextIndex = Math.max(0, Math.min(index, steps.length - 1));
     setCurrentIndex(nextIndex);
-    scrollRef.current?.scrollTo({ x: nextIndex * slideWidth, animated: true });
+    scrollRef.current?.scrollTo({ x: nextIndex * slideWidth, animated: !reduceMotion });
   };
 
   const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -82,7 +91,7 @@ export function ProviderDownloadGuideCarousel({ provider, onOpenEmail }: Provide
               </Pressable>
 
               <View style={styles.copy} accessibilityLiveRegion={index === currentIndex ? 'polite' : 'none'}>
-                <AppText variant="sectionLabel" tone="brand">Step {index + 1} of {steps.length}</AppText>
+                <AppText variant="sectionLabel" tone="brand">Guide: {index + 1} of {steps.length}</AppText>
                 <AppText variant="surfaceTitle" style={styles.stepTitle}>{step.title}</AppText>
                 <AppText variant="surfaceBody" tone="muted">{step.description}</AppText>
                 {index === 0 && onOpenEmail ? (
@@ -133,12 +142,12 @@ export function ProviderDownloadGuideCarousel({ provider, onOpenEmail }: Provide
         </Pressable>
       </View>
 
-      <Modal visible={Boolean(zoomedStep)} transparent animationType="fade" onRequestClose={() => setZoomedStep(null)}>
+      <Modal visible={Boolean(zoomedStep)} transparent animationType={reduceMotion?'none':'fade'} onRequestClose={() => setZoomedStep(null)}>
         <View style={styles.zoomBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="Close enlarged screenshot" style={styles.zoomClose} onPress={() => setZoomedStep(null)}>
             <Ionicons name="close" size={28} color={theme.colors.white} />
           </Pressable>
-          {zoomedStep ? <Image source={zoomedStep.image} style={styles.zoomedImage} resizeMode="contain" /> : null}
+          {zoomedStep ? <Image source={zoomedStep.image} accessibilityLabel={zoomedStep.imageLabel} style={styles.zoomedImage} resizeMode="contain" /> : null}
         </View>
       </Modal>
     </View>

@@ -18,8 +18,9 @@ export const outlookApi = {
   getAuthUrl: async (
     redirectUri: string,
     purpose: GmailConnectionPurpose,
+    handoffChallenge: string,
   ): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post<unknown>('/outlook/auth-url', { redirectUri, purpose });
+    const response = await api.post<unknown>('/outlook/auth-url', { redirectUri, purpose, handoffChallenge });
     return normalizeGmailAuthUrl(response.data);
   },
 
@@ -28,7 +29,7 @@ export const outlookApi = {
     return normalizeOutlookConnectionStatus(response.data);
   },
 
-  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false): Promise<ImportOperation> => importOperationsApi.startOutlook(journeyContext, automaticUpdates),
+  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false, idempotencyKey?: string): Promise<ImportOperation> => importOperationsApi.startOutlook(journeyContext, automaticUpdates, idempotencyKey),
 
   disconnect: async (
     options: { resetImportStatus?: boolean } = {},

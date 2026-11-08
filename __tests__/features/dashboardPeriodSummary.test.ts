@@ -22,11 +22,28 @@ const summary: UserSummary = {
 };
 
 describe('dashboard period summary', () => {
+  it('distinguishes the first tracked month from a gap in tracking history', () => {
+    const sparseSummary = { ...summary, monthlyBreakdown: [
+      { month: '2026-09', totalSpent: 150, receiptCount: 6 },
+      { month: '2026-06', totalSpent: 80, receiptCount: 3 },
+      { month: '2026-05', totalSpent: 0, receiptCount: 0 },
+    ] };
+    const now = new Date(2026, 9, 1);
+    expect(resolveDashboardPeriodSummary(sparseSummary, 'monthly', '2026-09', now)).toMatchObject({
+      isFirstTrackedMonth: false, comparison: null,
+    });
+    expect(resolveDashboardPeriodSummary(sparseSummary, 'monthly', '2026-06', now).isFirstTrackedMonth).toBe(true);
+    expect(resolveDashboardPeriodSummary(sparseSummary, 'monthly', '2026-07', now).isFirstTrackedMonth).toBe(false);
+    expect(resolveDashboardPeriodSummary(sparseSummary, 'all_time', undefined, now).isFirstTrackedMonth).toBe(false);
+    expect(resolveDashboardPeriodSummary(null, 'monthly', '2026-09', now).isFirstTrackedMonth).toBe(false);
+  });
+
   it('does not compare a partial current month to a full prior month without daily evidence', () => {
     expect(resolveDashboardPeriodSummary(summary, 'monthly', '2026-09', new Date(2026, 8, 1))).toMatchObject({
       monthKey: '2026-09',
       monthLabel: 'September 2026',
       isCurrentMonth: true,
+      isFirstTrackedMonth: false,
       label: 'September delivery spending',
       totalSpent: 150,
       receiptCount: 6,

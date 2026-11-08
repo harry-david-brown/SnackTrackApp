@@ -25,8 +25,8 @@ export const MONITORING_CONSENT_VERSION = '2026-08-04.v2';
 export const ONGOING_TRACKING_CONSENT_VERSION = '2026-08-24.v2';
 
 export const gmailApi = {
-  getAuthUrl: async (redirectUri: string, purpose: GmailConnectionPurpose): Promise<GmailAuthUrlResponse> => {
-    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri, purpose });
+  getAuthUrl: async (redirectUri: string, purpose: GmailConnectionPurpose, handoffChallenge: string): Promise<GmailAuthUrlResponse> => {
+    const response = await api.post<unknown>('/gmail/auth-url', { redirectUri, purpose, handoffChallenge });
     return normalizeGmailAuthUrl(response.data);
   },
 
@@ -36,6 +36,11 @@ export const gmailApi = {
   getStatus: async (): Promise<GmailConnectionStatus> => {
     const response = await api.get<unknown>('/gmail/status');
     return normalizeGmailConnectionStatus(response.data);
+  },
+
+  acknowledgeAutomaticUpdatesOffer: async (): Promise<ImportPreferencesResponse> => {
+    const response = await api.post<unknown>('/gmail/preferences/tracking/offer-seen');
+    return normalizeImportPreferences(response.data);
   },
 
   getImportPreferences: async (): Promise<ImportPreferencesResponse> => {
@@ -61,6 +66,11 @@ export const gmailApi = {
       provider,
       relevance,
     });
+    return normalizeImportPreferences(response.data);
+  },
+
+  setProviderReadyAlertConsent: async (provider: ExportProvider, decision:'granted'|'declined'|'revoked'):Promise<ImportPreferencesResponse> => {
+    const response=await api.put<unknown>('/gmail/preferences/provider-ready-alert-consent',{provider,decision,consentVersion:decision==='granted'?'export-ready-background-v1':undefined});
     return normalizeImportPreferences(response.data);
   },
 
@@ -106,7 +116,7 @@ export const gmailApi = {
    * Incrementally merges new or updated Gmail receipts.
    * Note: This operation can take a while, so we use a longer timeout
    */
-  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false): Promise<ImportOperation> => importOperationsApi.startGmail(journeyContext, automaticUpdates),
+  importReceipts: (journeyContext: ImportJourneyContext = 'legacy', automaticUpdates = false, idempotencyKey?: string): Promise<ImportOperation> => importOperationsApi.startGmail(journeyContext, automaticUpdates, idempotencyKey),
 
   /**
    * Disconnect Gmail account

@@ -86,6 +86,19 @@ describe('resolveInitialImportJourney', () => {
     });
   });
 
+  it.each(['gmail', 'outlook'] as const)('honours method selection while %s remains connected', provider => {
+    const flow = makeFlow({
+      gmailConnected: provider === 'gmail',
+      outlookConnected: provider === 'outlook',
+      canImportFromGmail: provider === 'gmail',
+      canImportFromOutlook: provider === 'outlook',
+    });
+    expect(resolveInitialImportJourney(flow, 'choose_method')).toEqual({ kind: 'choose_method' });
+    expect(resolveInitialImportJourney(flow, 'email')).toEqual({ kind: 'choose_email_provider' });
+    expect(resolveInitialImportJourney(flow, 'alternative')).toEqual({ kind: 'choose_provider' });
+    expect(resolveInitialImportJourney(flow, provider)).toMatchObject({ kind: 'review_email_scan', provider });
+  });
+
   it('resumes a provider request instead of returning to method selection', () => {
     const flow = makeFlow({
       exportProviderProgress: {

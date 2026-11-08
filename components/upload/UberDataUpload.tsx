@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import { AppButton } from '@components/ui/AppButton';
@@ -33,12 +33,17 @@ function UploadControl({ provider = 'uber_eats', fileSession, buttonLabel, autoO
   const theme = useAppTheme();
   const handled = useRef<string | null>(null);
   const opened = useRef<string | null>(null);
-  const chooseAndSubmit = fileSession.chooseAndSubmit;
+  const choose = fileSession.choose;
+  const submit = fileSession.submit;
+  const chooseFile = useCallback(async () => {
+    const selected = await choose();
+    if (selected) await submit(selected);
+  }, [choose, submit]);
   usePreventRemove(fileSession.isPending, () => showSimpleAlert('Keep SnackTrack open', 'Your file is being uploaded and submitted. You can leave this page once processing is accepted.'));
   useEffect(() => {
     if (!autoOpenToken || opened.current === autoOpenToken) return;
-    opened.current = autoOpenToken; onAutoOpenConsumed?.(); void chooseAndSubmit();
-  }, [autoOpenToken, chooseAndSubmit, onAutoOpenConsumed]);
+    opened.current = autoOpenToken; onAutoOpenConsumed?.(); void chooseFile();
+  }, [autoOpenToken, chooseFile, onAutoOpenConsumed]);
   useEffect(() => {
     if (!fileSession.operation || fileSession.isPending || handled.current === fileSession.operation.id) return;
     handled.current = fileSession.operation.id; void onUploadSuccess?.(fileSession.operation);
@@ -47,11 +52,12 @@ function UploadControl({ provider = 'uber_eats', fileSession, buttonLabel, autoO
   if (fileSession.isPending) return <Surface accessibilityLiveRegion="polite"><ActivityIndicator color={theme.colors.primary} /><AppText variant="surfaceTitle">{fileSession.progress < 1 ? 'Uploading your file' : 'Submitting your file'}</AppText><AppText>{fileSession.file?.name}</AppText><AppText tone="muted">{fileSession.progress < 1 ? `${Math.round(fileSession.progress * 100)}% uploaded. ` : ''}Keep SnackTrack open until processing is accepted.</AppText></Surface>;
   return <View style={{ gap: 14 }}>
     <AppText variant="surfaceBody" tone="muted">Original {name} ZIP up to 50 MB, or supported CSV up to 10 MB.</AppText>
+    {!fileSession.file ? <AppText variant="metadata" tone="muted">Choosing a file starts the import. We’ll match overlapping orders with your existing history.</AppText> : null}
     {fileSession.file ? <Surface>
       <AppText variant="sectionLabel">SELECTED FILE</AppText>
       <AppText variant="surfaceTitle" selectable>{fileSession.file.name}</AppText>
       <AppText variant="surfaceBody" tone="muted">{name} · {formatImportFileSize(fileSession.file.size)}</AppText>
-      <AppText variant="surfaceBody">Matching orders may gain details without being added twice. Newer email orders outside this download’s history stay saved.</AppText>
+      <AppText variant="metadata" tone="muted">Already added some of these orders? We’ll match them with your existing history.</AppText>
     </Surface> : null}
     {fileSession.offline ? <AppText accessibilityLiveRegion="polite" tone="muted">{fileSession.file ? 'Your file is selected. Reconnect to the internet to import it.' : 'You can choose a file now. Reconnect to the internet before importing it.'}</AppText> : null}
     {fileSession.statusUnavailable ? <AppText tone="muted">Import status is unavailable. Reload status before submitting this file.</AppText> : fileSession.importBlocked ? <AppText tone="muted">Another import is processing. You can choose a file now and import it when that finishes.</AppText> : null}
@@ -59,8 +65,8 @@ function UploadControl({ provider = 'uber_eats', fileSession, buttonLabel, autoO
       <AppText variant="surfaceTitle" style={{ color: theme.colors.warningDeep }}>{fileSession.rateLimitNotice.title}</AppText>
       <AppText variant="surfaceBody" style={{ color: theme.colors.warningDeep }}>{fileSession.rateLimitNotice.message}</AppText>
     </Surface> : null}
-    <AppButton label={fileSession.rateLimitNotice ? 'Come back tomorrow' : fileSession.file ? fileSession.error ? 'Try this file again' : 'Import this file' : buttonLabel ?? 'Choose ZIP and import'} pending={fileSession.choosing} disabled={Boolean(fileSession.rateLimitNotice || (fileSession.file && (fileSession.offline || fileSession.importBlocked || fileSession.statusUnavailable)))} onPress={() => void (fileSession.file ? fileSession.submit() : fileSession.chooseAndSubmit())} />
-    {fileSession.file && !fileSession.rateLimitNotice ? <AppButton label="Choose another file" variant="secondary" disabled={fileSession.choosing} onPress={() => void fileSession.chooseAndSubmit()} /> : null}
+    <AppButton size="journey" label={fileSession.rateLimitNotice ? 'Come back tomorrow' : fileSession.file ? fileSession.error ? 'Try this file again' : 'Continue importing' : buttonLabel ?? 'Choose downloaded file'} pending={fileSession.choosing} disabled={Boolean(fileSession.rateLimitNotice || (fileSession.file && (fileSession.offline || fileSession.importBlocked || fileSession.statusUnavailable)))} onPress={() => void (fileSession.file ? fileSession.submit() : chooseFile())} />
+    {fileSession.file && !fileSession.rateLimitNotice ? <AppButton label="Choose another file" variant="tertiary" disabled={fileSession.choosing} onPress={() => void chooseFile()} /> : null}
   </View>;
 }
 export const UberDataUpload = ExportDataUpload;

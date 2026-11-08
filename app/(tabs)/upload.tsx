@@ -14,7 +14,6 @@ import { ImportWorkflowModals } from '@components/upload/ImportWorkflowModals';
 import { OngoingUpdatesSection } from '@components/upload/OngoingUpdatesSection';
 import { ImportSetupJourney } from '@components/upload/ImportSetupJourney';
 import { resolveInitialImportJourney } from '@features/import-flow/initialImportJourney';
-import { ImportCompletionPanel } from '@components/upload/ImportCompletionPanel';
 import { SectionHeader } from '@components/ui/SectionHeader';
 import { Card } from '@components/ui/Card';
 import { AppButton } from '@components/ui/AppButton';
@@ -76,10 +75,10 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
     return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}><PageHeader title={controller.importPreferencesError ? 'We couldn’t load your import options' : 'Loading your import options'} body="Your saved orders and requests are still available." />{controller.importPreferencesError ? <AppButton label="Try again" onPress={() => { void controller.refreshImportPreferences(); }} /> : null}</ScrollView></SafeAreaView>;
   }
   if (route.action) return <Redirect href={{ pathname: '/add-history', params: { ...rawParams, journeyContext: 'onboarding', returnTo: route.returnTo ?? 'home' } }} />;
-  if (!controller.showTutorial && !controller.completionSummary && !controller.selectedSetupPath && !route.action && !route.downloadedVersion && !route.mailbox && pendingProvider && pendingRequests[pendingProvider]) {
+  if (!controller.showTutorial && !controller.selectedSetupPath && !route.action && !route.downloadedVersion && !route.mailbox && pendingProvider && pendingRequests[pendingProvider]) {
     return <Redirect href={{ pathname: '/add-history', params: { intent: 'resume_export', provider: pendingProvider, confirmRequest: 'true', returnTo: pendingRequests[pendingProvider]!.returnTo, journeyContext: 'onboarding' } }} />;
   }
-  if (!controller.importPreferencesLoading && controller.importPreferences && !controller.showTutorial && !controller.completionSummary && (route.downloadedVersion || initialJourney.kind === 'provider_resume' || initialJourney.kind === 'complete')) {
+  if (!controller.importPreferencesLoading && controller.importPreferences && !controller.showTutorial && (route.downloadedVersion || initialJourney.kind === 'provider_resume' || initialJourney.kind === 'complete')) {
     const provider = route.provider ?? controller.flow.exportReadyProvider ?? (controller.flow.exportProviderProgress.uberEats.status !== 'not_started' ? 'uber_eats' : controller.flow.exportProviderProgress.doorDash.status !== 'not_started' ? 'doordash' : undefined);
     return <Redirect href={{ pathname: '/add-history', params: { intent: route.mailbox ? 'email' : provider ? 'resume_export' : 'choose', mailbox: route.mailbox ?? undefined, provider, returnTo: route.returnTo ?? 'home', journeyContext: 'onboarding', ...(route.downloadedVersion ? { downloadedVersion: route.downloadedVersion } : {}) } }} />;
   }
@@ -115,23 +114,14 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
           {controller.activeImportOperation && controller.activeImportOperation.presentation?.mode === 'delayed' ? (
             <ImportOperationCard operation={controller.activeImportOperation} />
           ) : null}
-          {controller.completionSummary ? (
-            <ImportCompletionPanel
-              summary={controller.completionSummary}
-              onHome={controller.goHome}
-              onNext={controller.continueAfterCompletion}
-              onTryAnotherEmail={controller.tryAnotherEmail}
-            />
-          ) : showGuidedSetup ? (
+          {showGuidedSetup ? (
             <ImportSetupJourney
-              automaticUpdatesLabel={controller.emailUpdates.label}
-              automaticUpdatesDescription={controller.emailUpdates.description}
-              automaticImportsDisabled={controller.importPreferences?.ongoingTracking.consentState === 'declined' || controller.importPreferences?.ongoingTracking.consentState === 'revoked'}
               flow={controller.flow}
               selectedPath={controller.selectedSetupPath}
               oauthReturn={controller.oauthReturn}
               busy={controller.busy}
               connectionBusy={controller.connectionBusy}
+              onBack={() => navigation.backOr(appDestinations.home)}
               onChooseEmailPath={controller.chooseEmailSetup}
               onChooseEmail={controller.chooseSetupEmail}
               onChooseAlternative={controller.chooseAlternativeSetup}

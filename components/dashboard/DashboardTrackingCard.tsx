@@ -79,7 +79,7 @@ export function DashboardTrackingCard({
         </View>
         <View style={styles.compactCopy}>
           <AppText variant="rowTitle" style={styles.compactTitle}>{state.title}</AppText>
-          <AppText variant="metadata" style={styles.compactBody} numberOfLines={2}>{state.body}</AppText>
+          <AppText variant="metadata" style={styles.compactBody} numberOfLines={state.exportRecommendation ? undefined : 2}>{state.body}</AppText>
           {state.showActivity && ordersAddedThisWeek > 0 ? (
             <AppText variant="metadata" style={[styles.compactActivity, { color: tone.accent }]}>+{ordersAddedThisWeek} this week</AppText>
           ) : null}

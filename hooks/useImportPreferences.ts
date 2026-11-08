@@ -36,6 +36,20 @@ export function useImportPreferences(enabled = true) {
     return preferences;
   };
 
+  const offerSeen = useMutation({
+    mutationFn: gmailApi.acknowledgeAutomaticUpdatesOffer,
+    retry: 2,
+    onMutate: () => {
+      queryClient.setQueryData<ImportPreferencesResponse>(queryKey, current => current
+        ? { ...current, automaticUpdatesOfferSeenAt: current.automaticUpdatesOfferSeenAt ?? new Date().toISOString() } : current);
+    },
+    onSuccess: writePreferences,
+  });
+
+  const providerReadyConsent = useMutation({
+    mutationFn: ({provider,decision}:{provider:ExportProvider;decision:'granted'|'declined'|'revoked'})=>gmailApi.setProviderReadyAlertConsent(provider,decision),
+    onSuccess:writePreferences,
+  });
   const monitoringConsent = useMutation({
     mutationFn: (decision: "granted" | "declined" | "revoked") =>
       gmailApi.setMonitoringConsent(decision),
@@ -106,6 +120,7 @@ export function useImportPreferences(enabled = true) {
   });
 
   const isUpdating =
+    providerReadyConsent.isPending ||
     monitoringConsent.isPending ||
     ongoingConsent.isPending ||
     exportRequested.isPending ||
@@ -116,6 +131,7 @@ export function useImportPreferences(enabled = true) {
     trackingCheck.isPending;
 
   const mutationError =
+    providerReadyConsent.error ||
     monitoringConsent.error ||
     ongoingConsent.error ||
     exportRequested.error ||
@@ -129,6 +145,13 @@ export function useImportPreferences(enabled = true) {
     if (!enabled || !userId) return null;
     const result = await preferencesQueryRef.current.refetch();
     return result.data ?? null;
+  }, [enabled, userId]);
+
+  const refreshVerified = useCallback(async () => {
+    if (!enabled || !userId) throw new Error('Import preferences unavailable');
+    const result = await preferencesQueryRef.current.refetch();
+    if (result.isError || !result.data) throw result.error ?? new Error('Import preferences unavailable');
+    return result.data;
   }, [enabled, userId]);
 
   const refreshIfStale = useCallback(async () => {
@@ -151,6 +174,9 @@ export function useImportPreferences(enabled = true) {
         : null,
     refresh,
     refreshIfStale,
+    refreshVerified,
+    acknowledgeAutomaticUpdatesOffer: offerSeen.mutateAsync,
+    setProviderReadyAlertConsent: providerReadyConsent.mutateAsync,
     setMonitoringConsent: monitoringConsent.mutateAsync,
     setOngoingTrackingConsent: ongoingConsent.mutateAsync,
     checkOngoingTracking: trackingCheck.mutateAsync,

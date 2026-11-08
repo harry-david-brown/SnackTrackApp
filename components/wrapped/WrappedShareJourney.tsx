@@ -50,7 +50,6 @@ import { styles } from './wrappedStyles';
 import type { ProviderExportLifecycleStatus } from '@features/import-flow/contracts';
 import { useWrappedSharing } from './useWrappedSharing';
 import { trackAdminEvent } from '@services/adminAnalytics';
-import { WrappedUpsellFinale } from './WrappedUpsellFinale';
 import { canCaptureWrappedSlides } from './wrappedCapturePolicy';
 
 // Re-exported for existing consumers (archetype gradients reference these keys).
@@ -84,11 +83,6 @@ export default function WrappedShareJourney({
   analytics,
   onClose,
   userName,
-  exportStatus,
-  exportProviderName,
-  onExportUpsellSeen,
-  onExportUpgrade,
-  onExportTutorial,
   onFinishPostWrapped,
   entryPoint = 'summary',
 }: WrappedShareJourneyProps) {
@@ -98,10 +92,9 @@ export default function WrappedShareJourney({
   const reduceMotion = useReducedMotion();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPressPaused, setIsPressPaused] = useState(false);
-  const isPaused = isPressPaused;
+  const isPaused = isPressPaused || !isFocused;
   const [confettiVisible, setConfettiVisible] = useState(false);
-  const [showPostDeckOffer, setShowPostDeckOffer] = useState(false);
-  const { isMuted, toggleMuted } = useWrappedAudio(isFocused && !showPostDeckOffer);
+  const { isMuted, toggleMuted } = useWrappedAudio(isFocused);
 
   // Animation state lives in Reanimated shared values, so entrances and the
   // progress bar run entirely on the UI thread.
@@ -199,13 +192,6 @@ export default function WrappedShareJourney({
       setCurrentSlide(Math.max(0, slides.length - 1));
     }
   }, [currentSlide, slides.length]);
-
-  React.useEffect(() => {
-    if (showPostDeckOffer) {
-      onExportUpsellSeen?.();
-      void trackAdminEvent('upsell_example_viewed', { properties: { example: 'delivery_fee_trend' } }).catch(() => undefined);
-    }
-  }, [showPostDeckOffer, onExportUpsellSeen]);
 
   // Confetti fires per-slide, optionally delayed (the archetype launches it in
   // sync with the name reveal). Reduced motion skips it entirely.
@@ -434,7 +420,6 @@ export default function WrappedShareJourney({
   };
 
   const finishPostWrapped = () => {
-    setShowPostDeckOffer(false);
     onFinishPostWrapped?.();
   };
 
@@ -541,16 +526,6 @@ export default function WrappedShareJourney({
       </LinearGradient>
     );
   };
-
-  if (showPostDeckOffer) {
-    return <WrappedUpsellFinale
-      exportStatus={exportStatus}
-      providerName={exportProviderName}
-      onUnlock={() => { setShowPostDeckOffer(false); onExportTutorial?.(); }}
-      onManage={() => { setShowPostDeckOffer(false); onExportUpgrade?.(); }}
-      onFinish={finishPostWrapped}
-    />;
-  }
 
   return (
     <View style={styles.container}>
@@ -683,7 +658,7 @@ export default function WrappedShareJourney({
             style={styles.doneCtaButton}
             onPress={() => {
               void trackAdminEvent('wrapped_completed').catch(() => undefined);
-              setShowPostDeckOffer(true);
+              finishPostWrapped();
             }}
             accessibilityRole="button"
             accessibilityLabel="Continue after Wrapped"

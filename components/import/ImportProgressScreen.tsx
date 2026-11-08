@@ -1,5 +1,6 @@
 import { importReturnDestination, type ImportReturnTo } from '@features/import-flow/importNavigation';
 import { ImportResultScreen } from './ImportResultScreen';
+import { Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -25,6 +26,7 @@ interface ImportProgressScreenProps {
   returnTo?: ImportReturnTo;
   uploadActive?: boolean;
   uploadProgress?: number;
+  providerName?: string;
 }
 
 interface StatPreview {
@@ -41,6 +43,7 @@ const STAT_PREVIEWS: readonly StatPreview[] = [
 ];
 
 const importStageLabel = (status: string | undefined, stage: string | undefined): string => {
+  if (status === 'pending_dispatch' || status === 'queued') return 'Waiting to start';
   if (status === 'retrying') return 'Waiting to retry safely';
   switch (stage) {
     case 'discovering': return 'Finding supported receipts';
@@ -84,6 +87,7 @@ const useAnimatedCounter = (
 };
 
 interface ImportProgressLoadingViewProps {
+  readonly providerName?: string;
   readonly progress: number;
   readonly progressStatus: string;
   readonly receiptsFound?: number | null;
@@ -95,6 +99,7 @@ interface ImportProgressLoadingViewProps {
 
 /** Shared loading experience used before and after an upload is accepted. */
 export function ImportProgressLoadingView({
+  providerName,
   progress,
   progressStatus,
   receiptsFound = null,
@@ -128,7 +133,7 @@ export function ImportProgressLoadingView({
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.progressPage}>
-        <AppText variant="eyebrow" style={styles.eyebrow}>BUILDING YOUR HISTORY</AppText>
+        <AppText variant="eyebrow" style={styles.eyebrow}>{providerName ? `${providerName} · Importing history` : 'BUILDING YOUR HISTORY'}</AppText>
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <AppText variant="pageTitle" style={styles.title}>Your SnackTrack is taking shape</AppText>
@@ -178,13 +183,15 @@ export function ImportProgressLoadingView({
   );
 }
 
-export function ImportProgressScreen({ operationId, returnTo = 'home', uploadActive = false, uploadProgress }: ImportProgressScreenProps) {
+export function ImportProgressScreen({ operationId, returnTo = 'home', uploadActive = false, uploadProgress, providerName }: ImportProgressScreenProps) {
   const navigation = useAppNavigation();
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { state } = useUser();
   const queryClient = useQueryClient();
-  const { operation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(state.user?.id), false, operationId);
+  const { operation: savedOperation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(state.user?.id) && !uploadActive, false, operationId);
+  // A previous terminal job must never replace the current upload/submission screen.
+  const operation = uploadActive ? null : savedOperation;
   const handled = useRef<string | null>(null);
   const announced = useRef<string | null>(null);
   const stableTimeEstimate = useStableImportTimeEstimate(operation?.id, operation?.presentation?.timeEstimate);
@@ -227,9 +234,11 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
     };
   }, [navigation, queryClient, returnTo, state.user?.id, succeededOperationId]);
 
-  if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton label="Choose the file again" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="secondary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
+  if (operation?.kind === 'export_ready_check') return <Redirect href={{ pathname: '/add-history', params: { returnTo, intent: 'resume_export', provider: operation.provider ?? undefined } }} />;
 
-  if (!uploadActive && isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="secondary" onPress={() => navigation.replace(appDestinations.history)} /></ScrollView></SafeAreaView>;
+  if (!uploadActive && !isUnavailable && operation?.status === 'awaiting_upload') return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle" style={styles.title}>Your file hasn’t been submitted yet</AppText><AppText variant="body" style={styles.body}>Choose the original file to finish uploading. Processing starts after the upload is accepted.</AppText><View style={styles.actions}><AppButton size="journey" label="Choose the file again" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo, journeyContext: operation.journeyContext === 'onboarding' ? 'onboarding' : 'post_onboarding', intent: 'provider', ...(operation.provider ? { provider: operation.provider, downloadedVersion: 'resume' } : {}) } })} /><AppButton label="Add orders" variant="tertiary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View></ScrollView></SafeAreaView>;
+
+  if (!uploadActive && isUnavailable) return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.centered}><AppText variant="pageTitle">Import status is unavailable</AppText><AppText variant="body" style={styles.body}>We can’t confirm whether this import has finished. Check its status before starting another copy.</AppText><AppButton size="journey" label="Reload status" onPress={() => void refresh()} /><AppButton label="View order history" variant="tertiary" onPress={() => navigation.replace(appDestinations.history)} /></ScrollView></SafeAreaView>;
 
   if (!operation && !isLoading && !uploadActive) {
     return (
@@ -238,7 +247,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
           <Mascot pose="sad" size={130} />
           <AppText variant="pageTitle" style={styles.title}>We couldn’t find that import</AppText>
           <AppText variant="body" style={styles.body}>Your saved history is available. Open Add orders to choose a source or find a saved import.</AppText>
-          <View style={styles.actions}><AppButton label="Choose another import" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View>
+          <View style={styles.actions}><AppButton size="journey" label="Choose another import" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} /></View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -248,17 +257,19 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
     return <ImportResultScreen operationId={operation.id} returnTo={returnTo} />;
   }
 
+  const isEmailImport = operation?.kind === 'gmail_historical' || operation?.kind === 'outlook_historical';
   const progressStatus = uploadActive
     ? (uploadProgress ?? 0) < 1 ? 'Uploading your file' : 'Submitting your file'
     : importStageLabel(operation?.status, operation?.presentation?.stage);
   return (
     <ImportProgressLoadingView
+      providerName={providerName ?? (operation?.provider === 'doordash' ? 'DoorDash' : operation?.provider === 'uber_eats' ? 'Uber Eats' : operation?.kind === 'gmail_historical' ? 'Gmail' : operation?.kind === 'outlook_historical' ? 'Outlook' : undefined)}
       progress={visibleProgress}
       progressStatus={progressStatus}
       receiptsFound={receiptsFound}
       estimateText={timeEstimateText}
-      footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : undefined}
-      onContinue={!uploadActive && operation ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
+      footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : isEmailImport ? 'Your import is accepted. You can leave and return from Add orders.' : 'We’ll show your results when your history is ready.'}
+      onContinue={!uploadActive && isEmailImport && operation && ['pending_dispatch', 'queued', 'running', 'retrying'].includes(operation.status) ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
     />
   );
 }

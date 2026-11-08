@@ -396,6 +396,7 @@ export interface WrappedAnalytics {
 }
 
 export interface UserSummary {
+  normalizedSpend?: { amount: number | null; currencyCode: string; approximate: boolean };
   orderMetrics?: import('./orderMetrics').OrderMetrics;
   orderMetricPeriods?: import('./orderMetrics').OrderMetricPeriods;
   unresolvedReceiptCount?: number;

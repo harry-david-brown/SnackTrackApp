@@ -1,12 +1,12 @@
-export type ImportReturnTo = 'home' | 'history' | 'summary' | 'settings';
+export type ImportReturnTo = 'home' | 'history' | 'summary' | 'settings' | 'ongoing_updates';
 
 export const parseImportReturnTo = (value: unknown): ImportReturnTo => {
   const first = Array.isArray(value) ? value[0] : value;
-  return first === 'history' || first === 'summary' || first === 'settings' ? first : 'home';
+  return first === 'ongoing_updates' || first === 'history' || first === 'summary' || first === 'settings' ? first : 'home';
 };
 
 export const importReturnDestination = (origin: ImportReturnTo) => ({
-  home: '/(tabs)', history: '/(tabs)/history', summary: '/(tabs)/wrapped-journey', settings: '/settings/accounts-permissions',
+  ongoing_updates: '/ongoing-updates', home: '/(tabs)', history: '/(tabs)/history', summary: '/(tabs)/wrapped-journey', settings: '/settings/accounts-permissions',
 } as const)[origin];
 
 export const providerPreparationCopy = (provider: 'uber_eats' | 'doordash') => provider === 'uber_eats'

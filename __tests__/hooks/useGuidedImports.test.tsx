@@ -17,8 +17,9 @@ let mockRequestSaving = false;
 let mockOperation: object | null = null;
 const selectedFile = { name: 'saved.zip' };
 const mockFileSession: { file: typeof selectedFile | null; isPending: boolean; choose: jest.Mock; submit: jest.Mock } = { file: selectedFile, isPending: false, choose: mockChooseFile, submit: mockSubmitFile };
+jest.mock('@hooks/useProviderReadyAlerts', () => ({ useProviderReadyAlerts: () => ({ available: false }) }));
 jest.mock('@hooks/useImportFileSession', () => ({ useImportFileSession: () => mockFileSession }));
-jest.mock('@hooks/useImportFlowController', () => ({ useImportFlowController: () => ({ importPreferences: mockPreferences, importPreferencesLoading: false, importPreferencesError: null, activeImportOperation: mockOperation, activeImportUnavailable: false, busy: mockBusy, connectionBusy: false, requestSaving: mockRequestSaving, emailUpdates: { automaticUpdates: true }, connectEmail: mockConnect, connectOutlook: mockConnect, connectEmailForOngoingTracking: mockConnect, connectOutlookForOngoingTracking: mockConnect, reconnectEmail: mockConnect, reconnectOutlook: mockConnect, setupOngoingUpdates: mockSetupOngoingUpdates, importEmail: mockImport, importOutlook: mockImport, reportDownloaded: mockReport, completeTutorial: mockComplete, openProviderTutorial: mockOpenTutorial, closeTutorial: mockCloseTutorial }) }));
+jest.mock('@hooks/useImportFlowController', () => ({ useImportFlowController: () => ({ importPreferences: mockPreferences, importPreferencesLoading: false, importPreferencesError: null, activeImportOperation: mockOperation, activeImportUnavailable: false, busy: mockBusy, connectionBusy: false, requestSaving: mockRequestSaving, emailUpdates: { automaticUpdates: false }, connectEmail: mockConnect, connectOutlook: mockConnect, connectEmailForOngoingTracking: mockConnect, connectOutlookForOngoingTracking: mockConnect, reconnectEmail: mockConnect, reconnectOutlook: mockConnect, setupOngoingUpdates: mockSetupOngoingUpdates, importEmail: mockImport, importOutlook: mockImport, reportDownloaded: mockReport, completeTutorial: mockComplete, openProviderTutorial: mockOpenTutorial, closeTutorial: mockCloseTutorial }) }));
 jest.mock('@hooks/useImportOperation', () => ({ useImportOperation: () => ({ operation: null, isLoading: false, isUnavailable: false }) }));
 const route = { intent: 'choose' as const, provider: null, operationId: null, downloadedVersion: null };
 beforeEach(() => { jest.clearAllMocks(); mockPreferences = createImportPreferencesFixture(); mockBusy = false; mockRequestSaving = false; mockOperation = null; mockFileSession.file = selectedFile; mockChooseFile.mockResolvedValue(selectedFile); mockSubmitFile.mockResolvedValue(undefined); mockConnect.mockResolvedValue(true); mockComplete.mockResolvedValue(true); });
@@ -31,10 +32,10 @@ it('Back restores the previous visible decision and retains the selected file th
   expect(result.current.state).toMatchObject({ kind: 'download_ready', downloaded: true });
   expect(result.current.fileSession.file).toBe(mockFileSession.file);
   act(() => result.current.goBack());
-  expect(result.current.state.kind).toBe('provider_intro');
+  expect(result.current.state.kind).toBe('request');
   expect(result.current.selectedProvider).toBe('uber_eats');
 });
-it('opens the picker first and advances only after a file is selected', async () => {
+it('starts importing the validated file without a review step', async () => {
   mockPreferences.export.providers.uberEats.status = 'file_ready';
   mockFileSession.file = null;
   mockChooseFile.mockResolvedValueOnce(null).mockResolvedValueOnce(selectedFile);
@@ -43,6 +44,7 @@ it('opens the picker first and advances only after a file is selected', async ()
   await act(async () => { expect(await result.current.chooseDownloadedFile()).toBe(false); });
   expect(result.current.state).toMatchObject({ kind: 'download_ready', downloaded: false });
   expect(mockReport).not.toHaveBeenCalled();
+  expect(mockSubmitFile).not.toHaveBeenCalled();
 
   await act(async () => { expect(await result.current.chooseDownloadedFile()).toBe(true); });
   expect(result.current.state).toMatchObject({ kind: 'download_ready', downloaded: true });
@@ -94,7 +96,7 @@ it('repairs the chosen service despite an active import and retains explicit rec
 it('does not repeat connection repair after a successful cold OAuth return', () => {
   mockPreferences.outlookBaseline.hasCompleted = true;
   const { result } = renderHook(() => usePostOnboardingImportController({ ...route, intent: 'reconnect', mailbox: 'outlook', connectionSucceeded: true }));
-  expect(result.current.state.kind).toBe('email_settings');
+  expect(result.current.state.kind).toBe('email_review');
   expect(mockConnect).not.toHaveBeenCalled();
 });
 it('opens a linked download guide once and continues to the native picker', async () => {
@@ -125,7 +127,7 @@ it.each(['gmail', 'outlook'] as const)('starts the first %s import only from the
   const { result } = renderHook(() => usePostOnboardingImportController({ ...route, intent: 'email', mailbox }));
   expect(mockImport).not.toHaveBeenCalled();
   await act(async () => { await result.current.startEmail(); });
-  expect(mockImport).toHaveBeenCalledWith('initial', true);
+  expect(mockImport).toHaveBeenCalledWith('initial', false);
 });
 it('continues a connected mailbox into tracking consent without reimporting history', async () => {
   Object.assign(mockPreferences.gmailConnection, { connected: true, connectionHealth: 'valid', canImport: true });
@@ -134,4 +136,46 @@ it('continues a connected mailbox into tracking consent without reimporting hist
   await act(async () => { await result.current.startEmail(); });
   expect(mockSetupOngoingUpdates).toHaveBeenCalledTimes(1);
   expect(mockImport).not.toHaveBeenCalled();
+});
+
+it.each(['uber_eats', 'doordash'] as const)('keeps %s preparation active through slow file validation and submits once validation finishes', async provider => {
+  let finishChoice!: (file: typeof selectedFile | null) => void;
+  mockChooseFile.mockImplementationOnce(() => new Promise(resolve => { finishChoice = resolve; }));
+  mockFileSession.file = null;
+  const { result } = renderHook(() => usePostOnboardingImportController({ ...route, intent: 'resume_export', provider }));
+  let selection!: Promise<boolean>;
+  act(() => { selection = result.current.chooseDownloadedFile(); });
+  expect(result.current.preparingFile).toBe(true);
+  expect(result.current.navigationBlocked).toBe(true);
+  expect(mockCloseTutorial).not.toHaveBeenCalled();
+  await act(async () => { expect(await result.current.chooseDownloadedFile()).toBe(false); });
+  expect(mockChooseFile).toHaveBeenCalledTimes(1);
+  expect(result.current.preparingFile).toBe(true);
+  act(() => result.current.goBack());
+  expect(router.replace).not.toHaveBeenCalled();
+  await act(async () => {
+    mockFileSession.file = selectedFile;
+    finishChoice(selectedFile);
+    expect(await selection).toBe(true);
+  });
+  expect(result.current.preparingFile).toBe(false);
+  expect(result.current.state).toMatchObject({ kind: 'download_ready', downloaded: true, provider: { provider } });
+  expect(mockCloseTutorial).toHaveBeenCalledTimes(1);
+  expect(mockSubmitFile).toHaveBeenCalledWith(selectedFile);
+});
+
+it('restores the previous decision after a canceled or rejected selection without closing the guide', async () => {
+  let finishChoice!: (file: null) => void;
+  mockChooseFile.mockImplementationOnce(() => new Promise(resolve => { finishChoice = resolve; }));
+  const { result } = renderHook(() => usePostOnboardingImportController({ ...route, intent: 'resume_export', provider: 'doordash' }));
+  const previous = result.current.selection;
+  let selection!: Promise<boolean>;
+  act(() => { selection = result.current.chooseDownloadedFile(); });
+  expect(result.current.preparingFile).toBe(true);
+  await act(async () => { finishChoice(null); expect(await selection).toBe(false); });
+  expect(result.current.preparingFile).toBe(false);
+  expect(result.current.navigationBlocked).toBeFalsy();
+  expect(result.current.selection).toEqual(previous);
+  expect(mockCloseTutorial).not.toHaveBeenCalled();
+  expect(mockReport).not.toHaveBeenCalled();
 });

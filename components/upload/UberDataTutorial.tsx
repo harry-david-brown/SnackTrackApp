@@ -1,3 +1,6 @@
+import { useTutorialPosition } from '@hooks/useTutorialPosition';
+import { ImportJourneyHeader } from '@components/import/ImportJourneyHeader';
+import { AppButton } from '@components/ui/AppButton';
 import { usePreventRemove } from '@react-navigation/native';
 import { Radius, type AppTheme } from '@constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +12,7 @@ import {
   ImageSourcePropType,
   Linking,
   Modal,
+  BackHandler,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -19,7 +23,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { showSimpleAlert } from '@utils/platformAlert';
+import { showAlert, showSimpleAlert } from '@utils/platformAlert';
 import { resolveProviderTutorialEntry, type ProviderTutorialJob } from '@features/import-flow/providerTutorialEntry';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { PROVIDER_DOWNLOAD_STEPS } from './providerDownloadSteps';
@@ -39,40 +43,40 @@ const REQUEST_STEPS: Record<DataPlatform, TutorialStep[]> = {
   uber: [
     {
       title: 'Sign in if Uber asks',
-      description: 'Use the phone number, email, or sign-in method connected to your Uber Eats account.',
+      description: 'On Uber’s website in your browser, sign in with the account you use for Uber Eats.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/1.png'),
       imageLabel: 'Uber sign-in page asking for a phone number or email',
-      fallback: 'If you’re already signed in, Uber may skip this page.',
+      fallback: 'Sign in with the account you use for Uber Eats. Already signed in? Continue to the next step.',
     },
     {
       title: 'Find Additional data',
       description: 'On the “Your Uber data” page, scroll down until you see this dark section.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/2.png'),
       imageLabel: 'Your Uber data page with Request download highlighted under Additional data',
-      fallback: 'Uber’s page may look slightly different. Look for the words “Request download.”',
+      fallback: 'On “Your Uber data”, find “Additional data”, then “Request download”. The page may look slightly different from our example.',
     },
     {
       title: 'Tap “Request Your Data”',
       description: 'Uber will send you an email or text when the download is ready.',
       image: require('../../assets/UberDataTutorialScreenshots/request-web/3.png'),
       imageLabel: 'Uber Download your data page with Request Your Data highlighted',
-      fallback: 'The final button opens Uber. You can return to these steps if you get stuck.',
+      fallback: 'On the download page, look for “Request Your Data”. After submitting, look for Uber’s confirmation before returning to SnackTrack.',
     },
   ],
   doordash: [
     {
       title: 'Sign in if DoorDash asks',
-      description: 'Use the phone number or sign-in method connected to your DoorDash account.',
+      description: 'On DoorDash’s website in your browser, sign in with your DoorDash account.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/request-web/1.png'),
       imageLabel: 'DoorDash sign-in page asking for a phone number or social account',
-      fallback: 'If you’re already signed in, DoorDash may skip this page.',
+      fallback: 'Sign in with your DoorDash account. Already signed in? Continue to the next step.',
     },
     {
       title: 'Tap “Request Archive”',
       description: 'On Manage Account, find Account Data and request your archive.',
       image: require('../../assets/DoorDashDataTutorialScreenshots/request-web/2.png'),
       imageLabel: 'DoorDash Manage Account page with Request Archive highlighted',
-      fallback: 'DoorDash’s page may look slightly different. Look for “Account Data” and “Request Archive.”',
+      fallback: 'Under “Manage Account”, look for “Account Data”, then “Request Archive”. The page may look slightly different from our example.',
     },
   ],
 };
@@ -110,6 +114,8 @@ interface UberDataTutorialProps {
   onReadyConfirmed?: (platform: DataPlatform) => void;
   returnToParentOnBack?: boolean;
   onClose: () => void;
+  onOverview?: () => void;
+  onSteps?: () => void;
 }
 
 export default function UberDataTutorial({
@@ -124,7 +130,7 @@ export default function UberDataTutorial({
   onArchiveDownloaded,
   onReadyConfirmed,
   returnToParentOnBack = false,
-  onClose,
+  onClose, onOverview, onSteps,
 }: UberDataTutorialProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -140,7 +146,7 @@ export default function UberDataTutorial({
   const [showProviderOverview, setShowProviderOverview] = useState(Boolean(!skipRequestOverview && initialPlatform && initialEntry.mode === 'request' && initialEntry.job === 'request'));
   const [showProgressQuestion, setShowProgressQuestion] = useState(false);
   const [showRequestedQuestion, setShowRequestedQuestion] = useState(initialEntry.job === 'waiting');
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex,setCurrentIndex]=useTutorialPosition(platform==='uber'?'uber_eats':'doordash',tutorialMode,(tutorialMode==='request'?REQUEST_STEPS[platform]:PROVIDER_DOWNLOAD_STEPS[platform]).length);
   const [zoomedImage, setZoomedImage] = useState<TutorialStep | null>(null);
   const [awaitingVendorReturn, setAwaitingVendorReturn] = useState(false);
   const [showRequestConfirmation, setShowRequestConfirmation] = useState(false);
@@ -163,7 +169,6 @@ export default function UberDataTutorial({
     setShowProviderOverview(Boolean(!skipRequestOverview && initialPlatform && nextEntry.mode === 'request' && nextEntry.job === 'request'));
     setShowProgressQuestion(false);
     setShowRequestedQuestion(nextEntry.job === 'waiting');
-    setCurrentIndex(0);
     setAwaitingVendorReturn(false);
     setShowRequestConfirmation(false);
   }, [entryJob, initialPlatform, initialProviderStatus, mode, skipRequestOverview]);
@@ -192,10 +197,10 @@ export default function UberDataTutorial({
   const isLastStep = currentIndex === steps.length - 1;
   const carouselImageHeight = Math.min(Math.max(windowHeight * 0.32, 220), 340);
 
+  useEffect(()=>{carouselRef.current?.scrollTo({x:currentIndex*windowWidth,animated:false});},[currentIndex,windowWidth]);
   const choosePlatform = (nextPlatform: DataPlatform) => {
     const nextEntry = resolveProviderTutorialEntry(providerStatuses?.[nextPlatform]);
     setPlatform(nextPlatform);
-    setCurrentIndex(0);
     setHasChosenPlatform(true);
     setTutorialMode(nextEntry.mode);
     setActiveJob(nextEntry.job);
@@ -225,6 +230,7 @@ export default function UberDataTutorial({
 
   const goBack = () => {
     if (confirming) return;
+    if (returnToParentOnBack) { onClose(); return; }
     if (currentIndex > 0) {
       goToStep(currentIndex - 1);
     } else if (initialPlatform) {
@@ -242,6 +248,15 @@ export default function UberDataTutorial({
       setHasChosenPlatform(false);
     }
   };
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (zoomedImage) setZoomedImage(null);
+      else goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  });
 
   const goForward = () => {
     if (!isLastStep) {
@@ -269,10 +284,15 @@ export default function UberDataTutorial({
   };
   const confirmStillWaiting = () => { if (!confirmationInFlight.current) setShowRequestConfirmation(true); };
 
+  const requestButtonLabel = `Open ${details.shortName}’s data page`;
   const showCurrentStepHelp = () => {
-    showSimpleAlert(
-      `Can’t find this on ${details.shortName}?`,
-      currentStep.fallback,
+    const websiteHint = isLastStep
+      ? `Use the “${requestButtonLabel}” button in this guide to open the website in your browser.`
+      : `At the end of this guide, use “${requestButtonLabel}” to open the website in your browser.`;
+    showAlert(
+      'Can’t find this step?',
+      tutorialMode === 'request' ? `${websiteHint}\n\n${currentStep.fallback}` : currentStep.fallback,
+      [{ text: 'Got it' }],
     );
   };
 
@@ -285,7 +305,7 @@ export default function UberDataTutorial({
       setAwaitingVendorReturn(false);
       showSimpleAlert(
         'Could not open the request page',
-        `Open ${details.name} and follow the steps shown here.`
+        `Open ${details.shortName}’s website in your browser and follow the steps shown here.`
       );
     }
   };
@@ -381,7 +401,7 @@ export default function UberDataTutorial({
   }
 
   if (showRequestConfirmation) {
-    return <ProviderRequestConfirmation platform={platform} onBack={() => setShowRequestConfirmation(false)} pending={confirming} onConfirm={() => { void confirmAcceptedRequest(); }} onShowSteps={() => { onRequestNotSubmitted?.(platform); setShowRequestConfirmation(false); }} />;
+    return <ProviderRequestConfirmation platform={platform} onOverview={onOverview} onBack={() => setShowRequestConfirmation(false)} pending={confirming} onConfirm={() => { void confirmAcceptedRequest(); }} onShowSteps={() => { onRequestNotSubmitted?.(platform); setShowRequestConfirmation(false); }} />;
   }
 
   if (showProviderOverview) {
@@ -483,8 +503,7 @@ export default function UberDataTutorial({
                     onReadyConfirmed?.(platform);
                     setActiveJob('download');
                     setTutorialMode('download');
-                    setCurrentIndex(0);
-                    setShowRequestedQuestion(false);
+                                    setShowRequestedQuestion(false);
                   }}
                 />
                 {onArchiveDownloaded ? (
@@ -537,18 +556,15 @@ export default function UberDataTutorial({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <TutorialHeader providerName={details.name} onBack={goBack} />
+      <View style={{paddingHorizontal:18}}><ImportJourneyHeader compact provider={details.name} stage={tutorialMode==='request'?0:1}
+        backLabel={tutorialMode==='request'?'Back to request':'Back to download'} onBack={goBack} onOverview={onOverview} onSteps={onSteps}/></View>
 
       <View style={styles.carouselIntro}>
-        <Text style={[styles.stepEyebrow, { color: details.accent }]}>
-          {tutorialMode === 'request' ? 'REQUEST YOUR DATA' : 'DOWNLOAD YOUR DATA'}
-        </Text>
-        <Text style={styles.carouselTitle}>
+        <Text accessibilityRole="header" style={styles.carouselTitle}>
           {tutorialMode === 'request'
-            ? `Follow these steps on ${details.shortName}`
-            : `Save your ${details.shortName} archive`}
+            ? 'Request your data'
+            : 'Download your data'}
         </Text>
-        <Text style={styles.carouselBody}>Swipe or tap Next to move through each step.</Text>
         <View style={styles.carouselProgressRow}>
           <View style={styles.carouselDots}>
             {steps.map((step, index) => (
@@ -567,10 +583,11 @@ export default function UberDataTutorial({
           <Text
             style={styles.carouselCount}
             accessibilityRole="progressbar"
+            accessibilityLabel="Guide progress"
             accessibilityValue={{ min: 1, max: steps.length, now: currentIndex + 1 }}
             accessibilityLiveRegion="polite"
           >
-            {currentIndex + 1} of {steps.length}
+            {currentIndex + 1} / {steps.length}
           </Text>
         </View>
       </View>
@@ -636,24 +653,25 @@ export default function UberDataTutorial({
           <Text style={styles.primaryButtonText}>
             {isLastStep
               ? tutorialMode === 'request'
-                ? `Open ${details.shortName}’s data page`
+                ? requestButtonLabel
                 : 'I downloaded the ZIP'
               : 'Next'}
           </Text>
           <Ionicons name={isLastStep && tutorialMode === 'request' ? 'open-outline' : isLastStep ? 'checkmark' : 'arrow-forward'} size={21} color={theme.colors.white} />
         </TouchableOpacity>
+        {currentIndex>0?<AppButton label="Previous instruction" variant="tertiary" onPress={()=>goToStep(currentIndex-1)}/>:null}
         <TouchableOpacity style={styles.notYetButton} onPress={showCurrentStepHelp} accessibilityRole="button">
           <Text style={styles.notYetText}>I can’t find this</Text>
         </TouchableOpacity>
       </View>
 
-      <Modal visible={Boolean(zoomedImage)} transparent animationType="fade" onRequestClose={() => setZoomedImage(null)}>
+      <Modal visible={Boolean(zoomedImage)} transparent animationType={reduceMotion?'none':'fade'} onRequestClose={() => setZoomedImage(null)}>
         <View style={styles.zoomBackdrop}>
-          <TouchableOpacity style={[styles.zoomClose, { top: insets.top + 12 }]} onPress={() => setZoomedImage(null)}>
+          <TouchableOpacity style={[styles.zoomClose, { top: insets.top + 12 }]} accessibilityRole="button" accessibilityLabel="Back to guide" onPress={() => setZoomedImage(null)}>
             <Ionicons name="close" size={28} color={theme.colors.white} />
           </TouchableOpacity>
           {zoomedImage ? (
-            <Image source={zoomedImage.image} style={styles.zoomedImage} resizeMode="contain" />
+            <Image source={zoomedImage.image} accessibilityLabel={zoomedImage.imageLabel} style={styles.zoomedImage} resizeMode="contain" />
           ) : null}
         </View>
       </Modal>
@@ -662,11 +680,12 @@ export default function UberDataTutorial({
   );
 }
 
-export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onShowSteps, showStepsLabel = 'Check the last step again', pending = false }: {
+export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onShowSteps, onOverview, showStepsLabel = 'Check the steps again', pending = false }: {
   platform: DataPlatform;
   onBack: () => void;
   onConfirm: () => void;
   onShowSteps: () => void;
+  onOverview?: () => void;
   showStepsLabel?: string;
   pending?: boolean;
 }) {
@@ -677,29 +696,24 @@ export function ProviderRequestConfirmation({ platform, onBack, onConfirm, onSho
   const details = platformDetailsForTheme(theme)[platform];
   return (
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <TutorialHeader providerName={details.name} onBack={() => { if (!pending) onBack(); }} />
+        <View style={styles.journeyHeader}><ImportJourneyHeader provider={details.name} stage={0} backLabel="Back to request" onBack={onBack} onOverview={onOverview} disabled={pending}/></View>
         <ScrollView contentContainerStyle={styles.decisionContent} showsVerticalScrollIndicator={false}>
           <View style={styles.decisionIcon}><Ionicons name="clipboard-outline" size={30} color={theme.colors.primary} /></View>
           <Text accessibilityRole="header" style={styles.decisionTitle}>Was your data request submitted?</Text>
           <Text style={styles.decisionBody}>If {details.shortName} showed a confirmation that your request was submitted, you can continue.</Text>
-          {platform === 'uber' ? (
-            <View style={[styles.decisionSurface, styles.requestEmailCard]}>
-              <View style={styles.requestEmailHeading}>
-                <Ionicons name="mail-outline" size={22} color={theme.colors.primary} />
-                <Text accessibilityRole="header" style={styles.requestEmailTitle}>Want to double-check?</Text>
-              </View>
-              <Text style={styles.requestEmailBody}>Look for a confirmation email from Uber with the subject:</Text>
-              <View style={styles.requestEmailSubjectSurface}>
-                <Text style={styles.requestEmailSubjectLabel}>EMAIL SUBJECT</Text>
-                <Text selectable style={styles.requestEmailSubject}>Uber data request received</Text>
-              </View>
-              <Text style={styles.requestEmailBody}>This confirms Uber received your request. A separate email will tell you when your data is ready to download.</Text>
+          <View style={[styles.decisionSurface, styles.requestEmailCard]}>
+            <View style={styles.requestEmailHeading}>
+              <Ionicons name="checkmark-circle-outline" size={22} color={theme.colors.primary} />
+              <Text accessibilityRole="header" style={styles.requestEmailTitle}>What success looks like</Text>
             </View>
-          ) : (
-            <View style={styles.decisionSurface}>
-              <DecisionRow icon="checkmark-circle-outline" title="What success looks like" body={`${details.shortName} confirms the request and says it will notify you when the data is ready.`} />
+            <Text style={styles.requestEmailBody}>{details.shortName}’s website confirms your request was received.</Text>
+            <Text style={styles.requestEmailBody}>You can also check for a confirmation email with this subject:</Text>
+            <View style={styles.requestEmailSubjectSurface}>
+              <Text style={styles.requestEmailSubjectLabel}>EXAMPLE EMAIL SUBJECT</Text>
+              <Text selectable style={styles.requestEmailSubject}>{platform === 'uber' ? 'Uber data request received' : 'We got your data archive request'}</Text>
             </View>
-          )}
+            <Text style={styles.requestEmailBody}>A separate email will tell you when your history is ready to download.</Text>
+          </View>
           <View style={styles.decisionActions}>
             <TouchableOpacity style={styles.primaryButton} onPress={onConfirm} disabled={pending} accessibilityState={{ busy: pending, disabled: pending }} accessibilityRole="button">
               <Text style={styles.primaryButtonText}>{pending ? 'Saving your progress…' : 'Yes, my request was submitted'}</Text>
@@ -723,17 +737,6 @@ function TutorialHeader({ providerName, trailingLabel, onBack }: { providerName?
         <Text style={styles.journeyBackText}>Back</Text>
       </TouchableOpacity>
       {providerName ? <View style={styles.providerChip}><Text style={styles.journeyChipText}>{providerName}</Text></View> : <Text style={styles.journeyStepLabel}>{trailingLabel}</Text>}
-    </View>
-  );
-}
-
-function DecisionRow({ icon, title, body, divided = false }: { icon: React.ComponentProps<typeof Ionicons>['name']; title: string; body: string; divided?: boolean }) {
-  const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={[styles.decisionRow, divided && styles.decisionRowDivided]}>
-      <Ionicons name={icon} size={22} color={theme.colors.primary} />
-      <View style={styles.decisionRowCopy}><Text style={styles.decisionRowTitle}>{title}</Text><Text style={styles.decisionRowBody}>{body}</Text></View>
     </View>
   );
 }
@@ -836,9 +839,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   platformName: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
   platformDescription: { marginTop: 3, color: theme.colors.textSecondary, fontSize: 14 },
   stepEyebrow: { fontSize: 11, fontWeight: '500', letterSpacing: 0.9 },
-  carouselIntro: { paddingHorizontal: 18, paddingTop: 4 },
+  carouselIntro: { paddingHorizontal: 18, paddingTop: 14 },
   carouselTitle: { marginTop: 6, color: theme.colors.textPrimary, fontSize: 28, lineHeight: 31, fontWeight: '500', letterSpacing: -0.4 },
-  carouselBody: { marginTop: 7, color: theme.colors.textSecondary, fontSize: 14, lineHeight: 20 },
   carouselProgressRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   carouselDots: { flexDirection: 'row', alignItems: 'center' },
   carouselDotTarget: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
