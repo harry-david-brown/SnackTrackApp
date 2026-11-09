@@ -7,6 +7,7 @@ export const TERMINAL_SESSION_ERROR_CODES = [
   'REFRESH_TOKEN_INVALID',
   'REFRESH_TOKEN_REVOKED',
   'SESSION_EXPIRED',
+  'ACCOUNT_DELETION_PENDING',
 ] as const;
 
 export type VerificationCodeFailure = 'invalid' | 'expired' | 'retryable';
@@ -18,6 +19,7 @@ export const authFailureMessage = (
   error: DomainError,
   operation: 'register' | 'login' | 'provider',
 ): string => {
+  if (error.code === 'ACCOUNT_DELETION_PENDING') return 'Your account is being deleted. You can close the app; deletion will finish automatically.';
   if (operation === 'register' && error.code === 'ACCOUNT_ALREADY_EXISTS') {
     return 'An account with this email already exists. Please login instead.';
   }

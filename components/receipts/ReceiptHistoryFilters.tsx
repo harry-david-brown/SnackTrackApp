@@ -102,7 +102,7 @@ export function ReceiptHistoryFilters({
             <AppText variant="metadata" tone="muted" style={styles.flexibleText}>About refund records</AppText>
             <Ionicons name={showRefundInfo ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textSecondary} />
           </Pressable>
-          {showRefundInfo ? <AppText variant="metadata" tone="muted" style={styles.refundNote}>Refunds require receipt evidence. Possible refunds and unmatched records remain separate.</AppText> : null}
+          {showRefundInfo ? <AppText variant="metadata" tone="muted" style={styles.refundNote}>We count refunds only when a receipt confirms them. Possible refunds and records we haven’t matched to an order stay separate.</AppText> : null}
         </View>
       </> : null}
       <AppButton

@@ -13,9 +13,9 @@ import { trackAdminEvent } from '@services/adminAnalytics';
 interface OnboardingScreenProps { onComplete: () => void }
 
 const highlights = [
-  { icon: 'mail-open-outline' as const, title: 'Bring in your orders', description: 'Start with email receipts, then fill gaps with a delivery-history download.' },
+  { icon: 'mail-open-outline' as const, title: 'Bring in your orders', description: 'Find orders in your email, or add them from Uber Eats or DoorDash with our step-by-step guide.' },
   { icon: 'sparkles-outline' as const, title: 'Meet your delivery habits', description: 'See spending patterns, repeat orders, favorites, and the details hiding in your history.' },
-  { icon: 'shield-checkmark-outline' as const, title: 'Stay in control', description: 'Every scan is explicit. Ongoing tracking is always a separate choice.' },
+  { icon: 'shield-checkmark-outline' as const, title: 'Stay in control', description: 'You choose when to import. Adding new receipts automatically is a separate choice.' },
 ];
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {

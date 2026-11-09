@@ -322,11 +322,11 @@ export default function DashboardScreen() {
             ) : !isHistoricalMonth ? (
               <Card style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={48} color={theme.colors.gray400} />
-                <AppText variant="surfaceTitle" style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Nothing to inspect yet' : 'We need a little more evidence'}</AppText>
+                <AppText variant="surfaceTitle" style={styles.emptyStateTitle}>{insightSectionState.id === 'empty' ? 'Add orders to see your spending' : 'Add more orders to reveal patterns'}</AppText>
                 <AppText variant="surfaceBody" style={styles.emptyStateSubtitle}>
                   {insightSectionState.id === 'empty'
-                    ? 'Connect the email registered with your delivery apps, or choose another method for phone-number, Apple, and other sign-ins.'
-                    : 'A few more tracked orders will unlock stronger, stranger patterns.'}
+                    ? 'Connect the inbox that receives your delivery receipts, or follow our guide to add orders from Uber Eats or DoorDash.'
+                    : 'As you add orders, we can show more of your spending habits and favorite restaurants.'}
                 </AppText>
               </Card>
             ) : null}

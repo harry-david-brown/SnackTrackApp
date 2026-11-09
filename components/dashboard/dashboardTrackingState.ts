@@ -79,10 +79,10 @@ function exportInvitation(recommendation: DashboardExportRecommendation): Dashbo
     id: `export_invitation_${recommendation}`, exportRecommendation: recommendation,
     sectionLabel: "Next step", eyebrow: "EXPAND YOUR HISTORY", display: "compact", tone: "brand", icon: "cloud-download-outline",
     title: name ? `Get more from your ${name} history` : "Expand your order history",
-    body: name ? `Add your ${name} history download for more complete order details.`
-      : "Email receipts may only show part of your history. Add a delivery-app data export to fill in the picture.",
+    body: name ? `Add your ${name} order history to find details that email may miss.`
+      : "Missing orders? We’ll show you how to request your order history from Uber Eats or DoorDash and upload it here.",
     primaryAction: "request_export", primaryProvider: recommendation === "neutral" ? undefined : recommendation,
-    primaryLabel: recommendation === "uber_eats" ? "Get my Uber history" : recommendation === "doordash" ? "Get my DoorDash history" : "Explore history exports",
+    primaryLabel: recommendation === "uber_eats" ? "Get my Uber history" : recommendation === "doordash" ? "Get my DoorDash history" : "Add orders from a delivery app",
   });
 }
 
@@ -116,7 +116,7 @@ export function resolveHomeDataGuidance(
   const ready = providers.find((provider) => provider.status === "file_ready");
   if (ready) return card({
     id: `file_ready_${ready.provider}`, sectionLabel: "Next step", eyebrow: "YOUR FILE IS READY",
-    title: `Add your ${providerName(ready.provider)} history`, body: "Download the archive from the provider’s message, then bring it back to SnackTrack.",
+    title: `Add your ${providerName(ready.provider)} history`, body: "Follow the link in the email to download your order history, then upload the file here.",
     icon: "mail-unread-outline", tone: "success", primaryAction: "continue_export", primaryProvider: ready.provider, primaryLabel: "Continue",
   });
 
@@ -174,7 +174,7 @@ export function resolveHomeDataGuidance(
     return card({
       id: reminderDate ? "setup_deferred" : "no_history", sectionLabel: "Next step", eyebrow: "START YOUR ORDER HISTORY",
       title: reminderDate ? "Continue setting up your data" : "Build your SnackTrack history",
-      body: reminderDate ? `You chose to come back later. We’ll remind you again after ${reminderDate}.` : "Choose the inbox that receives your delivery receipts, or use a history download from your delivery app.",
+      body: reminderDate ? `You chose to come back later. We’ll remind you again after ${reminderDate}.` : "Connect the inbox that receives your delivery receipts, or follow our guide to add orders from Uber Eats or DoorDash.",
       icon: "receipt-outline", tone: "brand", primaryAction: "open_import", primaryLabel: reminderDate ? "Continue setup" : "Get started",
       display: reminderDate ? "compact" : "expanded",
     });

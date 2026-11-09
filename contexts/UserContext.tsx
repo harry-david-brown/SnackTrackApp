@@ -326,16 +326,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  const deleteAccount = async (): Promise<void> => {
+  const deleteAccount = async (): Promise<'pending' | 'deleted'> => {
     if (!state.user) throw new Error('No authenticated account to delete');
     const userId = state.user.id;
     const refreshToken = await getRefreshToken();
-    // No local mutation occurs before this authoritative server operation succeeds.
-    await authApi.deleteAccount(refreshToken ?? undefined);
-    await Promise.all([clearUserBoundDeviceState(userId), clearUserStorage()]);
+    // Acceptance means the server owns completion, even after this app closes.
+    const result = await authApi.deleteAccount(refreshToken ?? undefined);
+    await queryClient.cancelQueries();
+    const cleanup = await Promise.allSettled([clearUserBoundDeviceState(userId), clearUserStorage()]);
+    if (cleanup.some(outcome => outcome.status === 'rejected')) {
+      logger.warn('Account deletion accepted; some local storage cleanup could not finish');
+    }
     clearSentryUser();
     queryClient.clear();
     dispatch({ type: 'LOGOUT' });
+    return result.status;
   };
 
   const clearError = () => {

@@ -79,11 +79,11 @@ function PostOnboardingImportContent({ route, controller: c }: {
       case 'temporary_outage': return <>{title('We can’t load import status', 'Your saved history is available. Try loading the status before starting the same import again.')}{btn('Try again', c.refreshStatus)}{btn('View order history', () => navigation.replace(appDestinations.history), true)}</>;
       case 'missing_operation': return <>{title('This import link is unavailable', 'It may be an old link. Your existing orders are still available.')}{btn('Add orders', () => navigation.replace({ pathname: '/add-history', params: { returnTo: c.returnTo } }))}</>;
       case 'choose_method': return <>
-        {title('Pick up where you left off','Your imports, together in one place. Choose a source to continue.')}
+        {c.selection.intent === 'provider' ? title('Add orders using a downloaded file', 'Request your order history, download the file when it’s ready, then upload it here. We’ll guide you through each step.') : title('Add your orders', 'Choose a source to add orders or continue where you left off.')}
         {c.activeImportUnavailable?<Note text="Import status is temporarily unavailable. Refresh before starting another import."/>:null}
         <AppText variant="sectionLabel" tone="muted">Delivery history</AppText>
         <Surface>{s.providers.map(p=><Choice key={p.provider} icon={p.provider==='uber_eats'?'car-outline':'bag-handle-outline'} title={p.name}
-          body={c.pendingRequests[p.provider]?'Confirm whether you submitted your request':p.status==='requested'?'Waiting for the ready email':p.status==='file_ready'?'Your download is ready':p.status==='import_processing'?'Importing your history':p.status==='failed'?'Your import needs attention':p.imported?`${p.receiptCount} orders${coverageDates(p.provider)}`:'Ready to add your history'}
+          body={c.pendingRequests[p.provider]?'Confirm whether you submitted your request':p.status==='requested'?'Waiting for the ready email':p.status==='file_ready'?'Your download is ready':p.status==='import_processing'?'Importing your history':p.status==='failed'?'Your import needs attention':p.imported?`${p.receiptCount} orders${coverageDates(p.provider)}`:'Request and upload your order history'}
           actionLabel={p.status==='file_ready'?'Download and upload':p.status==='requested'?'View next steps':p.imported?'Add newer history':'Continue'}
           onPress={()=>c.resumeProviderJourney(p.provider)}/>)}</Surface>
         <AppText variant="sectionLabel" tone="muted">Email receipts</AppText>
@@ -101,7 +101,7 @@ function PostOnboardingImportContent({ route, controller: c }: {
         <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={()=>navigation.open({pathname:'/settings/accounts-permissions',params:{returnTo:c.returnTo}})}/>
       </>;
       case 'provider_intro': return <>
-        {title(`Do you already have your ${shortName} data download?`, `This is the file ${shortName} prepares when you request a copy of your account history.`, s.provider.name.toUpperCase())}
+        {title(`Have you downloaded your ${shortName} order history?`, `You’ll request your order history from ${shortName}, wait for their email, then download and upload the file here.`, s.provider.name.toUpperCase())}
         <View style={styles.journeyActions}>
         {btn(DOWNLOAD_QUESTION_PRIMARY.label, c.requestHistory)}
         {btn('Yes, I have the file', () => c.chooseDownloadedFile(s.provider.provider), true)}
@@ -117,7 +117,7 @@ function PostOnboardingImportContent({ route, controller: c }: {
           {route.connectionFailed ? <Note text="The connection wasn’t completed. You can try the selected service again. Your saved orders are still available." /> : null}
           <EmailJourneyHeading providerName={name} connected={s.connected} reconnect={s.reconnect} unavailable={s.temporarilyUnavailable} email={s.email} busy={c.connectionBusy} onChangeAccount={c.switchInbox} />
           <View style={styles.journeyActions}>
-            {!s.connected && !s.reconnect && !s.temporarilyUnavailable ? <AppText variant="metadata" tone="muted" style={styles.waitingActionCopy}>Choose your receipt inbox on the next step.</AppText> : null}
+            {!s.connected && !s.reconnect && !s.temporarilyUnavailable ? <AppText variant="metadata" tone="muted" style={styles.waitingActionCopy}>Next, choose your account and review access.</AppText> : null}
             {canStartImport && c.activeImportUnavailable ? <AppButton label="Reload import status" variant="secondary" onPress={c.refreshStatus} /> : null}
             {canStartImport && c.importBlocked ? <Note text={c.activeImportOperation?.status === 'awaiting_upload' ? 'An unfinished file upload is saved. Finish it from Add orders before importing this inbox’s history. You can still connect or repair an inbox.' : 'Another import is processing. You can import this inbox’s history when it finishes.'} /> : null}
             <AppButton size="journey" label={s.temporarilyUnavailable ? 'Reload connection' : s.reconnect ? `Reconnect ${name}` : !s.connected ? `Connect ${name}` : 'Find my orders'} pending={c.connectionBusy} disabled={canStartImport && (c.importBlocked || c.activeImportUnavailable)} onPress={c.startEmail} />
@@ -142,14 +142,14 @@ function PostOnboardingImportContent({ route, controller: c }: {
         {c.readyAlerts.available ? <Surface>
           <AppText variant="surfaceTitle">{c.readyAlerts.label}</AppText>
           {c.readyAlerts.inboxLabel ? <AppText variant="metadata" tone="muted">Connected: {c.readyAlerts.inboxLabel}</AppText> : null}
-          <AppText variant="surfaceBody" tone="muted">Allow SnackTrack to check your inbox for the provider’s ready email while the app is closed. This does not enable receipt imports or download the archive.</AppText>
+          <AppText variant="surfaceBody" tone="muted">Allow SnackTrack to check your inbox for the email saying your download is ready, even while the app is closed. You still download and upload the file yourself. This does not turn on automatic receipt imports.</AppText>
           <AppText variant="metadata" tone="muted" accessibilityLiveRegion="polite">{c.readyAlerts.description}</AppText>
           {c.readyAlerts.chooseInbox ? <>
             <AppText variant="surfaceBody">Choose the inbox used by your {shortName} account. It may differ from your SnackTrack sign-in email.</AppText>
             <AppButton label="Gmail" pending={c.readyAlerts.busy} onPress={() => c.readyAlerts.connect('gmail')} />
             <AppButton label="Outlook" variant="secondary" pending={c.readyAlerts.busy} onPress={() => c.readyAlerts.connect('outlook')} />
           </> : !c.readyAlerts.enabled && c.readyAlerts.notificationsSupported ? <AppButton label={c.readyAlerts.actionLabel} variant="secondary" pending={c.readyAlerts.busy} onPress={() => c.readyAlerts.issue === 'denied' ? c.readyAlerts.openSettings() : c.readyAlerts.enroll()} /> : null}
-          {c.readyAlerts.monitoringGranted ? <AppButton label="Turn off ready-email monitoring" variant="tertiary" pending={c.readyAlerts.busy} onPress={() => { void c.readyAlerts.disable(); }} /> : <AppButton label="Not now" variant="tertiary" onPress={() => { void c.readyAlerts.dismiss(); }} />}
+          {c.readyAlerts.monitoringGranted ? <AppButton label="Turn off download alerts" variant="tertiary" pending={c.readyAlerts.busy} onPress={() => { void c.readyAlerts.disable(); }} /> : <AppButton label="Not now" variant="tertiary" onPress={() => { void c.readyAlerts.dismiss(); }} />}
         </Surface> : <AppText variant="metadata" tone="muted">Check your {shortName} account’s email for the download link, then return here with the file.</AppText>}
         <View style={{flex:1,minHeight:24}}/>
         {c.readyAlerts.enabled ? <AppText variant="metadata" tone="muted" accessibilityLiveRegion="polite" style={{textAlign:'center'}}>We’ll notify you when your download is ready.</AppText> : null}

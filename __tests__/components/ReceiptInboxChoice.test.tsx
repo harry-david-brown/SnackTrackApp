@@ -22,7 +22,7 @@ test('selects an inbox before the explicit next action', () => {
   fireEvent.press(screen.getByRole('button', { name: 'Continue with Outlook' }));
   expect(screen.actions.onChooseEmail.mock.calls).toEqual([['outlook']]);
   expect(screen.actions.onChooseAlternative).not.toHaveBeenCalled();
-  fireEvent.press(screen.getByRole('button', { name: 'Import a history download' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Use another method' }));
   expect(screen.actions.onChooseAlternative).toHaveBeenCalledTimes(1);
   fireEvent.press(screen.getByRole('button', { name: 'Back' }));
   expect(screen.actions.onBack).toHaveBeenCalledTimes(1);
@@ -30,7 +30,7 @@ test('selects an inbox before the explicit next action', () => {
 
 test('blocks competing actions during a connection or import', () => {
   const screen = setup(true);
-  for (const name of ['Gmail', 'Outlook', 'Import a history download', 'Back']) {
+  for (const name of ['Gmail', 'Outlook', 'Use another method', 'Back']) {
     const button = screen.getByRole(name === 'Gmail' || name === 'Outlook' ? 'radio' : 'button', { name });
     expect(button.props.accessibilityState.disabled).toBe(true);
     fireEvent.press(button);
@@ -40,8 +40,8 @@ test('blocks competing actions during a connection or import', () => {
 
 test('help expands without choosing a source', () => {
   const screen = setup();
-  expect(screen.getByRole('button', { name: 'Help me choose' }).props.accessibilityState.expanded).toBe(false);
-  fireEvent.press(screen.getByRole('button', { name: 'Help me choose' }));
+  expect(screen.getByRole('button', { name: 'Not sure which email to use?' }).props.accessibilityState.expanded).toBe(false);
+  fireEvent.press(screen.getByRole('button', { name: 'Not sure which email to use?' }));
   expect(screen.getByRole('button', { name: 'Hide help' }).props.accessibilityState.expanded).toBe(true);
   Object.values(screen.actions).forEach(action => expect(action).not.toHaveBeenCalled());
 });

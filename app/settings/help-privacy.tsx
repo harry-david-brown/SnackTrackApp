@@ -21,7 +21,7 @@ export default function HelpPrivacyScreen() {
     <PageHeader eyebrow="HELP & PRIVACY" title="Answers and control" body="Learn how imports work, review privacy details, or get help from us." />
     <Surface style={styles.guide}>
       <AppText variant="surfaceTitle">Building your history</AppText>
-      <AppText variant="surfaceBody" style={styles.guideBody}>Start with the email registered with your delivery apps. If email misses orders, use a provider history download to fill the gaps and unlock deeper detail.</AppText>
+      <AppText variant="surfaceBody" style={styles.guideBody}>Connect the inbox that receives your Uber Eats or DoorDash receipts. If email misses orders, request your order history from the delivery app, download the file when it’s ready, and upload it to SnackTrack. Add orders will guide you through the steps.</AppText>
     </Surface>
     <AppText variant="sectionLabel" style={styles.section}>SUPPORT</AppText>
     <Surface style={styles.rows}>{rows.map((row, index) => <Pressable key={row.title} accessibilityRole="link" onPress={() => void Linking.openURL(row.url)} style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.divider }]}>

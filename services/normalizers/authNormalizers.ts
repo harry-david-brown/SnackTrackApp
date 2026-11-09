@@ -84,9 +84,18 @@ export function normalizeRefresh(value: unknown): RefreshTokenResponse {
   return { accessToken: string(data.accessToken, 'refresh.accessToken'), refreshToken: string(data.refreshToken, 'refresh.refreshToken') };
 }
 
-export function normalizeSuccessMessage(value: unknown): LogoutResponse | DeleteAccountResponse | CompletePasswordResetResponse | VerifyEmailCodeResponse {
+export function normalizeSuccessMessage(value: unknown): LogoutResponse | CompletePasswordResetResponse | VerifyEmailCodeResponse {
   const data = record(value, 'result');
   return { success: boolean(data.success, 'result.success'), message: string(data.message, 'result.message') };
+}
+
+export function normalizeAccountDeletion(value: unknown): DeleteAccountResponse {
+  const data = record(value, 'accountDeletion');
+  if (data.success !== true) return invalid('accountDeletion.success');
+  // A server from before durable deletion returns success only after completion.
+  const status = data.status === undefined ? 'deleted' : data.status;
+  if (status !== 'pending' && status !== 'deleted') return invalid('accountDeletion.status');
+  return { success: true, status, message: string(data.message, 'accountDeletion.message') };
 }
 
 export function normalizePasswordResetRequest(value: unknown): RequestPasswordResetResponse {

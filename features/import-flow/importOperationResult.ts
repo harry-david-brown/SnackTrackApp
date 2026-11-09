@@ -36,16 +36,17 @@ export function importResultCopy(summary: ImportOperationResultSummary) {
   const alreadySaved = nothingChanged && (summary.unchangedOrders ?? 0) > 0;
   const empty = nothingChanged && summary.unchangedOrders === 0 && !needsMatching;
   const orderLabel = (value: number) => `${value} ${value === 1 ? 'order' : 'orders'}`;
+  const mailboxImport = summary.sourceName === 'Gmail' || summary.sourceName === 'Outlook';
   const title = alreadySaved
     ? `${orderLabel(summary.unchangedOrders!)} already saved`
-    : empty ? 'No supported orders found'
+    : empty ? mailboxImport ? 'No Uber Eats or DoorDash orders found' : 'No orders found in this file'
       : summary.changedOrders !== null && summary.changedOrders > 0
         ? `${orderLabel(summary.changedOrders)} added or updated`
         : 'Import finished';
   const resultBody = alreadySaved
     ? 'No new orders were added.'
     : empty
-      ? `We didn’t find supported delivery orders in this ${summary.sourceName} import. Try another inbox or an original provider download.`
+      ? mailboxImport ? `We checked ${summary.sourceName}, but didn’t find delivery receipts we could add. Try the inbox that receives your Uber Eats or DoorDash order emails, or add orders from either delivery app.` : 'Choose the original order-history file you downloaded from Uber Eats or DoorDash. We couldn’t find orders we could add in this file.'
       : nothingChanged ? 'No orders were added or updated.'
         : summary.changedOrders === null
           ? summary.importedOrders !== null

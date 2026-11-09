@@ -32,6 +32,7 @@ import { logger } from '@utils/logger';
 import { JWT_CONFIG } from '@/constants';
 import {
   normalizeAuthSession,
+  normalizeAccountDeletion,
   normalizePasswordResetRequest,
   normalizePasswordResetVerification,
   normalizeRefresh,
@@ -340,7 +341,7 @@ export const authApi = {
         data: tokenToUse ? { refreshToken: tokenToUse } : {},
       });
       
-      return normalizeSuccessMessage(response.data);
+      return normalizeAccountDeletion(response.data);
   },
 };
 

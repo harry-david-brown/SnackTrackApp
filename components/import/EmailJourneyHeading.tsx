@@ -28,7 +28,7 @@ export function EmailJourneyHeading({ providerName, connected, reconnect = false
       body={unavailable ? 'Try loading your connection again.' : reconnect ? 'Connect your inbox again to continue.' : ready ? 'Ready to bring your delivery receipts into SnackTrack?' : `Connect the ${providerName} inbox where your Uber Eats and DoorDash receipts arrive.`}
     />
     {connected && email ? <AppText variant="body" style={styles.email}>{email}</AppText> : null}
-    {connected && onChangeAccount ? <View style={styles.change}><AppButton label="Change account" variant="tertiary" disabled={busy} onPress={onChangeAccount} /></View> : null}
+    {connected && onChangeAccount ? <View style={styles.change}><AppButton label="Use another account" variant="tertiary" disabled={busy} onPress={onChangeAccount} /></View> : null}
   </View>;
 }
 

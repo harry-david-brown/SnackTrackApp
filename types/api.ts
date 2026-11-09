@@ -167,6 +167,7 @@ export interface VerifyEmailCodeResponse {
 }
 
 export interface DeleteAccountResponse {
+  status: 'pending' | 'deleted';
   success: boolean;
   message: string;
 }

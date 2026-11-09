@@ -73,7 +73,7 @@ export function useProfileController() {
     setIsClearingReceipts(true);
     try {
       await resetOnboarding();
-      showAlert(successTitle, 'Your account import data has been reset and connected mailboxes were disconnected.');
+      showAlert(successTitle, 'Your imported orders and stats were removed, and your email accounts were disconnected. You’re still signed in.');
       navigation.replace(appDestinations.entry);
     } catch (error: unknown) {
       showAlert(failureTitle, toDomainError(error).message);
@@ -85,11 +85,11 @@ export function useProfileController() {
   const requestClearReceipts = useCallback(() => {
     if (!state.user || isClearingReceipts) return;
     showAlert(
-      'Reset Imported Data',
+      'Reset imported data',
       'This permanently deletes all receipts and stats, disconnects Gmail and Outlook, stops background syncing, and clears Uber Eats and DoorDash history progress. Your login remains active.\n\nThis action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset Data', style: 'destructive', onPress: () => void performReset('Receipts Cleared', 'Clear Failed') },
+        { text: 'Reset imported data', style: 'destructive', onPress: () => void performReset('Imported data reset', 'Couldn’t reset imported data') },
       ],
     );
   }, [isClearingReceipts, performReset, state.user]);
@@ -210,9 +210,15 @@ export function useProfileController() {
   const performAccountDeletion = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await deleteAccount();
+      const status = await deleteAccount();
       setActiveModal(null);
-      showAlert('Account Deleted', 'Your account has been permanently deleted.', [{ text: 'OK' }]);
+      showAlert(
+        status === 'pending' ? 'Account deletion requested' : 'Account deleted',
+        status === 'pending'
+          ? 'You’ve been signed out. Your imports are being stopped and your account will be deleted automatically. You can close the app.'
+          : 'Your account has been permanently deleted.',
+        [{ text: 'OK' }],
+      );
     } catch (error: unknown) {
       showAlert('Deletion Failed', toDomainError(error).message);
     } finally {
@@ -221,16 +227,9 @@ export function useProfileController() {
   }, [deleteAccount]);
 
   const requestAccountDeletion = useCallback(() => {
-    showAlert('Delete Account', 'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.\n\nThis action is irreversible.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: () => {
-          showAlert('Final Confirmation', 'This is your last chance to cancel. Your account will be permanently deleted.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Yes, Delete My Account', style: 'destructive', onPress: () => void performAccountDeletion() },
-          ]);
-        },
-      },
+    showAlert('Delete your SnackTrack account?', 'This stops your imports and permanently deletes your account, imported orders, stats, and connected email access. You’ll be signed out once the request is accepted. Deletion continues even if you close the app. This cannot be undone.', [
+      { text: 'Keep my account', style: 'cancel' },
+      { text: 'Delete my account', style: 'destructive', onPress: () => void performAccountDeletion() },
     ]);
   }, [performAccountDeletion]);
 

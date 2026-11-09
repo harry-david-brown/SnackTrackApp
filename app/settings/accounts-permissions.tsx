@@ -42,9 +42,23 @@ export default function AccountsPermissionsScreen() {
 
       <AppText variant="sectionLabel">CONNECTED INBOXES</AppText>
       <Surface style={styles.group}>
-        <AccountRow icon="logo-google" title="Gmail" detail={gmail?.email ?? (gmail?.connected ? 'Connected' : 'Not connected')} warning={gmail?.connectionHealth === 'reconnect_required'} action={gmail?.connectionHealth === 'unavailable' ? 'Reload' : gmail?.connected ? (gmail.connectionHealth === 'reconnect_required' ? 'Reconnect' : !imports.importPreferences?.gmailBaseline.hasCompleted ? 'Set up imports' : 'Disconnect') : 'Connect'} onPress={gmail?.connectionHealth === 'unavailable' ? () => { void imports.refreshImportPreferences(); } : gmail?.connected && gmail.connectionHealth !== 'reconnect_required' && imports.importPreferences?.gmailBaseline.hasCompleted ? imports.disconnectGmail : () => setupMailbox('gmail', gmail?.connectionHealth === 'reconnect_required')} />
-        <View style={styles.divider} />
-        <AccountRow icon="logo-microsoft" title="Outlook" detail={outlook?.email ?? (outlook?.connected ? 'Connected' : 'Not connected')} warning={outlook?.connectionHealth === 'reconnect_required'} action={outlook?.connectionHealth === 'unavailable' ? 'Reload' : outlook?.connected ? (outlook.connectionHealth === 'reconnect_required' ? 'Reconnect' : !imports.importPreferences?.outlookBaseline.hasCompleted ? 'Set up imports' : 'Disconnect') : 'Connect'} onPress={outlook?.connectionHealth === 'unavailable' ? () => { void imports.refreshImportPreferences(); } : outlook?.connected && outlook.connectionHealth !== 'reconnect_required' && imports.importPreferences?.outlookBaseline.hasCompleted ? imports.disconnectOutlook : () => setupMailbox('outlook', outlook?.connectionHealth === 'reconnect_required')} />
+        {(['gmail', 'outlook'] as const).map((mailbox, index) => {
+          const connection = mailbox === 'gmail' ? gmail : outlook;
+          const name = mailbox === 'gmail' ? 'Gmail' : 'Outlook';
+          const hasAccount = Boolean(connection?.connected || connection?.email || connection?.needsReconnect);
+          const unavailable = connection?.connectionHealth === 'unavailable';
+          const reconnect = connection?.connectionHealth === 'reconnect_required';
+          return <View key={mailbox}>
+            {index > 0 ? <View style={styles.divider} /> : null}
+            <AccountRow icon={mailbox === 'gmail' ? 'logo-google' : 'logo-microsoft'} title={name}
+              detail={connection?.email ?? (hasAccount ? 'Connected account' : 'Not connected')}
+              warning={reconnect} disabled={imports.connectionBusy}
+              action={unavailable ? 'Reload' : reconnect ? 'Reconnect' : hasAccount ? 'Find orders' : 'Connect'}
+              onPress={unavailable ? () => { void imports.refreshImportPreferences(); } : () => setupMailbox(mailbox, reconnect)} />
+            {hasAccount ? <AppButton label={`Disconnect ${name}`} variant="tertiary" disabled={imports.connectionBusy}
+              onPress={mailbox === 'gmail' ? imports.disconnectGmail : imports.disconnectOutlook} /> : null}
+          </View>;
+        })}
       </Surface>
 
       <AppText variant="sectionLabel">PERMISSIONS</AppText>
@@ -55,7 +69,7 @@ export default function AccountsPermissionsScreen() {
           <ReadyAlertPermission provider="uber_eats" imports={imports} />
           <View style={styles.divider} />
           <ReadyAlertPermission provider="doordash" imports={imports} />
-        </> : <PermissionRow icon="notifications-outline" title="Uber ready-email checks" detail="Check for Uber’s ready email while SnackTrack is open. You still download the file yourself." value={profile.settings.exportAlertsLabel} onPress={profile.toggleExportAlerts} disabled={profile.arePreferencesBusy} />}
+        </> : <PermissionRow icon="notifications-outline" title="Uber Eats download alerts" detail="Check for the email saying your Uber Eats download is ready while SnackTrack is open. You still download and upload the file yourself." value={profile.settings.exportAlertsLabel} onPress={profile.toggleExportAlerts} disabled={profile.arePreferencesBusy} />}
       </Surface>
 
       {imports.importPreferences?.ongoingTracking.effectiveState === 'error' ? <AppButton label="Retry automatic updates" variant="secondary" disabled={imports.connectionBusy} onPress={imports.setupOngoingUpdates} /> : null}
@@ -79,22 +93,22 @@ function ReadyAlertPermission({ provider, imports }: { provider: ExportProvider;
   });
   const selected = provider === 'uber_eats' ? preferences.preferences?.export.providers.uberEats : preferences.preferences?.export.providers.doorDash;
   const granted = selected?.readyAlert?.consentState === 'granted';
-  const title = provider === 'uber_eats' ? 'Uber Eats ready alerts' : 'DoorDash ready alerts';
+  const title = provider === 'uber_eats' ? 'Uber Eats download alerts' : 'DoorDash download alerts';
   return <View>
     <AppText variant="rowTitle">{title}</AppText>
     {alerts.inboxLabel ? <AppText variant="metadata" tone="muted">Connected: {alerts.inboxLabel}</AppText> : null}
-    <AppText variant="metadata" tone="muted">Check connected email for this provider’s ready message while SnackTrack is closed. This does not import receipts or download the archive.</AppText>
+    <AppText variant="metadata" tone="muted">Check your connected inbox for the email saying your download is ready, even while SnackTrack is closed. You still download and upload the file yourself. This does not turn on automatic receipt imports.</AppText>
     <AppText variant="metadata" tone="muted" accessibilityLiveRegion="polite">{alerts.description}</AppText>
     {alerts.chooseInbox ? <>
       <AppText variant="metadata" tone="muted">Choose the inbox used by your delivery-app account.</AppText>
       <AppButton label="Gmail" variant="secondary" pending={alerts.busy} onPress={() => alerts.connect('gmail')} />
       <AppButton label="Outlook" variant="secondary" pending={alerts.busy} onPress={() => alerts.connect('outlook')} />
     </> : !alerts.enabled && alerts.notificationsSupported ? <AppButton label={alerts.actionLabel} variant="secondary" pending={alerts.busy} onPress={() => alerts.issue === 'denied' ? alerts.openSettings() : alerts.enroll()} /> : null}
-    {granted ? <AppButton label="Turn off ready-email monitoring" variant="tertiary" pending={alerts.busy} onPress={() => { void alerts.disable(); }} /> : null}
+    {granted ? <AppButton label="Turn off download alerts" variant="tertiary" pending={alerts.busy} onPress={() => { void alerts.disable(); }} /> : null}
   </View>;
 }
 
-function AccountRow({ icon, title, detail, warning, action, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; warning?: boolean; action: string; onPress: () => void }) { const theme = useAppTheme(); return <View style={stylesStatic.row}><Ionicons name={warning ? 'warning-outline' : icon} size={24} color={warning ? theme.colors.warningDeep : theme.colors.primary} /><View style={stylesStatic.copy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" >{warning ? `${detail} · Reconnect required` : detail}</AppText></View><AppButton label={action} variant="tertiary" onPress={onPress} /></View>; }
+function AccountRow({ icon, title, detail, warning, action, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; warning?: boolean; action: string; onPress: () => void; disabled?: boolean }) { const theme = useAppTheme(); return <View style={stylesStatic.row}><Ionicons name={warning ? 'warning-outline' : icon} size={24} color={warning ? theme.colors.warningDeep : theme.colors.primary} /><View style={stylesStatic.copy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted" >{warning ? `${detail} · Reconnect required` : detail}</AppText></View><AppButton label={action} variant="tertiary" onPress={onPress} disabled={disabled} /></View>; }
 function PermissionRow({ icon, title, detail, value, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; value: string; onPress: () => void; disabled: boolean }) { const theme = useAppTheme(); return <View style={stylesStatic.row}><Ionicons name={icon} size={24} color={theme.colors.primary} /><View style={stylesStatic.copy}><AppText variant="rowTitle">{title}</AppText><AppText variant="metadata" tone="muted">{detail}</AppText></View><AppButton label={value} variant="tertiary" onPress={onPress} disabled={disabled} /></View>; }
 const stylesStatic = StyleSheet.create({ row: { minHeight: 76, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 }, copy: { flex: 1, minWidth: 140 } });
 const createStyles = (theme: AppTheme) => StyleSheet.create({ container: { flex: 1, backgroundColor: theme.colors.background }, content: { padding: 20, paddingBottom: 42, gap: 14 }, group: { gap: 2 }, divider: { height: 1, backgroundColor: theme.colors.divider }, privacy: { flexDirection: 'row', gap: 12 }, flex: { flex: 1 } });

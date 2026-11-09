@@ -1,4 +1,4 @@
-import { resolveRecapCurrency } from '@features/wrapped/recapCurrency';
+import { RECAP_CURRENCIES, resolveRecapCurrency } from '@features/wrapped/recapCurrency';
 
 describe('resolveRecapCurrency', () => {
   it('defaults to the dominant receipt currency', () => {
@@ -24,4 +24,9 @@ describe('resolveRecapCurrency', () => {
       hasManualSelection: false,
     })).toBe('USD');
   });
+});
+
+
+it.each(RECAP_CURRENCIES)('honors the selectable recap currency %s', selectedCurrency => {
+  expect(resolveRecapCurrency({ receiptCurrency: 'CAD', selectedCurrency, hasManualSelection: true })).toBe(selectedCurrency);
 });

@@ -10,6 +10,10 @@ import { experienceApi } from '@services/experienceApi';
 import { useAppNavigation } from '@features/navigation';
 import { invalidateReceiptDerivedData } from '@lib/queryInvalidation';
 jest.mock('@hooks/useImportPreferences', () => ({ useImportPreferences: () => ({ preferences: null, isLoading: false }) }));
+let mockOfferUpdates = false;
+jest.mock('@features/import-flow/ongoingUpdatesState', () => ({ shouldOfferAutomaticUpdates: () => mockOfferUpdates }));
+jest.mock('@hooks/queries/useExperienceStateQuery', () => ({ useExperienceStateQuery: () => ({ data: { receiptCount: 12 } }) }));
+jest.mock('@hooks/useDeviceNotifications', () => ({ useDeviceNotifications: () => ({ supported: true, enabled: false, issue: null, enable: jest.fn(), openSettings: jest.fn() }) }));
 let mockFocused = true;
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }));
 let mockUnavailable = false;
@@ -27,7 +31,7 @@ jest.mock('@services/adminAnalytics', () => ({ trackAdminEvent: jest.fn().mockRe
 jest.mock('@lib/queryInvalidation', () => ({ invalidateReceiptDerivedData: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@components/import/ImportNotificationController', () => ({ requestImportNotifications: jest.fn() }));
 beforeEach(() => {
-  jest.clearAllMocks(); mockUnavailable = false; mockFocused = true;
+  jest.clearAllMocks(); mockOfferUpdates = false; mockUnavailable = false; mockFocused = true;
   jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
   mockOperation = { id: 'operation', kind: 'export_file', provider: 'uber_eats', journeyContext: 'post_onboarding', trigger: 'user', status: 'succeeded', phase: 'completed', progress: 100, result: {}, errorCode: null, errorMessage: null, attempts: 1, presentation: null, createdAt: '', queuedAt: null, startedAt: null, completedAt: null, updatedAt: '' };
 });
@@ -64,7 +68,7 @@ it('shows ordinary import results without listing refund, cancellation or reconc
 it('distinguishes an empty result from unavailable counts', async () => {
   mockOperation = { ...mockOperation, result: { newOrders: 0, updatedOrders: 0, unchangedOrders: 0 } };
   const screen = render(<ImportResultScreen operationId="operation" />);
-  expect(screen.getByText('No supported orders found')).toBeTruthy();
+  expect(screen.getByText('No orders found in this file')).toBeTruthy();
   mockOperation = { ...mockOperation, result: {} };
   screen.rerender(<ImportResultScreen operationId="operation" />);
   await act(async () => {});
@@ -144,7 +148,7 @@ it('keeps order history primary when there are too few orders for a recap', asyn
 it.each(['onboarding', 'post_onboarding'] as const)('gives source-specific terminal recovery for %s', journeyContext => {
   mockOperation = { ...mockOperation, status: 'failed', provider: 'doordash', journeyContext };
   const screen = render(<ImportProgressScreen operationId="operation" returnTo="history" />);
-  fireEvent.press(screen.getByText('Try this source again'));
+  fireEvent.press(screen.getByText('Choose another file'));
   expect(router.replace).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ provider: 'doordash', downloadedVersion: 'retry', returnTo: 'history', journeyContext }) }));
   expect(screen.queryByText('Reload status')).toBeNull();
 });
@@ -170,12 +174,12 @@ it('allows leaving after accepted Gmail background processing', () => {
   fireEvent.press(screen.getByText('Continue using SnackTrack'));
   expect(router.replace).toHaveBeenCalledWith('/(tabs)/wrapped-journey');
 });
-it.each(['pending_dispatch', 'queued', 'running', 'retrying'] as const)('keeps export processing focused on results while %s', status => {
+it.each(['pending_dispatch', 'queued', 'running', 'retrying'] as const)('offers notifications and continuation for returning export imports while %s', status => {
   mockOperation = { ...mockOperation, status };
   const screen = render(<ImportProgressScreen operationId="operation" />);
-  expect(screen.queryByText('Continue using SnackTrack')).toBeNull();
-  expect(screen.queryByText('Your import is accepted. You can leave and return from Add orders.')).toBeNull();
-  expect(screen.getByText('We’ll show your results when your history is ready.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Notify me when ready' })).toBeTruthy();
+  fireEvent.press(screen.getByRole('button', { name: 'Continue using SnackTrack' }));
+  expect(router.replace).toHaveBeenCalledWith('/(tabs)');
 });
 it('does not offer background continuation during file upload', () => {
   mockOperation = { ...mockOperation, status: 'awaiting_upload' };
@@ -187,6 +191,7 @@ it('offers the same continuation action for Outlook imports', () => {
   mockOperation = { ...mockOperation, kind: 'outlook_historical', provider: null, status: 'running' };
   const screen = render(<ImportProgressScreen operationId="operation" />);
   expect(screen.getByText('Continue using SnackTrack')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Notify me when ready' })).toBeTruthy();
 });
 it('keeps delayed imports on the standard progress screen and shows the time estimate', () => {
   mockOperation = {
@@ -202,7 +207,7 @@ it('keeps delayed imports on the standard progress screen and shows the time est
     },
   };
   const screen = render(<ImportProgressScreen operationId="operation" />);
-  expect(screen.getByText(/Waiting to retry safely/)).toBeTruthy();
+  expect(screen.getByText(/Retrying automatically/)).toBeTruthy();
   expect(screen.getByText('About 1–2 minutes remaining')).toBeTruthy();
   expect(screen.queryByText('This is taking longer than usual')).toBeNull();
 });
@@ -270,4 +275,41 @@ it.each(['succeeded', 'failed'] as const)('does not show a cached %s result over
   await act(async () => {});
   expect(screen.getByText('Keep SnackTrack open until your file is accepted.')).toBeTruthy();
   expect(router.replace).not.toHaveBeenCalled();
+});
+
+
+it('honors History and Close even when automatic updates can be offered', async () => {
+  mockOfferUpdates = true;
+  const screen = render(<ImportResultScreen operationId="operation" returnTo="settings" />);
+  await act(async () => {});
+  expect(screen.getByRole('button', { name: 'Review automatic updates' })).toBeTruthy();
+  fireEvent.press(screen.getByRole('button', { name: 'View order history' }));
+  expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/history');
+  fireEvent.press(screen.getByRole('button', { name: 'Close import result' }));
+  expect(router.replace).toHaveBeenLastCalledWith('/settings/accounts-permissions');
+});
+
+it.each(['gmail_historical', 'outlook_historical'] as const)('recovers an empty %s result with an unselected inbox choice', async kind => {
+  mockOperation = { ...mockOperation, kind, provider: null, result: { newOrders: 0, updatedOrders: 0, unchangedOrders: 0 } };
+  const screen = render(<ImportResultScreen operationId="operation" returnTo="history" />);
+  await act(async () => {});
+  fireEvent.press(screen.getByRole('button', { name: 'Try another inbox' }));
+  expect(router.replace).toHaveBeenLastCalledWith({ pathname: '/add-history', params: { intent: 'email', returnTo: 'history' } });
+  fireEvent.press(screen.getByRole('button', { name: 'Add orders from Uber Eats or DoorDash' }));
+  expect(router.replace).toHaveBeenLastCalledWith({ pathname: '/add-history', params: { intent: 'provider', returnTo: 'history' } });
+});
+
+
+it.each(['gmail_historical', 'outlook_historical', 'export_file'] as const)('offers notifications instead of navigation during the first %s import', kind => {
+  mockOperation = { ...mockOperation, kind, journeyContext: 'onboarding', status: 'running' };
+  const screen = render(<ImportProgressScreen operationId="operation" />);
+  expect(screen.getByRole('button', { name: 'Notify me when ready' })).toBeTruthy();
+  expect(screen.queryByText('Continue using SnackTrack')).toBeNull();
+});
+
+it('does not offer notifications before the file transfer is accepted', () => {
+  mockOperation = { ...mockOperation, journeyContext: 'onboarding', status: 'awaiting_upload' };
+  const screen = render(<ImportProgressScreen operationId="operation" uploadActive uploadProgress={0.4} />);
+  expect(screen.queryByRole('button', { name: 'Notify me when ready' })).toBeNull();
+  expect(screen.getByText('Keep SnackTrack open until your file is accepted.')).toBeTruthy();
 });

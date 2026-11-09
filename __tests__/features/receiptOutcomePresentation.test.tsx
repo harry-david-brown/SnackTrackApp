@@ -115,7 +115,7 @@ it("keeps split tender payments as a breakdown of the McDonald’s cost rather t
   expect(screen.getByText("$39.61")).toBeTruthy();
   expect(screen.getByText("$6.22")).toBeTruthy();
   expect(view(value).amount).toBe("$45.83");
-  expect(view(value).sourceLabel).toBe("Email and export combined");
+  expect(view(value).sourceLabel).toBe("Combined from email and your downloaded file");
 });
 
 it('keeps export item customizations accessible without using item prices as the refunded order cost', () => {
@@ -168,7 +168,7 @@ it("retains possible additional orders and unlinked adjustments without claiming
     },
   };
   expect(view(possible).notice).toContain(
-    "kept separate from order counts and net cost",
+    "kept separate from order counts and spending totals",
   );
   const adjustment = {
     ...base,
@@ -205,12 +205,12 @@ it.each([DataSource.EMAIL, DataSource.CSV])(
     });
     const presentation = view(value);
     expect(presentation.amountLabel).toBe("Possible order cost");
-    expect(presentation.notice).toContain("kept separate from order counts and net cost");
+    expect(presentation.notice).toContain("kept separate from order counts and spending totals");
     expect(presentation.sourceLabel).toBeUndefined();
     const screen = render(<ReceiptCard receipt={value} expanded formatCurrency={money} onToggle={jest.fn()} />);
     expect(screen.getByText(presentation.notice!)).toBeTruthy();
     expect(screen.getByRole("button").props.accessibilityLabel).toContain("Possible order cost");
-    expect(screen.getByRole("button").props.accessibilityLabel).toContain("kept separate from order counts and net cost");
+    expect(screen.getByRole("button").props.accessibilityLabel).toContain("kept separate from order counts and spending totals");
   },
 );
 
@@ -230,7 +230,7 @@ it("keeps known cost and confirmation when only the refund scope needs review", 
   const value = normalizeReceipt({ ...fixture[0],
     orderOutcome: { ...fixture[0].orderOutcome, refundStatus: "conflicted", refundConfidence: "confirmed",
       netAmount: 30, confirmedRefundAmount: 10, financialConfidence: "confirmed", events: [] } });
-  expect(view(value).status).toBe("Delivered · Refund evidence needs review");
+  expect(view(value).status).toBe("Delivered · Refund details need review");
   expect(view(value).amount).toBe("$30.00");
   expect(view(value).details).toContainEqual({ label: "Confirmed refund", value: "$10.00" });
 });

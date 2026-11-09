@@ -1,9 +1,13 @@
+import { ImportReadyNotification } from './ImportReadyNotification';
+import { ImportStatPreview } from './ImportStatPreview';
+import { useFirstImportProgress } from '@hooks/useFirstImportProgress';
+import { useAppReducedMotion } from '@contexts/MotionContext';
+import { importStageLabel } from '@features/import-flow/importStatusPresentation';
 import { importReturnDestination, type ImportReturnTo } from '@features/import-flow/importNavigation';
 import { ImportResultScreen } from './ImportResultScreen';
 import { Redirect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { Mascot } from '@components/mascot/Mascot';
@@ -28,30 +32,6 @@ interface ImportProgressScreenProps {
   uploadProgress?: number;
   providerName?: string;
 }
-
-interface StatPreview {
-  readonly title: string;
-  readonly body: string;
-  readonly icon: ComponentProps<typeof Ionicons>['name'];
-}
-
-const STAT_PREVIEWS: readonly StatPreview[] = [
-  { title: 'Your late-night habits', body: 'See when your delivery cravings usually strike.', icon: 'moon-outline' },
-  { title: 'Your favorite spots', body: 'Find the restaurants you return to most.', icon: 'location-outline' },
-  { title: 'Your spending patterns', body: 'Understand how your delivery spending changes over time.', icon: 'bar-chart-outline' },
-  { title: 'Your delivery personality', body: 'See the habits that make your order history yours.', icon: 'sparkles-outline' },
-];
-
-const importStageLabel = (status: string | undefined, stage: string | undefined): string => {
-  if (status === 'pending_dispatch' || status === 'queued') return 'Waiting to start';
-  if (status === 'retrying') return 'Waiting to retry safely';
-  switch (stage) {
-    case 'discovering': return 'Finding supported receipts';
-    case 'building_history': return 'Building your stats';
-    case 'preparing_recap': return 'Preparing your recap';
-    default: return 'Getting ready';
-  }
-};
 
 const useAnimatedCounter = (
   target: number,
@@ -88,6 +68,8 @@ const useAnimatedCounter = (
 
 interface ImportProgressLoadingViewProps {
   readonly providerName?: string;
+  readonly firstImport?: boolean;
+  readonly notificationAction?: ReactNode;
   readonly progress: number;
   readonly progressStatus: string;
   readonly receiptsFound?: number | null;
@@ -100,6 +82,8 @@ interface ImportProgressLoadingViewProps {
 /** Shared loading experience used before and after an upload is accepted. */
 export function ImportProgressLoadingView({
   providerName,
+  firstImport = false,
+  notificationAction,
   progress,
   progressStatus,
   receiptsFound = null,
@@ -110,19 +94,13 @@ export function ImportProgressLoadingView({
 }: ImportProgressLoadingViewProps) {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = useAppReducedMotion();
   const normalizedProgress = Math.max(0, Math.min(100, Math.round(progress)));
   const animatedProgress = useAnimatedCounter(normalizedProgress, reducedMotion, IMPORT_PROGRESS_ANIMATION_MS);
   const animatedReceipts = useAnimatedCounter(Math.max(0, receiptsFound ?? 0), reducedMotion, 850);
   const progressDetails = receiptsFound !== null && receiptsFound > 0
     ? `${progressStatus} · ${animatedReceipts.displayed.toLocaleString()} receipts found`
     : progressStatus;
-
-  useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
-    return () => subscription.remove();
-  }, []);
 
   useEffect(() => {
     if (normalizedProgress !== 100 || animatedProgress.displayed !== 100 || !onCompletionShown) return;
@@ -133,13 +111,13 @@ export function ImportProgressLoadingView({
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.progressPage}>
-        <AppText variant="eyebrow" style={styles.eyebrow}>{providerName ? `${providerName} · Importing history` : 'BUILDING YOUR HISTORY'}</AppText>
+        <AppText variant="eyebrow" style={styles.eyebrow}>{firstImport ? 'YOUR FIRST SNACKTRACK' : 'ADDING MORE ORDERS'}</AppText>
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
-            <AppText variant="pageTitle" style={styles.title}>Your SnackTrack is taking shape</AppText>
-            <AppText variant="body" style={styles.body}>We’re turning your receipts into useful stats.</AppText>
+            <AppText variant="pageTitle" style={styles.title}>{firstImport ? 'Your delivery story is taking shape' : 'Your delivery story keeps growing'}</AppText>
+            <AppText variant="body" style={styles.body}>{progressStatus === 'Waiting to start' ? 'Your import is saved and waiting to start.' : progressStatus === 'Retrying automatically' ? 'We hit a temporary issue and will try again automatically.' : firstImport ? 'We’re finding your orders and turning them into spending stats and a personal recap.' : 'We’re checking for more orders and updating your spending stats and personal recap.'}</AppText>
           </View>
-          <Mascot pose="thinking" size={78} accessibilityLabel="SnackTrack is thinking while your orders are imported" />
+          <Mascot pose="thinking" size={130} style={styles.mascot} accessibilityLabel="SnackTrack is thinking while your orders are imported" />
         </View>
 
         <View
@@ -159,14 +137,14 @@ export function ImportProgressLoadingView({
               extrapolate: 'clamp',
             }) }]} />
           </View>
-          <AppText variant="metadata" tone="muted" style={[styles.progressDetails, styles.animatedNumber]}>{progressDetails}</AppText>
+          <AppText variant="metadata" tone="muted" style={[styles.progressDetails, styles.animatedNumber]}>{providerName ? `${providerName} · ${progressDetails}` : progressDetails}</AppText>
         </View>
 
-        <StatPreviewCarousel reducedMotion={reducedMotion} theme={theme} />
+        <ImportStatPreview complete={normalizedProgress === 100} />
 
         <View style={styles.footer}>
-          <AppText variant="metadata" tone="muted" style={styles.keepOpen}>{footerText}</AppText>
-          {onContinue ? (
+          {notificationAction ?? <AppText variant="metadata" tone="muted" style={styles.keepOpen}>{footerText}</AppText>}
+          {onContinue && !firstImport ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Continue using SnackTrack"
@@ -192,6 +170,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
   const { operation: savedOperation, isLoading, isUnavailable, refresh } = useImportOperation(Boolean(state.user?.id) && !uploadActive, false, operationId);
   // A previous terminal job must never replace the current upload/submission screen.
   const operation = uploadActive ? null : savedOperation;
+  const firstImport = useFirstImportProgress(state.user?.id, operation);
   const handled = useRef<string | null>(null);
   const announced = useRef<string | null>(null);
   const stableTimeEstimate = useStableImportTimeEstimate(operation?.id, operation?.presentation?.timeEstimate);
@@ -257,79 +236,23 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
     return <ImportResultScreen operationId={operation.id} returnTo={returnTo} />;
   }
 
-  const isEmailImport = operation?.kind === 'gmail_historical' || operation?.kind === 'outlook_historical';
+  const canContinueInBackground = !uploadActive && Boolean(operation && ['pending_dispatch', 'queued', 'running', 'retrying'].includes(operation.status));
   const progressStatus = uploadActive
     ? (uploadProgress ?? 0) < 1 ? 'Uploading your file' : 'Submitting your file'
     : importStageLabel(operation?.status, operation?.presentation?.stage);
   return (
     <ImportProgressLoadingView
+      firstImport={firstImport === true}
+      notificationAction={canContinueInBackground && operation
+        ? <ImportReadyNotification key={operation.id} userId={state.user?.id} returningUser={firstImport === false} /> : undefined}
       providerName={providerName ?? (operation?.provider === 'doordash' ? 'DoorDash' : operation?.provider === 'uber_eats' ? 'Uber Eats' : operation?.kind === 'gmail_historical' ? 'Gmail' : operation?.kind === 'outlook_historical' ? 'Outlook' : undefined)}
       progress={visibleProgress}
       progressStatus={progressStatus}
       receiptsFound={receiptsFound}
       estimateText={timeEstimateText}
-      footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : isEmailImport ? 'Your import is accepted. You can leave and return from Add orders.' : 'We’ll show your results when your history is ready.'}
-      onContinue={!uploadActive && isEmailImport && operation && ['pending_dispatch', 'queued', 'running', 'retrying'].includes(operation.status) ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
+      footerText={uploadActive ? 'Keep SnackTrack open until your file is accepted.' : 'We’ll show your results when your history is ready.'}
+      onContinue={firstImport === false && canContinueInBackground ? () => navigation.replace(importReturnDestination(returnTo)) : undefined}
     />
-  );
-}
-
-function StatPreviewCarousel({ reducedMotion, theme }: { reducedMotion: boolean; theme: AppTheme }) {
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const { width: windowWidth } = useWindowDimensions();
-  const slideWidth = Math.min(420, windowWidth - 48);
-  const scroll = useRef<ScrollView>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const showSlide = useCallback((requestedIndex: number, animated = true) => {
-    const next = (requestedIndex + STAT_PREVIEWS.length) % STAT_PREVIEWS.length;
-    scroll.current?.scrollTo({ x: next * slideWidth, animated });
-    setActiveIndex(next);
-  }, [slideWidth]);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    const timer = setTimeout(() => showSlide(activeIndex + 1), 5_000);
-    return () => clearTimeout(timer);
-  }, [activeIndex, reducedMotion, showSlide]);
-
-  return (
-    <View style={styles.carouselRegion} accessibilityLabel={`Upcoming stat preview ${activeIndex + 1} of ${STAT_PREVIEWS.length}`}>
-      <ScrollView
-        ref={scroll}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(event) => setActiveIndex(Math.max(0, Math.min(
-          STAT_PREVIEWS.length - 1,
-          Math.round(event.nativeEvent.contentOffset.x / slideWidth),
-        )))}
-        accessibilityRole="adjustable"
-        accessibilityHint="Swipe horizontally to preview the stats SnackTrack will unlock"
-        accessibilityActions={[{ name: 'increment', label: 'Next preview' }, { name: 'decrement', label: 'Previous preview' }]}
-        onAccessibilityAction={(event) => showSlide(
-          activeIndex + (event.nativeEvent.actionName === 'decrement' ? -1 : 1),
-          !reducedMotion,
-        )}
-      >
-        {STAT_PREVIEWS.map(slide => (
-          <View key={slide.title} style={[styles.previewSlide, { width: slideWidth }]}>
-            <View style={styles.previewCard} accessibilityLabel={`${slide.title}. ${slide.body}`}>
-              <AppText variant="eyebrow" tone="brand">COMING UP</AppText>
-              <AppText variant="surfaceTitle" style={styles.previewTitle}>{slide.title}</AppText>
-              <View style={styles.previewIconWell}>
-                <Ionicons name={slide.icon} size={46} color={theme.colors.primary} />
-              </View>
-              <AppText variant="surfaceBody" tone="muted" style={styles.previewBody}>{slide.body}</AppText>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-      <View style={styles.pagination} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {STAT_PREVIEWS.map((slide, index) => (
-          <View key={slide.title} style={[styles.paginationDot, index === activeIndex && styles.paginationDotActive]} />
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -338,26 +261,18 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   progressPage: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24 },
   centered: { flexGrow: 1, paddingVertical: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   eyebrow: { marginBottom: 12 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  titleCopy: { flex: 1 },
+  titleRow: { flexDirection: 'column', alignItems: 'stretch', gap: 24 },
+  titleCopy: { width: '100%' },
+  mascot: { alignSelf: 'center' },
   title: { maxWidth: 280 },
   body: { marginTop: 12, maxWidth: 300 },
   progressSection: { marginTop: 36 },
-  progressHeading: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
-  progressTrack: { height: 12, marginTop: 12, overflow: 'hidden', borderRadius: theme.radii.pill, backgroundColor: theme.colors.progressTrack },
+  progressHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+  progressTrack: { height: 7, marginTop: 12, overflow: 'hidden', borderRadius: theme.radii.pill, backgroundColor: theme.colors.progressTrack },
   progressFill: { height: '100%', borderRadius: theme.radii.pill, backgroundColor: theme.colors.progressFill },
   progressDetails: { marginTop: 10 },
   animatedNumber: { fontVariant: ['tabular-nums'] },
-  carouselRegion: { width: '100%', maxWidth: 420, alignSelf: 'center', marginTop: 24 },
-  previewSlide: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 24 },
-  previewCard: { minHeight: 276, alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 46, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: theme.radii.card, backgroundColor: theme.colors.surface, ...theme.shadows.card },
-  previewTitle: { marginTop: 8, textAlign: 'center' },
-  previewIconWell: { width: 92, height: 92, marginTop: 20, alignItems: 'center', justifyContent: 'center', borderRadius: 46, backgroundColor: theme.colors.chipActiveBg },
-  previewBody: { maxWidth: 260, marginTop: 18, textAlign: 'center' },
-  pagination: { position: 'absolute', bottom: 42, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  paginationDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.colors.divider },
-  paginationDotActive: { width: 18, backgroundColor: theme.colors.primary },
-  footer: { alignItems: 'center', paddingTop: 20 },
+  footer: { alignItems: 'center', marginTop: 'auto', paddingTop: 32 },
   keepOpen: { maxWidth: 300, textAlign: 'center' },
   textAction: { minHeight: 44, marginTop: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radii.control },
   textActionPressed: { backgroundColor: theme.colors.chipActiveBg },

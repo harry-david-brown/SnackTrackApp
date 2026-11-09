@@ -15,7 +15,7 @@ export function resolveImportOperationRecovery(operation: ImportOperation, retur
   if (operation.kind === 'export_file' && operation.provider) {
     const freshExport = ['ZIP_INVALID', 'ZIP_INTEGRITY_FAILED', 'ZIP_ENCRYPTED', 'NO_VALID_EXPORT_ORDERS'].includes(operation.errorCode ?? '');
     return {
-      label: freshExport ? 'Request a fresh export' : operation.status === 'expired' ? 'Choose the file again' : 'Choose another file',
+      label: freshExport ? 'Request a new order-history file' : operation.status === 'expired' ? 'Choose the file again' : 'Choose another file',
       destination: { pathname: '/add-history' as const, params: { returnTo, journeyContext, intent: 'provider', provider: operation.provider,
         ...(freshExport ? { requestNew: 'true' } : { downloadedVersion: 'retry' }) } },
     };

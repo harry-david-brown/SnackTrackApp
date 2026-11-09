@@ -150,7 +150,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
     ? 'Try a different restaurant, delivery app, date range, or outcome. Missing outcome evidence is not treated as a confirmed delivery or refund.'
     : resolveGmailBaselineState(preferences).hasCompleted
       ? 'Your email scan found no supported delivery orders. Try another source to build the full picture.'
-      : 'Find orders in your email or use a history download to build your first SnackTrack.';
+      : 'Find orders in your email, or follow our guide to add them from Uber Eats or DoorDash.';
 
   useEffect(() => {
     void trackAdminEvent('history_viewed').catch(() => undefined);

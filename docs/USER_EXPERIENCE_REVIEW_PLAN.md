@@ -1,6 +1,6 @@
 # SnackTrack user experience review and fix plan
 
-Reviewed November 8, 2026. Scope: the consumer mobile app, from account creation through onboarding, adding orders, import recovery, Home, History, Summary, automatic updates, and account settings. This is a source-based review plus the supplied onboarding screenshot, not a completed device usability study. Admin workflows and external provider websites are outside this review. No application behavior has been changed.
+Reviewed November 8, 2026. Scope: the consumer mobile app, from account creation through onboarding, adding orders, import recovery, Home, History, Summary, automatic updates, and account settings. This is a source-based review plus the supplied onboarding screenshot, not a completed device usability study. Admin workflows and external provider websites are outside this review. The initial review was planning-only. See the implementation update below for the subsequent UI changes.
 
 The main problem is that SnackTrack often names its data pipeline before explaining the user's task. People understand Uber Eats orders, email receipts, and spending; they should not have to understand exports, baselines, coverage, or reconciliation to get started. A second problem is that some action labels do not match the next screen or available control.
 
@@ -13,8 +13,8 @@ Keep email as the main route, with a clearly named alternative. Avoid a wholesal
 - Choices: **Gmail** and **Outlook**, with neither selected by default.
 - Helper beside the choices: **This can be different from your SnackTrack sign-in email.**
 - Primary action after selection: **Connect Gmail** or **Connect Outlook**.
-- Alternative: **Add orders from Uber Eats or DoorDash**.
-- Alternative helper: **We’ll show you how to request your order history and upload the file here.**
+- Alternative: **Use another method**.
+- Next screen: **Add orders using a downloaded file**, followed by the request → download → upload explanation and Uber Eats/DoorDash choices. Keep file-specific helper text off the initial email-choice screen.
 - Help: **Not sure which email to use?**
 - Quiet exit: **Set up later**, provided it lands on a useful empty Home and retains a clear Add orders action.
 
@@ -181,3 +181,35 @@ Required journey matrix:
 Evaluate comprehension with a small first-time-user walkthrough: before each action, ask what they expect to happen; after choosing the file route, ask who prepares the file and where it goes next. Success means users understand the task without the reviewer explaining “export” or “history download.”
 
 Use existing analytics where possible to compare source selection → authorization → import start → first useful result, zero-result recovery, return from provider request, and repeated backtracking. Separate deliberate **Set up later** and optional-permission declines from errors. Establish a baseline before setting numerical improvement targets; never record mailbox addresses, receipt content, or file names merely to evaluate copy.
+
+
+## UI implementation update
+
+The UI pass implements the main changes from findings 1–3 and 5–12, and removes the misleading fixed setup progress indicator from finding 4.
+
+- Initial and returning import screens now explain email versus the guided Uber Eats/DoorDash file route. Requesting, waiting, downloading, and uploading are explained before the external handoff. No direct provider integration or complete-history promise is implied.
+- The initial connected-email review now offers Use another account. Service selection remains a separate action from account authorization and import start.
+- Import result History and Close actions honor their destinations. Automatic updates appear as an optional Review automatic updates action; the existing separate consent screen remains authoritative.
+- Empty mailbox imports offer another inbox or the delivery-app route. Empty files offer another file. Existing unknown, unchanged, unresolved, and partial-result distinctions remain.
+- Waiting/retry stage labels are shared between the progress screen and operation cards. Friendly error-code-based recovery replaces raw operation error messages on result/card surfaces. Removed unsupported fixed timing language from the older progress presentation.
+- Gmail and Outlook Disconnect controls are separate from Find orders/Reconnect/Reload, including before any completed import. Existing disconnect commands and confirmation behavior are reused.
+- Download alerts explain whether they work while the app is open or closed and distinguish them from automatic receipt imports.
+- Currency is labeled Recap currency. Further tracing confirmed that the API already provides approximate recap conversion for CAD, USD, EUR, and GBP. The picker is limited to these supported values and describes its scope; recorded order currencies and Home/Summary behavior are preserved. Save failures now show a standard alert.
+- Home, History, Help, login, and receipt detail language describes user tasks and outcomes. Refund uncertainty and exclusions remain visible.
+- Reset imported data uses consistent action/result wording. Account deletion has one explicit consequence-based confirmation with Keep my account and Delete my account actions, calling the existing deletion handler.
+
+Set up later remains unimplemented: cold-launch routing currently derives required setup from the authoritative experience state, independently of the older setup-deferral preference. A complete deferral change must reconcile those owners and verify restart behavior; a UI-only exit would not deliver the proposed persistent behavior. Existing Back navigation remains.
+
+Visual changes preserve the approved mascot, surfaces, typography, and action styling. Removing the repeated Step 2 of 3 indicator is intentional because it did not describe the branching journey. No simulator/device rendering was performed.
+
+Regression coverage was added/updated for explicit result destinations despite offer eligibility, empty-mailbox recovery routes, disconnect access before import and during connection trouble, waiting/retry state precedence, expiry recovery, and every selectable recap currency. Tests were not executed under the repository's default verification policy. Run the app TypeScript check for this implementation and use the journey matrix above for the user-owned device walkthrough.
+
+### First import notification and rotating preview
+
+The first accepted import now follows the approved notification mockup: a larger centered thinking mascot, compact progress and benefit preview, and a primary Notify me when ready action instead of Continue using SnackTrack. Foreground file transfer still requires keeping the app open until acceptance. Returning users retain their existing email-import continuation action.
+
+Notification enrollment reuses the shared device-notification owner. Permission denial exposes device settings; registration failure exposes retry; confirmed registration shows We’ll notify you when ready. Unsupported devices explain that notifications are unavailable. This does not grant automatic email-import consent or navigate away from progress. First-import presentation is retained for the operation as newly saved orders change the account’s receipt count.
+
+The benefit row begins with A clearer picture of your spending and cycles through favorite spots, late-night habits, and delivery personality every six seconds. It supports manual advancement and pause/resume. Automatic cycling stops when unfocused, when the app is inactive, with reduced motion, with a screen reader enabled, or at completion. The progress view now consumes the shared motion context instead of maintaining a second reduced-motion subscription.
+
+Verification: app TypeScript and diff whitespace checks passed. Regression coverage was added for first/returning import classification, foreground-upload boundaries, notification consent and recovery, and preview cycling/pause/accessibility states. Test suites were not run under repository policy. Device handoff: check a first Gmail/Outlook and file import, notification approval/denial/registration failure on a physical device, background return, six-second preview cycling and pause, large text, reduced motion, and VoiceOver/TalkBack.

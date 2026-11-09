@@ -66,8 +66,8 @@ export function resolveImportProgressPresentation(operation: ImportOperation): I
     eyebrow: 'BUILDING YOUR HISTORY',
     title: found ? 'We found your receipts' : 'Finding your receipts',
     body: found
-      ? 'Turning them into your first SnackTrack now. This usually takes 2–3 minutes.'
-      : 'We’re securely looking for supported delivery receipts. This usually takes 2–3 minutes.',
+      ? 'Turning them into your spending stats now.'
+      : 'We’re looking for Uber Eats and DoorDash receipts. The time needed depends on your inbox.',
     steps,
   };
 }

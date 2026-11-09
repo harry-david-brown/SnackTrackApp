@@ -1,3 +1,4 @@
+import { showSimpleAlert } from '@utils/platformAlert';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
@@ -92,14 +93,14 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const setCurrency = async (newCurrency: CurrencyCode) => {
     try {
-      await Promise.all([
-        AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency),
-        AsyncStorage.setItem(CURRENCY_SELECTION_KEY, 'manual'),
+      await AsyncStorage.multiSet([
+        [CURRENCY_STORAGE_KEY, newCurrency],
+        [CURRENCY_SELECTION_KEY, 'manual'],
       ]);
       setCurrencyState(newCurrency);
       setHasManualSelection(true);
     } catch {
-      // Silently fail - user can try again
+      showSimpleAlert('Couldn’t save currency', 'Your currency choice wasn’t saved. Please try again.');
     }
   };
 

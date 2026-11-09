@@ -4,7 +4,6 @@ import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-nat
 import { FontFamily, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import type { CurrencyCode } from '@utils/currency';
-import { SUPPORTED_CURRENCIES } from '@utils/currency';
 import { Card } from '@components/ui/Card';
 import { AppText } from '@components/ui/AppText';
 
@@ -90,7 +89,7 @@ export function ProfileSettingsCard(props: ProfileSettingsCardProps) {
       <SettingsGroup title="Your SnackTrack">
         <SettingsRow icon="receipt-outline" label="Order history" description="Search and review imported orders." onActivate={props.onOpenReceipts} />
         <SettingsRow icon="shield-checkmark-outline" label="Accounts & permissions" description="Connected inboxes, automatic updates, and data access." value={props.mailboxConnectionsLabel} onActivate={props.onOpenImport} warning={props.mailboxConnectionsLabel === 'Needs attention'} />
-        <SettingsRow icon="cash-outline" label="Currency" value={`${SUPPORTED_CURRENCIES[props.currency].symbol} ${props.currency}`} onActivate={props.onOpenCurrency} />
+        <SettingsRow icon="cash-outline" label="Recap currency" description="Currency for approximate totals in your shareable recap." onActivate={props.onOpenCurrency} />
         <SettingsRow icon="contrast-outline" label="Appearance" description="System, light, or dark" onActivate={props.onOpenAppearance} last />
       </SettingsGroup>
 

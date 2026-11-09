@@ -1,6 +1,7 @@
 import type { CurrencyCode } from '@utils/currency';
 
-export type RecapCurrency = Extract<CurrencyCode, 'CAD' | 'USD' | 'EUR' | 'GBP'>;
+export const RECAP_CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP'] as const;
+export type RecapCurrency = typeof RECAP_CURRENCIES[number];
 
 const isRecapCurrency = (value: string | null | undefined): value is RecapCurrency =>
   value === 'CAD' || value === 'USD' || value === 'EUR' || value === 'GBP';

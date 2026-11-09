@@ -37,7 +37,7 @@ export interface UserContextType {
   ) => Promise<LoginResponse>;
   register: (email: string, password: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: () => Promise<'pending' | 'deleted'>;
   clearError: () => void;
   markEmailVerified: () => Promise<void>;
 }

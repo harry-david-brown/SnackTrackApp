@@ -92,7 +92,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   <View style={styles.authPanel}>
                     <Text style={styles.oauthTitle}>{form.isRegistering ? 'Create your SnackTrack account' : 'Welcome back'}</Text>
                     <Text style={styles.oauthSubtitle}>
-                      Your SnackTrack login can be different from the email registered with Uber Eats or DoorDash. You’ll choose that email after signup.
+                      {form.isRegistering ? 'Your sign-in email can be different from the inbox that receives your delivery receipts.' : 'Sign in with the account you used to join SnackTrack.'}
                     </Text>
                     {providers.showApple && providers.isAppleAvailable ? (
                       <AppleAuthentication.AppleAuthenticationButton
@@ -132,8 +132,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     ) : null}
                     <View style={styles.infoContainer}>
                       <Text style={styles.infoText}>{form.isRegistering
-                        ? 'You can connect the email registered with your delivery apps or add order history after your account is ready.'
-                        : 'After signing in, you will continue into your import and insights flow.'}</Text>
+                        ? 'You’ll add your orders after creating your account.'
+                        : 'Pick up where you left off.'}</Text>
                       <TouchableOpacity style={styles.methodSwapLink} onPress={() => changeAuthMethod('email')} accessibilityRole="button">
                         <Text style={styles.methodSwapLinkText}>{form.isRegistering ? 'Create account with email instead' : 'Sign in with email instead'}</Text>
                       </TouchableOpacity>
@@ -211,11 +211,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     </TouchableOpacity>
                     <View style={styles.infoContainer}>
                       <Text style={styles.infoText}>{form.isRegistering
-                        ? 'You can connect the email registered with your delivery apps or add order history after your account is ready.'
-                        : 'After signing in, you will continue into your import and insights flow.'}</Text>
+                        ? 'You’ll add your orders after creating your account.'
+                        : 'Pick up where you left off.'}</Text>
                       {providers.hasOauthOptions ? (
                         <TouchableOpacity style={styles.methodSwapLink} onPress={() => changeAuthMethod('oauth')} accessibilityRole="button">
-                          <Text style={styles.methodSwapLinkText}>Use Google, Apple, or Microsoft instead</Text>
+                          <Text style={styles.methodSwapLinkText}>See other sign-in options</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>

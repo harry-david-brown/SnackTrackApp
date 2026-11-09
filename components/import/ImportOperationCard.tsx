@@ -1,3 +1,4 @@
+import { importStageLabel, importFailureMessage } from '@features/import-flow/importStatusPresentation';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@components/ui/Card';
@@ -20,7 +21,7 @@ const sourceName = (operation: ImportOperation): string => {
     case 'receipt_rollback': return 'History restoration';
     case 'scheduled_tracking': return 'Automatic update';
     case 'export_ready_check': return 'Ready-email check';
-    case 'export_file': return 'History-file import';
+    case 'export_file': return operation.provider === 'doordash' ? 'DoorDash import' : 'Uber Eats import';
   }
 };
 
@@ -37,7 +38,7 @@ export function ImportOperationCard({
   const active = isActiveImportOperation(operation);
   const succeeded = operation.status === 'succeeded';
   const cancelled = operation.status === 'cancelled';
-  const title = active ? `${sourceName(operation)} in progress` : succeeded ? `${sourceName(operation)} complete` : cancelled ? `${sourceName(operation)} cancelled` : `${sourceName(operation)} needs attention`;
+  const title = active ? `${sourceName(operation)} · ${importStageLabel(operation.status, operation.presentation?.stage)}` : succeeded ? `${sourceName(operation)} complete` : cancelled ? `${sourceName(operation)} cancelled` : `${sourceName(operation)} needs attention`;
   const summary = resolveImportOperationResult(operation);
   const resultCount = summary.newOrders;
   const enrichedCount = summary.updatedOrders ?? 0;
@@ -46,10 +47,10 @@ export function ImportOperationCard({
   ].filter(Boolean).join(' ');
   const historyMaintenance = operation.kind.startsWith('receipt_');
   const detail = historyMaintenance && succeeded ? `${Number(operation.result?.changed ?? 0)} orders reviewed or updated.` : active
-    ? operation.status === 'retrying' ? 'We hit a temporary issue. Your progress is saved, and we’ll retry automatically.' : operation.presentation?.mode === 'delayed' ? 'Your history is safe. Explore while SnackTrack finishes in the background.' : 'SnackTrack is securely building your order history.'
+    ? operation.status === 'awaiting_upload' ? 'Choose your downloaded file to finish uploading.' : operation.status === 'pending_dispatch' || operation.status === 'queued' ? 'Your import is saved and waiting to start. You don’t need to submit it again.' : operation.status === 'retrying' ? 'We hit a temporary issue. Your progress is saved, and we’ll retry automatically.' : operation.presentation?.mode === 'delayed' ? 'Your history is safe. Explore while SnackTrack finishes in the background.' : 'SnackTrack is securely building your order history.'
     : succeeded ? resultCount !== null && resultCount > 0 ? `${resultCount} ${resultCount === 1 ? 'order was' : 'orders were'} added.` : importResultCopy(summary).body
     : cancelled ? 'The pending import was cancelled by an administrator. Your existing history is safe.'
-    : operation.errorMessage ?? 'Your existing history is safe. Try the source again when ready.';
+    : importFailureMessage(operation);
   const progress = Math.max(0, Math.min(100, Math.round(operation.progress)));
   const content = (
     <Card style={styles.card} accessibilityLiveRegion="polite">

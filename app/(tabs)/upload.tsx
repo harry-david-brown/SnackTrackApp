@@ -125,6 +125,7 @@ export function ImportExperienceScreen({ mode = 'auto' }: { mode?: 'auto' | 'set
               onChooseEmailPath={controller.chooseEmailSetup}
               onChooseEmail={controller.chooseSetupEmail}
               onChooseAlternative={controller.chooseAlternativeSetup}
+              onChangeAccount={(provider) => provider === 'gmail' ? controller.connectEmail() : controller.connectOutlook()}
               onChangeMethod={controller.changeSetupMethod}
               onImportGmail={() => controller.importEmail('initial', controller.emailUpdates.automaticUpdates)}
               onImportOutlook={() => controller.importOutlook('initial', controller.emailUpdates.automaticUpdates)}

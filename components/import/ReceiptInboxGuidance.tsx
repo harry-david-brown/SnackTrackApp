@@ -9,7 +9,7 @@ export function ReceiptInboxGuidance({ showInboxNote = true }: { showInboxNote?:
   const [expanded, setExpanded] = useState(false);
   return <View>
     {showInboxNote ? <AppText variant="metadata" tone="muted">Different inboxes? Start with one and add another later.</AppText> : null}
-    <AppButton label={expanded ? 'Hide help' : 'Help me choose'} variant="tertiary" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} />
-    <AnimatedDisclosure expanded={expanded}><AppText variant="surfaceBody" tone="muted">Check the email in your delivery-app account and look for order receipts. If your receipts go to different inboxes, start with one and add another later. If you use another email service or can’t find them, use a history download.</AppText></AnimatedDisclosure>
+    <AppButton label={expanded ? 'Hide help' : 'Not sure which email to use?'} variant="tertiary" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} />
+    <AnimatedDisclosure expanded={expanded}><AppText variant="surfaceBody" tone="muted">Check the email in your delivery-app account and look for order receipts. If your receipts go to different inboxes, start with one and add another later. If you use another email service or can’t find receipts, tap “Use another method” to see another way to add your orders.</AppText></AnimatedDisclosure>
   </View>;
 }

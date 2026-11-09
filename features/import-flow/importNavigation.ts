@@ -10,7 +10,7 @@ export const importReturnDestination = (origin: ImportReturnTo) => ({
 } as const)[origin];
 
 export const providerPreparationCopy = (provider: 'uber_eats' | 'doordash') => provider === 'uber_eats'
-  ? 'This can take a couple of hours, sometimes longer.'
+  ? 'Your file won’t be ready immediately. Uber will email you when you can download it.'
   : 'Preparation time varies. DoorDash will email you when your download is ready.';
 
 export const DOWNLOAD_EXPIRY_HELP = 'Download links expire. Check the deadline in the provider’s email; request another download if the link no longer works.';

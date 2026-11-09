@@ -20,7 +20,7 @@ const refundLabels: Record<
   reversed: "Refund reversed",
   probable_full: undefined,
   zero_unexplained: undefined,
-  conflicted: "Refund evidence needs review",
+  conflicted: "Refund details need review",
 };
 
 export function receiptHistoryDay(receipt: Receipt): string | null {
@@ -43,7 +43,7 @@ export function receiptOutcomePresentation(
   const combined =
     receipt.sources?.includes(DataSource.EMAIL) &&
     receipt.sources?.includes(DataSource.CSV);
-  const sourceLabel = combined ? "Email and export combined" : undefined;
+  const sourceLabel = combined ? "Combined from email and your downloaded file" : undefined;
   if (!outcome)
     return {
       amount: money(receipt.amountSpent),
@@ -81,13 +81,13 @@ export function receiptOutcomePresentation(
         : undefined;
   const notices: string[] = [];
   if (adjustment)
-    notices.push("Kept separate from order counts and net cost until matched.");
+    notices.push("Kept separate from order counts and spending totals until matched.");
   if (possible)
     notices.push(
-      "Possible additional order · kept separate from order counts and net cost.",
+      "Possible additional order · kept separate from order counts and spending totals.",
     );
   if (outcome.financialConfidence === "conflicted")
-    notices.push("Sources disagree; final cost needs review.");
+    notices.push("The saved records show different amounts; the final cost needs review.");
 
   const details: { label: string; value: string }[] = [];
   if (!adjustment) {
