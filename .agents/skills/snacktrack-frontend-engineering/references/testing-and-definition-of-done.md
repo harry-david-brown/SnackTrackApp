@@ -91,6 +91,8 @@ For motion changes, the relevant device checks are rapid provider changes (inclu
 
 ## Definition of done
 
+- [ ] For user-facing changes, the touched journey was reviewed using [user-comprehension.md](user-comprehension.md): choices make sense with the user's current knowledge, necessary effort is explained, and labels match actual actions and destinations.
+- [ ] Relevant correction, decline, leave/resume, and recovery paths remain understandable; related entry points use consistent concepts and capability claims.
 - [ ] One authoritative owner exists for each changed value.
 - [ ] Transport data is typed and normalized or validated at the boundary.
 - [ ] Loading, empty, success, failure, reconnect, and retry states are intentional.

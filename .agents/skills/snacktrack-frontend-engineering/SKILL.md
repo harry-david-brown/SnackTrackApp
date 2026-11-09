@@ -11,13 +11,14 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 
 1. Use `snacktrack-codebase-navigation` to locate the current owner and affected paths.
 2. Read the references relevant to the change:
+   - every user-facing UI, copy, interaction, or navigation change: [references/user-comprehension.md](references/user-comprehension.md)
    - architecture and migration decisions: [references/architecture-patterns.md](references/architecture-patterns.md)
    - queries, mutations, caching, and synchronization: [references/server-state.md](references/server-state.md)
    - screens, hooks, components, and state resolvers: [references/component-and-screen-design.md](references/component-and-screen-design.md)
    - visual direction, type, color, spacing, mascot use, interaction, and accessibility: [references/visual-and-accessibility.md](references/visual-and-accessibility.md)
    - exact component proportions and page compositions for visual work: [references/mockup-pattern-library.md](references/mockup-pattern-library.md)
    - verification requirements: [references/testing-and-definition-of-done.md](references/testing-and-definition-of-done.md)
-3. Identify the authoritative owner for every value before editing.
+3. Identify the authoritative owner for every value before editing. For user-facing changes, first establish the user's goal, what they know on arrival, and what they expect the action to do; apply the comprehension review before choosing copy or layout.
 4. Define the complete user-state matrix, including loading, empty, success, failure, reconnect, and retry states.
 5. For destructive account-data mutations, load `snacktrack-account-data-lifecycle` and inventory every query/device cache while preserving authentication storage.
 6. For visual work, compare the affected screen with the canonical mockup and the later interaction decisions documented in the visual reference. Record the hierarchy, page archetype, component treatments, mascot role, action order, and motion behavior that must survive the translation to React Native. Follow the verification ownership in the testing reference; device or emulator inspection is not an automatic prerequisite.
@@ -28,6 +29,7 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 
 ## Core rules
 
+- Treat user comprehension and predictable actions as acceptance criteria alongside visual fidelity and technical correctness. Review the preceding and following steps, not just the changed component. A polished screen is not complete if users must understand internal data concepts to choose an action.
 - Keep route files and screens as composition layers. Move network orchestration and multi-step state transitions into domain hooks/controllers.
 - Keep authentication identity in context; treat remotely fetched analytics, receipts, mailbox status, import preferences, and durable import operations as server state.
 - Use one authoritative cached representation of each server resource. Do not add new module listeners, promise locks, focus-refresh flags, or AsyncStorage mirrors without a documented offline requirement.
@@ -67,6 +69,7 @@ Summarize:
 - every user-visible state handled;
 - cache invalidation or refetch behavior;
 - accessibility considerations;
+- for user-facing changes, the comprehension or task-flow improvement and any remaining usability assumption; distinguish source-based review from observed user/device behavior;
 - navigation ownership, external-intent behavior, and explicit back fallbacks when routes changed;
 - the TypeScript check result and any user-requested verification;
 - any intentionally retained legacy boundary.
