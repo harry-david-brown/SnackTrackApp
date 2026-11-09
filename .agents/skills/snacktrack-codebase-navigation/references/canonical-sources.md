@@ -24,18 +24,24 @@ README and planning documents explain intent but can lag implementation. If they
 
 ## Verification commands
 
-For ordinary code changes, run only the relevant TypeScript command from the affected repository. Do not run focused tests, full suites, lint, theme validation, or CI unless the user explicitly requests those specific checks.
+For ordinary code changes, run the relevant TypeScript and lint commands from each affected repository. Run one final verification pass after implementation is complete: the relevant TypeScript check and lint coverage for changed/staged code and tests. Do not run routine checks between edits or repeatedly during implementation. Avoid duplicate lint runs when the repository-wide check already covers those files. If a final check fails, fix the issue and re-run only the affected check; once checks pass, stop unless subsequent code changes invalidate the result. Fix changed-file errors and warnings without suppressing rules or bypassing commit hooks; report unrelated pre-existing failures explicitly.
+
+Check all changed and staged JavaScript/TypeScript files with the local ESLint binary and `--max-warnings=0`, including tests that a repository-wide lint script may omit. Inspect file lists with `git diff --name-only`, `git diff --cached --name-only`, and `git ls-files --others --exclude-standard`; exclude deleted files. Review autofixes and re-run lint on the final file contents. Do not run mutating lint-staged or stage unrelated work merely to verify a commit.
+
+Do not run focused tests, full suites, theme validation, or CI unless the user explicitly requests those specific checks. Documentation-only edits need a diff review, not code checks.
 
 ### App
 
 ```sh
 npm run type-check
+npm run lint -- --max-warnings=0
 ```
 
 ### API
 
 ```sh
 npm run build
+npm run lint
 ```
 
 ### Admin
@@ -44,7 +50,7 @@ npm run build
 npm run type-check
 ```
 
-Treat `npm run build` as the API TypeScript check. Tests remain available for user-requested verification but are not part of the default handoff.
+The admin repository currently has no lint script; report that limitation rather than inventing a command. Treat `npm run build` as the API TypeScript check. Tests remain available for user-requested verification but are not part of the default handoff.
 
 ## Cache checklist
 

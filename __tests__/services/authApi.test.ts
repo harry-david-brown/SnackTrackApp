@@ -444,12 +444,30 @@ describe('Auth API', () => {
       expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
     });
 
+    it('normalizes durable acceptance without claiming deletion is already complete', async () => {
+      (api.delete as jest.Mock).mockResolvedValueOnce({
+        data: { success: true, status: 'pending', message: 'Deletion requested' },
+      });
+      expect(await authApi.deleteAccount('refresh-token')).toEqual({
+        success: true, status: 'pending', message: 'Deletion requested',
+      });
+      expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
+    });
+
+    it('rejects malformed acceptance instead of allowing local sign-out', async () => {
+      (api.delete as jest.Mock).mockResolvedValueOnce({
+        data: { success: false, status: 'pending', message: 'Not accepted' },
+      });
+      await expect(authApi.deleteAccount('refresh-token')).rejects.toThrow('Invalid authentication response');
+    });
+
     it('normalizes confirmed deletion without owning local session cleanup', async () => {
       (api.delete as jest.Mock).mockResolvedValueOnce({
         data: { success: true, message: 'Account deleted successfully' },
       });
       expect(await authApi.deleteAccount('refresh-token')).toEqual({
         success: true,
+        status: 'deleted',
         message: 'Account deleted successfully',
       });
       expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();

@@ -3,7 +3,7 @@
  * Handles authentication, token refresh, and error handling
  */
 
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { create, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { getConfig } from '@config/env';
 import { API_CONFIG, PUBLIC_ENDPOINTS, HTTP_STATUS } from '@/constants';
 import { logger } from '@utils/logger';
@@ -22,7 +22,7 @@ if (__DEV__) {
 }
 
 // Create axios instance
-export const api: AxiosInstance = axios.create({
+export const api: AxiosInstance = create({
   baseURL: API_BASE_URL,
   timeout: API_CONFIG.TIMEOUT_MS,
   headers: {
@@ -186,6 +186,17 @@ api.interceptors.response.use(
         const clientError = toApiClientError(error);
         logger.apiError(HTTP_STATUS.UNAUTHORIZED, originalRequest.url || '', clientError.code);
         return Promise.reject(clientError);
+      }
+
+      const rejection = toApiClientError(error);
+      if (rejection.code === 'ACCOUNT_DELETION_PENDING') {
+        const { clearAuthTokensIfRefreshTokenMatches } = await import('@utils/tokenManager');
+        const cleared = await clearAuthTokensIfRefreshTokenMatches(originalRequest._sessionRefreshToken ?? null);
+        if (cleared) {
+          const { notifySessionExpired } = await import('@services/authSessionCoordinator');
+          await notifySessionExpired();
+        }
+        return Promise.reject(rejection);
       }
 
       // Mark request as retried to prevent infinite loops

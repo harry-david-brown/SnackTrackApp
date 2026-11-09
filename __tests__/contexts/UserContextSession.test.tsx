@@ -62,7 +62,8 @@ describe('UserContext terminal session handling', () => {
     });
     (authApi.deleteAccount as jest.Mock).mockResolvedValue({
       success: true,
-      message: 'deleted',
+      status: 'pending',
+      message: 'Deletion requested',
     });
   });
 
@@ -164,7 +165,7 @@ describe('UserContext terminal session handling', () => {
     expect(tokenManager.clearAuthTokens).not.toHaveBeenCalled();
   });
 
-  it('clears credentials and all query state only after confirmed account deletion', async () => {
+  it('clears credentials and query state after durable acceptance without waiting for deletion to finish', async () => {
     const queryClient = createAppQueryClient({ forTests: true });
     queryClient.setQueryData(['analytics', userId, 'summary'], { totalReceipts: 12 });
     render(

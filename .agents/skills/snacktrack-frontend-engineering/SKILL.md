@@ -25,7 +25,7 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 7. Implement the narrowest cohesive change. Improve touched legacy boundaries without expanding into an unrelated rewrite.
 8. Add regression coverage at the pure decision point and integration boundary.
 9. For any route, deep-link, back action, notification, or background-completion change, inspect the navigation ownership rules in [references/architecture-patterns.md](references/architecture-patterns.md) and the navigation checks in [references/testing-and-definition-of-done.md](references/testing-and-definition-of-done.md).
-10. Run the app TypeScript check, inspect the diff for duplicate state, stale code, raw styling, suppressed errors, and navigation that bypasses the policy owner; run no tests or other checks unless the user explicitly requests them.
+10. Run `npm run type-check` and `npm run lint -- --max-warnings=0` after the final edits. Fix lint errors and warnings in changed/staged files, including tests, and re-run affected checks. Inspect the diff for duplicate state, stale code, raw styling, suppressed errors, and navigation that bypasses the policy owner. Tests, theme validation, and CI remain opt-in.
 
 ## Core rules
 

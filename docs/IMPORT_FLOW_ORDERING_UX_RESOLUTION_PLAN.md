@@ -352,7 +352,7 @@ This foundation resolves the root causes shared by findings #1 and #3 before ind
 
 - [x] Run `npm run type-check` in `SnackTrackApp` after app changes.
 - [x] Run `npm run build` in `SnackTrackAPI` only if the OAuth/API contract changes.
-- [x] Do not run tests, lint, theme validation, or full suites unless explicitly requested.
+- [x] Run lint and fix changed-file errors and warnings before finishing. Do not run tests, theme validation, or full suites unless explicitly requested.
 - [x] Inspect both repository diffs for duplicated state owners, stale copy, accidental unrelated changes, and whitespace errors.
 
 ## Running status

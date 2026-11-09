@@ -84,10 +84,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   useEffect(() => registerSessionExpiredHandler(async () => {
     const currentSession = await getAuthTokenSnapshot();
     if (currentSession.refreshToken) return;
+    if (state.user?.id) {
+      void clearUserBoundDeviceState(state.user.id).catch(() => logger.warn('Signed-out account device cleanup could not finish'));
+    }
     clearSentryUser();
     queryClient.clear();
     dispatch({ type: 'LOGOUT' });
-  }), [queryClient]);
+  }), [queryClient, state.user?.id]);
 
   // Clear storage if user ID is not a valid UUID
   useEffect(() => {
@@ -118,6 +121,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             const isValid = await authApi.validateSession();
             if (interactiveAuthVersion.current !== restoreVersion) return;
             if (!isValid) {
+              await clearUserBoundDeviceState(userId).catch(() => logger.warn('Signed-out account device cleanup could not finish'));
               await clearAuthTokens();
               if (interactiveAuthVersion.current !== restoreVersion) return;
               dispatch({ type: 'SET_USER', payload: null });

@@ -220,7 +220,13 @@ export function useProfileController() {
         [{ text: 'OK' }],
       );
     } catch (error: unknown) {
-      showAlert('Deletion Failed', toDomainError(error).message);
+      const failure = toDomainError(error);
+      showAlert(
+        failure.kind === 'network' ? 'Couldn’t confirm deletion' : 'Deletion request failed',
+        failure.kind === 'network'
+          ? 'We couldn’t confirm whether your request was received. If it was, deletion will continue automatically. Check your connection and try again.'
+          : failure.message,
+      );
     } finally {
       setIsDeleting(false);
     }

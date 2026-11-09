@@ -406,7 +406,7 @@ This phase should land before the remaining copy and flow work. Findings #7, #8,
 
 - [x] Run `npm run type-check` in `SnackTrackApp` after app changes.
 - [x] Run `npm run build` in `SnackTrackAPI` after API or database changes; this is the API TypeScript check.
-- [x] Do not run tests, lint, theme validation, CI, or other full suites unless explicitly requested.
+- [x] Run lint and fix changed-file errors and warnings before finishing. Do not run tests, theme validation, CI, or other full suites unless explicitly requested.
 - [x] Inspect app and API diffs for duplicate state owners, stale compatibility branches, unscoped storage keys, and unrelated changes.
 - [x] Confirm migrations are idempotent for fresh and existing databases.
 - [x] Confirm mutation responses update or invalidate import preferences, receipt data, analytics, and summary state only after durable writes commit.

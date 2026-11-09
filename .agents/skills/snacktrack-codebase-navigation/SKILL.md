@@ -40,9 +40,11 @@ Orient in SnackTrack quickly and trace a feature from persistence to UI without 
 
 ### Verify proportionally
 
-- App-only: run `npm run type-check` only.
-- API-only: run `npm run build` only as the TypeScript check.
-- Cross-stack: run those two TypeScript checks. Do not run tests, lint, theme validation, or full suites unless the user explicitly requests them.
+Run verification once, after implementation is complete. Do not perform routine checks between edits. If that final pass fails, fix the issue and rerun only the affected check; avoid duplicate lint coverage.
+
+- App-only: run `npm run type-check` and `npm run lint -- --max-warnings=0`.
+- API-only: run `npm run build` and `npm run lint`.
+- Cross-stack: run both repositories’ TypeScript and lint checks. Fix lint errors and warnings in changed files before finishing, including staged tests; see the canonical verification commands below. Do not run tests, theme validation, or full suites unless the user explicitly requests them.
 - Admin-only: run `npm run type-check` from `SnackTrackAdmin`.
 - When a cross-stack contract affects the admin console, include its type-check as well.
 - Use the exact commands in [references/canonical-sources.md](references/canonical-sources.md).

@@ -156,7 +156,7 @@ Implement findings 9–12 and audit related notification text, reconnect message
 
 ## Verification and release criteria
 
-For implementation, add focused regression coverage at the changed resolver or navigation boundary; run the repository-required `npm run type-check`. Run test suites only when explicitly requested under the current repository policy. This planning-only change requires no application build or test run.
+For implementation, add focused regression coverage at the changed resolver or navigation boundary; run the repository-required `npm run type-check` and `npm run lint -- --max-warnings=0`, and fix lint errors and warnings in changed/staged code and tests before finishing. Run test suites only when explicitly requested under the current repository policy. This planning-only change requires no application build or test run.
 
 Device walkthroughs belong to the user unless explicitly requested. Check narrow screens, large text, light/dark mode, VoiceOver/TalkBack, reduced motion, and the native browser/file-picker return paths. The screenshot's large gap between choices and actions is a layout-review candidate, not proof of a defect on every screen size. Keep the explanation close to the choice; let content scroll at large text sizes rather than fixing controls to screenshot coordinates.
 

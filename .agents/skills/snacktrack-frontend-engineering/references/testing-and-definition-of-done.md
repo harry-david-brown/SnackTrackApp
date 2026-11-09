@@ -77,13 +77,16 @@ When changing motion lifecycle or selection behavior, cover interruption by a ne
 
 ## Verification
 
-For ordinary code changes, run only:
+For ordinary code changes, run:
 
 ```sh
 npm run type-check
+npm run lint -- --max-warnings=0
 ```
 
-Do not run focused tests, the full test suite, lint, theme validation, or `npm run ci` unless the user explicitly requests those checks. Adding regression coverage does not imply running it. Documentation-only skill edits do not require an app TypeScript check.
+Run one final verification pass after implementation is complete: the relevant TypeScript check and lint coverage for changed/staged code and tests. Do not run routine checks between edits or repeatedly during implementation. Avoid duplicate lint runs when the repository-wide check already covers those files. If a final check fails, fix the issue and re-run only the affected check; once checks pass, stop unless subsequent code changes invalidate the result. Fix changed-file errors and warnings without suppressing rules or bypassing commit hooks; report unrelated pre-existing failures explicitly. Check the final changed/staged code and test files with the local ESLint binary and `--max-warnings=0` if they are outside the lint script’s coverage.
+
+Do not run focused tests, the full test suite, theme validation, or `npm run ci` unless the user explicitly requests those checks. Adding regression coverage does not imply running it. Documentation-only skill edits do not require an app TypeScript check.
 
 Device and emulator verification belongs to the user by default, as specified in `SnackTrackApp/AGENTS.md`. Do not launch or control iOS Simulator or Android Emulator unless explicitly requested. Their absence is not incomplete code verification. State what was checked and provide a short, change-specific device handoff without claiming unobserved visual results.
 
@@ -110,6 +113,7 @@ For motion changes, the relevant device checks are rapid provider changes (inclu
 - [ ] Relevant journey integration coverage was considered.
 - [ ] The app TypeScript check passes for code changes.
 - [ ] For motion changes, the device handoff covers relevant transitions and shadow compositing; observed results are distinguished from code checks.
-- [ ] Tests, lint, theme validation, or CI were run only when the user explicitly requested them.
+- [ ] Lint was run after the final edit; changed/staged code and tests have no lint errors or warnings.
+- [ ] Tests, theme validation, or CI were run only when the user explicitly requested them.
 - [ ] Obsolete state, styles, imports, flags, and compatibility code were removed when safe.
 - [ ] Destructive reset tests prove authentication is preserved while imported data and all affected caches are removed.
