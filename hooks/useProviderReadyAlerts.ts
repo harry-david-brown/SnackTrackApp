@@ -1,5 +1,6 @@
+import { useFlowAttemptScope } from './useFlowAttemptScope';
 import { useDeviceNotifications } from '@hooks/useDeviceNotifications';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useImportPreferences } from "@hooks/useImportPreferences";
@@ -8,6 +9,8 @@ import {
   alertDismissalKey,
 } from "@utils/importJourneyStorage";
 import type { ExportProvider } from "@features/import-flow/contracts";
+
+type EnrollmentPhase = 'idle' | 'connecting' | 'reconciling' | 'saving_consent' | 'registering_device' | 'revoking';
 
 export function useProviderReadyAlerts({
   userId,
@@ -33,23 +36,19 @@ export function useProviderReadyAlerts({
   const cycle = selected?.requestId ?? selected?.requestedAt ?? "new";
   const device = useDeviceNotifications(userId);
   const deviceEnabled = device.enabled;
-  const [issue, setIssue] = useState<'denied' | 'registration' | 'connection' | 'save' | null>(null);
-  useEffect(() => { if (device.enabled) setIssue(null); }, [device.enabled]);
+  const [failure, setFailure] = useState<{ issue: 'denied' | 'registration' | 'connection' | 'save'; decision: 'granted' | 'revoked' } | null>(null);
+  const issue = failure?.issue ?? null;
+  const setIssue = (next: NonNullable<typeof failure>['issue'] | null, decision: 'granted' | 'revoked' = 'granted') => setFailure(next ? { issue: next, decision } : null);
+  useEffect(() => {
+    if (device.enabled) setFailure(current => current?.issue === 'denied' || current?.issue === 'registration' ? null : current);
+  }, [device.enabled]);
   const [chooseInbox, setChooseInbox] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const inFlight = useRef(false);
-  const identityKey = `${userId}:${provider}:${cycle}`;
-  const identity = useRef(identityKey);
-  identity.current = identityKey;
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const isCurrent = () => mounted.current && identity.current === identityKey;
+  const scope = useFlowAttemptScope(JSON.stringify([userId, provider, cycle]));
+  const [enrollment, setEnrollment] = useState<{ scope: typeof scope; phase: EnrollmentPhase }>({ scope, phase: 'idle' });
+  const phase = enrollment.scope === scope ? enrollment.phase : 'idle';
+  const setPhase = (next: EnrollmentPhase) => setEnrollment({ scope, phase: next });
+  const busy = phase !== 'idle';
   const enabled = Boolean(
     alert?.backgroundAvailable &&
     alert.canMonitor &&
@@ -63,12 +62,17 @@ export function useProviderReadyAlerts({
     alert?.consentState === "granted" &&
     alert.consentVersion === "export-ready-background-v1";
   const finishEnrollment = async () => {
-    if (!isCurrent() || !userId || !provider || inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
+    if (!userId || !provider) return;
+    const attempt = scope.begin();
+    if (attempt === null) return;
+    const isCurrent = () => scope.owns(attempt);
+    setPhase(issue === 'save' ? 'reconciling' : 'saving_consent');
     let savingConsent = true;
     try {
       const current = issue === 'save' ? await preferences.refreshVerified() : preferences.preferences;
+      if (!isCurrent()) return;
+      if (!current) throw new Error('Preferences unavailable');
+      setPhase('saving_consent');
       const saved = provider === 'uber_eats' ? current?.export.providers.uberEats.readyAlert : current?.export.providers.doorDash.readyAlert;
       if (!(saved?.consentState === 'granted' && saved.consentVersion === 'export-ready-background-v1'))
         await preferences.setProviderReadyAlertConsent({
@@ -77,44 +81,62 @@ export function useProviderReadyAlerts({
         });
       if (!isCurrent()) return;
       savingConsent = false;
+      setPhase('registering_device');
       const allowed = await device.enable();
       if (!isCurrent()) return;
       setIssue(allowed ? null : 'denied');
     } catch {
       if (isCurrent()) setIssue(savingConsent ? 'save' : 'registration');
     } finally {
-      inFlight.current = false;
-      if (isCurrent()) setBusy(false);
+      if (isCurrent()) setPhase('idle');
+      scope.finish(attempt);
     }
   };
   const connect = async (mailbox: 'gmail' | 'outlook') => {
-    if (!isCurrent() || inFlight.current) return;
-    inFlight.current = true; setBusy(true); setChooseInbox(false);
+    const attempt = scope.begin();
+    if (attempt === null) return;
+    const isCurrent = () => scope.owns(attempt);
+    setPhase('connecting'); setChooseInbox(false);
     try {
       const connected = await (mailbox === 'gmail' ? connectGmail() : connectOutlook());
       if (!isCurrent()) return;
-      if (connected) { await preferences.refresh(); setIssue(null); }
+      if (connected) { await preferences.refresh(); if (isCurrent()) setIssue(null); }
       else setIssue('connection');
       // OAuth only connects email. Review the connected address before Notify me.
     } catch { if (isCurrent()) setIssue('connection'); }
-    finally { inFlight.current = false; if (isCurrent()) setBusy(false); }
+    finally { if (isCurrent()) setPhase('idle'); scope.finish(attempt); }
   };
   const enroll = () => {
-    if (!isCurrent() || !userId || !provider || !alert?.backgroundAvailable || busy || !supportsImportNotifications()) return;
+    if (!scope.isLive() || !userId || !provider || !alert?.backgroundAvailable || busy || !supportsImportNotifications()) return;
+    if (failure?.decision === 'revoked') { void disable(); return; }
     if (!alert.canMonitor) setChooseInbox(true);
     else void finishEnrollment();
   };
   // Leaving never enrolls, prompts, or changes consent.
-  const leave = () => { if (isCurrent()) goHome(); };
+  const leave = () => { if (scope.isLive()) goHome(); };
   const disable = async () => {
-    if (!provider || inFlight.current) return;
-    inFlight.current = true; setBusy(true);
-    try { await preferences.setProviderReadyAlertConsent({ provider, decision: 'revoked' }); if (isCurrent()) setIssue(null); }
-    catch { if (isCurrent()) setIssue('registration'); }
-    finally { inFlight.current = false; if (isCurrent()) setBusy(false); }
+    if (!provider) return;
+    const attempt = scope.begin();
+    if (attempt === null) return;
+    const isCurrent = () => scope.owns(attempt);
+    setPhase('revoking');
+    try {
+      if (issue === 'save') {
+        setPhase('reconciling');
+        const current = await preferences.refreshVerified();
+        if (!isCurrent()) return;
+        if (!current) throw new Error('Preferences unavailable');
+        const saved = provider === 'uber_eats' ? current.export.providers.uberEats.readyAlert : current.export.providers.doorDash.readyAlert;
+        if (saved?.consentState === 'revoked') { setIssue(null); return; }
+      }
+      setPhase('revoking');
+      await preferences.setProviderReadyAlertConsent({ provider, decision: 'revoked' });
+      if (isCurrent()) setIssue(null);
+    } catch { if (isCurrent()) setIssue('save', 'revoked'); }
+    finally { if (isCurrent()) setPhase('idle'); scope.finish(attempt); }
   };
   useEffect(() => {
-    setIssue(null); setChooseInbox(false); setDismissed(false);
+    setFailure(null); setChooseInbox(false); setDismissed(false);
     if (!userId || !provider) return;
     let live = true;
     void AsyncStorage.getItem(alertDismissalKey(userId, provider, cycle)).then(value => { if (live) setDismissed(value === 'true'); }).catch(() => undefined);
@@ -128,6 +150,7 @@ export function useProviderReadyAlerts({
   return {
     enabled,
     busy,
+    phase,
     notificationsSupported: supportsImportNotifications(),
     monitoringGranted,
     disable,

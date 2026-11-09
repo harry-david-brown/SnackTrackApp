@@ -1,17 +1,18 @@
+import { useFlowAttemptScope } from './useFlowAttemptScope';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { alertEnrollmentKey } from '@utils/importJourneyStorage';
 import { useProviderReadyAlerts } from '@hooks/useProviderReadyAlerts';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import { isActiveImportOperation, type ExportProvider, type MailboxProvider } from '@features/import-flow/contracts';
-import type { ImportRouteParams } from '@features/import-flow/importRouteParams';
-import { rememberImportSelection, resolvePostOnboardingImportJourney, type GuidedImportSelection, type GuidedImportStep } from '@features/import-flow/postOnboardingImportJourney';
+import { resolvePostOnboardingImportJourney, type GuidedImportSelection, type GuidedImportStep } from '@features/import-flow/postOnboardingImportJourney';
 import { importReturnDestination, parseImportReturnTo } from '@features/import-flow/importNavigation';
 import type { PostOnboardingImportRoute } from '@features/import-flow/postOnboardingImportRoute';
 import { getPendingExportRequest, clearPendingExportRequest, type PendingExportRequest } from '@utils/exportDownloadHandoff';
 import { showSimpleAlert } from '@utils/platformAlert';
-import { useImportFlowController } from '@hooks/useImportFlowController';
+import { useReturningImportActions } from './useReturningImportActions';
+import { importSelectionReducer } from '@features/import-flow/importSelectionState';
 import { useImportFileSession } from '@hooks/useImportFileSession';
 import { useImportOperation } from '@hooks/useImportOperation';
 import { appDestinations, useAppNavigation, useExternalNavigationBlocker } from '@features/navigation';
@@ -22,15 +23,16 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const [resumedReturnTo, setResumedReturnTo] = useState<ReturnType<typeof parseImportReturnTo> | null>(null);
   const returnTo = resumedReturnTo ?? parseImportReturnTo(route.returnTo);
   const initial = useCallback((): GuidedImportSelection => ({ intent: route.intent === 'reconnect' && route.connectionSucceeded ? 'email' : route.intent, provider: route.provider, mailbox: route.mailbox ?? null, step: route.downloadedVersion ? 'ready' : route.confirmRequest ? 'confirm_request' : null }), [route.intent, route.connectionSucceeded, route.provider, route.mailbox, route.downloadedVersion, route.confirmRequest]);
-  const [selection, setSelection] = useState(initial);
+  const [journey, dispatchSelection] = useReducer(importSelectionReducer, undefined, () => ({ selection: initial(), history: [] }));
+  const selection = journey.selection;
+  const setSelection = useCallback((value: GuidedImportSelection | ((current: GuidedImportSelection) => GuidedImportSelection)) => {
+    dispatchSelection({ type: 'replace', value });
+  }, []);
   const [stepSheetVisible,setStepSheetVisible]=useState(false);
   const [preparingFile, setPreparingFile] = useState(false);
-  const preparingFileRef = useRef(false);
-  const history = useRef<GuidedImportSelection[]>([]);
   const handledDirectPicker = useRef<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Partial<Record<ExportProvider, PendingExportRequest>>>({});
-  const legacyRoute = useMemo<ImportRouteParams>(() => ({ returnTo, journeyContext: route.journeyContext, sourcePicker: false, showExportTutorial: false, focus: null, downloadedVersion: null, action: null, intentId: null, provider: selection.provider, gmailPurpose: route.gmailPurpose ?? null }), [returnTo, route.gmailPurpose, route.journeyContext, selection.provider]);
-  const base = useImportFlowController(legacyRoute, 'manage');
+  const base = useReturningImportActions(selection.provider, returnTo, route.journeyContext);
   const openProviderTutorial = base.openProviderTutorial;
   const selectedOperation = useImportOperation(Boolean(route.operationId), false, route.operationId ?? undefined);
   const importBlocked = isActiveImportOperation(base.activeImportOperation);
@@ -39,6 +41,8 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   useExternalNavigationBlocker('post-onboarding-import-submit', navigationBlocked);
   usePreventRemove(navigationBlocked, () => showSimpleAlert('Please keep this page open', preparingFile || fileSession.choosing ? 'Your file is being prepared for import.' : fileSession.isPending ? 'Your file is being uploaded and submitted. You can leave once processing is accepted.' : 'Your request is being saved.'));
   const userId = base.user?.id;
+  const preparationScope = useFlowAttemptScope(JSON.stringify([userId, selection.provider]));
+  useEffect(() => { setPreparingFile(false); }, [preparationScope]);
   const providerStatuses = base.importPreferences?.export.providers;
   useEffect(() => {
     if (!userId || !providerStatuses) return;
@@ -48,20 +52,19 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     });
     return () => { live = false; };
   }, [providerStatuses, userId]);
-  useEffect(() => { history.current = []; setSelection(initial()); setPendingRequests({}); setStepSheetVisible(false); handledDirectPicker.current=null; }, [initial,userId]);
+  useEffect(() => { dispatchSelection({ type: 'reset', selection: initial() }); setPendingRequests({}); setStepSheetVisible(false); handledDirectPicker.current=null; }, [initial,userId]);
   const navigate = useCallback((patch: Partial<GuidedImportSelection>) => {
     if (navigationBlocked) return;
-    history.current = rememberImportSelection(history.current, selection);
-    setSelection({ ...selection, ...patch });
-  }, [navigationBlocked, selection]);
+    dispatchSelection({ type: 'navigate', patch });
+  }, [navigationBlocked]);
   const close = useCallback(() => { if (!navigationBlocked) navigation.replace(importReturnDestination(returnTo)); }, [navigation, navigationBlocked, returnTo]);
   const goBack = useCallback(() => {
     if (stepSheetVisible) { setStepSheetVisible(false); return; }
     if (navigationBlocked) return;
     if (fileSession.operation) { close(); return; }
-    const previous = history.current.pop();
-    if (previous) setSelection(previous); else if(selection.provider || selection.intent!=='choose') setSelection({intent:'choose',provider:null,mailbox:null,step:null}); else close();
-  }, [close, fileSession.operation, navigationBlocked, stepSheetVisible, selection.provider, selection.intent]);
+    if (journey.history.length || selection.provider || selection.intent !== 'choose') dispatchSelection({ type: 'back' });
+    else close();
+  }, [close, fileSession.operation, navigationBlocked, stepSheetVisible, selection.provider, selection.intent, journey.history.length]);
   useEffect(() => {
     if (base.showTutorial) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
@@ -82,24 +85,25 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
   const reportDownloaded = base.reportDownloaded;
   const closeTutorial = base.closeTutorial;
   const chooseDownloadedFile = useCallback(async (provider = selection.provider) => {
-    if (!provider || navigationBlocked || preparingFileRef.current) return false;
-    preparingFileRef.current = true;
+    if (!provider || navigationBlocked) return false;
+    const attempt = preparationScope.begin();
+    if (attempt === null) return false;
     setPreparingFile(true);
     try {
       const selected = await chooseFile();
-      if (!selected) return false;
+      if (!selected || !preparationScope.owns(attempt)) return false;
       navigate({ provider, intent: 'provider', step: 'upload' });
       closeTutorial();
-      void reportDownloaded(provider, false);
+      void Promise.resolve(reportDownloaded(provider, false)).catch(() => undefined);
       setPreparingFile(false);
       // Pass the validated file directly; React may not have committed selection yet.
       await submitFile(selected);
       return true;
     } finally {
-      preparingFileRef.current = false;
-      setPreparingFile(false);
+      if (preparationScope.owns(attempt)) setPreparingFile(false);
+      preparationScope.finish(attempt);
     }
-  }, [chooseFile, closeTutorial, navigate, navigationBlocked, reportDownloaded, selection.provider, submitFile]);
+  }, [chooseFile, closeTutorial, navigate, navigationBlocked, reportDownloaded, selection.provider, submitFile, preparationScope]);
   useEffect(() => {
     if (!route.downloadedVersion || !route.provider) return;
     const handoff = `${route.provider}:${route.downloadedVersion}`;
@@ -107,7 +111,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     handledDirectPicker.current = handoff;
     void chooseDownloadedFile(route.provider);
   }, [chooseDownloadedFile, route.downloadedVersion, route.provider]);
-  useEffect(() => { if (route.requestNew) setSelection(current => ({ ...current, step: 'request' })); }, [route.requestNew]);
+  useEffect(() => { if (route.requestNew) setSelection(current => ({ ...current, step: 'request' })); }, [route.requestNew, setSelection]);
   const chooseMailbox = (mailbox: MailboxProvider) => navigate({ intent: selection.intent === 'reconnect' ? 'reconnect' : 'email', mailbox, step: 'email_choice' });
   const startEmail = async () => {
     if (base.connectionBusy || !selection.mailbox || !base.importPreferences) return;
@@ -154,7 +158,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
         setSelection({intent:'resume_export',provider:pending.provider,mailbox:null,step:null});
     }).catch(()=>undefined);
     return()=>{live=false;};
-  },[userId,route.connectionSucceeded,route.connectionFailed,route.gmailPurpose]);
+  },[userId,route.connectionSucceeded,route.connectionFailed,route.gmailPurpose,setSelection]);
   return { ...base, state, readyAlerts, switchInbox: () => { if (!base.connectionBusy) void (selection.mailbox === 'gmail' ? base.connectEmail() : base.connectOutlook()); },stepSheetVisible,openSteps:()=>setStepSheetVisible(true),closeSteps:()=>setStepSheetVisible(false), selection, selectedProvider: selection.provider, importBlocked, fileSession, preparingFile, navigationBlocked, returnTo, pendingRequests,
     requestNotSubmitted: (p: 'uber' | 'doordash') => {
       base.requestNotSubmitted(p);
@@ -164,7 +168,7 @@ export function usePostOnboardingImportController(route: PostOnboardingImportRou
     goBack, close, chooseProvider, chooseMailbox, startEmail, chooseDownloadedFile, openProviderGuide, openRequestPage, confirmProviderReady, completeTutorial,
     chooseEmail: () => navigate({ intent: selection.intent === 'reconnect' ? 'reconnect' : 'email', mailbox: null, step: 'email_choice' }),
     setStep: (step: GuidedImportStep) => navigate({ step }),
-    showProviderChoice: () => { if(navigationBlocked)return; base.closeTutorial(); history.current=[]; setSelection({ intent: 'choose', provider: null, mailbox: null, step: null }); },
+    showProviderChoice: () => { if(navigationBlocked)return; base.closeTutorial(); dispatchSelection({ type: 'reset', selection: { intent: 'choose', provider: null, mailbox: null, step: null } }); },
     resumeProviderJourney: (provider: ExportProvider) => {
       if (pendingRequests[provider]) setResumedReturnTo(pendingRequests[provider]!.returnTo);
       navigate({ intent: 'resume_export', provider, step: pendingRequests[provider] ? 'confirm_request' : null });

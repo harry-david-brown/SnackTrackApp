@@ -121,3 +121,15 @@ export function inferImportReturnTo(pathname: string): ImportReturnTo {
       return 'home';
   }
 }
+
+/** A pending transition ends on an observed route change, not on a guessed destination. */
+export interface PendingNavigationTransition {
+  readonly destinationKey: string;
+  readonly originKey: string;
+}
+export function reconcileNavigationTransition(
+  pending: PendingNavigationTransition | null,
+  observedKey: string,
+): PendingNavigationTransition | null {
+  return pending?.originKey === observedKey ? pending : null;
+}

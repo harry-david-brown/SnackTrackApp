@@ -1,4 +1,5 @@
 import {
+  reconcileNavigationTransition,
   destinationParts,
   inferImportReturnTo,
   isActualHomeTab,
@@ -70,4 +71,10 @@ describe('navigation policy', () => {
     expect(isActualHomeTab([])).toBe(false);
     expect(isActualHomeTab(['(tabs)', 'history'])).toBe(false);
   });
+});
+
+test('an observed unrelated route also releases the previous transition', () => {
+  const pending = { originKey: '/home', destinationKey: '/import-progress' };
+  expect(reconcileNavigationTransition(pending, '/home')).toBe(pending);
+  expect(reconcileNavigationTransition(pending, '/oauth-callback')).toBeNull();
 });

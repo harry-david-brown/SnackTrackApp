@@ -1,121 +1,75 @@
+import { useMailboxImportActions } from './useMailboxImportActions';
+import { type LayoutChangeEvent, type ScrollView } from 'react-native';
+import { useImportResources } from './useImportResources';
+import { useMailboxConnectionActions, type MailboxConnectionOutcome } from './useMailboxConnectionActions';
+import { useProviderExportHandoff } from './useProviderExportHandoff';
 import { suppressAdsForSession } from '@features/ads/adSession';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, type LayoutChangeEvent, type ScrollView } from "react-native";
-import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { appDestinations, useAppNavigation } from "@features/navigation";
 import { featureFlags } from "@config/featureFlags";
-import { useUser } from "@contexts/UserContext";
 import type { ImportTaskId } from "@components/upload/ImportTaskCard";
-import type { GmailConnectPhase } from "@components/gmail/GmailImportLoadingModal";
 import type {
   ExportProvider,
   ImportOperation,
-  ImportPreferencesResponse,
 } from "@features/import-flow/contracts";
-import { useGmailImport } from "./useGmailImport";
-import { useOutlookImport } from "./useOutlookImport";
 import { useExportUpsell } from "./useExportUpsell";
-import { useImportPreferences } from "./useImportPreferences";
-import { useImportOperation } from "./useImportOperation";
 import type { ImportRouteParams } from "@features/import-flow/importRouteParams";
 import { resolveImportFlowState } from "@features/import-flow/importFlowResolver";
-import type { GmailConnectionPurpose } from "@features/import-flow/gmailConnectionPurpose";
 import {
   toDataPlatform,
 } from "@features/import-flow/importJourneyState";
 import { showAlert, showSimpleAlert } from "@utils/platformAlert";
 import {
-  type ExportDownloadHandoffState,
-  getExportDownloadHandoffState,
-  openUberExportEmail,
-  setExportDownloadHandoffState,
-  UBER_EXPORT_EMAIL_SEARCH_QUERY,
-  UBER_EXPORT_EMAIL_SUBJECT,
-} from "@utils/exportDownloadHandoff";
-import type { DataPlatform } from "@components/upload/UberDataTutorial";
-import {
-  resolveProviderTutorialEntry,
-  type ProviderTutorialJob,
-} from "@features/import-flow/providerTutorialEntry";
-import {
   resolveOngoingUpdatesPresentation,
-  resolveTrackingRecovery,
 } from "@features/import-flow/trackingEligibility";
-import type { ImportSetupPath , MailboxOAuthReturnState } from "@features/import-flow/initialImportJourney";
+import type { ImportSetupPath } from "@features/import-flow/initialImportJourney";
 import { trackAdminEvent } from "@services/adminAnalytics";
 
 import { emailUpdatesPresentation } from '@features/import-flow/emailImportPresentation';
 import { parseImportReturnTo } from '@features/import-flow/importNavigation';
-import { setPendingExportRequest, clearPendingExportRequest } from '@utils/exportDownloadHandoff';
-import { waitForMailboxOAuthReadiness } from '@features/import-flow/mailboxOAuthReadiness';
+import { useMailboxReturnReadiness } from './useMailboxReturnReadiness';
 
 type GmailImportMode = "initial" | "manual_check";
 
 export function useImportFlowController(route: ImportRouteParams, screenMode: 'auto' | 'setup' | 'manage' = 'auto') {
   const navigation = useAppNavigation();
-  const isFocused = useIsFocused();
-  const focused = useRef(isFocused);
-  focused.current = isFocused;
-  const { state: userState } = useUser();
-  const userId = userState.user?.id;
   const returnTo = parseImportReturnTo(route.returnTo);
-  const [requestSaving, setRequestSaving] = useState(false);
-  const requestSaveInFlight = useRef(false);
+  const resources = useImportResources(route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding'), returnTo);
+  const { userState, userId, preferences, gmail, outlook, connectionBusy } = resources;
+  const { operation: activeImportOperation, isUnavailable: activeImportUnavailable, refresh: refreshActiveImport } = resources.active;
+  const refreshGmailConnectionStatus = gmail.refreshConnectionStatus;
+  const { refresh: refreshPreferences } = preferences;
   const scrollViewRef = useRef<ScrollView>(null);
-  const connectSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const tutorialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pickerRequest = useRef(0);
   const handledFocusKey = useRef<string | null>(null);
   const handledActionIntent = useRef<string | null>(null);
   const initialTaskApplied = useRef(false);
-  const gmailImportMode = useRef<GmailImportMode>("initial");
-  const [showTutorial, setShowTutorial] = useState(route.showExportTutorial);
-  const [tutorialPlatform, setTutorialPlatform] = useState<
-    DataPlatform | undefined
-  >(route.provider ? toDataPlatform(route.provider) : undefined);
-  const [tutorialEntryJob, setTutorialEntryJob] = useState<
-    ProviderTutorialJob | undefined
-  >();
   const [showGmailModal, setShowGmailModal] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<ImportTaskId | null>(null);
   const [exportSectionY, setExportSectionY] = useState<number | null>(null);
-  const [gmailConnectPhase, setGmailConnectPhase] =
-    useState<GmailConnectPhase>("idle");
-  const [exportDownloadState, setExportDownloadState] =
-    useState<ExportDownloadHandoffState>("not_downloaded");
-  const [autoOpenExportPickerToken, setAutoOpenExportPickerToken] = useState<
-    string | null
-  >(null);
   const [selectedSetupPath, setSelectedSetupPath] =
     useState<ImportSetupPath>(route.sourcePicker ? "alternative" : route.mailbox ?? null);
-  const [oauthReturn, setOAuthReturn] = useState<MailboxOAuthReturnState | null>(() => {
-    if (!route.mailbox) return null;
-    if (route.connectionSucceeded) return { provider: route.mailbox, status: 'confirming' };
-    if (route.connectionFailed) return { provider: route.mailbox, status: 'failed' };
-    return null;
-  });
-  const oauthReturnAttempt = useRef(0);
   const [pendingTrackingSetup, setPendingTrackingSetup] = useState(false);
+  useEffect(() => { setPendingTrackingSetup(false); }, [userId]);
+  const handleConnectionOutcome = useCallback((outcome: MailboxConnectionOutcome) => {
+    if (outcome.needsBaseline) setPendingTrackingSetup(true);
+    if (outcome.provider === 'outlook' && !outcome.connected) setActiveTaskId('connect_email');
+    else if (outcome.purpose === 'export_ready_alerts') setActiveTaskId('uber_export');
+    else if (outcome.connected && outcome.purpose === 'ongoing_tracking' && !outcome.needsBaseline) setActiveTaskId(null);
+    else setActiveTaskId(outcome.connected || outcome.purpose === 'connection_recovery' ? 'gmail_import' : 'connect_email');
+  }, []);
+  const { connectEmail, connectOutlook, gmailConnectPhase } = useMailboxConnectionActions(resources, handleConnectionOutcome);
   const gmailFeatureEnabled = featureFlags.showGmailImport;
-  const preferences = useImportPreferences(Boolean(userId));
-  const markExportRequested = preferences.markExportRequested;
-  const { refresh: refreshPreferences } = preferences;
-  const { operation: activeImportOperation, isUnavailable: activeImportUnavailable, refresh: refreshActiveImport } = useImportOperation(Boolean(userId));
-  const gmail = useGmailImport({
-    journeyContext: route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding'),
-    returnTo,
-    connectionStatus: preferences.preferences?.gmailConnection,
-    connectionStatusLoading: preferences.isLoading,
-  });
-  const refreshGmailConnectionStatus = gmail.refreshConnectionStatus;
-  const outlook = useOutlookImport({
-    journeyContext: route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding'),
-    returnTo,
-    connectionStatus: preferences.preferences?.outlookConnection,
-  });
   const exportUpsell = useExportUpsell(userId);
+  const handoff = useProviderExportHandoff(resources, { provider: route.provider, returnTo,
+    journeyContext: route.journeyContext, downloadedVersion: route.downloadedVersion,
+    showExportTutorial: route.showExportTutorial, screenMode });
+  const { requestSaving, showTutorial, tutorialPlatform, tutorialEntryJob, exportDownloadState,
+    autoOpenExportPickerToken, openProviderRequestPage, completeTutorial, tutorialStillWaiting,
+    reportDownloaded, tutorialArchiveDownloaded, tutorialReadyConfirmed, openExportEmail,
+    openProviderTutorial: openTutorial, closeTutorial, autoOpenConsumed,
+    prepareTutorial, showPreparedTutorial } = handoff;
   const flow = useMemo(
     () =>
       resolveImportFlowState({
@@ -138,73 +92,17 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     ],
   );
 
-  useEffect(() => {
-    const provider = route.mailbox;
-    if (screenMode !== 'setup' || !provider) return;
-    if (route.connectionFailed) {
-      setOAuthReturn({ provider, status: 'failed' });
-      return;
-    }
-    if (!route.connectionSucceeded) return;
-
-    let cancelled = false;
-    const attempt = ++oauthReturnAttempt.current;
-    setSelectedSetupPath(provider);
-    setOAuthReturn({ provider, status: 'confirming' });
-
-    const connectionFor = (next: ImportPreferencesResponse) => provider === 'gmail'
-      ? next.gmailConnection
-      : next.outlookConnection;
-    const isReady = (next: ImportPreferencesResponse) => {
-      const connection = connectionFor(next);
-      return connection.connected
-        && connection.canImport !== false
-        && connection.connectionHealth !== 'reconnect_required'
-        && connection.connectionHealth !== 'unavailable';
-    };
-
-    void waitForMailboxOAuthReadiness(preferences.refresh, {
-      isReady,
-      isTerminal: (next) => connectionFor(next).connectionHealth === 'reconnect_required',
-    }).then((next) => {
-      if (cancelled || attempt !== oauthReturnAttempt.current) return;
-      if (next && isReady(next)) {
-        setOAuthReturn(null);
-        navigation.setParams({ gmail: undefined, outlook: undefined, error: undefined });
-        return;
-      }
-      setOAuthReturn({ provider, status: 'failed' });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [navigation, preferences.refresh, route.connectionFailed, route.connectionSucceeded, route.mailbox, screenMode]);
-
-  const handoffProvider: ExportProvider =
-    route.provider ??
-    (tutorialPlatform === "doordash"
-      ? "doordash"
-      : tutorialPlatform === "uber"
-        ? "uber_eats"
-        : flow.exportReadyProvider) ??
-    "uber_eats";
-  const providerPreference =
-    handoffProvider === "uber_eats"
-      ? preferences.preferences?.export.providers.uberEats
-      : preferences.preferences?.export.providers.doorDash;
-  const exportReadyVersion = providerPreference?.updatedAt ?? "ready";
+  const { oauthReturn, clearOAuthReturn } = useMailboxReturnReadiness({
+    userId, provider: route.mailbox ?? null, enabled: screenMode === 'setup',
+    succeeded: Boolean(route.connectionSucceeded), failed: Boolean(route.connectionFailed),
+    refresh: preferences.refresh, selectProvider: setSelectedSetupPath,
+  });
 
   useEffect(() => {
     if (route.sourcePicker) setSelectedSetupPath("alternative");
   }, [route.sourcePicker]);
 
 
-  const connectionBusy = gmail.primaryFlowState !== "idle"
-    || gmail.isChecking
-    || outlook.isLoading
-    || outlook.isImporting
-    || preferences.isUpdating;
   const busy = connectionBusy || Boolean(activeImportOperation && ["awaiting_upload", "pending_dispatch", "queued", "running", "retrying"].includes(activeImportOperation.status));
   const showGmailImportLoadingModal = gmailConnectPhase !== "idle";
   const ongoingUpdatesPresentation = resolveOngoingUpdatesPresentation(
@@ -226,42 +124,10 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
 
   useEffect(
     () => () => {
-      if (connectSuccessTimer.current)
-        clearTimeout(connectSuccessTimer.current);
       if (tutorialTimer.current) clearTimeout(tutorialTimer.current);
     },
     [],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || !flow.exportFileReady) {
-      setExportDownloadState("not_downloaded");
-      return () => {
-        cancelled = true;
-      };
-    }
-    void getExportDownloadHandoffState(
-      userId,
-      handoffProvider,
-      exportReadyVersion,
-    ).then((nextState) => {
-      if (!cancelled) setExportDownloadState(nextState);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [exportReadyVersion, flow.exportFileReady, handoffProvider, userId]);
-
-  useEffect(() => {
-    if (
-      flow.exportFileReady &&
-      route.downloadedVersion === exportReadyVersion
-    ) {
-      setExportDownloadState("downloaded");
-      setAutoOpenExportPickerToken(route.downloadedVersion);
-    }
-  }, [exportReadyVersion, flow.exportFileReady, route.downloadedVersion]);
 
   useEffect(() => {
     if (gmailFeatureEnabled && showGmailModal)
@@ -281,16 +147,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       return;
     handledFocusKey.current = focusKey;
     setActiveTaskId("uber_export");
-    if (route.provider) {
-      setTutorialPlatform(toDataPlatform(route.provider));
-      const providerProgress =
-        route.provider === "uber_eats"
-          ? flow.exportProviderProgress.uberEats
-          : flow.exportProviderProgress.doorDash;
-      setTutorialEntryJob(
-        resolveProviderTutorialEntry(providerProgress.status).job,
-      );
-    }
+    if (route.provider) prepareTutorial(toDataPlatform(route.provider));
     requestAnimationFrame(() =>
       scrollViewRef.current?.scrollTo({
         y: Math.max(0, exportSectionY - 16),
@@ -298,9 +155,11 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }),
     );
     if (route.showExportTutorial) {
-      tutorialTimer.current = setTimeout(() => setShowTutorial(true), 300);
+      tutorialTimer.current = setTimeout(showPreparedTutorial, 300);
     }
   }, [
+    prepareTutorial,
+    showPreparedTutorial,
     exportSectionY,
     flow.exportProviderProgress.doorDash,
     flow.exportProviderProgress.uberEats,
@@ -331,141 +190,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     setActiveTaskId((current) => (current === taskId ? null : taskId));
   }, []);
 
-  const connectEmail = useCallback(
-    async (purpose: GmailConnectionPurpose = "receipt_import") => {
-      if (connectionBusy) return false;
-      if (connectSuccessTimer.current)
-        clearTimeout(connectSuccessTimer.current);
-      setGmailConnectPhase("connecting");
-      const connectionResult = await gmail.connectGmail(purpose);
-      if (!connectionResult) {
-        setActiveTaskId(
-          purpose === "export_ready_alerts"
-            ? "uber_export"
-            : purpose === "connection_recovery"
-              ? "gmail_import"
-              : "connect_email",
-        );
-        setGmailConnectPhase("idle");
-        return false;
-      }
-      const refreshedPreferences = await preferences.refresh();
-      if (connectionResult.purpose === "receipt_import") {
-        setActiveTaskId("gmail_import");
-      } else if (connectionResult.purpose === "export_ready_alerts") {
-        setActiveTaskId("uber_export");
-
-      } else if (connectionResult.purpose === "ongoing_tracking") {
-        const recovery = resolveTrackingRecovery(refreshedPreferences);
-        if (recovery.kind === "eligible") {
-          setActiveTaskId(null);
-          navigation.replace({ pathname: '/ongoing-updates', params: { manage: 'true' } });
-        } else {
-          setPendingTrackingSetup(true);
-          setActiveTaskId("gmail_import");
-          showSimpleAlert(
-            "Gmail is ready",
-            "Check your email history once to establish a starting point. SnackTrack will ask separately before enabling ongoing updates.",
-          );
-        }
-      } else {
-        setActiveTaskId("gmail_import");
-        showSimpleAlert(
-          "Gmail reconnected",
-          "Your Gmail connection is ready. You can continue where you left off.",
-        );
-      }
-      setGmailConnectPhase("connected");
-      connectSuccessTimer.current = setTimeout(() => {
-        setGmailConnectPhase("idle");
-        connectSuccessTimer.current = null;
-      }, 2200);
-      return true;
-    },
-    [connectionBusy, gmail, preferences, navigation],
-  );
-
-  const connectOutlook = useCallback(
-    async (purpose: GmailConnectionPurpose = "receipt_import") => {
-      if (connectionBusy) return false;
-      const result = await outlook.connectOutlook(purpose);
-      if (!result) {
-        setActiveTaskId("connect_email");
-        return false;
-      }
-      const refreshedPreferences = await preferences.refresh();
-      setActiveTaskId(purpose === "export_ready_alerts" ? "uber_export" : "gmail_import");
-      if (purpose === "ongoing_tracking") {
-        const recovery = resolveTrackingRecovery(refreshedPreferences);
-        if (recovery.kind === "eligible") {
-          setActiveTaskId(null);
-          navigation.replace({ pathname: '/ongoing-updates', params: { manage: 'true' } });
-        } else {
-          showSimpleAlert(
-            "Outlook is ready",
-            "Check your email history once. SnackTrack will ask separately before enabling ongoing updates.",
-          );
-          setPendingTrackingSetup(true);
-        }
-      }
-      return true;
-    },
-    [connectionBusy, outlook, preferences, navigation],
-  );
-
-  const importEmail = useCallback(
-    async (mode?: GmailImportMode, automaticUpdates = false) => {
-      if (busy || !flow.gmailConnected || !flow.canImportFromGmail) return;
-      gmailImportMode.current =
-        mode ?? (flow.hasImportedEmailData ? "manual_check" : "initial");
-      try {
-        const operation = await gmail.importReceipts(undefined, automaticUpdates);
-        if (operation && mode !== 'manual_check') {
-          if (userId) suppressAdsForSession(userId);
-          navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo: pendingTrackingSetup ? 'ongoing_updates' : returnTo } });
-        }
-      } finally {
-        gmailImportMode.current = "initial";
-      }
-    },
-    [
-      busy,
-      flow.canImportFromGmail,
-      flow.gmailConnected,
-      flow.hasImportedEmailData,
-      gmail,
-      navigation,
-      returnTo,
-      pendingTrackingSetup,
-      userId,
-    ],
-  );
-
-  const importOutlook = useCallback(
-    async (mode?: GmailImportMode, automaticUpdates = false) => {
-      if (busy || !flow.outlookConnected || !flow.canImportFromOutlook) return;
-      gmailImportMode.current = mode ?? (flow.hasImportedEmailData ? "manual_check" : "initial");
-      try {
-        const operation = await outlook.importReceipts(automaticUpdates);
-        if (operation && mode !== 'manual_check') {
-          if (userId) suppressAdsForSession(userId);
-          navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo: pendingTrackingSetup ? 'ongoing_updates' : returnTo } });
-        }
-      } finally {
-        gmailImportMode.current = "initial";
-      }
-    }, [
-      busy,
-      flow.canImportFromOutlook,
-      flow.hasImportedEmailData,
-      flow.outlookConnected,
-      navigation,
-      outlook,
-      returnTo,
-      pendingTrackingSetup,
-      userId,
-    ],
-  );
+  const { importEmail, importOutlook } = useMailboxImportActions(resources, returnTo, pendingTrackingSetup);
 
   const checkForNewOrders = useCallback(() => {
     setShowGmailModal(false);
@@ -518,16 +243,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       }
     } else {
       setActiveTaskId("uber_export");
-      if (route.provider) {
-        setTutorialPlatform(toDataPlatform(route.provider));
-        const providerProgress =
-          route.provider === "uber_eats"
-            ? flow.exportProviderProgress.uberEats
-            : flow.exportProviderProgress.doorDash;
-        setTutorialEntryJob(
-          resolveProviderTutorialEntry(providerProgress.status).job,
-        );
-      }
+      if (route.provider) prepareTutorial(toDataPlatform(route.provider));
       requestAnimationFrame(() => {
         if (exportSectionY !== null) {
           scrollViewRef.current?.scrollTo({
@@ -546,7 +262,7 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
         ? providerProgress.imported || providerProgress.status !== "not_started"
         : flow.exportRequested || flow.exportComplete;
       if (route.action === "request_export" && !targetAlreadyStarted) {
-        tutorialTimer.current = setTimeout(() => setShowTutorial(true), 300);
+        tutorialTimer.current = setTimeout(showPreparedTutorial, 300);
       }
     }
 
@@ -557,6 +273,8 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       gmailPurpose: undefined,
     });
   }, [
+    prepareTutorial,
+    showPreparedTutorial,
     busy,
     connectEmail,
     exportSectionY,
@@ -584,142 +302,6 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     setupOngoingUpdates,
   ]);
 
-  const openProviderRequestPage = useCallback(async (platform: DataPlatform) => {
-    const provider = platform === 'uber' ? 'uber_eats' : 'doordash';
-    if (!userId) throw new Error('Sign in before requesting your history.');
-    await setPendingExportRequest(userId, provider, returnTo);
-    try {
-      await Linking.openURL(provider === 'uber_eats' ? 'https://myprivacy.uber.com/privacy/exploreyourdata/download' : 'https://www.doordash.com/consumer/privacy/manage_account');
-    } catch (error) {
-      await clearPendingExportRequest(userId, provider);
-      throw error;
-    }
-  }, [returnTo, userId]);
-
-  const completeTutorial = useCallback(async (platform: DataPlatform): Promise<boolean> => {
-    if (requestSaveInFlight.current) return false;
-    requestSaveInFlight.current = true;
-    setRequestSaving(true);
-    const provider = platform === 'uber' ? 'uber_eats' : 'doordash';
-    try {
-      await markExportRequested(provider);
-    } catch {
-      showSimpleAlert('Could not save your request', 'Your request may still be with the delivery service. Try saving your progress again here.');
-      return false;
-    } finally {
-      requestSaveInFlight.current = false;
-      setRequestSaving(false);
-    }
-    // The server response above is authoritative, even if local cleanup fails.
-    if (userId) void clearPendingExportRequest(userId, provider).catch(() => undefined);
-    setShowTutorial(false);
-    setTutorialPlatform(undefined);
-    setTutorialEntryJob(undefined);
-    void trackAdminEvent('setup_completed', { properties: { method: 'provider_history_request' } }).catch(() => undefined);
-    if (screenMode === 'setup') navigation.replace({ pathname: '/add-history', params: { intent: 'resume_export', provider, returnTo, journeyContext: 'onboarding' } });
-    return true;
-  }, [markExportRequested, navigation, returnTo, screenMode, userId]);
-
-  const tutorialStillWaiting = completeTutorial;
-
-  const reportDownloaded = useCallback(
-    async (provider: ExportProvider = handoffProvider, openPicker = true) => {
-      if (!userId) return;
-      const providerState =
-        provider === "uber_eats"
-          ? preferences.preferences?.export.providers.uberEats
-          : preferences.preferences?.export.providers.doorDash;
-      const readyVersion = providerState?.updatedAt ?? exportReadyVersion;
-      await setExportDownloadHandoffState(
-        userId,
-        provider,
-        readyVersion,
-        "downloaded",
-      );
-      setExportDownloadState("downloaded");
-      if (openPicker) {
-        pickerRequest.current += 1;
-        setAutoOpenExportPickerToken(
-          `${readyVersion}:local:${pickerRequest.current}`,
-        );
-      }
-    },
-    [
-      exportReadyVersion,
-      handoffProvider,
-      preferences.preferences?.export.providers,
-      userId,
-    ],
-  );
-
-  const tutorialArchiveDownloaded = useCallback(
-    (platform: DataPlatform) => {
-      setShowTutorial(false);
-      setTutorialPlatform(undefined);
-      setTutorialEntryJob(undefined);
-      const provider = platform === 'uber' ? 'uber_eats' : 'doordash';
-      void reportDownloaded(provider, false);
-      navigation.replace({ pathname: '/add-history', params: { intent: 'provider', provider, downloadedVersion: 'saved', returnTo, journeyContext: route.journeyContext ?? (screenMode === 'setup' ? 'onboarding' : 'post_onboarding') } });
-    },
-    [navigation, reportDownloaded, returnTo, route.journeyContext, screenMode],
-  );
-
-  const tutorialReadyConfirmed = useCallback(
-    (platform: DataPlatform) => {
-      const provider: ExportProvider =
-        platform === "uber" ? "uber_eats" : "doordash";
-      setTutorialEntryJob("download");
-      void preferences.confirmExportReady(provider).catch(() => {
-        showSimpleAlert(
-          "Status not saved",
-          "You can continue downloading the archive, but SnackTrack could not save that it is ready.",
-        );
-      });
-    },
-    [preferences],
-  );
-
-  const openExportEmail = useCallback(async () => {
-    if (!userId || !flow.exportFileReady) return;
-    if (handoffProvider !== "uber_eats") {
-      showSimpleAlert(
-        "Find the DoorDash ready message",
-        "Look for the email or notification containing “View Your Data Archive,” download the ZIP, then return to SnackTrack.",
-      );
-      return;
-    }
-    if (!flow.gmailConnected) {
-      showSimpleAlert(
-        "Find Uber’s ready message",
-        `Look for “${UBER_EXPORT_EMAIL_SUBJECT}” in the email address or phone number registered with Uber. Open the download page, save the ZIP, then return to SnackTrack.`,
-      );
-      return;
-    }
-    setExportDownloadState("checking_email");
-    await setExportDownloadHandoffState(
-      userId,
-      handoffProvider,
-      exportReadyVersion,
-      "checking_email",
-    );
-    try {
-      await openUberExportEmail();
-    } catch {
-      setExportDownloadState("not_downloaded");
-      await setExportDownloadHandoffState(
-        userId,
-        handoffProvider,
-        exportReadyVersion,
-        "not_downloaded",
-      );
-      showAlert(
-        "Could not open your email",
-        `Open your email app and search for ${UBER_EXPORT_EMAIL_SEARCH_QUERY}.`,
-        [{ text: "OK" }],
-      );
-    }
-  }, [exportReadyVersion, flow.exportFileReady, flow.gmailConnected, handoffProvider, userId]);
-
   const uploadSucceeded = useCallback(
     async (operation: ImportOperation) => {
       setActiveTaskId("uber_export");
@@ -728,44 +310,6 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     },
     [navigation, returnTo, pendingTrackingSetup, userId],
   );
-
-  const openTutorial = useCallback(
-    (platform?: DataPlatform, entryJobOverride?: ProviderTutorialJob) => {
-      setTutorialPlatform(platform);
-      if (platform) {
-        const providerProgress =
-          platform === "uber"
-            ? flow.exportProviderProgress.uberEats
-            : flow.exportProviderProgress.doorDash;
-        setTutorialEntryJob(
-          entryJobOverride ?? resolveProviderTutorialEntry(providerProgress.status).job,
-        );
-      } else {
-        setTutorialEntryJob(undefined);
-      }
-      setShowTutorial(true);
-    },
-    [
-      flow.exportProviderProgress.doorDash,
-      flow.exportProviderProgress.uberEats,
-    ],
-  );
-
-  const closeTutorial = useCallback(() => {
-    if (screenMode === 'setup' && route.showExportTutorial) {
-      navigation.backOr(appDestinations.dataSetup);
-      return;
-    }
-    setShowTutorial(false);
-    setTutorialPlatform(undefined);
-    setTutorialEntryJob(undefined);
-  }, [navigation, route.showExportTutorial, screenMode]);
-
-  const autoOpenConsumed = useCallback(() => {
-    setAutoOpenExportPickerToken(null);
-    if (route.downloadedVersion)
-      navigation.setParams({ downloadedVersion: undefined });
-  }, [navigation, route.downloadedVersion]);
 
   const gmailButtonLabel =
     gmail.primaryFlowState === "connecting"
@@ -798,12 +342,6 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
       flow.outlookNeedsReconnect,
     ],
   );
-
-  const clearOAuthReturn = useCallback(() => {
-    oauthReturnAttempt.current += 1;
-    setOAuthReturn(null);
-    navigation.setParams({ gmail: undefined, outlook: undefined, error: undefined });
-  }, [navigation]);
 
   const retryOAuthConnection = useCallback(() => {
     const provider = oauthReturn?.provider ?? route.mailbox;
@@ -915,19 +453,12 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     closeGmailSettings: () => setShowGmailModal(false),
     tutorialPlatform,
     tutorialEntryJob,
-    tutorialMode:
-      tutorialEntryJob === "download" ||
-      tutorialEntryJob === "retry" ||
-      tutorialEntryJob === "processing"
-        ? ("download" as const)
-        : ("request" as const),
+    tutorialMode: handoff.tutorialMode,
     closeTutorial,
     openTutorial: () => navigation.open({ pathname: '/data-setup', params: { sourcePicker: 'true' } }),
     openProviderTutorial: openTutorial,
     completeTutorial,
-    requestNotSubmitted: (platform: DataPlatform) => {
-      if (userId) void clearPendingExportRequest(userId, platform === 'uber' ? 'uber_eats' : 'doordash').catch(() => undefined);
-    },
+    requestNotSubmitted: handoff.requestNotSubmitted,
     requestSaving,
     openProviderRequestPage,
     emailUpdates: emailUpdatesPresentation(preferences.preferences),
@@ -935,10 +466,10 @@ export function useImportFlowController(route: ImportRouteParams, screenMode: 'a
     tutorialArchiveDownloaded,
     tutorialReadyConfirmed,
     reportDownloaded: (provider?: ExportProvider, openPicker = true) => {
-      void reportDownloaded(provider, openPicker);
+      void reportDownloaded(provider, openPicker).catch(() => undefined);
     },
     openExportEmail: () => {
-      void openExportEmail();
+      void openExportEmail().catch(() => undefined);
     },
     autoOpenConsumed,
     uploadSucceeded,

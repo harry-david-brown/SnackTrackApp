@@ -1,6 +1,7 @@
 interface MailboxOAuthReadinessOptions<T> {
   readonly isReady: (value: T) => boolean;
   readonly isTerminal?: (value: T) => boolean;
+  readonly isCancelled?: () => boolean;
   readonly attempts?: number;
   readonly retryDelayMs?: number;
   readonly wait?: (milliseconds: number) => Promise<void>;
@@ -25,7 +26,9 @@ export async function waitForMailboxOAuthReadiness<T>(
   let latest: T | null = null;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (options.isCancelled?.()) return null;
     latest = await read();
+    if (options.isCancelled?.()) return null;
     if (latest && (options.isReady(latest) || options.isTerminal?.(latest))) {
       return latest;
     }

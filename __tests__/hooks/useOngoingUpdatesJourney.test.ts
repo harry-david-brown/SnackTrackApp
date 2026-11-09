@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useOngoingUpdatesJourney } from '@hooks/useOngoingUpdatesJourney';
 import { createImportPreferencesFixture } from '@/__tests__/fixtures/importPreferences';
 
+jest.mock('@contexts/UserContext', () => ({ useUser: () => ({ state: { user: { id: 'user-1' } } }) }));
 const mockReplace = jest.fn();
 const mockOpen = jest.fn();
 const mockPreferences = {

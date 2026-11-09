@@ -19,6 +19,8 @@ import {
 } from './appDestinations';
 import {
   inferImportReturnTo,
+  reconcileNavigationTransition,
+  type PendingNavigationTransition,
   isActualHomeTab,
   isDestinationCurrent,
   navigationDestinationKey,
@@ -74,8 +76,7 @@ export function NavigationPolicyProvider({ children }: PropsWithChildren) {
   const params = useGlobalSearchParams() as Record<string, string | string[] | undefined>;
   const segments = useSegments();
   const blockers = useRef(new Set<string>());
-  const pendingKey = useRef<string | null>(null);
-  const pendingOriginKey = useRef<string | null>(null);
+  const pending = useRef<PendingNavigationTransition | null>(null);
   const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const observedRouteKey = navigationStateKey(pathname, params);
   const live = useRef<LiveNavigationState>({ authenticated: false, pathname, params, segments });
@@ -87,8 +88,7 @@ export function NavigationPolicyProvider({ children }: PropsWithChildren) {
   };
 
   const clearPending = useCallback(() => {
-    pendingKey.current = null;
-    pendingOriginKey.current = null;
+    pending.current = null;
     if (releaseTimer.current) clearTimeout(releaseTimer.current);
     releaseTimer.current = null;
   }, []);
@@ -96,7 +96,7 @@ export function NavigationPolicyProvider({ children }: PropsWithChildren) {
   useEffect(() => clearPending, [clearPending]);
 
   useEffect(() => {
-    if (!pendingKey.current) return;
+    if (!pending.current) return;
     clearPending();
   }, [clearPending, observedRouteKey]);
 
@@ -107,13 +107,15 @@ export function NavigationPolicyProvider({ children }: PropsWithChildren) {
     // while an OAuth browser is open). Once Expo Router reports a different
     // route, the old transition is complete and must not block a one-shot
     // handoff mounted on the new route.
-    if (pendingKey.current && pendingOriginKey.current !== currentKey) clearPending();
+    if (pending.current && !reconcileNavigationTransition(pending.current, currentKey)) clearPending();
     if (isDestinationCurrent(destination, current.pathname, current.params)) return 'already-current';
-    if (pendingKey.current) return 'transition-pending';
+    if (pending.current) return 'transition-pending';
 
-    pendingKey.current = navigationDestinationKey(destination);
-    pendingOriginKey.current = currentKey;
-    releaseTimer.current = setTimeout(clearPending, TRANSITION_RELEASE_MS);
+    pending.current = { destinationKey: navigationDestinationKey(destination), originKey: currentKey };
+    const transition = pending.current;
+    releaseTimer.current = setTimeout(() => {
+      if (pending.current === transition) clearPending();
+    }, TRANSITION_RELEASE_MS);
     if (mode === 'replace') router.replace(destination);
     else router.navigate(destination);
     return 'navigated';
@@ -124,12 +126,14 @@ export function NavigationPolicyProvider({ children }: PropsWithChildren) {
   const backOr = useCallback((fallback: AppDestination): NavigationOutcome => {
     const current = live.current;
     const currentKey = navigationStateKey(current.pathname, current.params);
-    if (pendingKey.current && pendingOriginKey.current !== currentKey) clearPending();
-    if (pendingKey.current) return 'transition-pending';
+    if (pending.current && !reconcileNavigationTransition(pending.current, currentKey)) clearPending();
+    if (pending.current) return 'transition-pending';
     if (!router.canGoBack()) return beginNavigation(fallback, 'replace');
-    pendingKey.current = '__back__';
-    pendingOriginKey.current = currentKey;
-    releaseTimer.current = setTimeout(clearPending, TRANSITION_RELEASE_MS);
+    pending.current = { destinationKey: '__back__', originKey: currentKey };
+    const transition = pending.current;
+    releaseTimer.current = setTimeout(() => {
+      if (pending.current === transition) clearPending();
+    }, TRANSITION_RELEASE_MS);
     router.back();
     return 'navigated';
   }, [beginNavigation, clearPending]);

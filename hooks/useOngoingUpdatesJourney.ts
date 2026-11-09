@@ -1,24 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useUser } from '@contexts/UserContext';
+import { useFlowAttemptScope } from './useFlowAttemptScope';
+import { useCallback, useEffect, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { AppState } from 'react-native';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { resolveOngoingUpdatesState } from '@features/import-flow/ongoingUpdatesState';
 import { addHistoryDestination, appDestinations, useAppNavigation } from '@features/navigation';
 
+type ConsentDecision = 'granted' | 'declined';
+type ConsentAction =
+  | { phase: 'idle' }
+  | { phase: 'saving' | 'reconciling' | 'uncertain'; decision: ConsentDecision }
+  | { phase: 'checking' | 'retrying' }
+  | { phase: 'failed'; reason: 'error' | 'unavailable' };
+
 export function useOngoingUpdatesJourney(reconsider = false) {
   const preferences = useImportPreferences();
   const { refresh } = preferences;
   const navigation = useAppNavigation();
   const focused = useIsFocused();
-  const [actionFailure, setActionFailure] = useState<'error' | 'unavailable' | null>(null);
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [pendingDecision, setPendingDecision] = useState<'granted' | 'declined' | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { state: user } = useUser();
+  const scope = useFlowAttemptScope(user.user?.id ?? 'signed-out');
+  const [snapshot, setSnapshot] = useState<{ scope: typeof scope; action: ConsentAction }>({ scope, action: { phase: 'idle' } });
+  const action = snapshot.scope === scope ? snapshot.action : { phase: 'idle' } as const;
+  const update = (next: ConsentAction) => setSnapshot({ scope, action: next });
   const [chooseInbox, setChooseInbox] = useState(false);
-  const mounted = useRef(true);
-  const inFlight = useRef(false);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const state = actionFailure ?? resolveOngoingUpdatesState(preferences.preferences, { unavailable: Boolean(preferences.queryError), saveFailed, reconsider });
+  useEffect(() => { setChooseInbox(false); }, [scope]);
+  const busy = ['saving', 'reconciling', 'checking', 'retrying'].includes(action.phase);
+  const state = action.phase === 'failed' ? action.reason : resolveOngoingUpdatesState(preferences.preferences, {
+    unavailable: Boolean(preferences.queryError), saveFailed: action.phase === 'uncertain', reconsider,
+  });
   // Poll only while this journey is visible and the first check is still running.
   useEffect(() => {
     if (!focused) return;
@@ -27,20 +38,22 @@ export function useOngoingUpdatesJourney(reconsider = false) {
     const timer = state === 'setting_up' ? setInterval(() => { if (AppState.currentState === 'active') void refresh(); }, 4000) : undefined;
     return () => { subscription.remove(); if (timer) clearInterval(timer); };
   }, [focused, state, refresh]);
-  const run = async (work: () => Promise<void>, failure: 'save_failed' | 'error' | 'unavailable' = 'save_failed') => {
-    if (inFlight.current) return;
-    inFlight.current = true; setBusy(true);
-    try { await work(); } catch { if (mounted.current) { if (failure === 'save_failed') setSaveFailed(true); else setActionFailure(failure); } }
-    finally { inFlight.current = false; if (mounted.current) setBusy(false); }
+  const run = async (next: ConsentAction, work: (isCurrent: () => boolean) => Promise<void>, failure: ConsentAction) => {
+    const attempt = scope.begin();
+    if (attempt === null) return;
+    update(next);
+    const isCurrent = () => scope.owns(attempt);
+    try {
+      await work(isCurrent);
+      if (isCurrent()) update({ phase: 'idle' });
+    } catch { if (isCurrent()) update(failure); }
+    finally { scope.finish(attempt); }
   };
-  const decide = (decision: 'granted' | 'declined') => {
-    setPendingDecision(decision);
-    void run(async () => {
+  const decide = (decision: ConsentDecision) => {
+    void run({ phase: 'saving', decision }, async isCurrent => {
       await preferences.setOngoingTrackingConsent(decision);
-      if (!mounted.current) return;
-      setSaveFailed(false); setActionFailure(null); setPendingDecision(null);
-      if (decision === 'declined') navigation.replace(appDestinations.home);
-    });
+      if (isCurrent() && decision === 'declined') navigation.replace(appDestinations.home);
+    }, { phase: 'uncertain', decision });
   };
   const primary = () => {
     if (state === 'eligible') { decide('granted'); return; }
@@ -48,25 +61,27 @@ export function useOngoingUpdatesJourney(reconsider = false) {
     if (state === 'baseline') { navigation.open(addHistoryDestination()); return; }
     if (state === 'setting_up') { navigation.replace(appDestinations.home); return; }
     if (state === 'active' || state === 'off' || state === 'loading') { navigation.replace(appDestinations.history); return; }
-    void run(async () => {
+    const pendingDecision = action.phase === 'uncertain' ? action.decision : null;
+    void run(pendingDecision ? { phase: 'reconciling', decision: pendingDecision } : { phase: state === 'error' ? 'retrying' : 'checking' }, async isCurrent => {
       if (state === 'error') {
         const operation = await preferences.checkOngoingTracking();
+        if (!isCurrent()) return;
         // Acceptance is not completion; use the durable operation's progress screen.
         navigation.replace({ pathname: '/import-progress', params: { operationId: operation.id, returnTo: 'ongoing_updates' } });
         return;
       }
       const current = await preferences.refreshVerified();
+      if (!isCurrent()) return;
       if (!current) throw new Error('Preferences unavailable');
       if (state === 'save_failed' && pendingDecision) {
         const next = resolveOngoingUpdatesState(current, { reconsider });
         if (pendingDecision === 'declined' && current.ongoingTracking.consentState !== 'declined') await preferences.setOngoingTrackingConsent('declined');
         else if (pendingDecision === 'granted' && next === 'eligible') await preferences.setOngoingTrackingConsent('granted');
-        if (pendingDecision === 'declined') navigation.replace(appDestinations.home);
+        if (isCurrent() && pendingDecision === 'declined') navigation.replace(appDestinations.home);
       }
-      if (mounted.current) { setSaveFailed(false); setActionFailure(null); setPendingDecision(null); }
-    }, state === 'error' ? 'error' : state === 'save_failed' ? 'save_failed' : 'unavailable');
+    }, pendingDecision ? { phase: 'uncertain', decision: pendingDecision } : { phase: 'failed', reason: state === 'error' ? 'error' : 'unavailable' });
   };
   const connect = (mailbox: 'gmail' | 'outlook') => navigation.open(addHistoryDestination({ intent: 'reconnect', mailbox, gmailPurpose: 'ongoing_tracking', returnTo: 'ongoing_updates' }));
   const leave = useCallback(() => navigation.replace(appDestinations.home), [navigation]);
-  return { state, busy: busy || preferences.isUpdating, chooseInbox: chooseInbox && (state === 'disconnected' || state === 'reconnect'), primary, connect, leave, decline: () => decide('declined') };
+  return { state, actionPhase: action.phase, busy: busy || preferences.isUpdating, chooseInbox: chooseInbox && (state === 'disconnected' || state === 'reconnect'), primary, connect, leave, decline: () => decide('declined') };
 }

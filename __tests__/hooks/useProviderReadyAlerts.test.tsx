@@ -9,7 +9,7 @@ const mockHome = jest.fn();
 const mockConnect = jest.fn();
 let mockSupported = true;
 let mockEnabled = false;
-jest.mock('@hooks/useImportPreferences', () => ({ useImportPreferences: () => ({ preferences: mockPreferences, setProviderReadyAlertConsent: mockConsent, refresh: async () => mockPreferences }) }));
+jest.mock('@hooks/useImportPreferences', () => ({ useImportPreferences: () => ({ preferences: mockPreferences, setProviderReadyAlertConsent: mockConsent, refresh: async () => mockPreferences, refreshVerified: async () => mockPreferences }) }));
 jest.mock('@hooks/useDeviceNotifications', () => ({ useDeviceNotifications: () => ({ enabled: mockEnabled, enable: mockEnable }) }));
 jest.mock('@services/importNotifications', () => ({ supportsImportNotifications: () => mockSupported }));
 const options = { userId: 'user-1', provider: 'doordash' as const, goHome: mockHome, connectGmail: mockConnect, connectOutlook: mockConnect };
@@ -67,4 +67,27 @@ it('can revoke monitoring without disabling device notifications', async () => {
   await act(async () => result.current.disable());
   expect(mockConsent).toHaveBeenCalledWith({ provider: 'doordash', decision: 'revoked' });
   expect(mockEnable).not.toHaveBeenCalled();
+});
+
+it('reconciles an uncertain revocation without granting consent or registering notifications', async () => {
+  mockConsent.mockRejectedValueOnce(new Error('response lost'));
+  const { result } = renderHook(() => useProviderReadyAlerts(options));
+  await act(async () => { await result.current.disable(); });
+  expect(result.current.issue).toBe('save');
+  mockPreferences.export.providers.doorDash.readyAlert!.consentState = 'revoked';
+  await act(async () => { result.current.enroll(); });
+  expect(mockConsent).toHaveBeenCalledTimes(1);
+  expect(mockEnable).not.toHaveBeenCalled();
+  expect(result.current.issue).toBeNull();
+});
+it('does not register the device when consent finishes for a previous account', async () => {
+  let resolve!: (value: typeof mockPreferences) => void;
+  mockConsent.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  const { result, rerender } = renderHook(({ userId }) => useProviderReadyAlerts({ ...options, userId }), { initialProps: { userId: 'user-1' } });
+  act(() => result.current.enroll());
+  rerender({ userId: 'user-2' });
+  rerender({ userId: 'user-1' });
+  await act(async () => { resolve(mockPreferences); });
+  expect(mockEnable).not.toHaveBeenCalled();
+  expect(result.current.busy).toBe(false);
 });

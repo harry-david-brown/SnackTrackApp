@@ -107,3 +107,23 @@ it('removes rejected picker copies and the previous copy when selection changes'
   expect(FileSystem.deleteAsync).toHaveBeenCalledWith(invalid.uri, { idempotent: true });
   expect(result.current.file?.uri).toBe(other.uri);
 });
+
+it('ignores a late upload after account A → B → A', async () => {
+  let finish!: (operation: ImportOperation) => void;
+  mockImport.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const { result, rerender } = renderHook(() => useImportFileSession('uber_eats', 'post_onboarding'));
+  await act(async () => { await result.current.choose(); });
+  let submitted!: Promise<ImportOperation | null>;
+  await act(async () => { submitted = result.current.submit(); await Promise.resolve(); });
+  mockUserId = 'user-2'; rerender({});
+  mockUserId = 'user-1'; rerender({});
+  await act(async () => { finish({ id: 'old' } as ImportOperation); expect(await submitted).toBeNull(); });
+  expect(result.current.operation).toBeNull();
+  expect(result.current.isPending).toBe(false);
+});
+it('admits only one submission before React renders pending state', async () => {
+  const { result } = renderHook(() => useImportFileSession('uber_eats', 'post_onboarding'));
+  await act(async () => { await result.current.choose(); });
+  await act(async () => { await Promise.all([result.current.submit(), result.current.submit()]); });
+  expect(mockImport).toHaveBeenCalledTimes(1);
+});
