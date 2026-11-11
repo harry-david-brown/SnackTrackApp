@@ -1,7 +1,6 @@
-import { resolveImportNextAction } from './importNextAction';
 import type { ExportDownloadHandoffState } from '@utils/exportDownloadHandoff';
 import type { ExportProvider, ImportOperation, ImportPreferencesResponse, MailboxProvider } from './contracts';
-import { resolveImportCoverage, type ProviderJourneyState } from './importJourneyState';
+import { resolveExportOpportunity, resolveImportCoverage, type ProviderJourneyState } from './importJourneyState';
 import type { PostOnboardingImportIntent } from './postOnboardingImportRoute';
 import type { GmailConnectionPurpose } from './gmailConnectionPurpose';
 
@@ -56,24 +55,28 @@ export function resolvePostOnboardingImportJourney(input: ResolvePostOnboardingI
     return { kind: 'email_review', provider: input.selectedMailbox, email: connection.email ?? null, connected: connection.connected, reconnect: input.intent === 'reconnect' || connection.connectionHealth === 'reconnect_required', temporarilyUnavailable: connection.connectionHealth === 'unavailable' || (connection.connected && connection.connectionHealth !== 'reconnect_required' && connection.canImport === false) };
   }
   if (!selected) {
-    const next = resolveImportNextAction({ preferences: input.preferences, operation: input.operation });
-    // Explicit source selection stays available while a request is waiting.
-    if (input.intent === 'resume_export' && next.kind === 'export') {
-      const provider = providers.find(item => item.provider === next.provider)!;
-      return next.stage === 'file_ready' ? { kind: 'download_ready', provider, downloaded: false }
-        : { kind: next.stage === 'failed' ? 'provider_failed' : next.stage === 'requested' ? 'provider_waiting' : 'provider_processing', provider };
+    // Resume-export is an explicit export intent, not the global next-action policy.
+    // An unrelated inbox failure or operation must not swallow a saved export request.
+    const opportunity = input.intent === 'resume_export' ? resolveExportOpportunity(coverage) : null;
+    if (opportunity && opportunity.status !== 'not_started' && opportunity.status !== 'completed') {
+      return resolveProviderEntry(opportunity);
     }
     return { kind: 'choose_method', providers };
   }
   if (input.step === 'upload' || (input.downloadState === 'downloaded' && !input.step)) return { kind: 'download_ready', provider: selected, downloaded: true };
   if (input.step === 'ready') return { kind: 'download_ready', provider: selected, downloaded: false };
   if (input.step === 'request' || input.step === 'resume' || input.step === 'confirm_request' || input.step === 'file_help') return { kind: input.step, provider: selected };
-  if (input.intent === 'resume_export' || input.intent === 'provider') {
-    if (selected.status === 'file_ready') return { kind: 'download_ready', provider: selected, downloaded: false };
-    if (selected.status === 'requested') return { kind: 'provider_waiting', provider: selected };
-    if (selected.status === 'failed') return { kind: 'provider_failed', provider: selected };
-    if (selected.status === 'import_processing') return { kind: 'provider_processing', provider: selected };
-    return { kind: 'request', provider: selected };
+  return input.intent === 'resume_export' || input.intent === 'provider'
+    ? resolveProviderEntry(selected) : { kind: 'request', provider: selected };
+}
+
+/** Both an explicit provider and a source-less resume use the same current stage. */
+function resolveProviderEntry(provider: ProviderJourneyState): PostOnboardingImportJourneyState {
+  switch (provider.status) {
+    case 'file_ready': return { kind: 'download_ready', provider, downloaded: false };
+    case 'requested': return { kind: 'provider_waiting', provider };
+    case 'failed': return { kind: 'provider_failed', provider };
+    case 'import_processing': return { kind: 'provider_processing', provider };
+    default: return { kind: 'request', provider };
   }
-  return { kind: 'request', provider: selected };
 }

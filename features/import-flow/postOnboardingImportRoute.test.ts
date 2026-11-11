@@ -49,3 +49,7 @@ it('preserves interrupted request confirmation and setup context without inventi
 it('retains reconnect intent, selected Outlook and origin after OAuth', () => {
   expect(parsePostOnboardingImportRoute({ intent: 'reconnect', outlook: 'success', returnTo: 'settings' })).toMatchObject({ intent: 'reconnect', mailbox: 'outlook', returnTo: 'settings' });
 });
+
+it('keeps an explicit Outlook selection when a legacy Gmail action is also present', () => {
+  expect(parsePostOnboardingImportRoute({ mailbox: 'outlook', action: 'import_gmail' })).toMatchObject({ intent: 'email', mailbox: 'outlook' });
+});

@@ -17,11 +17,13 @@ it('cycles occasionally, can pause, and still supports manual advancement', asyn
   await act(async () => {});
   expect(screen.getByText('A clearer picture of your spending')).toBeTruthy();
   act(() => { jest.advanceTimersByTime(IMPORT_PREVIEW_INTERVAL_MS); });
+  act(() => { jest.advanceTimersByTime(1_000); });
   expect(screen.getByText('Your favorite spots')).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: 'Pause previews' }));
   act(() => { jest.advanceTimersByTime(IMPORT_PREVIEW_INTERVAL_MS * 3); });
   expect(screen.getByText('Your favorite spots')).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: /Your favorite spots\./ }));
+  act(() => { jest.advanceTimersByTime(1_000); });
   expect(screen.getByText('Your late-night habits')).toBeTruthy();
 });
 
@@ -44,4 +46,15 @@ it('clears a pending advance when focus is lost', async () => {
   screen.rerender(<ImportStatPreview />);
   act(() => { jest.advanceTimersByTime(IMPORT_PREVIEW_INTERVAL_MS); });
   expect(screen.getByText('A clearer picture of your spending')).toBeTruthy();
+});
+
+it('reveals the latest preview when reduced motion interrupts a transition', async () => {
+  const screen = render(<ImportStatPreview />);
+  await act(async () => {});
+  fireEvent.press(screen.getByRole('button', { name: /A clearer picture/ }));
+  mockReduceMotion = true;
+  screen.rerender(<ImportStatPreview />);
+  expect(screen.getByText('Your favorite spots')).toBeTruthy();
+  act(() => { jest.advanceTimersByTime(IMPORT_PREVIEW_INTERVAL_MS); });
+  expect(screen.getByText('Your favorite spots')).toBeTruthy();
 });

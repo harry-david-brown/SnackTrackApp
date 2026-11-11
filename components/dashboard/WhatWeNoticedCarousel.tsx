@@ -1,3 +1,5 @@
+import { Mascot } from '@components/mascot/Mascot';
+import { dashboardMascot } from '@components/mascot/storyMascots';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 import type {
   DashboardExportProvider,
@@ -326,12 +328,18 @@ function InsightCard({ insight, index, total, paused, partialExportProvider, onT
   const { formatCurrency: legacyCurrency } = useCurrency();
   const formatCurrency = (amount: number) => formatReceiptMoney(amount, insight.currencyCode, legacyCurrency);
   const tone = accents[insight.category];
+  const mascot = insight.presentation === 'locked' ? undefined : dashboardMascot(insight.id);
   const period = formatPeriod(insight);
   const busyDay = insight.presentation === 'hero' ? insight.busyDay : undefined;
   const concentrationCount = concentrationOrderCount(insight);
   return <Card style={[styles.card, busyDay || concentrationCount ? styles.busyDayCard : undefined]}>
     <View style={styles.cardHeader}>
-      <View style={[styles.iconBadge, { backgroundColor: tone.surface }]}><Ionicons name={ICONS[insight.icon]} size={22} color={tone.accent} /></View>
+      <View style={[styles.iconBadge, { backgroundColor: tone.surface }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {mascot ? <>
+          <Mascot pose={mascot.mascotPose} size={40} />
+          {mascot.accentEmoji ? <Text style={styles.mascotAccent} allowFontScaling={false}>{mascot.accentEmoji}</Text> : null}
+        </> : <Ionicons name={ICONS[insight.icon]} size={22} color={tone.accent} />}
+      </View>
       <Text style={[styles.eyebrow, { color: tone.accent }]}>{concentrationCount ? 'THE BIG ORDERS' : insight.eyebrow.toLocaleUpperCase()}</Text>
       {total > 1 ? <TouchableOpacity style={styles.pauseButton} onPress={onTogglePaused} accessibilityRole="button" accessibilityLabel={paused ? 'Resume automatic insight rotation' : 'Pause automatic insight rotation'} accessibilityState={{ selected: paused }} hitSlop={8}>
         <Ionicons name={paused ? 'play' : 'pause'} size={17} color={theme.colors.textSecondary} />
@@ -524,6 +532,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   busyDayAmount: { color: theme.colors.textPrimary, fontSize: 20, lineHeight: 27, fontWeight: '600' },
   busyDaySpent: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 17 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  mascotAccent: { position: 'absolute', top: -2, right: -2, fontSize: 12 },
   iconBadge: { width: 42, height: 42, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 1.1 },
   pauseButton: { width: 44, height: 44, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.gray50 },

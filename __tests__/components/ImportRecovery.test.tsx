@@ -282,7 +282,7 @@ it('honors History and Close even when automatic updates can be offered', async 
   mockOfferUpdates = true;
   const screen = render(<ImportResultScreen operationId="operation" returnTo="settings" />);
   await act(async () => {});
-  expect(screen.getByRole('button', { name: 'Review automatic updates' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Enable automatic updates' })).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: 'View order history' }));
   expect(router.replace).toHaveBeenLastCalledWith('/(tabs)/history');
   fireEvent.press(screen.getByRole('button', { name: 'Close import result' }));

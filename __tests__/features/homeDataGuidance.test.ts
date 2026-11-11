@@ -22,7 +22,7 @@ describe("resolveHomeDataGuidance", () => {
     const result = resolveHomeDataGuidance(preferences, false);
     expect(result.id).toBe("export_invitation_neutral");
     expect(result.placement).toBe("priority");
-    expect(result.primaryProvider).toBeUndefined();
+    expect(result.primaryAction).toEqual({ kind: "choose", source: "export", returnTo: "home" });
   });
 
   it("does not treat a stale completed lifecycle as Uber file coverage", () => {
@@ -70,8 +70,8 @@ describe("resolveHomeDataGuidance", () => {
       id: "export_invitation_neutral",
       placement: "priority",
       display: "compact",
-      primaryAction: "request_export",
-      primaryLabel: "Explore history exports",
+      primaryAction: { kind: "choose", source: "export", returnTo: "home" },
+      primaryLabel: "Add orders from a delivery app",
     });
   });
 
@@ -86,8 +86,7 @@ describe("resolveHomeDataGuidance", () => {
       id: "tracking_connect_email",
       placement: "priority",
       display: "compact",
-      primaryAction: "open_import",
-      gmailPurpose: "ongoing_tracking",
+      primaryAction: { kind: "choose", source: "email", purpose: "ongoing_tracking", returnTo: "home" },
     });
   });
 

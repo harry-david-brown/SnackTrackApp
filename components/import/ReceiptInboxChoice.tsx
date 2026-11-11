@@ -21,7 +21,7 @@ export function ReceiptInboxChoice({ disabled, onBack, onChooseEmail, onChooseAl
     {onBack ? <Pressable accessibilityRole="button" accessibilityLabel="Back" accessibilityState={{ disabled }} disabled={disabled} onPress={onBack} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
       <Ionicons name="chevron-back" size={26} color={theme.colors.primary} />
     </Pressable> : null}
-    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
+    <Mascot pose="prop-first-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
     <View style={styles.heading}>
       <AppText variant="eyebrow" tone="brand">ADD YOUR HISTORY</AppText>
       <AppText variant="pageTitle" style={styles.title}>Find your delivery orders</AppText>

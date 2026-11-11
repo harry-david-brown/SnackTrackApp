@@ -24,6 +24,18 @@ const insights: DashboardInsight[] = [
 ];
 
 describe('WhatWeNoticedCarousel', () => {
+  it('adds one decorative money bag to a ranked splurge and keeps the locked card generic', async () => {
+    const id = 'biggest-splurge-rank-2';
+    const screen = render(<WhatWeNoticedCarousel insights={[{ ...insights[3], id }]} onOpenExport={jest.fn()} />);
+    await act(async () => Promise.resolve());
+    expect(screen.getAllByText('💰', { includeHiddenElements: true })).toHaveLength(1);
+    expect(screen.queryByText('💰')).toBeNull();
+
+    screen.rerender(<WhatWeNoticedCarousel insights={[{ ...insights[6], id }]} onOpenExport={jest.fn()} />);
+    expect(screen.queryByText('💰', { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add detailed order history' })).toBeTruthy();
+  });
+
   it('offers a quiet link to the exact orders behind an applicable stat', async () => {
     const onViewOrders = jest.fn();
     const card: DashboardInsight = {

@@ -1,7 +1,11 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { PostOnboardingImportScreen } from '@components/import/PostOnboardingImportScreen';
+import type { ImportOperation } from '@features/import-flow/contracts';
 import { createImportPreferencesFixture } from '@/__tests__/fixtures/importPreferences';
+const mockResumeProvider = jest.fn();
+const mockViewOperation = jest.fn();
+let mockActiveOperation: ImportOperation | null = null;
 const mockStep = jest.fn();
 const mockFile = jest.fn();
 const mockEnableReadyAlerts = jest.fn();
@@ -19,6 +23,12 @@ jest.mock('@components/upload/UberDataTutorial', () => () => null);
 jest.mock('@components/upload/UberDataUpload', () => ({ ExportDataUpload: () => null }));
 jest.mock('@hooks/usePostOnboardingImportController', () => ({ usePostOnboardingImportController: () => ({
   state: mockState,
+  pendingRequests: {},
+  activeImportOperation: mockActiveOperation,
+  resumeProviderJourney: mockResumeProvider,
+  viewOperation: mockViewOperation,
+  chooseMailbox: jest.fn(),
+  returnTo: 'home',
   preparingFile: mockPreparingFile,
   fileSession: mockFileSession,
   importPreferences: mockPreferences,
@@ -40,6 +50,7 @@ jest.mock('@hooks/usePostOnboardingImportController', () => ({ usePostOnboarding
 }) }));
 beforeEach(() => {
   jest.clearAllMocks();
+  mockActiveOperation = null;
   mockPreparingFile = false;
   mockReadyAlertsEnabled = false;
   mockState = { kind: 'provider_intro', provider: { provider: 'uber_eats', name: 'Uber Eats', receiptCount: 0, imported: false, status: 'not_started' } };
@@ -152,4 +163,45 @@ test.each([
     expect(screen.getByText('Notify me when it’s ready')).toBeTruthy();
   }
   expect(screen.getByText('Your place is saved. Continue later from Add orders.')).toBeTruthy();
+});
+
+test.each([
+  ['uber_eats', 'Uber Eats'],
+  ['doordash', 'DoorDash'],
+] as const)('keeps the %s source action aligned while progress changes', (provider, name) => {
+  const source = { provider, name, receiptCount: 0, imported: false, status: 'not_started' };
+  mockState = { kind: 'choose_method', providers: [source] };
+  const route = { intent: 'choose' as const, provider: null, operationId: null, downloadedVersion: null };
+  const screen = render(<PostOnboardingImportScreen route={route} />);
+  expect(screen.getByText('Optional')).toBeTruthy();
+  fireEvent.press(screen.getByText(`Complete ${name} history`));
+  expect(mockResumeProvider).toHaveBeenLastCalledWith(provider);
+
+  mockState = { kind: 'choose_method', providers: [{ ...source, status: 'requested' }] };
+  screen.rerender(<PostOnboardingImportScreen route={route} />);
+  expect(screen.getByText('Waiting for email')).toBeTruthy();
+  fireEvent.press(screen.getByText('View next steps'));
+  expect(mockResumeProvider).toHaveBeenLastCalledWith(provider);
+
+  mockState = { kind: 'choose_method', providers: [{ ...source, status: 'file_ready' }] };
+  screen.rerender(<PostOnboardingImportScreen route={route} />);
+  fireEvent.press(screen.getByText('Download your file'));
+  expect(mockResumeProvider).toHaveBeenLastCalledWith(provider);
+
+  mockActiveOperation = {
+    id: 'export-operation', kind: 'export_file', provider, status: 'queued', trigger: 'user', journeyContext: 'post_onboarding',
+    phase: 'queued', progress: 0, result: null, errorCode: null, errorMessage: null, attempts: 0,
+    createdAt: '', queuedAt: null, startedAt: null, completedAt: null, updatedAt: '', presentation: null,
+  };
+  screen.rerender(<PostOnboardingImportScreen route={route} />);
+  expect(screen.getByText('Queued')).toBeTruthy();
+  fireEvent.press(screen.getByText('View progress'));
+  expect(mockViewOperation).toHaveBeenCalledTimes(1);
+
+  mockActiveOperation = null;
+  mockState = { kind: 'choose_method', providers: [{ ...source, status: 'completed', imported: true, receiptCount: 12 }] };
+  screen.rerender(<PostOnboardingImportScreen route={route} />);
+  expect(screen.getByText('Imported')).toBeTruthy();
+  fireEvent.press(screen.getByText('Add newer history'));
+  expect(mockResumeProvider).toHaveBeenLastCalledWith(provider);
 });

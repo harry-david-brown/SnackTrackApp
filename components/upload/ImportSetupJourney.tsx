@@ -67,7 +67,7 @@ export function ImportSetupJourney(props: ImportSetupJourneyProps) {
 
   if (journey.kind === 'choose_provider') return <View style={styles.journey}>
     <ImportJourneyHeader backLabel="Back to email options" onBack={handleBack} disabled={disabled} />
-    <Mascot pose="prop-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
+    <Mascot pose="prop-first-receipt" size={118} style={styles.mascot} accessibilityLabel="SnackTrack holding a receipt" />
     <JourneyHeading eyebrow="GET THE FULL PICTURE" title="Add orders using a downloaded file" body="Request your order history, download the file when it’s ready, then upload it here. We’ll guide you through each step." />
     <View style={styles.choiceStack}>
       <ChoiceRow icon="car-outline" title="Uber Eats" subtitle="Add orders and details that email may miss" accent={theme.colors.uberDark} onPress={() => {

@@ -1,3 +1,4 @@
+import { recapMascot } from '@components/mascot/storyMascots';
 import { historicalInvestmentLabel, historicalInvestmentMethodology, investmentBenchmarkNames } from '@utils/historicalInvestmentPresentation';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 /**
@@ -27,6 +28,8 @@ import { AnimatedCount, DelayedFadeIn, DelayedSlam, Spacer } from './WrappedSlid
 import { RecapStorySlide, recapMoney, recapStoryText } from './RecapStorySlide';
 import { groupSlidesByRecapChapter, selectPersonalizedStories } from './wrappedSlideSelection';
 import { styles } from './wrappedStyles';
+import { recapEvidenceText } from './RecapEvidencePanel';
+import { recapOrdersText } from './RecapDayOrders';
 import { orderRecapPresentation } from './orderRecapPresentation';
 import { wrappedSpendingLines } from './wrappedSpendingPresentation';
 import {
@@ -50,6 +53,7 @@ export interface Slide {
   /** Suppress the hero image entirely (mascot/emoji) — for slides whose body IS
    *  the hero, e.g. the month-by-month chart, which needs the vertical room. */
   hideHero?: boolean;
+  compactHero?: boolean;
   image?: any; // For logo images
   content: React.ReactNode;
   backgroundType?: 'default' | 'animated';
@@ -135,32 +139,22 @@ const hybrid = (mascotPose: MascotPose, accentEmoji: string, accentEmojiCount: 1
 
 /** Visual metaphors belong to presentation, while the API continues to own facts and scoring. */
 const recapStoryHero = (storyId: string): StoryHero => {
+  const mascot = recapMascot(storyId);
+  if (mascot) return { emoji: '', ...mascot };
   if (storyId.startsWith('ordering-escalation-')) return hybrid('flex', '📈', 2);
   const treatments: Record<string, StoryHero> = {
-    'most-deliveries-day': hybrid('prop-delivery-haul', '🔔', 2),
     'restaurant-loyalty': hybrid('wink', '❤️', 2),
-    'repeated-basket': hybrid('thinking', '🔁', 2),
-    'spending-burst': hybrid('flex', '🔥'),
-    'longest-streak': hybrid('cheer', '🔥'),
     'restaurant-concentration': hybrid('prop-receipt', '🍕', 2),
     'refunded-orders': hybrid('sad', '↩️', 2),
-    'most-expensive-order': hybrid('flex', '💰', 2),
     'chain-dependency': hybrid('wink', '🍔', 2),
     'coffee-addiction': hybrid('prop-coffee', '☕', 2),
     'weekend-warrior': hybrid('thinking', '📅', 2),
-    'late-night-orders': { emoji: '', mascotPose: 'prop-midnight-phone' },
     'peak-hunger-hour': emojiLed('⏰'),
-    'night-owl': { emoji: '', mascotPose: 'prop-midnight-phone' },
-    'single-item-orders': emojiLed('🤏'),
-    'delivery-waits': emojiLed('⏱️'),
     'top-spots': emojiLed('🏆'),
     'delivery-tax': emojiLed('💸'),
     'could-have-bought': emojiLed('🛒'),
-    'missed-investment': emojiLed('📈'),
     'history-restaurants': emojiLed('🗺️'),
     'history-provider': emojiLed('📱'),
-    'history-first': emojiLed('📍'),
-    'history-latest': emojiLed('🥡'),
     'history-duration': emojiLed('🗓️'),
     'history-average': emojiLed('🧾'),
     'history-top-restaurant': emojiLed('⭐'),
@@ -260,8 +254,7 @@ export function buildWrappedSlides({
         category: 'extreme-moment',
         scope: lifetimeScope,
         gradient: 'indigo',
-        emoji: '',
-        mascotPose: 'prop-midnight-phone',
+        ...recapStoryHero('late-night-orders'),
         a11y: `3am Regret. ${data.count} ${orderRecap ? 'deliveries ordered' : 'orders'} between 10pm and 4am. ${wrappedSpendingLines(data, formatCurrency).join('. ')}. ${lateNightMessage}`,
         content: (
           <>
@@ -295,7 +288,7 @@ export function buildWrappedSlides({
       id: 'most-deliveries-day', category: 'extreme-moment', intensity: clamp100((day.deliveries / 5) * 100),
       slide: {
         id: 'most-deliveries-day', category: 'extreme-moment', scope: lifetimeScope,
-        gradient: 'berry', emoji: '', mascotPose: 'prop-delivery-haul', accentEmoji: '🔔', accentEmojiCount: 2,
+        gradient: 'berry', ...recapStoryHero('most-deliveries-day'),
         a11y: `Most deliveries in a day. ${day.deliveries} deliveries on ${formatDate(day.day)}. ${amounts.join('. ')}. Canceled orders excluded; refunded deliveries count once.`,
         content: <>
           <Text style={styles.slideTitle}>Most deliveries in a day</Text>
@@ -322,10 +315,7 @@ export function buildWrappedSlides({
         category: 'extreme-moment',
         scope: lifetimeScope,
         gradient: 'berry',
-        emoji: '😴',
-        mascotPose: 'sheepish',
-        accentEmoji: '💤',
-        accentEmojiCount: 2,
+        ...recapStoryHero('laziest-day'),
         a11y: `Laziest Day. ${data.orderCount} orders in one day. ${laziestDayMessage}`,
         content: (
           <>
@@ -358,9 +348,7 @@ export function buildWrappedSlides({
         category: 'extreme-moment',
         scope: lifetimeScope,
         gradient: 'ember',
-        emoji: '',
-        mascotPose: 'cheer',
-        accentEmoji: '🔥',
+        ...recapStoryHero('longest-streak'),
         a11y: `Serial Orderer. ${data.days} consecutive days ${orderRecap ? 'with completed deliveries' : 'ordering'}. ${wrappedSpendingLines(data, formatCurrency).join('. ')}. ${streakMessage}`,
         content: (
           <>
@@ -429,7 +417,7 @@ export function buildWrappedSlides({
         category: 'habit',
         scope: lifetimeScope,
         gradient: 'amber',
-        emoji: '🤏',
+        ...recapStoryHero('single-item-orders'),
         a11y: `${orderRecap ? 'Just one item' : "Couldn't Go Get It"}. ${data.count} single-item orders. ${singleItemMessage}`,
         content: (
           <>
@@ -463,10 +451,7 @@ export function buildWrappedSlides({
         category: 'extreme-moment',
         scope: lifetimeScope,
         gradient: 'indigo',
-        emoji: '',
-        mascotPose: 'flex',
-        accentEmoji: '💰',
-        accentEmojiCount: 2,
+        ...recapStoryHero('most-expensive-order'),
         a11y: `Bougie Moment. ${orderRecap ? 'Highest delivery net cost' : 'Most expensive order'}: ${expensiveCurrency(data.amount)} at ${data.restaurant}. ${expensiveMessage}`,
         content: (
           <>
@@ -539,8 +524,7 @@ export function buildWrappedSlides({
         category: 'pattern',
         scope: lifetimeScope,
         gradient: 'indigo',
-        emoji: '',
-        mascotPose: 'prop-midnight-phone',
+        ...recapStoryHero('night-owl'),
         a11y: `Night Owl Badge. ${Math.round(data.percentage)} percent of ${nightLabel}.${
           owlComparison ? ` ${owlComparison.label}. ${owlComparison.detail}` : ''
         } ${nightOwlMessage}`,
@@ -635,7 +619,7 @@ export function buildWrappedSlides({
     const label = historicalInvestmentLabel(historical);
     const comparison = `Higher of the Nasdaq and S&P 500 scenarios. ${investmentBenchmarkNames[other]}: ${money(historical.outcomes[other].value)}.`;
     optional.push({ id: 'historical-investment', category: 'perspective', intensity: clamp100(chosen.gain / 1500 * 100), slide: {
-      id: 'historical-investment', category: 'perspective', scope: lifetimeScope, gradient: 'lagoon', emoji: '📈',
+      id: 'historical-investment', category: 'perspective', scope: lifetimeScope, gradient: 'lagoon', ...recapStoryHero('historical-investment'),
       a11y: `If your orders were investments. ${money(historical.contributed)} across ${historical.contributionCount} orders could have been worth ${money(chosen.value)}. ${label}. Hypothetical gain ${money(chosen.gain)}. ${comparison} ${historicalInvestmentMethodology}`,
       content: <>
         <Text style={styles.slideTitle}>If your orders were investments</Text>
@@ -663,7 +647,7 @@ export function buildWrappedSlides({
         category: 'perspective',
         scope: lifetimeScope,
         gradient: 'lagoon',
-        emoji: '📈',
+        ...recapStoryHero('missed-investment'),
         a11y: `The Investment You Didn't Make. Worth ${formatCurrency(data.wouldBeWorth)} at a hypothetical ${data.sp500Return} percent annual return. ${investmentMessage}`,
         content: (
           <>
@@ -737,7 +721,7 @@ export function buildWrappedSlides({
         category: 'perspective',
         scope: lifetimeScope,
         gradient: 'lagoon',
-        emoji: '⏱️',
+        ...recapStoryHero('delivery-waits'),
         durationMs: 7200, // dense slide — four detail rows to read
         a11y: `${orderRecap ? 'Delivery timing' : 'Waiting Time'}. ${formattedTotalTime} ${orderRecap ? 'across recorded delivery intervals' : 'spent waiting for delivery'}. ${waitingTimeMessage}`,
         content: (
@@ -1003,7 +987,9 @@ export function buildWrappedSlides({
   const picked = recap ? selectPersonalizedStories(recap.stories, { minStories: historical ? 5 : 6, maxStories: historical ? 5 : 6 }).map((story): Slide => ({
     id: story.id, category: story.category, scope: lifetimeScope,
     gradient: CATEGORY_GRADIENTS[story.category] ?? 'forest', ...recapStoryHero(story.id),
-    a11y: `${story.title} ${recapStoryText(story, recap.currency)} ${story.label}. ${story.startDate ? formatDate(story.startDate) : ''} ${story.endDate ? formatDate(story.endDate) : ''}. ${story.detail}. ${story.punchline}`,
+    compactHero: Boolean(story.orders?.length || story.evidence?.orders.length),
+    durationMs: story.orders?.length || story.evidence?.orders.length ? 10000 : undefined,
+    a11y: `${story.title} ${recapStoryText(story, recap.currency)} ${story.label}. ${story.startDate ? formatDate(story.startDate) : ''} ${story.endDate ? formatDate(story.endDate) : ''}. ${story.detail}. ${recapOrdersText(story.orders)}. ${recapEvidenceText(story.evidence, recap.currency)}. ${story.punchline}`,
     content: <RecapStorySlide story={story} currency={recap.currency} formatDate={formatDate} />,
   })) : selectEditorialCandidates(
     optional.map(candidate => ({
@@ -1062,7 +1048,7 @@ export function buildWrappedSlides({
     const gradient = previous?.gradient === categoryGradient
       ? (ALTERNATE_GRADIENTS[slide.category] ?? categoryGradient)
       : categoryGradient;
-    const mascotPose = slide.mascotPose && previous?.mascotPose === slide.mascotPose
+    const mascotPose = slide.mascotPose && !recapMascot(slide.id) && previous?.mascotPose === slide.mascotPose
       ? REPEATED_POSE_FALLBACKS[slide.category]
       : slide.mascotPose;
 

@@ -432,7 +432,7 @@ export default function WrappedShareJourney({
           <Image source={slide.image} style={styles.logoImage} resizeMode="contain" />
         ) : slide.mascotPose ? (
           /* MASCOT: the primary hero; optional emoji accents remain subordinate. */
-          <View style={[styles.mascotHero, slide.accentEmoji && styles.hybridHero]}>
+          <View style={[styles.mascotHero, slide.accentEmoji && styles.hybridHero, slide.compactHero && styles.dayStoryHero]}>
             {slide.accentEmoji ? [
               styles.heroAccentTopLeft,
               styles.heroAccentTopRight,
@@ -441,13 +441,13 @@ export default function WrappedShareJourney({
               <Text key={`${slide.id}-accent-${index}`} accessible={false} style={[styles.heroAccentEmoji, position]}>{slide.accentEmoji}</Text>
             )) : null}
             <View style={styles.mascotHeroForeground}>
-              <Mascot pose={slide.mascotPose} size={104} variant="outline" />
+              <Mascot pose={slide.mascotPose} size={slide.compactHero ? 80 : 104} variant="outline" />
             </View>
           </View>
         ) : (
           <Text style={styles.emoji}>{slide.emoji}</Text>
         )}
-        <View style={[styles.frame, slide.category === 'extreme-moment' && styles.evidenceFrame]}>
+        <View style={[styles.frame, slide.category === 'extreme-moment' && styles.evidenceFrame, slide.compactHero && styles.dayStoryFrame]}>
           {slide.category === 'extreme-moment' && (
             <Text style={styles.evidenceStamp}>EXHIBIT · EXTREME MOMENT</Text>
           )}
@@ -464,6 +464,7 @@ export default function WrappedShareJourney({
         key={currentSlide}
         style={[
           styles.slideContent,
+          slide.compactHero && styles.evidenceSlideContent,
           slide.showShareCta && styles.slideContentWithActions,
           slideAnimatedStyle,
         ]}
@@ -471,7 +472,7 @@ export default function WrappedShareJourney({
         {inner}
       </Reanimated.View>
     ) : (
-      <View style={styles.slideContent}>
+      <View style={[styles.slideContent, slide.compactHero && styles.evidenceSlideContent]}>
         {inner}
       </View>
     );

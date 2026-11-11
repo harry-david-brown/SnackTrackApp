@@ -122,3 +122,10 @@ describe('shared export journey lifecycle boundaries', () => {
     expect(resolvePostOnboardingImportJourney(input(createImportPreferencesFixture(), { operation: background, operationRequested: true })).kind).toBe('missing_operation');
   });
 });
+
+it('scopes a source-less resume to exports even while an inbox needs recovery', () => {
+  const preferences = createImportPreferencesFixture();
+  preferences.export.providers.doorDash.status = 'requested';
+  preferences.outlookBaseline.latestAttempt.status = 'failed';
+  expect(resolvePostOnboardingImportJourney(input(preferences, { intent: 'resume_export', operation: operation('running') }))).toMatchObject({ kind: 'provider_waiting', provider: { provider: 'doordash' } });
+});

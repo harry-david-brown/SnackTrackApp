@@ -1,9 +1,9 @@
 import { ReceiptInboxChoice } from '@components/import/ReceiptInboxChoice';
+import { Mascot } from '@components/mascot/Mascot';
 import { ImportJourneyHeader } from '@components/import/ImportJourneyHeader';
 import { ImportStepSheet } from '@components/import/ImportStepSheet';
 import { EmailJourneyHeading } from './EmailJourneyHeading';
 import { ImportProgressScreen } from './ImportProgressScreen';
-import { providerPreparationCopy } from '@features/import-flow/importNavigation';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -12,6 +12,8 @@ import { AppButton } from '@components/ui/AppButton';
 import { AppText } from '@components/ui/AppText';
 import { PageHeader } from '@components/ui/PageHeader';
 import { Surface } from '@components/ui/Surface';
+import { StatusBadge } from '@components/ui/StatusBadge';
+import { resolveEmailSources, resolveDownloadSource, type ImportSourcePresentation } from '@features/import-flow/importSourcePresentation';
 import { ExportDataUpload } from '@components/upload/UberDataUpload';
 import UberDataTutorial, { ProviderRequestConfirmation } from '@components/upload/UberDataTutorial';
 import { ProviderDownloadGuideCarousel } from '@components/upload/ProviderDownloadGuideCarousel';
@@ -78,28 +80,38 @@ function PostOnboardingImportContent({ route, controller: c }: {
       case 'loading': return <><ActivityIndicator color={theme.colors.primary} />{title('Loading your import options', 'Your saved history is still available.')}</>;
       case 'temporary_outage': return <>{title('We can’t load import status', 'Your saved history is available. Try loading the status before starting the same import again.')}{btn('Try again', c.refreshStatus)}{btn('View order history', () => navigation.replace(appDestinations.history), true)}</>;
       case 'missing_operation': return <>{title('This import link is unavailable', 'It may be an old link. Your existing orders are still available.')}{btn('Add orders', () => navigation.replace({ pathname: '/add-history', params: { returnTo: c.returnTo } }))}</>;
-      case 'choose_method': return <>
-        {c.selection.intent === 'provider' ? title('Add orders using a downloaded file', 'Request your order history, download the file when it’s ready, then upload it here. We’ll guide you through each step.') : title('Add your orders', 'Choose a source to add orders or continue where you left off.')}
-        {c.activeImportUnavailable?<Note text="Import status is temporarily unavailable. Refresh before starting another import."/>:null}
-        <AppText variant="sectionLabel" tone="muted">Delivery history</AppText>
-        <Surface>{s.providers.map(p=><Choice key={p.provider} icon={p.provider==='uber_eats'?'car-outline':'bag-handle-outline'} title={p.name}
-          body={c.pendingRequests[p.provider]?'Confirm whether you submitted your request':p.status==='requested'?'Waiting for the ready email':p.status==='file_ready'?'Your download is ready':p.status==='import_processing'?'Importing your history':p.status==='failed'?'Your import needs attention':p.imported?`${p.receiptCount} orders${coverageDates(p.provider)}`:'Request and upload your order history'}
-          actionLabel={p.status==='file_ready'?'Download and upload':p.status==='requested'?'View next steps':p.imported?'Add newer history':'Continue'}
-          onPress={()=>c.resumeProviderJourney(p.provider)}/>)}</Surface>
-        <AppText variant="sectionLabel" tone="muted">Email receipts</AppText>
-        <Surface>{(['gmail','outlook'] as const).map(mailbox=>{
-          const connection=mailbox==='gmail'?c.importPreferences?.gmailConnection:c.importPreferences?.outlookConnection;
-          const completed=mailbox==='gmail'?c.importPreferences?.gmailBaseline.hasCompleted:c.importPreferences?.outlookBaseline.hasCompleted;
-          const operation=c.activeImportOperation;
-          const active=operation?.kind===(mailbox==='gmail'?'gmail_historical':'outlook_historical') && isActiveImportOperation(operation);
-          return <Choice key={mailbox} icon="mail-outline" title={mailbox==='gmail'?'Gmail':'Outlook'}
-            body={active?'Importing receipts':connection?.needsReconnect?'Reconnect to continue':connection?.connectionHealth==='unavailable'?'Temporarily unavailable':completed?'History imported':connection?.connected?'Connected · Ready to find orders':'Connect an inbox'}
-            onPress={active?c.viewOperation:()=>c.chooseMailbox(mailbox)}/>;
-        })}</Surface>
-        {c.activeImportOperation?<AppButton label="View latest import" variant="tertiary" onPress={c.viewOperation}/>:null}
-        <AppText variant="metadata" tone="muted">Each source is optional. Your place is saved as you go.</AppText>
-        <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={()=>navigation.open({pathname:'/settings/accounts-permissions',params:{returnTo:c.returnTo}})}/>
-      </>;
+      case 'choose_method': {
+        const emailSources = resolveEmailSources(c.importPreferences, c.activeImportOperation);
+        const emailImported = emailSources.some(source => source.completed);
+        return <>
+          {emailImported
+            ? title('Add more of your history', 'Your email receipt import is complete. History downloads can help fill the gaps.', 'YOUR HISTORY')
+            : title('Add your orders', 'Choose an inbox or add a history download. Each source is optional.')}
+          {c.activeImportUnavailable ? <Note text="Import status is temporarily unavailable. Refresh before starting another import." /> : null}
+          <AppText variant="sectionLabel" tone="muted">Email receipts</AppText>
+          <Surface>{emailSources.map((source, index) => <View key={source.mailbox} style={index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider } : undefined}>
+            <Choice icon={source.completed ? 'mail-open-outline' : 'mail-outline'} title={source.mailbox === 'gmail' ? 'Gmail' : 'Outlook'}
+              body={source.presentation.body} badge={source.presentation}
+              actionLabel={source.presentation.actionLabel}
+              onPress={source.presentation.actionLabel ? source.active ? c.viewOperation : () => c.chooseMailbox(source.mailbox) : undefined} />
+          </View>)}</Surface>
+          <View style={styles.completionHeading}>
+            <AppText variant="pageTitle" accessibilityRole="header" style={styles.completionTitle}>Complete your history</AppText>
+            <AppText variant="body" tone="muted">Add orders that email receipts may have missed.</AppText>
+          </View>
+          <Surface>{s.providers.map((p, index) => {
+            const presentation = resolveDownloadSource(p, Boolean(c.pendingRequests[p.provider]), coverageDates(p.provider), c.activeImportOperation);
+            return <View key={p.provider} style={index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.divider } : undefined}>
+              <Choice icon={p.provider === 'uber_eats' ? 'car-outline' : 'bag-handle-outline'} title={p.name}
+                body={presentation.body} badge={presentation} actionLabel={presentation.actionLabel} inlineAction
+                onPress={presentation.action === 'operation' ? c.viewOperation : () => c.resumeProviderJourney(p.provider)} />
+            </View>;
+          })}</Surface>
+          {c.activeImportOperation && !emailSources.some(source => source.active) ? <AppButton label="View latest import" variant="tertiary" onPress={c.viewOperation} /> : null}
+          <AppText variant="metadata" tone="muted">{emailImported ? 'These downloads are optional. Your saved history is ready to explore.' : 'Each source is optional. Choose the ones you use.'}</AppText>
+          <AppButton label="Accounts & automatic updates" variant="tertiary" onPress={() => navigation.open({ pathname: '/settings/accounts-permissions', params: { returnTo: c.returnTo } })} />
+        </>;
+      }
       case 'provider_intro': return <>
         {title(`Have you downloaded your ${shortName} order history?`, `You’ll request your order history from ${shortName}, wait for their email, then download and upload the file here.`, s.provider.name.toUpperCase())}
         <View style={styles.journeyActions}>
@@ -125,14 +137,27 @@ function PostOnboardingImportContent({ route, controller: c }: {
           </View>
         </>;
       }
-      case 'request': return <>
-        {title(`Request your ${shortName} history`, `Sign in to ${shortName} and request your data download. ${providerPreparationCopy(s.provider.provider)}`)}
-        <View style={styles.journeyActions}>
-          {btn(`Open ${shortName} request page`, () => { void c.openRequestPage(); })}
-          {btn('Show step-by-step help', () => c.openProviderGuide(), true)}
-          <AppButton label="I already requested or downloaded it" variant="tertiary" onPress={c.openSteps} />
+      case 'request': return <View style={styles.requestGroup}>
+        <View style={styles.requestHero}>
+          <Mascot pose="prop-first-receipt" size={142} accessibilityLabel="SnackTrack mascot holding a receipt" />
+          <View style={styles.requestHeading}>
+            <AppText variant="pageTitle" accessibilityRole="header" style={styles.requestCentered}>Complete your {s.provider.name} history</AppText>
+            <AppText variant="body" tone="muted" style={styles.requestCentered}>Add orders that email receipts may have missed.</AppText>
+          </View>
         </View>
-      </>;
+        <Surface>
+          <View style={styles.requestStep}>
+            <AppText variant="eyebrow" tone="brand">STEP 1 OF 3</AppText>
+            <AppText variant="surfaceTitle" accessibilityRole="header">Request your history from {shortName}</AppText>
+            <AppText variant="surfaceBody" tone="muted">They’ll email you when your file is ready. Then download it and upload it here.</AppText>
+          </View>
+          <View style={styles.requestActions}>
+            {btn(`Open ${shortName} request page`, () => { void c.openRequestPage(); })}
+            {btn('Show me how', () => c.openProviderGuide(), true)}
+          </View>
+        </Surface>
+        <AppButton label="Already started?" variant="tertiary" onPress={c.openSteps} />
+      </View>;
 
       case 'resume': return <>{title('Where did you leave off?', `Continue your ${shortName} download from the step you need.`)}<Surface><Choice icon="time-outline" disabled={c.requestSaving} title={c.requestSaving ? "Saving your request…" : "I’m waiting for the ready message"} body="I submitted the request, but haven’t received the download instructions." onPress={() => { void c.completeTutorial(s.provider.provider === 'uber_eats' ? 'uber' : 'doordash'); }} /><Choice icon="mail-open-outline" title="My download is ready" body="Help me download the file." onPress={() => c.confirmProviderReady()} /><Choice icon="folder-open-outline" title="I saved the file" body="Choose it and start importing." onPress={() => c.chooseDownloadedFile()} /></Surface>{btn('I haven’t requested it yet', () => c.setStep('request'), true)}</>;
       case 'provider_waiting': return <>
@@ -194,34 +219,42 @@ function PostOnboardingImportContent({ route, controller: c }: {
   })();
   const stageIndex=provider?(s.kind==='download_ready'?(s.downloaded?2:1):s.kind==='provider_processing'?2:0):s.kind==='email_review'?(s.connected&&!s.reconnect?1:0):undefined;
   return <SafeAreaView style={[styles.container,{backgroundColor:theme.colors.background}]}>
-    <ScrollView contentContainerStyle={styles.content}>
-      <ImportJourneyHeader provider={provider?.name??(s.kind==='email_review'?(s.provider==='gmail'?'Gmail':'Outlook'):undefined)} stage={stageIndex}
+    <ScrollView contentContainerStyle={[styles.content, s.kind === 'request' && styles.requestContent]}>
+      <ImportJourneyHeader provider={s.kind === 'request' ? undefined : provider?.name??(s.kind==='email_review'?(s.provider==='gmail'?'Gmail':'Outlook'):undefined)} stage={s.kind === 'request' ? undefined : stageIndex}
         mailbox={s.kind==='email_review'} waiting={s.kind==='provider_waiting'} disabled={c.navigationBlocked}
         backLabel={s.kind==='choose_method'?'Back':'Add orders'} onBack={s.kind==='choose_method'?c.close:c.showProviderChoice}
-        onSteps={provider&&s.kind!=='provider_waiting'?c.openSteps:undefined}/>
+        onSteps={provider&&s.kind!=='provider_waiting'&&s.kind!=='request'?c.openSteps:undefined}/>
       {content}
     </ScrollView>
     <ImportStepSheet visible={c.stepSheetVisible} onClose={c.closeSteps} onReady={()=>c.confirmProviderReady()}
       onFile={()=>{void c.chooseDownloadedFile();}} onRequest={()=>c.setStep('request')}/>
   </SafeAreaView>;
 }
-function Choice({ icon, title, body, bodyTone = 'muted', actionLabel, onPress, disabled = false }: { disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; bodyTone?: 'muted' | 'brand'; actionLabel?: string; onPress?: () => void }) {
+function Choice({ icon, title, body, bodyTone = 'muted', actionLabel, onPress, badge, inlineAction = false, disabled = false }: { badge?: ImportSourcePresentation; inlineAction?: boolean; disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; bodyTone?: 'muted' | 'brand'; actionLabel?: string; onPress?: () => void }) {
   const theme = useAppTheme();
   const content = <>
-    <Ionicons name={icon} size={24} color={disabled ? theme.colors.textSecondary : theme.colors.primary} />
+    <View style={inlineAction ? [choiceStyles.iconWell, { backgroundColor: theme.colors.chipActiveBg, borderRadius: theme.radii.control }] : undefined}>
+      <Ionicons name={icon} size={24} color={disabled ? theme.colors.textSecondary : theme.colors.primary} />
+    </View>
     <View style={styles.copy}>
-      <AppText variant="rowTitle" tone={disabled ? 'muted' : 'primary'}>{title}</AppText>
-      <AppText variant="metadata" tone={disabled ? 'muted' : bodyTone} style={bodyTone === 'brand' ? choiceStyles.actionText : undefined}>{body}</AppText>
+      <View style={styles.sourceTitle}>
+        <AppText variant="rowTitle" tone={disabled ? 'muted' : 'primary'}>{title}</AppText>
+        {badge ? <StatusBadge label={badge.status} tone={badge.tone} /> : null}
+      </View>
+      {body ? <AppText variant="metadata" tone={disabled ? 'muted' : bodyTone} style={bodyTone === 'brand' ? choiceStyles.actionText : undefined}>{body}</AppText> : null}
       {actionLabel && onPress ? (
-        <AppText variant="metadata" tone="muted" style={[choiceStyles.actionText, { marginTop: theme.spacing.sm }]}>{actionLabel}</AppText>
+        <View style={[choiceStyles.action, { marginTop: theme.spacing.sm }]}>
+          <AppText variant="metadata" tone={badge?.tone === 'complete' ? 'muted' : 'brand'} style={[choiceStyles.actionText, choiceStyles.actionLabel]}>{actionLabel}</AppText>
+          {inlineAction ? <Ionicons name="arrow-forward" size={16} color={badge?.tone === 'complete' ? theme.colors.textSecondary : theme.colors.primary} accessible={false} /> : null}
+        </View>
       ) : null}
     </View>
-    {onPress && !disabled ? <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} /> : null}
+    {onPress && !disabled && !inlineAction ? <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} /> : null}
   </>;
   return onPress
-    ? <Pressable accessibilityRole="button" accessibilityLabel={[title, body, actionLabel].filter(Boolean).join('. ')} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>{content}</Pressable>
+    ? <Pressable accessibilityRole="button" accessibilityLabel={[title, badge?.status, body, actionLabel].filter(Boolean).join('. ')} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>{content}</Pressable>
     : <View style={styles.row}>{content}</View>;
 }
-const choiceStyles = StyleSheet.create({ actionText: { fontSize: 14, lineHeight: 18 } });
+const choiceStyles = StyleSheet.create({ actionText: { fontSize: 14, lineHeight: 18 }, action: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }, actionLabel: { flexShrink: 1 }, iconWell: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' } });
 function Note({ text }: { text: string }) { const theme = useAppTheme(); return <Surface style={{ backgroundColor: theme.colors.successSurface }}><AppText variant="metadata" tone="muted">{text}</AppText></Surface>; }
-const styles = StyleSheet.create({ container: { flex: 1 }, journeyActions: { marginTop: 'auto', paddingTop: Spacing.xl, gap: Spacing.md }, content: { flexGrow: 1, padding: 18, paddingBottom: 44, gap: 14 }, top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }, copy: { flex: 1, gap: 4 }, waitingActions: { alignSelf: 'stretch', gap: 8 }, waitingActionCopy: { textAlign: 'center', paddingHorizontal: 12 }, laterActions: { marginTop: 18, alignSelf: 'stretch', gap: 10 }, downloadDecision: { gap: 8 } });
+const styles = StyleSheet.create({ container: { flex: 1 }, completionHeading: { marginTop: Spacing.sm, gap: Spacing.sm }, completionTitle: { fontSize: 24, lineHeight: 28 }, sourceTitle: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm }, requestContent: { paddingBottom: Spacing.xl }, requestGroup: { flexGrow: 1, flexShrink: 0, justifyContent: 'center', paddingVertical: Spacing.lg, gap: Spacing.md }, requestHero: { alignItems: 'center', paddingBottom: Spacing.lg, gap: Spacing.lg }, requestHeading: { alignSelf: 'stretch', gap: Spacing.md }, requestCentered: { textAlign: 'center' }, requestStep: { gap: Spacing.sm }, requestActions: { paddingTop: Spacing.lg, gap: Spacing.sm }, journeyActions: { marginTop: 'auto', paddingTop: Spacing.xl, gap: Spacing.md }, content: { flexGrow: 1, padding: 18, paddingBottom: 44, gap: 14 }, top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }, copy: { flex: 1, gap: 4 }, waitingActions: { alignSelf: 'stretch', gap: 8 }, waitingActionCopy: { textAlign: 'center', paddingHorizontal: 12 }, laterActions: { marginTop: 18, alignSelf: 'stretch', gap: 10 }, downloadDecision: { gap: 8 } });

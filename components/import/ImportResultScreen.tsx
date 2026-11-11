@@ -92,14 +92,14 @@ export function ImportResultScreen({ operationId, returnTo = 'home' }: { operati
         const destination = createWrappedRestartHref();
         navigation.replace({ ...destination, params: { ...destination.params, entryPoint: recapReady ? 'automatic_first_import' : 'summary' } });
       }} /> : null}
-      <AppButton size={canPlayRecap ? 'default' : 'journey'} label="View order history" variant={canPlayRecap ? 'tertiary' : 'primary'} onPress={() => finish(appDestinations.history)} />
+      {!canPlayRecap ? <AppButton size="journey" label="View order history" onPress={() => finish(appDestinations.history)} /> : null}
       <AppButton label="Add more history" variant="tertiary" onPress={() => navigation.replace({ pathname: '/add-history', params: { returnTo } })} />
     </>}
 
     {shouldOfferAutomaticUpdates(trackingPreferences.preferences) ? <View style={styles.updateOffer}>
       <AppText variant="surfaceTitle">Keep new orders up to date</AppText>
       <AppText variant="metadata" tone="muted">Optional: let SnackTrack check for new email receipts. You’ll review access before turning this on.</AppText>
-      <AppButton label="Review automatic updates" variant="secondary" onPress={() => navigation.open({ pathname: '/ongoing-updates', params: { automatic: 'true' } })} />
+      <AppButton label="Enable automatic updates" variant="secondary" onPress={() => navigation.open({ pathname: '/ongoing-updates', params: { automatic: 'true' } })} />
     </View> : null}
   </ResultLayout>;
 }

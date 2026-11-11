@@ -12,7 +12,6 @@ import { Mascot } from '@components/mascot/Mascot';
 import { useImportPreferences } from '@hooks/useImportPreferences';
 import { DashboardTrackingCard } from '@components/dashboard/DashboardTrackingCard';
 import { resolveDashboardTrackingState, resolveHomePrioritySurface, type DashboardTrackingAction } from '@components/dashboard/dashboardTrackingState';
-import { showSimpleAlert } from '@utils/platformAlert';
 import { WhatWeNoticedCarousel } from '@components/dashboard/WhatWeNoticedCarousel';
 import { useAnalyticsQuery, useDashboardInsightsQuery } from '@hooks/queries/useAnalyticsQueries';
 import { DashboardSpendingHero } from '@components/dashboard/DashboardSpendingHero';
@@ -39,7 +38,7 @@ import { ImportOperationCard } from '@components/import/ImportOperationCard';
 import { AppText } from '@components/ui/AppText';
 import { useAppTheme } from '@contexts/AppearanceContext';
 import { buildProviderHistoryDestination } from '@features/import-flow/providerHistoryNavigation';
-import { appDestinations, addHistoryDestination, importProgressDestination, insightHistoryDestination, useAppNavigation } from '@features/navigation';
+import { addHistoryDestination, importEntryDestination, importProgressDestination, insightHistoryDestination, useAppNavigation } from '@features/navigation';
 
 export default function DashboardScreen() {
   const navigation = useAppNavigation();
@@ -70,7 +69,6 @@ export default function DashboardScreen() {
     isUpdating: isImportStateUpdating,
     refresh: refreshImportPreferences,
     refreshIfStale: refreshImportPreferencesIfStale,
-    checkOngoingTracking,
     error: importPreferencesError,
   } = useImportPreferences(Boolean(state.user?.id));
   const trackingCardState = resolveDashboardTrackingState(
@@ -153,50 +151,14 @@ export default function DashboardScreen() {
   };
 
   const handleTrackingAction = (action: DashboardTrackingAction) => {
-    if (action === 'request_export' && trackingCardState.exportRecommendation) {
+    if (trackingCardState.exportRecommendation && (action.kind === 'export' || (action.kind === 'choose' && action.source === 'export'))) {
       void trackAdminEvent('export_offer_clicked', { properties: { surface: 'dashboard', variant: trackingCardState.exportRecommendation } }).catch(() => undefined);
     }
-    if (action === 'retry_preferences') {
+    if (action.kind === 'retry_preferences') {
       void refreshImportPreferences();
       return;
     }
-    if (action === 'open_import') {
-      navigation.open(addHistoryDestination({
-        intent: trackingCardState.gmailPurpose === 'connection_recovery' ? 'reconnect' : trackingCardState.gmailPurpose === 'ongoing_tracking' ? 'email' : 'choose',
-        gmailPurpose: trackingCardState.gmailPurpose,
-      }));
-      return;
-    }
-    if (action === 'connect_gmail' || action === 'import_gmail'
-      || action === 'request_export' || action === 'continue_export') {
-      if (action === 'request_export' && !trackingCardState.primaryProvider) {
-        navigation.open(addHistoryDestination({ intent: 'provider', returnTo: 'home' }));
-        return;
-      }
-      if (action === 'request_export' && trackingCardState.primaryProvider) {
-        navigation.open(buildProviderHistoryDestination(trackingCardState.primaryProvider, (trackingCardState.primaryProvider === 'uber_eats' ? importPreferences?.export.providers.uberEats : importPreferences?.export.providers.doorDash)?.status));
-        return;
-      }
-      navigation.open({ pathname: '/add-history', params: {
-        intent: action === 'connect_gmail' ? 'reconnect' : action === 'import_gmail' ? 'email' : action === 'continue_export' ? 'resume_export' : 'provider',
-        ...(trackingCardState.primaryProvider ? { provider: trackingCardState.primaryProvider } : {}),
-      } });
-      return;
-    }
-    if (action === 'open_gmail') {
-      navigation.open(addHistoryDestination({ intent: 'resume_export', provider: 'uber_eats' }));
-      return;
-    }
-    if (action === 'enable_tracking' || action === 'retry_tracking') {
-      navigation.open(appDestinations.ongoingUpdates);
-      return;
-    }
-
-    void checkOngoingTracking()
-      .then(() => {
-        showSimpleAlert('Order check queued', 'SnackTrack will check in the background and refresh your dashboard when it finishes.');
-      })
-      .catch(() => showSimpleAlert('Couldn’t check for orders', 'Please try again in a moment.'));
+    navigation.open(importEntryDestination(action));
   };
 
   if (!state.user) {

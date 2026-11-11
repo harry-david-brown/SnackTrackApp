@@ -99,15 +99,72 @@ it('places dynamic stories under conditional narrative transitions', () => {
   expect(deck.find(slide => slide.id === 'lifetime-damage')).toMatchObject({ mascotPose: 'prop-empty-wallet', accentEmoji: '💸' });
   expect(deck.find(slide => slide.id === 'order-picture')?.mascotPose).toBe('prop-delivery-haul');
   const singleItem = deck.find(slide => slide.id === 'single-item-orders');
-  expect(singleItem?.emoji).toBe('🤏');
-  expect(singleItem?.mascotPose).toBeUndefined();
-  expect(deck.find(slide => slide.id === 'delivery-waits')).toMatchObject({ emoji: '⏱️' });
-  expect(deck.find(slide => slide.id === 'delivery-waits')?.mascotPose).toBeUndefined();
-  expect(deck.find(slide => slide.id === 'late-night-orders')).toMatchObject({ emoji: '', mascotPose: 'prop-midnight-phone' });
-  expect(deck.find(slide => slide.id === 'longest-streak')).toMatchObject({ mascotPose: 'cheer', accentEmoji: '🔥' });
+  expect(singleItem).toMatchObject({ emoji: '', mascotPose: 'prop-solo-drink' });
+  const deliveryWaits = deck.find(slide => slide.id === 'delivery-waits');
+  expect(deliveryWaits).toMatchObject({ emoji: '', mascotPose: 'prop-stopwatch' });
+  expect(deliveryWaits?.accentEmoji).toBeUndefined();
+  expect(deck.find(slide => slide.id === 'late-night-orders')).toMatchObject({ emoji: '', mascotPose: 'prop-bedtime-phone' });
+  expect(deck.find(slide => slide.id === 'longest-streak')).toMatchObject({ mascotPose: 'prop-celebrating-haul' });
   expect(deck.find(slide => slide.id === 'most-deliveries-day')).toMatchObject({ mascotPose: 'prop-delivery-haul', accentEmoji: '🔔' });
-  expect(deck.find(slide => slide.id === 'most-expensive-order')).toMatchObject({ mascotPose: 'flex', accentEmoji: '💰', accentEmojiCount: 2 });
+  expect(deck.find(slide => slide.id === 'most-expensive-order')).toMatchObject({ mascotPose: 'prop-money-flex', accentEmoji: '💰', accentEmojiCount: 2 });
   const patternTransition = deck.find(slide => slide.id === 'pattern-emerged');
   expect(patternTransition?.mascotPose).toBe('prop-detective');
   expect(patternTransition?.accentEmoji).toBeUndefined();
+});
+
+it('preserves the receipt on adjacent history milestones and uses the original flex for a spending burst', () => {
+  const recap = collection([
+    story('history-first', { category: 'perspective', value: '2025-01-03' }),
+    story('history-latest', { category: 'perspective', value: '2026-10-25' }),
+    story('repeated-basket', { category: 'habit' }),
+    story('spending-burst', { category: 'extreme-moment', format: 'money' }),
+    story('missed-investment', { category: 'perspective', format: 'money' }),
+  ]);
+  const analytics: UserSummary = {
+    userId: 'u', totalSpent: 120, totalReceipts: 6, averageOrderValue: 20,
+    topRestaurants: [], monthlyBreakdown: [], refundedReceipts: 0,
+    dataQuality: { issues: [], recommendations: [] },
+    wrappedAnalytics: {
+      recap, coverage: { orderCount: 6, earliestOrderDate: '2025-01-03', latestOrderDate: '2026-10-25', dataSources: ['csv'], hasExportData: true },
+      shame: {}, flex: {}, comparative: {}, patterns: {},
+    },
+  };
+  const deck = buildWrappedSlides({ analytics, formatCurrency: String, formatDate: d => d });
+  const first = deck.findIndex(slide => slide.id === 'history-first');
+  expect(first).toBeGreaterThanOrEqual(0);
+  expect(deck.slice(first, first + 2).map(({ id, mascotPose, accentEmoji }) => [id, mascotPose, accentEmoji])).toEqual([
+    ['history-first', 'prop-first-receipt', undefined],
+    ['history-latest', 'prop-first-receipt', undefined],
+  ]);
+  expect(deck.find(s => s.id === 'repeated-basket')?.mascotPose).toBe('prop-repeat-menu');
+  expect(deck.filter(s => s.mascotPose === 'prop-investment-teacher').map(s => s.id)).toEqual(['missed-investment']);
+  expect(deck.find(s => s.id === 'spending-burst')).toMatchObject({ mascotPose: 'flex', accentEmoji: '🔥', accentEmojiCount: 2 });
+});
+
+it('normalizes busy-day orders and rejects invalid times, duplicate orders and count mismatches', () => {
+  const orders = [
+    { id: 'a', restaurant: 'Breakfast', localTime: '09:12' },
+    { id: 'b', restaurant: 'Dinner' },
+  ];
+  const busy = story('most-deliveries-day', { value: 2, orders });
+  expect(normalizeRecap(collection([busy])).stories[0].orders).toEqual(orders);
+  for (const invalidOrders of [
+    [orders[0]],
+    [orders[0], orders[0]],
+    [orders[0], { ...orders[1], localTime: '24:00' }],
+    [orders[0], { ...orders[1], restaurant: '' }],
+  ]) {
+    expect(() => normalizeRecap(collection([{ ...busy, orders: invalidOrders }]))).toThrow();
+  }
+});
+
+it('validates supporting evidence while accepting older stories without it', () => {
+  const evidence = { kind: 'receipt' as const, total: 1, orders: [{ id: 'a', restaurant: 'Cafe', date: '2024-10-18', localTime: '13:30', amount: 12.5, items: [{ name: 'Latte', quantity: 1 }] }] };
+  expect(normalizeRecap(collection([story('history-first', { evidence })])).stories[0].evidence).toEqual(evidence);
+  for (const invalidEvidence of [
+    { ...evidence, total: 0 },
+    { ...evidence, orders: [{ ...evidence.orders[0], date: '2024-02-30' }] },
+    { ...evidence, orders: [{ ...evidence.orders[0], localTime: '25:00' }] },
+    { ...evidence, orders: [{ ...evidence.orders[0], items: [{ name: 'Latte', quantity: 0 }] }] },
+  ]) expect(() => normalizeRecap(collection([story('history-first', { evidence: invalidEvidence })]))).toThrow();
 });

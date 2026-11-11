@@ -48,7 +48,8 @@ export function parsePostOnboardingImportRoute(raw: Record<string, RawValue>): P
     operationId: first(raw.operationId) ?? null,
     connectionSucceeded: first(raw.gmail) === 'success' || first(raw.outlook) === 'success',
     connectionFailed: Boolean(first(raw.error)) || first(raw.gmail) === 'error' || first(raw.outlook) === 'error',
-    mailbox: first(raw.mailbox) === 'gmail' || first(raw.gmail) || legacyAction === 'connect_gmail' || legacyAction === 'import_gmail' ? 'gmail' : first(raw.mailbox) === 'outlook' || first(raw.outlook) ? 'outlook' : null,
+    mailbox: first(raw.mailbox) === 'outlook' ? 'outlook' : first(raw.mailbox) === 'gmail' ? 'gmail'
+      : first(raw.outlook) ? 'outlook' : first(raw.gmail) || legacyAction === 'connect_gmail' || legacyAction === 'import_gmail' ? 'gmail' : null,
     downloadedVersion: first(raw.downloadedVersion) ?? null,
     gmailPurpose: parseGmailConnectionPurpose(first(raw.gmailPurpose) ?? first(raw.outlookPurpose)),
   };

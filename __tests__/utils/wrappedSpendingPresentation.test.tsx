@@ -298,6 +298,7 @@ it("keeps grocery-aware delivery timing factual and peak hour about ordering, no
   const decoded = normalizeWrappedAnalytics(value);
   expect(decoded.patterns.deliveryWaits?.longestWait?.amount).toBeNull();
   const timing = slide(value, "delivery-waits");
+  expect(timing.mascotPose).toBe("prop-stopwatch");
   expect(timing.a11y).toContain("recorded delivery intervals");
   expect(timing.a11y).not.toContain("not time spent actively waiting");
   value.patterns.peakHungerHour = {
@@ -347,6 +348,15 @@ it("omits a weekend ratio with no weekday baseline and accepts distinct category
   ).toThrow();
 });
 
+it('uses the teacher on the legacy missed-investment slide', () => {
+  const value = wrapped();
+  value.comparative.missedInvestment = {
+    amountSpent: 100, firstOrderDate: '2024-01-01', daysElapsed: 365,
+    sp500Return: 10, wouldBeWorth: 110, missedGains: 10, message: '',
+  };
+  expect(slide(value, 'missed-investment')).toMatchObject({ mascotPose: 'prop-investment-teacher', emoji: '' });
+});
+
 it('renders historical investment values with approved names and accessible methodology', () => {
   const value = wrapped();
   value.comparative.historicalInvestment = {
@@ -373,7 +383,7 @@ it('includes the historical investment in the modern recap without exceeding six
     stories: Array.from({ length: 8 }, (_, i) => ({ id: `story-${i}`, category: 'habit' as const, family: `family-${i}`, overlaps: [], specificity: 1, score: 90 - i, title: 'A habit', value: 5, format: 'number' as const, label: 'orders', detail: 'From your history.', punchline: '' })),
   };
   const slides = buildWrappedSlides({ analytics: summary(value), formatCurrency: legacyMoney, formatDate: date => date });
-  expect(slides.some(s => s.id === 'historical-investment')).toBe(true);
+  expect(slides.filter(s => s.mascotPose === 'prop-investment-teacher').map(s => s.id)).toEqual(['historical-investment']);
   expect(slides.filter(s => s.id.startsWith('story-')).length).toBe(5);
   expect(slides.find(s => s.id === 'historical-investment')?.a11y).toContain('S&P 500');
 });

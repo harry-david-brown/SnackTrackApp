@@ -312,6 +312,7 @@ export function ReceiptHistoryScreen({ showBack = false, insightFilter }: { show
           <View style={styles.message}>{retryError}</View>
         ) : <EmptyState
           icon="receipt-outline"
+          mascotPose={hasFilters ? 'prop-detective' : 'prop-first-receipt'}
           title={insightFilter ? 'These orders moved' : hasFilters ? hasOutcomeEvidence ? 'No matching records' : 'No matching orders' : 'No orders yet'}
           message={emptyMessage}
           actionText={hasFilters ? 'Clear filters' : 'Add orders'}
