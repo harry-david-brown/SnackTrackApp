@@ -10,7 +10,7 @@ interface ProfileSummaryCardProps {
   email: string;
   createdAt: string;
   totalSpent: string;
-  totalReceipts: number;
+  totalReceipts: number | null;
   orderCountLabel?: string;
 }
 
@@ -38,7 +38,7 @@ export function ProfileSummaryCard({ email, createdAt, totalSpent, totalReceipts
           <AppText variant="metadata" style={styles.statLabel}>Tracked spend</AppText>
         </View>
         <View style={styles.stat}>
-          <AppText variant="surfaceTitle" style={styles.statValue} numberOfLines={2}>{totalReceipts}</AppText>
+          <AppText variant="surfaceTitle" style={styles.statValue} numberOfLines={2}>{totalReceipts ?? '—'}</AppText>
           <AppText variant="metadata" style={styles.statLabel}>{orderCountLabel}</AppText>
         </View>
       </View>

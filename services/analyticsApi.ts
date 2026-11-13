@@ -295,10 +295,12 @@ export const normalizeUserSummary = (value: unknown, includeWrapped = false): Us
     monthlyBreakdown: Object.entries(months)
       .map(([month, item]) => {
         const monthly = asRecord(item, `statistics.monthlyBreakdown.${month}`);
+        const totalSpent = asNumber(monthly.total, `statistics.monthlyBreakdown.${month}.total`);
+        const pricedCount = monthly.pricedCount === undefined ? undefined : asNumber(monthly.pricedCount, 'pricedCount');
         return {
           month,
-          ...(monthly.pricedCount === undefined ? {} : { averageOrderValue: asNumber(monthly.pricedCount, 'pricedCount') > 0 ? asNumber(monthly.total, 'total') / asNumber(monthly.pricedCount, 'pricedCount') : 0 }),
-          totalSpent: asNumber(monthly.total, `statistics.monthlyBreakdown.${month}.total`),
+          ...(pricedCount === undefined ? {} : { pricedCount, averageOrderValue: pricedCount > 0 ? totalSpent / pricedCount : 0 }),
+          totalSpent,
           receiptCount: asNumber(monthly.count, `statistics.monthlyBreakdown.${month}.count`),
         };
       })

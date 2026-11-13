@@ -243,6 +243,7 @@ export const createLoginStyles = (theme: AppTheme) => StyleSheet.create({
     marginBottom: 12,
   },
   googleButton: {
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -257,6 +258,8 @@ export const createLoginStyles = (theme: AppTheme) => StyleSheet.create({
     marginRight: 12,
   },
   googleButtonText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: 16,
     fontFamily: FontFamily.medium,
     color: theme.colors.textPrimary,

@@ -45,13 +45,13 @@ export default function AccountsPermissionsScreen() {
         {(['gmail', 'outlook'] as const).map((mailbox, index) => {
           const connection = mailbox === 'gmail' ? gmail : outlook;
           const name = mailbox === 'gmail' ? 'Gmail' : 'Outlook';
-          const hasAccount = Boolean(connection?.connected || connection?.email || connection?.needsReconnect);
+          const hasAccount = Boolean(connection?.connected || connection?.needsReconnect);
           const unavailable = connection?.connectionHealth === 'unavailable';
           const reconnect = connection?.connectionHealth === 'reconnect_required';
           return <View key={mailbox}>
             {index > 0 ? <View style={styles.divider} /> : null}
             <AccountRow icon={mailbox === 'gmail' ? 'logo-google' : 'logo-microsoft'} title={name}
-              detail={connection?.email ?? (hasAccount ? 'Connected account' : 'Not connected')}
+              detail={hasAccount ? connection?.email ?? 'Connected account' : 'Not connected'}
               warning={reconnect} disabled={imports.connectionBusy}
               action={unavailable ? 'Reload' : reconnect ? 'Reconnect' : hasAccount ? 'Find orders' : 'Connect'}
               onPress={unavailable ? () => { void imports.refreshImportPreferences(); } : () => setupMailbox(mailbox, reconnect)} />

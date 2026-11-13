@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSystemFontScale } from '@hooks/useSystemFontScale';
 import { AppText } from '@components/ui/AppText';
 import { Colors, Radius, Shadows, Spacing, type AppTheme } from '@constants/theme';
 import { useAppTheme } from '@contexts/AppearanceContext';
@@ -23,6 +24,7 @@ export function DashboardMonthNavigator({
   onSelectMonth,
 }: DashboardMonthNavigatorProps) {
   const theme = useAppTheme();
+  const largeText = useSystemFontScale() >= 1.5;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [pickerVisible, setPickerVisible] = useState(false);
   const selectedIndex = Math.max(0, months.findIndex((month) => month.key === selectedMonthKey));
@@ -65,10 +67,10 @@ export function DashboardMonthNavigator({
           accessibilityHint="Opens the month picker"
           accessibilityState={{ expanded: pickerVisible }}
           onPress={() => setPickerVisible(true)}
-          style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.monthButton, largeText && styles.monthButtonStacked, pressed && styles.pressed]}
         >
-          <Ionicons name="calendar-outline" size={17} color={theme.colors.primary} />
-          <AppText variant="button" numberOfLines={1} style={styles.monthLabel}>{selectedMonth.label}</AppText>
+          {!largeText && <Ionicons name="calendar-outline" size={17} color={theme.colors.primary} />}
+          <AppText variant="button" style={styles.monthLabel}>{selectedMonth.label}</AppText>
           {selectedMonth.isCurrent ? (
             <View style={styles.currentChip}>
               <AppText variant="metadata" style={styles.currentChipText}>Current</AppText>
@@ -189,7 +191,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.md,
   },
-  monthLabel: { flexShrink: 1 },
+  monthButtonStacked: { flexDirection: 'column', paddingVertical: Spacing.xs },
+  monthLabel: { flexShrink: 1, textAlign: 'center' },
   currentChip: {
     flexShrink: 0,
     paddingHorizontal: 7,

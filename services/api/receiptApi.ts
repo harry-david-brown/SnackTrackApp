@@ -130,6 +130,7 @@ export const normalizeReceipt = (value: unknown, index = 0): Receipt => {
     ...(receipt.sources === undefined ? {} : { sources: (receipt.sources as unknown[]).map(source => member(source,dataSources,`${field}.sources`)) }),
     ...(receipt.checkoutDifference === undefined ? {} : { checkoutDifference: normalizeCheckoutDifference(receipt.checkoutDifference,`${field}.checkoutDifference`) }),
     ...(receipt.currencyCode === undefined ? {} : { currencyCode: string(receipt.currencyCode, `${field}.currencyCode`) }),
+    ...(receipt.itemSubtotal === undefined ? {} : { itemSubtotal: nonnegativeNumber(receipt.itemSubtotal, `${field}.itemSubtotal`) }),
     ...(receipt.amountBasis === undefined ? {} : { amountBasis: string(receipt.amountBasis, `${field}.amountBasis`) }),
     ...(receipt.evidenceSummary === undefined ? {} : { evidenceSummary: string(receipt.evidenceSummary, `${field}.evidenceSummary`) }),
     ...(receipt.resolutionVersion === undefined ? {} : { resolutionVersion: integer(receipt.resolutionVersion, `${field}.resolutionVersion`, 1) }),

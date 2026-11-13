@@ -23,20 +23,19 @@ export const SUPPORTED_CURRENCIES: Record<CurrencyCode, Currency> = {
 
 export const DEFAULT_CURRENCY: CurrencyCode = 'USD';
 
-/**
- * Format a number as currency using the specified currency code
- */
-export function formatCurrency(amount: number, currencyCode: CurrencyCode = DEFAULT_CURRENCY): string {
-  const currency = SUPPORTED_CURRENCIES[currencyCode];
-  
-  // For JPY, don't show decimals
-  const options: Intl.NumberFormatOptions = {
+export type CurrencyPrecision = Pick<Intl.NumberFormatOptions, 'maximumFractionDigits'>;
+export type CurrencyFormatter = (amount: number, precision?: CurrencyPrecision) => string;
+
+export function formatCurrency(
+  amount: number,
+  currencyCode: CurrencyCode = DEFAULT_CURRENCY,
+  precision?: CurrencyPrecision,
+): string {
+  return new Intl.NumberFormat(SUPPORTED_CURRENCIES[currencyCode].locale, {
     style: 'currency',
     currency: currencyCode,
-    ...(currencyCode === 'JPY' ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
-  };
-
-  return new Intl.NumberFormat(currency.locale, options).format(amount);
+    ...precision,
+  }).format(amount);
 }
 
 /**

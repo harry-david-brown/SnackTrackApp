@@ -1,3 +1,5 @@
+import type { CurrencyFormatter } from '@utils/currency';
+import { spendingCoverage } from '@utils/spendingCoverage';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +22,7 @@ interface DashboardSpendingHeroProps {
   selectedMonthKey: string;
   loading: boolean;
   unavailable?: boolean;
-  formatCurrency: (value: number) => string;
+  formatCurrency: CurrencyFormatter;
   onChangePeriod: (period: DashboardPeriod) => void;
   onSelectMonth: (monthKey: string) => void;
 }
@@ -41,12 +43,20 @@ export function DashboardSpendingHero({
   const displayMoney = (value: number) => formatReceiptMoney(value, summary.currencyCode, formatCurrency);
   const comparison = summary.comparison;
   const missingSummary = loading || unavailable;
+  const coverage = spendingCoverage(summary.pricedCount ?? summary.receiptCount, summary.receiptCount, summary.currencyCode);
+  const averageLabel = coverage.available && coverage.partial ? `average of ${coverage.pricedLabel}` : 'average order';
+  const averageValue = missingSummary || !coverage.available ? '—' : displayMoney(summary.averageOrderValue);
+  let spendValue = '—';
+  if (!missingSummary) {
+    if (summary.receiptCount === 0) spendValue = formatCurrency(0, { maximumFractionDigits: 0 });
+    else spendValue = coverage.available ? displayMoney(summary.totalSpent) : 'Unavailable';
+  }
   const comparisonText = unavailable ? 'Spending summary unavailable' : loading ? 'Loading your spending summary…' : comparison
     ? comparison.direction === 'same'
       ? `About the same as ${comparison.previousLabel}`
       : `${displayMoney(Math.abs(comparison.difference))} ${comparison.direction === 'down' ? 'less' : 'more'} than ${comparison.previousLabel}`
     : period === 'all_time'
-      ? 'Across all imported orders'
+      ? coverage.partial ? `Based on ${coverage.pricedLabel}` : 'Across all imported orders'
       : summary.receiptCount > 0
         ? summary.isFirstTrackedMonth ? 'Your first tracked month' : 'Month comparison unavailable'
         : summary.isCurrentMonth
@@ -81,11 +91,11 @@ export function DashboardSpendingHero({
         style={styles.hero}
         accessibilityRole="summary"
         accessibilityLiveRegion="polite"
-        accessibilityLabel={missingSummary ? `${summary.label}. ${comparisonText}` : `${summary.label}. ${displayMoney(summary.totalSpent)}. ${summary.receiptCount} orders. Average ${displayMoney(summary.averageOrderValue)}.`}
+        accessibilityLabel={missingSummary ? `${summary.label}. ${comparisonText}` : `${summary.label}. ${spendValue}. ${summary.receiptCount} ${summary.receiptCount === 1 ? 'order' : 'orders'}. ${averageLabel}: ${averageValue}.`}
       >
         <AppText variant="metadata" style={styles.label}>{summary.label}</AppText>
         <AppText variant="heroValue" style={styles.value} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
-          {missingSummary ? '—' : displayMoney(summary.totalSpent)}
+          {spendValue}
         </AppText>
         <View style={styles.comparison}>
           <Ionicons
@@ -96,8 +106,8 @@ export function DashboardSpendingHero({
           <AppText variant="metadata" style={styles.comparisonText}>{comparisonText}</AppText>
         </View>
         <View style={styles.metrics}>
-          <Metric value={missingSummary ? '—' : String(summary.receiptCount)} label="orders" />
-          <Metric value={missingSummary ? '—' : displayMoney(summary.averageOrderValue)} label="average order" />
+          <Metric value={missingSummary ? '—' : String(summary.receiptCount)} label={summary.receiptCount === 1 ? 'order' : 'orders'} />
+          <Metric value={averageValue} label={averageLabel} />
         </View>
       </LinearGradient>
     </View>

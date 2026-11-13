@@ -50,14 +50,15 @@ it('validates story facts and rejects malformed payloads', () => {
 });
 it('keys recap requests by currency without changing ordinary summary keys', () => {
   expect(analyticsKeys.wrapped('u', 'CAD')).not.toEqual(analyticsKeys.wrapped('u', 'USD'));
-  expect(analyticsKeys.wrapped('u', 'CAD').slice(0, 3)).toEqual(analyticsKeys.wrapped('u'));
+  expect(analyticsKeys.wrapped('u', 'CAD')).toEqual([...analyticsKeys.wrapped('u'), 'CAD']);
 });
 it('renders a full static share deck with net spending and no chart', () => {
   const recap = collection([story('most-deliveries-day', { title: 'ONE BUSY DAY.', category: 'extreme-moment', startDate: '2023-12-10', label: 'completed deliveries' }), ...fallbacks()]);
   const metrics = normalizeOrderMetrics(orderMetricsFixture.metrics);
   const analytics: UserSummary = { userId: 'u', totalSpent: 157.02, totalReceipts: 5, averageOrderValue: 31.4, currencyCode: 'CAD', topRestaurants: [], monthlyBreakdown: [], refundedReceipts: 1, dataQuality: { issues: [], recommendations: [] }, orderMetrics: metrics, wrappedAnalytics: { recap, orderMetrics: metrics, coverage: { orderCount: 5, earliestOrderDate: '2023-12-10', latestOrderDate: '2023-12-10', dataSources: ['csv'], hasExportData: true }, shame: {}, flex: {}, comparative: {}, patterns: {} } };
   const deck = buildWrappedSlides({ analytics, formatCurrency: n => `$${n}`, formatDate: d => d });
-  expect(deck).toHaveLength(11);
+  expect(deck.map(slide => slide.id)).toEqual(expect.arrayContaining(['pattern-emerged', 'things-escalated']));
+  expect(deck).toHaveLength(12);
   expect(deck.some(s => s.id === 'spending-timeline')).toBe(false);
   expect(deck[0].a11y).toContain('CA$180 across your tracked orders');
   expect(deck.every(slide => !slide.a11y?.includes('≈'))).toBe(true);
@@ -167,4 +168,39 @@ it('validates supporting evidence while accepting older stories without it', () 
     { ...evidence, orders: [{ ...evidence.orders[0], localTime: '25:00' }] },
     { ...evidence, orders: [{ ...evidence.orders[0], items: [{ name: 'Latte', quantity: 0 }] }] },
   ]) expect(() => normalizeRecap(collection([story('history-first', { evidence: invalidEvidence })]))).toThrow();
+});
+
+it('keeps the lifetime personality when a currency change crosses a spending threshold', () => {
+  const personality = (currency: 'CAD' | 'USD', amount: number) => {
+    const recap = collection(fallbacks());
+    recap.currency = currency;
+    recap.spending.amount = amount;
+    const analytics: UserSummary = {
+      userId: 'u', totalSpent: 500, totalReceipts: 5, averageOrderValue: 100, currencyCode: 'CAD',
+      topRestaurants: [], monthlyBreakdown: [], refundedReceipts: 0, dataQuality: { issues: [], recommendations: [] },
+      wrappedAnalytics: { recap, coverage: { orderCount: 5, earliestOrderDate: '2023-12-01', latestOrderDate: '2023-12-10', dataSources: ['csv'], hasExportData: true }, shame: {}, flex: {}, comparative: {}, patterns: {} },
+    };
+    return buildWrappedSlides({ analytics, formatCurrency: String, formatDate: String }).find(s => s.id === 'lifetime-archetype')?.a11y;
+  };
+  expect(personality('CAD', 500)).toContain('The Whale');
+  expect(personality('USD', 100)).toContain('The Whale');
+});
+
+it.each([
+  { orders: 1, priced: 0, amount: 0, expected: 'Spending unavailable' },
+  { orders: 1, priced: 1, amount: 0, expected: 'CA$0' },
+  { orders: 5, priced: 4, amount: 58, expected: 'CA$58 across 4 priced orders, shown in CAD' },
+])('uses the recap price coverage on both share cards ($priced of $orders orders)', ({ orders, priced, amount, expected }) => {
+  const recap = collection(fallbacks());
+  recap.spending = { ...recap.spending, amount, pricedOrders: priced, missingPrices: orders - priced };
+  const analytics: UserSummary = {
+    userId: 'u', totalSpent: 0, totalReceipts: orders, averageOrderValue: 0, currencyCode: 'CAD',
+    topRestaurants: [], monthlyBreakdown: [], refundedReceipts: 0, dataQuality: { issues: [], recommendations: [] },
+    wrappedAnalytics: { recap, coverage: { orderCount: orders, earliestOrderDate: '2026-11-01', latestOrderDate: '2026-11-01', dataSources: ['csv'], hasExportData: true }, shame: {}, flex: {}, comparative: {}, patterns: {} },
+  };
+  const slides = buildWrappedSlides({ analytics, formatCurrency: String, formatDate: String });
+  for (const slide of [slides[0], slides[slides.length - 1]]) {
+    expect(slide.a11y).toContain(expected);
+    if (!priced) expect(slide.a11y).not.toMatch(/\$0|1 orders/);
+  }
 });

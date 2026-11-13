@@ -27,3 +27,8 @@ it('does not relabel stale, missing or unconvertible amounts as the selected cur
     expect(profileReceiptSummary({ totalReceipts: 1, normalizedSpend }, format, 'CAD').totalSpent).toBe('Spending unavailable');
   }
 });
+
+it('distinguishes pending analytics from a genuinely empty ledger', () => {
+  expect(profileReceiptSummary(undefined, format, 'CAD').totalReceipts).toBeNull();
+  expect(profileReceiptSummary({ totalReceipts: 0 }, format, 'CAD').totalReceipts).toBe(0);
+});

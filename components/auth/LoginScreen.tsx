@@ -59,7 +59,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoidingView}>
-        <ScrollView contentContainerStyle={styles.scrollContent} overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'} bounces>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} overScrollMode={Platform.OS === 'android' ? 'always' : 'auto'} bounces>
           <View style={styles.content}>
             <View style={styles.header}>
               <View style={styles.mascotLogoWrap}><Mascot pose="neutral" size={96} /></View>

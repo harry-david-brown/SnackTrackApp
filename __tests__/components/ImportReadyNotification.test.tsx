@@ -36,6 +36,7 @@ it('keeps failed registration retryable without claiming notification success', 
   mockEnable.mockImplementationOnce(async () => { mockIssue = 'registration'; throw new Error('Offline'); });
   const screen = render(<ImportReadyNotification userId="user" />);
   await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Notify me when ready' })); });
+  screen.rerender(<ImportReadyNotification userId="user" />);
   expect(screen.getByRole('button', { name: 'Try notifications again' })).toBeTruthy();
   expect(screen.queryByText('We’ll notify you when ready')).toBeNull();
 });

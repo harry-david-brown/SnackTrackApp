@@ -13,7 +13,7 @@ export function profileReceiptSummary(
       : `${normalized.approximate ? '≈ ' : ''}${formatCurrency(normalized.amount)}`;
   return {
     totalSpent,
-    totalReceipts: analytics?.orderMetrics?.attempts ?? analytics?.totalReceipts ?? 0,
+    totalReceipts: analytics?.orderMetrics?.attempts ?? analytics?.totalReceipts ?? null,
     orderCountLabel: 'Orders',
   };
 }

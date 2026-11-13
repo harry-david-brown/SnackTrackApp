@@ -1,6 +1,8 @@
 import type { UserSummary } from '@/types/api';
 import type { OrderMetrics } from '@/types/orderMetrics';
 
+import { currencyPricedCount } from '@utils/spendingCoverage';
+
 export type DashboardPeriod = 'monthly' | 'all_time';
 
 export interface DashboardMonthOption {
@@ -24,6 +26,7 @@ export interface DashboardPeriodSummary {
   label: string;
   totalSpent: number;
   receiptCount: number;
+  pricedCount?: number;
   averageOrderValue: number;
   comparison: {
     difference: number;
@@ -117,6 +120,7 @@ export function resolveDashboardPeriodSummary(
       label: 'All-time delivery spending',
       totalSpent,
       receiptCount,
+      pricedCount: currencyPricedCount(summary?.orderMetrics, summary?.currencyCode, receiptCount),
       averageOrderValue: summary?.averageOrderValue ?? (receiptCount > 0 ? totalSpent / receiptCount : 0),
       comparison: null,
     };
@@ -155,6 +159,7 @@ export function resolveDashboardPeriodSummary(
     label: `${monthLabel(selectedDate)} delivery spending`,
     totalSpent,
     receiptCount,
+    pricedCount: current?.pricedCount ?? currencyPricedCount(orderMetrics, summary?.currencyCode, receiptCount),
     averageOrderValue: current?.averageOrderValue ?? (receiptCount > 0 ? totalSpent / receiptCount : 0),
     comparison: comparisonReliable && previous && (!isCurrentMonth || summary?.dailyBreakdown)
       ? {

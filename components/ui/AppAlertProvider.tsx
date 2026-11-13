@@ -3,6 +3,7 @@ import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -143,46 +144,48 @@ export function AppAlertProvider({ children }: PropsWithChildren) {
               accessibilityLabel={`${activeAlert.title}. ${activeAlert.message ?? ''}`}
               style={styles.card}
             >
-              <View style={[styles.mascotSurface, { backgroundColor: details.surface }]}>
-                <Mascot pose={details.mascotPose} size={92} accessibilityLabel={`SnackTrack mascot (${details.mascotPose})`} />
-              </View>
-              <AppText variant="eyebrow" style={[styles.eyebrow, { color: details.accent }]}>
-                {details.eyebrow}
-              </AppText>
-              <AppText variant="pageTitle" style={styles.title}>{activeAlert.title}</AppText>
-              {activeAlert.message ? (
-                <AppText variant="body" style={styles.message}>{activeAlert.message}</AppText>
-              ) : null}
-              <View style={styles.actions}>
-                {activeAlert.buttons.map((button, index) => {
-                  const isPrimary =
-                    button.style !== 'cancel' &&
-                    (activeAlert.buttons.length === 1 ||
-                      index === activeAlert.buttons.length - 1);
-                  return (
-                    <TouchableOpacity
-                      key={`${button.text}-${index}`}
-                      accessibilityRole="button"
-                      style={[
-                        styles.button,
-                        isPrimary ? styles.primaryButton : styles.secondaryButton,
-                        button.style === 'destructive' && styles.destructiveButton,
-                      ]}
-                      onPress={() => dismiss(button)}
-                    >
-                      <AppText
-                        variant="button"
+              <ScrollView style={styles.scroll} contentContainerStyle={styles.cardContent} bounces={false}>
+                <View style={[styles.mascotSurface, { backgroundColor: details.surface }]}>
+                  <Mascot pose={details.mascotPose} size={92} accessibilityLabel={`SnackTrack mascot (${details.mascotPose})`} />
+                </View>
+                <AppText variant="eyebrow" style={[styles.eyebrow, { color: details.accent }]}>
+                  {details.eyebrow}
+                </AppText>
+                <AppText variant="pageTitle" style={styles.title}>{activeAlert.title}</AppText>
+                {activeAlert.message ? (
+                  <AppText variant="body" style={styles.message}>{activeAlert.message}</AppText>
+                ) : null}
+                <View style={styles.actions}>
+                  {activeAlert.buttons.map((button, index) => {
+                    const isPrimary =
+                      button.style !== 'cancel' &&
+                      (activeAlert.buttons.length === 1 ||
+                        index === activeAlert.buttons.length - 1);
+                    return (
+                      <TouchableOpacity
+                        key={`${button.text}-${index}`}
+                        accessibilityRole="button"
                         style={[
-                          styles.buttonText,
-                          isPrimary ? styles.primaryButtonText : styles.secondaryButtonText,
+                          styles.button,
+                          isPrimary ? styles.primaryButton : styles.secondaryButton,
+                          button.style === 'destructive' && styles.destructiveButton,
                         ]}
+                        onPress={() => dismiss(button)}
                       >
-                        {button.text}
-                      </AppText>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        <AppText
+                          variant="button"
+                          style={[
+                            styles.buttonText,
+                            isPrimary ? styles.primaryButtonText : styles.secondaryButtonText,
+                          ]}
+                        >
+                          {button.text}
+                        </AppText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </View>
           ) : null}
         </View>
@@ -202,13 +205,17 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
+    maxHeight: '100%',
+    borderRadius: Radius.card,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.card,
+  },
+  scroll: { flexGrow: 0 },
+  cardContent: {
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 20,
-    borderRadius: Radius.card,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.card,
   },
   mascotSurface: {
     width: 112,

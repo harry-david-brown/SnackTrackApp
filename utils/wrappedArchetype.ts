@@ -50,7 +50,8 @@ const clamp100 = (n: number) => Math.max(0, Math.min(100, n));
  */
 export function getArchetype(
   analytics: UserSummary,
-  formatCurrency: CurrencyFormatter
+  formatCurrency: CurrencyFormatter,
+  lifetimeSpendLabel = formatCurrency(analytics.totalSpent),
 ): Archetype {
   const wrapped = analytics.wrappedAnalytics;
   const topSpot = analytics.topRestaurants?.[0]?.name;
@@ -225,7 +226,7 @@ export function getArchetype(
       tagline: 'Single-handedly keeping delivery apps profitable.',
       gradient: 'indigo',
       traits: compact([
-        { emoji: '💸', label: 'Total damage', value: formatCurrency(analytics.totalSpent) },
+        { emoji: '💸', label: 'Total damage', value: lifetimeSpendLabel },
         { emoji: '📦', label: 'Total orders', value: `${analytics.totalReceipts}` },
         topSpot && { emoji: '🏆', label: 'Top spot', value: topSpot },
       ]),
@@ -250,7 +251,7 @@ export function getArchetype(
     gradient: 'amber',
     traits: compact([
       { emoji: '📦', label: 'Total orders', value: `${analytics.totalReceipts}` },
-      { emoji: '💸', label: 'Total spent', value: formatCurrency(analytics.totalSpent) },
+      { emoji: '💸', label: 'Total spent', value: lifetimeSpendLabel },
       topSpot && { emoji: '🏆', label: 'Top spot', value: topSpot },
     ]),
   };

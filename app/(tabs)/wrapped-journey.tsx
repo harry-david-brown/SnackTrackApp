@@ -22,6 +22,7 @@ import { suppressAdsForSession } from '@features/ads/adSession';
 import { useUser } from '@contexts/UserContext';
 import { trackAdminEvent } from '@services/adminAnalytics';
 import { appDestinations, useAppNavigation } from '@features/navigation';
+import { currencyPricedCount, spendingCoverage } from '@utils/spendingCoverage';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 
 type WrappedSummary = UserSummary & { wrappedAnalytics: NonNullable<UserSummary['wrappedAnalytics']> };
@@ -138,6 +139,10 @@ export default function WrappedJourneyScreen() {
   const topRestaurant = journey.analytics.topRestaurants[0];
   const currencyCode = journey.analytics.currencyCode;
   const displayMoney = (amount: number) => formatReceiptMoney(amount, currencyCode, formatCurrency);
+  const { totalReceipts, orderMetrics } = journey.analytics;
+  const coverage = spendingCoverage(currencyPricedCount(orderMetrics, currencyCode, totalReceipts), totalReceipts, currencyCode);
+  const spendLabel = coverage.partial && currencyCode ? `All-time delivery spend (${currencyCode})` : 'All-time delivery spend';
+  const averageLabel = coverage.partial && coverage.available ? `Average of ${coverage.pricedLabel}` : 'Average order';
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -145,9 +150,9 @@ export default function WrappedJourneyScreen() {
 
         <LinearGradient colors={[Colors.secondary, Colors.primary]} style={styles.hero}>
           <View style={styles.heroCopy}>
-            <AppText variant="metadata" style={styles.heroLabel}>All-time delivery spend</AppText>
-            <AppText variant="heroValue" style={styles.heroValue} adjustsFontSizeToFit minimumFontScale={0.68} numberOfLines={1}>{displayMoney(journey.analytics.totalSpent)}</AppText>
-            <AppText variant="metadata" style={styles.heroMeta}>{journey.analytics.totalReceipts} orders in your history</AppText>
+            <AppText variant="metadata" style={styles.heroLabel}>{spendLabel}</AppText>
+            <AppText variant="heroValue" style={styles.heroValue} adjustsFontSizeToFit minimumFontScale={0.68} numberOfLines={1}>{coverage.available ? displayMoney(journey.analytics.totalSpent) : 'Unavailable'}</AppText>
+            <AppText variant="metadata" style={styles.heroMeta}>{totalReceipts} {totalReceipts === 1 ? 'order' : 'orders'} in your history</AppText>
           </View>
           <Mascot pose="sunglasses" size={118} variant="outline" />
         </LinearGradient>
@@ -155,8 +160,8 @@ export default function WrappedJourneyScreen() {
         <View style={styles.stats}>
           <Card style={styles.statCard}>
             <Ionicons name="receipt-outline" size={20} color={theme.colors.primary} />
-            <AppText variant="surfaceTitle" style={styles.statValue}>{displayMoney(journey.analytics.averageOrderValue)}</AppText>
-            <AppText variant="metadata" style={styles.statLabel}>Average order</AppText>
+            <AppText variant="surfaceTitle" style={styles.statValue}>{coverage.available ? displayMoney(journey.analytics.averageOrderValue) : '—'}</AppText>
+            <AppText variant="metadata" style={styles.statLabel}>{averageLabel}</AppText>
           </Card>
           <Card style={styles.statCard}>
             <Ionicons name="restaurant-outline" size={20} color={theme.colors.primary} />

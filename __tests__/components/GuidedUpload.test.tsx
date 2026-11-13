@@ -21,13 +21,13 @@ beforeEach(() => {
 });
 it('uploads immediately after file selection', async () => {
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose ZIP and import'));
+  fireEvent.press(screen.getByText('Choose downloaded file'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'uber.zip' }), journeyContext: 'post_onboarding' })));
 });
 it('keeps the selected file when the user cancels choosing a replacement', async () => {
   mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose ZIP and import'));
+  fireEvent.press(screen.getByText('Choose downloaded file'));
   await waitFor(() => expect(screen.getByText('uber.zip')).toBeTruthy());
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: true, assets: null });
   fireEvent.press(screen.getByText('Choose another file'));
@@ -38,7 +38,7 @@ it('keeps the selected file when the user cancels choosing a replacement', async
 it('clears the retry association when a replacement file is accepted', async () => {
   mockImport.mockRejectedValueOnce(new Error('Connection interrupted'));
   const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
-  fireEvent.press(screen.getByText('Choose ZIP and import'));
+  fireEvent.press(screen.getByText('Choose downloaded file'));
   await waitFor(() => expect(screen.getByText('uber.zip')).toBeTruthy());
   jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [{ ...firstFile, name: 'newer.zip', uri: 'file:///newer.zip' }] });
   fireEvent.press(screen.getByText('Choose another file'));
@@ -48,6 +48,19 @@ it('clears the retry association when a replacement file is accepted', async () 
 });
 it('starts immediately during onboarding too', async () => {
   const screen = render(<ExportDataUpload journeyContext="onboarding" />);
-  fireEvent.press(screen.getByText('Choose ZIP and import'));
+  fireEvent.press(screen.getByText('Choose downloaded file'));
   await waitFor(() => expect(mockImport).toHaveBeenCalledTimes(1));
+});
+
+it('accepts the CSV type reported by Android Downloads and submits the raw file', async () => {
+  const asset = { ...firstFile, name: 'user_orders-0.csv', mimeType: 'text/comma-separated-values' };
+  jest.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({ canceled: false, assets: [asset] });
+  const screen = render(<ExportDataUpload journeyContext="post_onboarding" />);
+  fireEvent.press(screen.getByText('Choose downloaded file'));
+  await waitFor(() => expect(mockImport).toHaveBeenCalledWith(expect.objectContaining({
+    file: expect.objectContaining({ name: asset.name, type: 'text/csv' }),
+  })));
+  expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith(expect.objectContaining({
+    type: expect.arrayContaining([asset.mimeType]),
+  }));
 });

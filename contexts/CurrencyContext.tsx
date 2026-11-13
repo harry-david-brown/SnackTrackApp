@@ -2,13 +2,13 @@ import { showSimpleAlert } from '@utils/platformAlert';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
-import { CurrencyCode, DEFAULT_CURRENCY, detectCurrency, detectCurrencyFromLocale, formatCurrency as formatCurrencyUtil } from '@utils/currency';
+import { type CurrencyFormatter, CurrencyCode, DEFAULT_CURRENCY, detectCurrency, detectCurrencyFromLocale, formatCurrency as formatCurrencyUtil } from '@utils/currency';
 
 interface CurrencyContextType {
   currency: CurrencyCode;
   hasManualSelection: boolean;
   setCurrency: (currency: CurrencyCode) => Promise<void>;
-  formatCurrency: (amount: number) => string;
+  formatCurrency: CurrencyFormatter;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -104,8 +104,8 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const formatCurrency = (amount: number): string => {
-    return formatCurrencyUtil(amount, currency);
+  const formatCurrency: CurrencyFormatter = (amount, precision) => {
+    return formatCurrencyUtil(amount, currency, precision);
   };
 
   if (isLoading) {
@@ -116,8 +116,8 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
           currency: DEFAULT_CURRENCY,
           hasManualSelection: false,
           setCurrency,
-          formatCurrency: (amount: number) => {
-            return formatCurrencyUtil(amount, DEFAULT_CURRENCY);
+          formatCurrency: (amount, precision) => {
+            return formatCurrencyUtil(amount, DEFAULT_CURRENCY, precision);
           },
         }}
       >

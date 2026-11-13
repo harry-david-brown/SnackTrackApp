@@ -1,6 +1,9 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSystemFontScale } from '@hooks/useSystemFontScale';
+import { AppText } from '@components/ui/AppText';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { I18nManager, useWindowDimensions } from 'react-native';
+import { I18nManager, Platform, useWindowDimensions } from 'react-native';
 import { Motion } from '@constants/motion';
 import { useAppReducedMotion } from '@contexts/MotionContext';
 import { useAppTheme } from '@contexts/AppearanceContext';
@@ -9,6 +12,9 @@ export default function TabLayout() {
   const theme = useAppTheme();
   const reduceMotion = useAppReducedMotion();
   const { width } = useWindowDimensions();
+  const fontScale = useSystemFontScale();
+  const insets = useSafeAreaInsets();
+  const androidTabs = Platform.OS === 'android';
   const slideWidth = I18nManager.isRTL ? -width : width;
 
   return (
@@ -32,15 +38,19 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.gray500,
         tabBarStyle: {
-          minHeight: 64,
+          minHeight: androidTabs ? 64 + Math.max(0, fontScale - 1) * 30 + insets.bottom : 64,
           paddingTop: 7,
-          paddingBottom: 8,
+          paddingBottom: androidTabs ? Math.max(8, insets.bottom) : 8,
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.divider,
           borderTopWidth: 1,
           elevation: 0,
           shadowOpacity: 0,
         },
+        tabBarAllowFontScaling: true,
+        tabBarLabel: androidTabs ? ({ color, children }) => (
+          <AppText variant="metadata" adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={{ color, fontFamily: theme.typography.medium, fontSize: 10, lineHeight: 13 }}>{children}</AppText>
+        ) : undefined,
         tabBarLabelStyle: { fontFamily: theme.typography.medium, fontSize: 10, lineHeight: 13 },
         sceneStyle: { backgroundColor: theme.colors.background, overflow: 'hidden' },
         headerShown: false,

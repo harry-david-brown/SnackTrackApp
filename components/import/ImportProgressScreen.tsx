@@ -174,7 +174,7 @@ export function ImportProgressScreen({ operationId, returnTo = 'home', uploadAct
   const handled = useRef<string | null>(null);
   const announced = useRef<string | null>(null);
   const stableTimeEstimate = useStableImportTimeEstimate(operation?.id, operation?.presentation?.timeEstimate);
-  const timeEstimateText = importTimeEstimateText(stableTimeEstimate);
+  const timeEstimateText = importTimeEstimateText(stableTimeEstimate, operation?.status);
   const progress = resolveOverallImportProgress(operation, uploadActive ? uploadProgress ?? 0 : undefined);
   const receiptsFound = operation?.presentation?.discoveredOrderCount ?? null;
   const targetProgressPosition = useMemo(() => operation ? resolveImportProgressPosition(operation) : 0, [operation]);

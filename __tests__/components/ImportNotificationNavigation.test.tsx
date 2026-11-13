@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
 import { ImportNotificationController } from '@components/import/ImportNotificationController';
@@ -9,6 +10,9 @@ let mockNotificationResponseListener: ((event: Notifications.NotificationRespons
 jest.mock('expo-device', () => ({ isDevice: true }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { extra: { eas: { projectId: 'project' } } } } }));
 jest.mock('expo-notifications', () => ({
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
+  clearLastNotificationResponseAsync: jest.fn().mockResolvedValue(undefined),
   setNotificationHandler: jest.fn(),
   addNotificationResponseReceivedListener: jest.fn((listener) => {
     mockNotificationResponseListener = listener;
@@ -24,7 +28,7 @@ describe('ImportNotificationController navigation', () => {
     jest.clearAllMocks();
     mockNotificationResponseListener = undefined;
     jest.mocked(useUser).mockReturnValue({
-      state: { user: { id: 'user-1' } },
+      state: { user: { id: 'user-1' }, isAuthenticated: true },
     } as ReturnType<typeof useUser>);
     jest.mocked(useAppNavigation).mockReturnValue({
       open: jest.fn(), replace: jest.fn(), backOr: jest.fn(), setParams: jest.fn(),
@@ -34,7 +38,7 @@ describe('ImportNotificationController navigation', () => {
   });
 
   it('sends a notification tap through the external navigation policy', () => {
-    render(<ImportNotificationController />);
+    render(<QueryClientProvider client={new QueryClient()}><ImportNotificationController /></QueryClientProvider>);
     act(() => {
       mockNotificationResponseListener?.({
         notification: { request: { content: { data: { type: 'import_operation', operationId: 'op-1' } } } },
@@ -48,7 +52,7 @@ describe('ImportNotificationController navigation', () => {
   });
 
   it('ignores unrelated notification payloads', () => {
-    render(<ImportNotificationController />);
+    render(<QueryClientProvider client={new QueryClient()}><ImportNotificationController /></QueryClientProvider>);
     act(() => {
       mockNotificationResponseListener?.({
         notification: { request: { content: { data: { type: 'other', operationId: 'op-1' } } } },

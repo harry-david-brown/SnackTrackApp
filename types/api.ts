@@ -38,6 +38,7 @@ export interface Receipt {
   orderOutcome?: import('./receiptOutcome').ReceiptOrderOutcome;
   reconciliation?: { status: 'merged' | 'standalone' | 'unresolved'; method: string; reason?: string };
   sources?: DataSource[];
+  itemSubtotal?: number;
   checkoutDifference?: {
     status: 'available' | 'unavailable';
     amount: number | null;
@@ -415,6 +416,7 @@ export interface UserSummary {
     totalSpent: number;
   }[];
   monthlyBreakdown: {
+    pricedCount?: number;
     averageOrderValue?: number;
     month: string;
     totalSpent: number;

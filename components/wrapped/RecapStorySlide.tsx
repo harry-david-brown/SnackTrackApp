@@ -20,7 +20,7 @@ export function RecapStorySlide({ story, currency, formatDate }: { story: RecapS
   const isDateValue = story.id === 'history-first' || story.id === 'history-latest';
   return <>
     <Text style={[styles.slideTitle, hasOrders && styles.dayStoryTitle]}>{story.title}</Text>
-    {typeof story.value === 'number' ? <AnimatedCount value={story.value} format={n => story.format === 'money' ? recapStoryMoney(story, n, currency) : Math.round(n).toLocaleString()} style={[styles.bigNumber, hasOrders && styles.dayStoryNumber, hasOrders && story.format === 'money' && styles.evidenceMoneyValue]} /> : <Text style={[styles.slideTitle, hasOrders && styles.evidenceDateValue]}>{isDateValue ? formatDate(story.value) : story.value}</Text>}
+    {typeof story.value === 'number' ? <AnimatedCount value={story.value} format={n => story.format === 'money' ? recapStoryMoney(story, n, currency) : n.toLocaleString(undefined, { maximumFractionDigits: Number.isInteger(story.value) ? 0 : 1 })} style={[styles.bigNumber, hasOrders && styles.dayStoryNumber, hasOrders && story.format === 'money' && styles.evidenceMoneyValue]} /> : <Text style={[styles.slideTitle, hasOrders && styles.evidenceDateValue]}>{isDateValue ? formatDate(story.value) : story.value}</Text>}
     <Text style={[styles.bigNumberLabel, hasOrders && styles.dayStoryLabel]}>{story.label}</Text>
     <Spacer h={6} />
     {(story.detail || story.startDate) ? <View style={[styles.detailBox, hasOrders && styles.dayStoryDate]}>

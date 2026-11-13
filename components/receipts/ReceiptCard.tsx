@@ -1,3 +1,4 @@
+import { useSystemFontScale } from '@hooks/useSystemFontScale';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
@@ -44,10 +45,14 @@ export const receiptItemPricePresentation = (
 
 export function ReceiptCard({ receipt, expanded, first = true, last = true, formatCurrency, onToggle }: ReceiptCardProps) {
   const theme = useAppTheme();
+  const fontScale = useSystemFontScale();
+  const largeText = fontScale >= 1.5;
   const reduceMotion = useAppReducedMotion();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const source = sourcePresentation(receipt, theme);
   const displayMoney = (value: number) => formatReceiptMoney(value, receipt.currencyCode, formatCurrency);
+  const quantity = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = receipt.itemSubtotal === undefined ? null : `Item subtotal: ${displayMoney(receipt.itemSubtotal)}`;
   const hasItems = receipt.items.length > 0;
   const outcome = receiptOutcomePresentation(receipt, formatCurrency);
   const hasDetails = hasItems || Boolean(receipt.orderOutcome);
@@ -68,6 +73,7 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
     <Pressable
       accessibilityRole={hasDetails ? 'button' : undefined}
       accessibilityLabel={[restaurantName, outcome.amount, outcome.amountLabel, date, source.label, outcome.status, outcome.notice, outcome.sourceLabel,
+        expanded ? subtotal : undefined,
         expanded ? outcome.details.map(detail => `${detail.label}: ${detail.value}`).join(', ') : undefined,
         expanded ? receipt.items.map(item => {
           const price = receiptItemPricePresentation(item, displayMoney);
@@ -81,15 +87,15 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
       style={({ pressed }) => [pressed && hasDetails && styles.pressed, pressed && hasDetails && !reduceMotion && styles.pressedScale]}
     >
       <View style={[styles.card, first && styles.firstCard, last && styles.lastCard]}>
-        <View style={styles.header}>
+        <View style={[styles.header, largeText && styles.stackedHeader]}>
           <View style={[styles.providerIcon, { backgroundColor: theme.colors.alpha(source.accent, 0.12) }]}>
             <Ionicons name={source.icon} size={20} color={source.accent} />
           </View>
-          <View style={styles.info}>
+          <View style={largeText ? undefined : styles.info}>
             <AppText variant="rowTitle" style={styles.restaurant}>{restaurantName}</AppText>
             <AppText variant="metadata" tone="muted" style={styles.meta}>{shortDate} · {source.label}</AppText>
           </View>
-          <View style={styles.amountColumn}>
+          <View style={largeText ? undefined : styles.amountColumn}>
             <AppText variant="rowTitle" style={styles.amount}>{outcome.amount}</AppText>
             {outcome.amountLabel ? <AppText variant="metadata" tone="muted" style={styles.source}>{outcome.amountLabel}</AppText> : null}
           </View>
@@ -107,9 +113,10 @@ export function ReceiptCard({ receipt, expanded, first = true, last = true, form
               <AppText variant="metadata">{detail.value}</AppText>
             </View>)}
           </View> : null}
+          {subtotal ? <AppText variant="surfaceBody">{subtotal}</AppText> : null}
           {hasItems ? (
             <View style={styles.items}>
-              <AppText variant="metadata" tone="muted">{receipt.items.length} {receipt.items.length === 1 ? 'item' : 'items'}</AppText>
+              <AppText variant="metadata" tone="muted">{quantity} {quantity === 1 ? 'item' : 'items'}</AppText>
               {receipt.items.map((item, index) => {
                 const price = receiptItemPricePresentation(item, displayMoney);
                 return <View key={`${receipt.id}-${index}`} style={styles.itemRow}>
@@ -133,6 +140,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   firstCard: { borderTopLeftRadius: Radius.card, borderTopRightRadius: Radius.card },
   lastCard: { borderBottomLeftRadius: Radius.card, borderBottomRightRadius: Radius.card, borderBottomWidth: 1, marginBottom: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  stackedHeader: { flexDirection: 'column', alignItems: 'flex-start' },
   providerIcon: { width: 40, height: 40, borderRadius: Radius.input, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1, minWidth: 0 },
   restaurant: { fontFamily: FontFamily.medium },

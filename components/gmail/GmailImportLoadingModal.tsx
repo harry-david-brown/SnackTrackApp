@@ -162,7 +162,7 @@ export function GmailImportLoadingModal({
 
               <Text style={styles.loadingModalTitle}>{inProgressTitle}</Text>
               <Text style={styles.loadingModalStatus}>{statusText}</Text>
-              {!isConnecting ? <Text style={styles.loadingModalEstimate}>{importTimeEstimateText(stableTimeEstimate)}</Text> : null}
+              {!isConnecting ? <Text style={styles.loadingModalEstimate}>{importTimeEstimateText(stableTimeEstimate, operation?.status)}</Text> : null}
 
               {!isConnecting && (
                 <Animated.Text style={[styles.loadingModalMessage, { opacity: messageOpacity }]}>

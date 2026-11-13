@@ -60,7 +60,7 @@ export function useImportFileSession(provider: ExportProvider, journeyContext: I
     try {
       await prepareImportFileCache();
       if (!scope.owns(attempt)) return null;
-      const result = await DocumentPicker.getDocumentAsync({ type: ['application/zip', 'application/x-zip-compressed', 'text/csv', 'application/csv'], copyToCacheDirectory: true });
+      const result = await DocumentPicker.getDocumentAsync({ type: ['application/zip', 'application/x-zip-compressed', 'text/csv', 'text/comma-separated-values', 'application/csv'], copyToCacheDirectory: true });
       if (result.canceled || !result.assets[0]) return null;
       const asset = result.assets[0];
       pickedUri = asset.uri;

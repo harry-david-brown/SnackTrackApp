@@ -28,9 +28,11 @@ export function HistoricalMonthSummaryCard({
     : summary.receiptCount > 0
       ? summary.isFirstTrackedMonth ? 'Your first tracked month' : 'Month comparison unavailable'
       : 'No tracked orders found';
-  const body = summary.receiptCount > 0
-    ? `${summary.receiptCount} ${summary.receiptCount === 1 ? 'order' : 'orders'} averaged ${displayMoney(summary.averageOrderValue)} each.`
-    : `SnackTrack did not find any orders for ${summary.monthLabel ?? 'this month'}.`;
+  const count = summary.pricedCount ?? summary.receiptCount;
+  const basis = count === summary.receiptCount ? '' : ` priced${summary.currencyCode ? ` in ${summary.currencyCode}` : ''}`;
+  let body = `${count} ${count === 1 ? 'order' : 'orders'}${basis} averaged ${displayMoney(summary.averageOrderValue)} each.`;
+  if (summary.receiptCount === 0) body = `SnackTrack did not find any orders for ${summary.monthLabel ?? 'this month'}.`;
+  else if (count === 0) body = 'No priced orders are available for this average.';
 
   return (
     <Card

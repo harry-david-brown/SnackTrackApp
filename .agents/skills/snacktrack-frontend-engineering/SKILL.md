@@ -9,6 +9,8 @@ Build frontend changes that move SnackTrack toward one predictable architecture 
 
 ## Required workflow
 
+Use the shared [change review guidance](../snacktrack-codebase-navigation/references/reviewing-changes.md) to choose the scope of the fix and its verification.
+
 1. Use `snacktrack-codebase-navigation` to locate the current owner and affected paths.
 2. Read the references relevant to the change:
    - every user-facing UI, copy, interaction, or navigation change: [references/user-comprehension.md](references/user-comprehension.md)

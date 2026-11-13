@@ -1,5 +1,6 @@
 import { recapMascot } from '@components/mascot/storyMascots';
 import { historicalInvestmentLabel, historicalInvestmentMethodology, investmentBenchmarkNames } from '@utils/historicalInvestmentPresentation';
+import { currencyPricedCount, spendingCoverage } from '@utils/spendingCoverage';
 import { formatReceiptMoney } from '@utils/receiptMoney';
 /**
  * Slide definitions for the Wrapped share journey. Pure function of the
@@ -209,7 +210,8 @@ export function buildWrappedSlides({
 
   // ---------------------------------------------------------------- core ----
 
-  const headlinePriceKnown = !orderRecap || (orderRecap.metrics.currencies.find((c) => c.currencyCode === analytics.currencyCode)?.pricedOrders ?? 0) > 0;
+  const headlinePriced = currencyPricedCount(orderRecap?.metrics ?? analytics.orderMetrics, analytics.currencyCode, analytics.totalReceipts);
+  const headlinePriceKnown = headlinePriced > 0;
   const totalDamageMessage = getDeterministicMessage('totalDamage', analytics, undefined, 0);
   const spendComparison = comparison('totalSpent', 'spenders');
   const damage: Slide = {
@@ -930,8 +932,13 @@ export function buildWrappedSlides({
   // Personality Archetype — the climactic reveal. Only confetti in the deck,
   // launched in sync with the two-beat name slam.
   const recapTotal = recap?.spending.amount ?? analytics.totalSpent;
-  const recapTotalText = recap ? recapMoney(recapTotal, recap.currency) : headlinePriceKnown ? formatCurrency(recapTotal) : '';
-  const archetype = getArchetype(recap ? { ...analytics, totalSpent: recapTotal, currencyCode: recap.currency } : analytics, value => recap ? recapMoney(value, recap.currency) : headlinePriceKnown ? formatCurrency(value) : '—');
+  const coverage = spendingCoverage(recap?.spending.pricedOrders ?? headlinePriced, importedOrderCount, recap ? undefined : analytics.currencyCode);
+  const recapTotalText = !coverage.available ? 'Spending unavailable' : recap ? recapMoney(recapTotal, recap.currency) : formatCurrency(recapTotal);
+  const orderCountText = `${importedOrderCount} ${importedOrderCount === 1 ? 'order' : 'orders'}`;
+  const spendScope = coverage.partial && coverage.available
+    ? `across ${coverage.pricedLabel}${recap ? `, shown in ${recap.currency}` : ''}`
+    : 'across your tracked orders';
+  const archetype = getArchetype(analytics, formatCurrency, coverage.available ? recapTotalText : '—');
   const archetypeSlide: Slide = {
     id: 'lifetime-archetype',
     category: 'identity',
@@ -944,7 +951,7 @@ export function buildWrappedSlides({
     glow: true,
     durationMs: 8000,
     showShareCta: true,
-    a11y: `Your all-time food personality is ${archetype.name}. ${archetype.tagline} ${recapTotalText} across ${importedOrderCount} imported orders.`,
+    a11y: `Your all-time food personality is ${archetype.name}. ${archetype.tagline} ${recapTotalText}${coverage.available ? ' ' + spendScope : ''}. ${orderCountText} in your history.`,
     content: (
       <>
         {/* Personalized card header — name lights up once the API provides one */}
@@ -955,14 +962,12 @@ export function buildWrappedSlides({
         <DelayedSlam delay={ARCHETYPE_REVEAL_DELAY_MS} hapticOnReveal>
           <Text style={styles.archetypeName} numberOfLines={2} adjustsFontSizeToFit>{archetype.name}</Text>
           <Text style={styles.archetypeTagline}>{archetype.tagline}</Text>
-          {/* All-time headline — this is the share card, so the money number is
-              guaranteed here. Only 2 of the 9 archetypes surface it in traits. */}
           <View style={styles.archetypeHeadline}>
-            {recap || headlinePriceKnown ? <Text style={styles.archetypeHeadlineValue} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={styles.archetypeHeadlineValue} numberOfLines={1} adjustsFontSizeToFit>
               {recapTotalText}
-            </Text> : null}
+            </Text>
             <Text style={styles.archetypeHeadlineLabel}>
-              imported lifetime · {importedOrderCount} orders
+              {coverage.available && coverage.partial ? `${spendScope} · ` : ''}{orderCountText} in your history
             </Text>
           </View>
           {/* Two flavour traits — the headline above carries the hero stat. */}
@@ -1006,27 +1011,30 @@ export function buildWrappedSlides({
     if (investmentSlide) picked.push(investmentSlide);
   }
 
+  const deliveryLabel = orderRecap?.metrics.deliveries === 1 ? 'completed delivery' : 'completed deliveries';
+  const attemptLabel = orderRecap?.metrics.attempts === 1 ? 'order attempt' : 'order attempts';
+  const refundLabel = orderRecap?.metrics.confirmedRefunds === 1 ? 'confirmed refund' : 'confirmed refunds';
   const orderPicture: Slide | undefined = orderRecap ? {
     id: 'order-picture', category: 'headline', scope: lifetimeScope, gradient: 'forest', emoji: '📦',
     mascotPose: 'prop-delivery-haul', showShareCta: true,
-    a11y: `Your delivery picture. ${orderRecap.metrics.deliveries} completed deliveries, ${orderRecap.metrics.attempts} order attempts, ${orderRecap.metrics.canceled} canceled, ${orderRecap.metrics.confirmedRefunds} confirmed refunds.`,
+    a11y: `Your delivery picture. ${orderRecap.metrics.deliveries} ${deliveryLabel}, ${orderRecap.metrics.attempts} ${attemptLabel}, ${orderRecap.metrics.canceled} canceled, ${orderRecap.metrics.confirmedRefunds} ${refundLabel}.`,
     content: <>
       <Text style={styles.slideTitle}>Your delivery picture</Text>
       <AnimatedCount value={orderRecap.metrics.deliveries} style={styles.bigNumber} />
-      <Text style={styles.bigNumberLabel}>completed deliveries</Text>
+      <Text style={styles.bigNumberLabel}>{deliveryLabel}</Text>
       <View style={styles.detailBox}>
-        <Text style={styles.detailText}>{orderRecap.metrics.attempts} order attempts · {orderRecap.metrics.canceled} canceled</Text>
-        <Text style={styles.detailText}>{orderRecap.metrics.confirmedRefunds} confirmed {orderRecap.metrics.confirmedRefunds === 1 ? 'refund' : 'refunds'}</Text>
+        <Text style={styles.detailText}>{orderRecap.metrics.attempts} {attemptLabel} · {orderRecap.metrics.canceled} canceled</Text>
+        <Text style={styles.detailText}>{orderRecap.metrics.confirmedRefunds} {refundLabel}</Text>
       </View>
     </>,
   } : undefined;
   const recapDamage: Slide = recap ? { ...damage,
-    a11y: `The Lifetime Damage. ${recapMoney(recap.spending.amount, recap.currency)} across your tracked orders.`,
+    a11y: `The Lifetime Damage. ${recapTotalText}${coverage.available ? ` ${spendScope}` : ''}.`,
     content: <>
       <Text style={styles.slideTitle}>The Lifetime Damage</Text>
-      <AnimatedCount value={recap.spending.amount} format={n => recapMoney(n, recap.currency)} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} />
-      <Text style={styles.bigNumberLabel}>across your tracked orders</Text>
-      <DelayedFadeIn delay={ROAST_DELAY_MS}><Text style={styles.roastText}>{totalDamageMessage}</Text></DelayedFadeIn>
+      {coverage.available ? <AnimatedCount value={recap.spending.amount} format={n => recapMoney(n, recap.currency)} style={styles.bigNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} /> : <Text style={styles.bigNumber}>—</Text>}
+      <Text style={styles.bigNumberLabel}>{coverage.available ? spendScope : recapTotalText}</Text>
+      {coverage.available ? <DelayedFadeIn delay={ROAST_DELAY_MS}><Text style={styles.roastText}>{totalDamageMessage}</Text></DelayedFadeIn> : null}
     </>,
   } : damage;
   const chapters = groupSlidesByRecapChapter(picked);

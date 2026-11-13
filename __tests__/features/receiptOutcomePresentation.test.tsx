@@ -282,3 +282,14 @@ it("normalizes supported outcomes but drops unexpected internal source and payme
   });
   expect(JSON.stringify(result.orderOutcome)).not.toContain("private");
 });
+
+it('keeps the exported item subtotal distinct from an unknown charge and counts units', () => {
+  const value = normalizeReceipt({ ...fixture[0], itemSubtotal: 12, amountSpent: 0,
+    amountBasis: 'item_subtotal', items: [{ name: 'Taco', quantity: 2, price: 6 }],
+    orderOutcome: { ...fixture[0].orderOutcome, originalCharge: null, netAmount: null } });
+  const screen = render(<ReceiptCard receipt={value} expanded formatCurrency={money} onToggle={jest.fn()} />);
+  expect(screen.getByText('2 items')).toBeTruthy();
+  expect(screen.getByText('Item subtotal: $12.00')).toBeTruthy();
+  expect(screen.getByText('Original charge')).toBeTruthy();
+  expect(screen.getAllByText('Unknown').length).toBeGreaterThan(0);
+});

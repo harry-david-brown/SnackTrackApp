@@ -1,13 +1,13 @@
-import type { ImportTimeEstimate } from './contracts';
+import type { ImportOperationStatus, ImportTimeEstimate } from './contracts';
 
 const duration = (minimum: number, maximum: number): string => {
   if (minimum === maximum) return minimum === 1 ? '1 minute' : `${minimum} minutes`;
   return `${minimum}–${maximum} minutes`;
 };
 
-export const importTimeEstimateText = (estimate: ImportTimeEstimate | null): string => {
+export const importTimeEstimateText = (estimate: ImportTimeEstimate | null, status: ImportOperationStatus | undefined): string => {
   if (!estimate) return 'Estimating time…';
-  if (estimate.kind === 'finishing') return 'Finishing up';
+  if (estimate.kind === 'finishing') return status === 'running' ? 'Finishing up' : 'Estimating time…';
   const minimum = estimate.minimumMinutes!;
   const maximum = estimate.maximumMinutes!;
   if (estimate.kind === 'total') return `Usually takes ${duration(minimum, maximum)}`;

@@ -136,9 +136,10 @@ jest.mock('react-native-safe-area-context', () => ({
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
+  getAllKeys: jest.fn().mockResolvedValue([]),
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined),
   clear: jest.fn(),
 }));
 

@@ -80,12 +80,14 @@ describe('ExportReadyNotifier', () => {
     const preferences = readyPreferences();
     preferences.export.providers.uberEats.readySource = 'user_confirmed';
     (useImportPreferences as jest.Mock).mockReturnValue({ preferences, checkExportReady });
-    await act(async () => { render(<ExportReadyNotifier />); });
+    render(<ExportReadyNotifier />);
+    await act(async () => {});
     expect(showAlert).not.toHaveBeenCalled();
   });
   it.each(['/add-history', '/data-setup'])('does not interrupt decisions on %s', async pathname => {
     jest.mocked(usePathname).mockReturnValue(pathname);
-    await act(async () => { render(<ExportReadyNotifier />); });
+    render(<ExportReadyNotifier />);
+    await act(async () => {});
     expect(showAlert).not.toHaveBeenCalled();
     expect(AsyncStorage.setItem).not.toHaveBeenCalled();
   });

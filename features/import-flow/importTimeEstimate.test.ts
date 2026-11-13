@@ -2,11 +2,18 @@ import { importTimeEstimateText, stabilizeImportTimeEstimate } from './importTim
 
 describe('import time estimates', () => {
   it('uses calm, coarse language for each estimate state', () => {
-    expect(importTimeEstimateText(null)).toBe('Estimating time…');
-    expect(importTimeEstimateText({ kind: 'total', minimumMinutes: 2, maximumMinutes: 3, revision: 0 })).toBe('Usually takes 2–3 minutes');
-    expect(importTimeEstimateText({ kind: 'remaining', minimumMinutes: 1, maximumMinutes: 2, revision: 0 })).toBe('About 1–2 minutes remaining');
-    expect(importTimeEstimateText({ kind: 'retry_wait', minimumMinutes: 1, maximumMinutes: 2, revision: 1 })).toBe('About 1–2 minutes remaining');
-    expect(importTimeEstimateText({ kind: 'finishing', minimumMinutes: null, maximumMinutes: null, revision: 1 })).toBe('Finishing up');
+    expect(importTimeEstimateText(null, undefined)).toBe('Estimating time…');
+    expect(importTimeEstimateText({ kind: 'total', minimumMinutes: 2, maximumMinutes: 3, revision: 0 }, 'queued')).toBe('Usually takes 2–3 minutes');
+    expect(importTimeEstimateText({ kind: 'remaining', minimumMinutes: 1, maximumMinutes: 2, revision: 0 }, 'queued')).toBe('About 1–2 minutes remaining');
+    expect(importTimeEstimateText({ kind: 'retry_wait', minimumMinutes: 1, maximumMinutes: 2, revision: 1 }, 'running')).toBe('About 1–2 minutes remaining');
+    expect(importTimeEstimateText({ kind: 'finishing', minimumMinutes: null, maximumMinutes: null, revision: 1 }, 'running')).toBe('Finishing up');
+  });
+
+  it('ignores a stale finishing estimate while waiting for a worker', () => {
+    const estimate = { kind: 'finishing', minimumMinutes: null, maximumMinutes: null, revision: 1 } as const;
+    for (const status of ['pending_dispatch', 'queued', 'retrying'] as const) {
+      expect(importTimeEstimateText(estimate, status)).toBe('Estimating time…');
+    }
   });
 
   it('does not let a like-for-like estimate jump backward', () => {
